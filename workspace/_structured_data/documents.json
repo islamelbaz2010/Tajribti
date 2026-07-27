@@ -1,0 +1,145 @@
+[
+  {
+    "id": "doc-001",
+    "filename": "A 1-Final Investment Committee Edition v2.0 Investment Due Diligence Report.docx",
+    "format": "docx",
+    "category": "Investment",
+    "words": 19661,
+    "version": "2.0",
+    "status": "canonical",
+    "classification": "Strictly Confidential",
+    "workspace_file": "04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md",
+    "supersedes": ["doc-009", "doc-010"]
+  },
+  {
+    "id": "doc-002",
+    "filename": "B 2-Tajribti_Master_Execution_Blueprint.docx",
+    "format": "docx",
+    "category": "Business",
+    "words": 684,
+    "version": "1.0",
+    "status": "active",
+    "workspace_file": "01_Project_Overview/PROJECT_OVERVIEW.md"
+  },
+  {
+    "id": "doc-003",
+    "filename": "B 2.5-Tajribti_Founder_Decisions_Document_v1.0.docx",
+    "format": "docx",
+    "category": "Decisions",
+    "words": 1943,
+    "version": "1.0",
+    "status": "active_constitutional",
+    "workspace_file": "15_Decisions/FOUNDER_DECISIONS.md"
+  },
+  {
+    "id": "doc-004",
+    "filename": "B 3-Tajribti_Master_PRD_v1.0.docx",
+    "format": "docx",
+    "category": "PRD",
+    "words": 3691,
+    "version": "1.0",
+    "status": "active",
+    "workspace_file": "08_PRD/MASTER_PRD_v1.0.md"
+  },
+  {
+    "id": "doc-005",
+    "filename": "B 4-Tajribti_Technical_Architecture_v1.0.docx",
+    "format": "docx",
+    "category": "Technical",
+    "words": 1209,
+    "version": "1.0",
+    "status": "active",
+    "workspace_file": "09_Technical/TECHNICAL_ARCHITECTURE.md"
+  },
+  {
+    "id": "doc-006",
+    "filename": "B 5-Tajribti_Master_Delivery_Plan_v1.0.docx",
+    "format": "docx",
+    "category": "Planning",
+    "words": 1442,
+    "version": "1.0",
+    "status": "active",
+    "workspace_file": "02_Project_Management/MASTER_DELIVERY_PLAN.md"
+  },
+  {
+    "id": "doc-007",
+    "filename": "B 6-Tajribti-Development Authorization_Independent_Readiness_Audit.docx",
+    "format": "docx",
+    "category": "Audit",
+    "words": 906,
+    "readiness_score": 58,
+    "authorization": "NOT_AUTHORIZED",
+    "status": "active",
+    "workspace_file": "13_Audits/READINESS_AUDIT.md"
+  },
+  {
+    "id": "doc-008",
+    "filename": "B 6.5-Tajribti_Remediation_and_ReAudit.docx",
+    "format": "docx",
+    "category": "Audit",
+    "words": 360,
+    "readiness_score": 67,
+    "authorization": "NOT_AUTHORIZED",
+    "status": "active_latest",
+    "workspace_file": "13_Audits/REMEDIATION_REAUDIT.md"
+  },
+  {
+    "id": "doc-009",
+    "filename": "Report A 1-Final Investment Committee Edition Version 1.0 .pdf",
+    "format": "pdf",
+    "category": "Investment",
+    "words": 914,
+    "version": "1.0",
+    "status": "superseded_by_v2",
+    "workspace_file": "04_Investment/IC_MEMO_v1.0.md"
+  },
+  {
+    "id": "doc-010",
+    "filename": "Report A 1-Investment_Committee_Report_Master_Template.docx",
+    "format": "docx",
+    "category": "Investment",
+    "words": 3989,
+    "language": "Arabic",
+    "status": "superseded_by_v2",
+    "workspace_file": "04_Investment/IC_REPORT_TEMPLATE.md"
+  },
+  {
+    "id": "doc-011",
+    "filename": "Report B 1-Investment Committee Memo — Final Edition v1.0.docx",
+    "format": "docx",
+    "category": "Investment",
+    "words": 1465,
+    "version": "1.0",
+    "status": "superseded_by_v2",
+    "workspace_file": "04_Investment/IC_MEMO_v1.0.md"
+  },
+  {
+    "id": "doc-012",
+    "filename": "Report B 1-Samplia_Egypt_Peer_Review_Final_Master_Report.docx",
+    "format": "docx",
+    "category": "Review",
+    "words": 2915,
+    "status": "active",
+    "workspace_file": "12_Reviews/PEER_REVIEW_MASTER_REPORT.md"
+  },
+  {
+    "id": "doc-013",
+    "filename": "chatgpt chat till 26-7.docx",
+    "format": "docx",
+    "category": "Conversation",
+    "words": 4372,
+    "date": "2026-07-26",
+    "status": "active",
+    "workspace_file": "11_Prompts/CHATGPT_PROMPTS.md"
+  },
+  {
+    "id": "doc-014",
+    "filename": "samples app text idea.txt",
+    "format": "txt",
+    "category": "Research",
+    "words": 211,
+    "language": "Arabic",
+    "status": "active_origin",
+    "workspace_file": "03_Research/SOURCE_VIDEO_TRANSCRIPT.md"
+  }
+]

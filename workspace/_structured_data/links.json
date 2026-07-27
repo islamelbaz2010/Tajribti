@@ -1,0 +1,38 @@
+{
+  "cross_references": [
+    {"from": "01_Project_Overview/PROJECT_OVERVIEW.md", "to": "15_Decisions/FOUNDER_DECISIONS.md", "rel": "implements_decisions_from"},
+    {"from": "01_Project_Overview/PROJECT_OVERVIEW.md", "to": "08_PRD/MASTER_PRD_v1.0.md", "rel": "see_also"},
+    {"from": "01_Project_Overview/PROJECT_OVERVIEW.md", "to": "09_Technical/TECHNICAL_ARCHITECTURE.md", "rel": "see_also"},
+    {"from": "01_Project_Overview/PROJECT_OVERVIEW.md", "to": "04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md", "rel": "sourced_from"},
+    {"from": "04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md", "to": "04_Investment/IC_MEMO_v1.0.md", "rel": "supersedes"},
+    {"from": "04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md", "to": "04_Investment/IC_REPORT_TEMPLATE.md", "rel": "supersedes"},
+    {"from": "04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md", "to": "12_Reviews/PEER_REVIEW_MASTER_REPORT.md", "rel": "consolidated_from"},
+    {"from": "04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md", "to": "15_Decisions/FOUNDER_DECISIONS.md", "rel": "informed"},
+    {"from": "15_Decisions/FOUNDER_DECISIONS.md", "to": "08_PRD/MASTER_PRD_v1.0.md", "rel": "governs"},
+    {"from": "15_Decisions/FOUNDER_DECISIONS.md", "to": "09_Technical/TECHNICAL_ARCHITECTURE.md", "rel": "governs"},
+    {"from": "15_Decisions/FOUNDER_DECISIONS.md", "to": "02_Project_Management/MASTER_DELIVERY_PLAN.md", "rel": "governs"},
+    {"from": "15_Decisions/FOUNDER_DECISIONS.md", "to": "01_Project_Overview/PROJECT_OVERVIEW.md", "rel": "governs"},
+    {"from": "08_PRD/MASTER_PRD_v1.0.md", "to": "09_Technical/TECHNICAL_ARCHITECTURE.md", "rel": "drives_technical_design"},
+    {"from": "08_PRD/MASTER_PRD_v1.0.md", "to": "02_Project_Management/MASTER_DELIVERY_PLAN.md", "rel": "drives_delivery_plan"},
+    {"from": "09_Technical/TECHNICAL_ARCHITECTURE.md", "to": "02_Project_Management/MASTER_DELIVERY_PLAN.md", "rel": "informs"},
+    {"from": "02_Project_Management/MASTER_DELIVERY_PLAN.md", "to": "13_Audits/READINESS_AUDIT.md", "rel": "audited_by"},
+    {"from": "13_Audits/READINESS_AUDIT.md", "to": "13_Audits/REMEDIATION_REAUDIT.md", "rel": "remediated_by"},
+    {"from": "12_Reviews/PEER_REVIEW_MASTER_REPORT.md", "to": "04_Investment/IC_MEMO_v1.0.md", "rel": "peer_reviews"},
+    {"from": "12_Reviews/PEER_REVIEW_MASTER_REPORT.md", "to": "04_Investment/IC_REPORT_TEMPLATE.md", "rel": "peer_reviews"},
+    {"from": "03_Research/SOURCE_VIDEO_TRANSCRIPT.md", "to": "04_Investment/IC_REPORT_TEMPLATE.md", "rel": "inspired"},
+    {"from": "11_Prompts/CHATGPT_PROMPTS.md", "to": "04_Investment/IC_REPORT_TEMPLATE.md", "rel": "generated"},
+    {"from": "11_Prompts/CHATGPT_PROMPTS.md", "to": "12_Reviews/PEER_REVIEW_MASTER_REPORT.md", "rel": "generated"},
+    {"from": "07_Product/PRODUCT_STRATEGY.md", "to": "08_PRD/MASTER_PRD_v1.0.md", "rel": "expands"},
+    {"from": "07_Product/GO_TO_MARKET.md", "to": "04_Investment/IC_MEMO_v1.0.md", "rel": "sourced_from"},
+    {"from": "10_AI/AI_STRATEGY.md", "to": "09_Technical/TECHNICAL_ARCHITECTURE.md", "rel": "expands"},
+    {"from": "10_AI/AI_STRATEGY.md", "to": "15_Decisions/FOUNDER_DECISIONS.md", "rel": "implements_decisions_from"},
+    {"from": "06_Enterprise_Architecture/ENTERPRISE_ARCHITECTURE.md", "to": "09_Technical/TECHNICAL_ARCHITECTURE.md", "rel": "contextualizes"},
+    {"from": "14_Memory/PROJECT_MEMORY.md", "to": "12_Reviews/PEER_REVIEW_MASTER_REPORT.md", "rel": "corrections_from"},
+    {"from": "15_Decisions/OPEN_DECISIONS_TRACKER.md", "to": "13_Audits/REMEDIATION_REAUDIT.md", "rel": "tracks_items_from"}
+  ],
+  "backlinks": {
+    "15_Decisions/FOUNDER_DECISIONS.md": ["01_Project_Overview/PROJECT_OVERVIEW.md", "04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md", "08_PRD/MASTER_PRD_v1.0.md", "09_Technical/TECHNICAL_ARCHITECTURE.md", "02_Project_Management/MASTER_DELIVERY_PLAN.md", "10_AI/AI_STRATEGY.md", "07_Product/PRODUCT_STRATEGY.md"],
+    "08_PRD/MASTER_PRD_v1.0.md": ["07_Product/PRODUCT_STRATEGY.md", "09_Technical/TECHNICAL_ARCHITECTURE.md", "02_Project_Management/MASTER_DELIVERY_PLAN.md", "13_Audits/READINESS_AUDIT.md"],
+    "04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md": ["04_Investment/IC_MEMO_v1.0.md", "12_Reviews/PEER_REVIEW_MASTER_REPORT.md", "07_Product/GO_TO_MARKET.md"]
+  }
+}

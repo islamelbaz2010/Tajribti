@@ -1,0 +1,100 @@
+{
+  "topics": [
+    {
+      "id": "T-001",
+      "name": "Consumer Intelligence Platform",
+      "type": "core_concept",
+      "description": "The primary business framing. Not a sampling company — a data company that uses sampling as acquisition mechanic.",
+      "appears_in": ["doc-001", "doc-002", "doc-003", "doc-009", "doc-010", "doc-011", "doc-012"],
+      "workspace_files": ["01_Project_Overview/PROJECT_OVERVIEW.md", "04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md"]
+    },
+    {
+      "id": "T-002",
+      "name": "Investment Thesis",
+      "type": "investment",
+      "description": "The rationale for investing: data accumulation, not product distribution, creates long-term value.",
+      "appears_in": ["doc-001", "doc-009", "doc-010", "doc-011", "doc-012"],
+      "workspace_files": ["04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md", "04_Investment/IC_MEMO_v1.0.md"]
+    },
+    {
+      "id": "T-003",
+      "name": "PDPL Compliance",
+      "type": "legal",
+      "description": "Egypt Personal Data Protection Law (Law No. 151/2020). Non-negotiable gate requirement before any data-collecting feature ships.",
+      "appears_in": ["doc-001", "doc-003", "doc-004", "doc-005", "doc-006", "doc-007", "doc-008"],
+      "workspace_files": ["09_Technical/TECHNICAL_ARCHITECTURE.md", "13_Audits/READINESS_AUDIT.md"]
+    },
+    {
+      "id": "T-004",
+      "name": "Samplia Reference Company",
+      "type": "competitive",
+      "description": "Spanish reference company. Founded 2013. Bootstrapped. ~40-50M samples. Not venture-scale.",
+      "appears_in": ["doc-001", "doc-009", "doc-010", "doc-011", "doc-012", "doc-013", "doc-014"],
+      "workspace_files": ["04_Investment/IC_MEMO_v1.0.md", "12_Reviews/PEER_REVIEW_MASTER_REPORT.md"]
+    },
+    {
+      "id": "T-005",
+      "name": "Marketeers Research Competitor",
+      "type": "competitive",
+      "description": "Primary near-direct competitor. Operates AI-powered FMCG analytics Smart Value in Egypt/KSA/GCC/Europe.",
+      "appears_in": ["doc-001", "doc-007", "doc-011", "doc-012"],
+      "workspace_files": ["12_Reviews/PEER_REVIEW_MASTER_REPORT.md", "04_Investment/IC_MEMO_v1.0.md"]
+    },
+    {
+      "id": "T-006",
+      "name": "Product Requirements",
+      "type": "product",
+      "description": "22 features across Consumer App, Brand Dashboard, Admin Portal. P0/P1/P2 prioritization.",
+      "appears_in": ["doc-004"],
+      "workspace_files": ["08_PRD/MASTER_PRD_v1.0.md"]
+    },
+    {
+      "id": "T-007",
+      "name": "Technical Architecture",
+      "type": "technical",
+      "description": "NestJS modular monolith + Flutter + React + PostgreSQL + Redis + AWS SQS + Python FastAPI AI service.",
+      "appears_in": ["doc-005"],
+      "workspace_files": ["09_Technical/TECHNICAL_ARCHITECTURE.md", "06_Enterprise_Architecture/ENTERPRISE_ARCHITECTURE.md"]
+    },
+    {
+      "id": "T-008",
+      "name": "Development Authorization",
+      "type": "governance",
+      "description": "Current status: NOT AUTHORIZED. Score 67/100. 4 blocking items remain.",
+      "appears_in": ["doc-007", "doc-008"],
+      "workspace_files": ["13_Audits/READINESS_AUDIT.md", "13_Audits/REMEDIATION_REAUDIT.md"]
+    },
+    {
+      "id": "T-009",
+      "name": "Founder Decisions",
+      "type": "governance",
+      "description": "FDD — constitutional authority for all decisions. 46+ locked decisions. 9 open decisions (4 blocking).",
+      "appears_in": ["doc-003"],
+      "workspace_files": ["15_Decisions/FOUNDER_DECISIONS.md", "_navigator/DECISION_INDEX.md"]
+    },
+    {
+      "id": "T-010",
+      "name": "Sprint Delivery Plan",
+      "type": "planning",
+      "description": "Sprint 0–6 (12 weeks engineering). ~24 weeks to Production v1.0. WBS, risk register, QA strategy.",
+      "appears_in": ["doc-006"],
+      "workspace_files": ["02_Project_Management/MASTER_DELIVERY_PLAN.md"]
+    },
+    {
+      "id": "T-011",
+      "name": "AI Strategy",
+      "type": "ai",
+      "description": "AI = insight enabler, not moat. LLM multi-provider. Prompt management. No RAG for V2.",
+      "appears_in": ["doc-003", "doc-005"],
+      "workspace_files": ["10_AI/AI_STRATEGY.md", "09_Technical/TECHNICAL_ARCHITECTURE.md"]
+    },
+    {
+      "id": "T-012",
+      "name": "Go-To-Market",
+      "type": "strategy",
+      "description": "B2B-first. Brand supply before consumer demand. 20 named target accounts. Kill criterion: 5 interested companies.",
+      "appears_in": ["doc-001", "doc-003", "doc-011"],
+      "workspace_files": ["07_Product/GO_TO_MARKET.md"]
+    }
+  ]
+}

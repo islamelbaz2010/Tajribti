@@ -1,0 +1,36 @@
+{
+  "duplicate_check": {
+    "run_date": "2026-07-27",
+    "method": "semantic and structural analysis of all 14 source documents",
+    "result": "NO_DUPLICATES"
+  },
+  "near_duplicates": [
+    {
+      "group": "Investment Committee documents",
+      "documents": [
+        "Report A 1-Final Investment Committee Edition Version 1.0 .pdf",
+        "Report A 1-Investment_Committee_Report_Master_Template.docx",
+        "Report B 1-Investment Committee Memo — Final Edition v1.0.docx"
+      ],
+      "relationship": "SUPERSEDED_BY_V2 — all three are precursors to A 1-Final IC Edition v2.0",
+      "resolution": "A 1 v2.0 is the canonical document; the three predecessors are archived in SOURCE_OF_TRUTH.md as superseded",
+      "action": "Mapped all three to workspace/04_Investment/ with explicit supersession labels"
+    },
+    {
+      "group": "Audit documents",
+      "documents": [
+        "B 6-Tajribti-Development Authorization_Independent_Readiness_Audit.docx",
+        "B 6.5-Tajribti_Remediation_and_ReAudit.docx"
+      ],
+      "relationship": "SEQUENTIAL — B 6.5 is the post-remediation follow-up to B 6, not a duplicate",
+      "resolution": "Both preserved; B 6.5 is the latest status; B 6 provides full finding detail",
+      "action": "Both mapped to workspace/13_Audits/ with clear versioning"
+    }
+  ],
+  "duplicate_workspace_files": "NONE — all 60+ workspace files are unique",
+  "duplicate_chapters": "NONE — content has been split and cross-referenced, not duplicated",
+  "pricing_figure_repetition": {
+    "note": "The figure range $4,000–$20,000/campaign appears in FDD, PRD, and Delivery Plan. This was flagged as a minor issue in the Readiness Audit. It is not a duplicate — it is a cross-reference to the same illustrative figure. Resolved in Remediation by noting all figures are illustrative pending validation sprint.",
+    "status": "ACKNOWLEDGED — not a structural duplicate"
+  }
+}

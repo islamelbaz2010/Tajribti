@@ -1,0 +1,86 @@
+{
+  "workspace_statistics": {
+    "generated": "2026-07-26",
+    "project": "Tajribti — Egypt's Consumer Intelligence Platform"
+  },
+  "source_documents": {
+    "total_files": 14,
+    "by_format": {
+      "docx": 12,
+      "pdf": 1,
+      "txt": 1
+    },
+    "by_category": {
+      "Investment": 4,
+      "Audit": 2,
+      "Decisions": 1,
+      "PRD": 1,
+      "Technical": 1,
+      "Planning": 1,
+      "Business": 1,
+      "Review": 1,
+      "Conversation": 1,
+      "Research": 1
+    },
+    "total_words": 43762,
+    "largest_document": {
+      "file": "A 1-Final Investment Committee Edition v2.0 Investment Due Diligence Report.docx",
+      "words": 19661
+    },
+    "smallest_document": {
+      "file": "samples app text idea.txt",
+      "words": 211
+    },
+    "languages_detected": ["English", "Arabic"]
+  },
+  "workspace_output": {
+    "markdown_files_generated": 18,
+    "index_files_generated": 8,
+    "json_files_generated": 4,
+    "report_files_generated": 7,
+    "ai_bootstrap_files_generated": 6
+  },
+  "knowledge_extracted": {
+    "business_decisions": 15,
+    "product_decisions": 7,
+    "technology_decisions": 19,
+    "ux_decisions": 5,
+    "open_decisions": 9,
+    "architecture_decisions_adrs": 8,
+    "features_documented": 22,
+    "user_personas": 3,
+    "risks_documented": 14,
+    "blocking_issues": 4,
+    "sprint_weeks": 12,
+    "total_project_weeks": 24
+  },
+  "authorization_status": {
+    "current": "NOT_AUTHORIZED",
+    "score_before_remediation": 58,
+    "score_after_remediation": 67,
+    "findings_total": 13,
+    "findings_resolved": 5,
+    "findings_open": 4,
+    "findings_open_blocking": 4
+  },
+  "competitive_intelligence": {
+    "reference_company": "Samplia (Spain)",
+    "samplia_founded": 2013,
+    "samplia_funding_status": "bootstrapped",
+    "samplia_samples_distributed": "40-50M",
+    "samplia_brands_served": "300-400+",
+    "samplia_app_users": "~2M",
+    "global_competitors_count": 127,
+    "funded_global_competitors": 12,
+    "primary_egypt_competitor": "Marketeers Research"
+  },
+  "financial_summary": {
+    "track_0_budget": "$15,000-$25,000",
+    "track_0_duration_days": 60,
+    "lean_mvp_cost": "$90,000-$120,000",
+    "break_even_months": "18-24",
+    "gross_margin_blended": "~60%",
+    "roi_horizon_years": "3-4",
+    "note": "All figures are illustrative estimates — not validated forecasts"
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "project_fingerprint": {
+    "project_name": "Tajribti (تجربتي)",
+    "project_subtitle": "Egypt's Consumer Intelligence Platform",
+    "project_name_status": "PROVISIONAL — trademark and domain clearance pending (FDD OD-01)",
+    "project_name_source": "B 2.5-Tajribti_Founder_Decisions_Document_v1.0.docx; all 12 inbox source files use 'Tajribti'",
+    "folder_container_name": "samples app",
+    "folder_note": "'samples app' is the local filesystem folder name only — NOT the product name. Product name is Tajribti throughout all source documents."
+  },
+
+  "repository": {
+    "version": "v4.0",
+    "version_date": "2026-07-27",
+    "version_history": [
+      { "version": "v1.0", "date": "2026-07-26", "summary": "Initial 14-phase workspace build from 14 inbox source files" },
+      { "version": "v2.0", "date": "2026-07-27", "summary": "Enterprise Knowledge Architect audit — 26 improvements, score 68→91" },
+      { "version": "v3.0", "date": "2026-07-27", "summary": "Long-term governance layer — 9 files (DECISION_LOG, RISK_REGISTER, ASSUMPTION_REGISTER, PROJECT_RULES, AI_WORKFLOW, SPRINT_MEMORY_TEMPLATE, CHANGELOG, CONTRIBUTING, MASTER_PROJECT_MEMORY)" },
+      { "version": "v4.0", "date": "2026-07-27", "summary": "AI Bootstrap Layer — 16-file purpose-built AI onboarding folder (AI_BOOTSTRAP/)" }
+    ],
+    "version_source": "workspace/CHANGELOG.md"
+  },
+
+  "bootstrap": {
+    "version": "1.1",
+    "generation_date": "2026-07-27",
+    "certification_date": "2026-07-27",
+    "status": "FROZEN",
+    "compatible_models": [
+      "claude-opus-4-8",
+      "claude-sonnet-4-6",
+      "claude-haiku-4-5",
+      "gpt-4o",
+      "gpt-4-turbo"
+    ],
+    "minimum_load_files": [
+      "AI_BOOTSTRAP/00_AI_START_HERE.md",
+      "AI_BOOTSTRAP/02_PROJECT_STATE.md",
+      "AI_BOOTSTRAP/03_FOUNDER_DECISIONS.md",
+      "AI_BOOTSTRAP/11_AI_RULES.md"
+    ],
+    "total_bootstrap_files": 21,
+    "bootstrap_file_list": [
+      "00_AI_START_HERE.md",
+      "01_PROJECT_CONSTITUTION.md",
+      "02_PROJECT_STATE.md",
+      "03_FOUNDER_DECISIONS.md",
+      "04_CURRENT_OBJECTIVE.md",
+      "05_CURRENT_PHASE.md",
+      "06_PROJECT_GLOSSARY.md",
+      "07_DOMAIN_MODEL.md",
+      "08_ARCHITECTURE_MAP.md",
+      "09_REPOSITORY_MAP.md",
+      "10_KNOWLEDGE_MAP.md",
+      "11_AI_RULES.md",
+      "12_AI_CHECKLIST.md",
+      "13_LOADING_ORDER.md",
+      "14_CONTEXT_INDEX.md",
+      "15_SOURCE_OF_TRUTH.md",
+      "PROJECT_FINGERPRINT.json",
+      "TRACEABILITY_INDEX.md",
+      "AI_SESSION_TEMPLATE.md",
+      "BOOTSTRAP_VERSION.md",
+      "BOOTSTRAP_FREEZE_REPORT.md"
+    ]
+  },
+
+  "repository_counts": {
+    "source_documents_in_inbox": 14,
+    "workspace_directories": 23,
+    "total_workspace_files_approximate": 96,
+    "ai_bootstrap_files": 21,
+    "source_note": "workspace/MASTER_INDEX.md (updated v4.0); workspace/_structured_data/manifest.json (stale — v1.0 pre-dates governance and bootstrap phases)"
+  },
+
+  "knowledge_extracted": {
+    "total_decisions": 51,
+    "business_decisions": 15,
+    "product_decisions": 7,
+    "technology_decisions": 19,
+    "ux_decisions": 5,
+    "operational_decisions": 3,
+    "brand_decisions": 3,
+    "financial_decisions": 5,
+    "architecture_decision_records_adrs": 8,
+    "open_decisions": 9,
+    "blocking_decisions": 4,
+    "total_risks": 20,
+    "critical_high_risks": 6,
+    "total_assumptions": 40,
+    "total_reports_in_16_reports": 7,
+    "total_features_prd": 22,
+    "user_personas": 3,
+    "source_note": "Decisions from workspace/15_Decisions/DECISION_LOG.md; Risks from workspace/02_Project_Management/RISK_REGISTER.md; Assumptions from workspace/15_Decisions/ASSUMPTION_REGISTER.md"
+  },
+
+  "current_state": {
+    "phase": "Track 0 — Commercial Validation Sprint",
+    "phase_source": "workspace/13_Audits/REMEDIATION_REAUDIT.md; workspace/15_Decisions/OPEN_DECISIONS_TRACKER.md",
+    "authorization": "NOT_AUTHORIZED",
+    "authorization_score": 67,
+    "authorization_score_source": "workspace/13_Audits/REMEDIATION_REAUDIT.md Section D",
+    "current_objective": "Execute $15K–$25K, 60-day commercial validation sprint. Secure ≥3 brand LOIs. Confirm LLC. Obtain PDPL legal opinion. Close all 4 blocking items.",
+    "current_objective_source": "workspace/04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md; workspace/15_Decisions/OPEN_DECISIONS_TRACKER.md",
+    "blockers_open": 4,
+    "blocker_ids": ["B-01", "B-02", "B-03", "B-04"],
+    "blocker_source": "workspace/15_Decisions/OPEN_DECISIONS_TRACKER.md"
+  },
+
+  "known_conflicts": [
+    {
+      "id": "CONFLICT-001",
+      "description": "Blocker IDs B-01 through B-04 used in READINESS_AUDIT.md refer to different items than B-01 through B-04 in OPEN_DECISIONS_TRACKER.md",
+      "file_a": "workspace/13_Audits/READINESS_AUDIT.md",
+      "file_b": "workspace/15_Decisions/OPEN_DECISIONS_TRACKER.md",
+      "resolution": "NOT RESOLVED — AI_BOOTSTRAP files use OPEN_DECISIONS_TRACKER.md labeling as current-state authoritative",
+      "impact": "LOW — contextual only; current state is unambiguous"
+    },
+    {
+      "id": "CONFLICT-002",
+      "description": "Authority chain position of REMEDIATION_REAUDIT.md differs between MASTER_PROJECT_MEMORY.md (priority 3) and AI_BOOTSTRAP/15_SOURCE_OF_TRUTH.md (priority 6)",
+      "file_a": "workspace/14_Memory/MASTER_PROJECT_MEMORY.md",
+      "file_b": "workspace/AI_BOOTSTRAP/15_SOURCE_OF_TRUTH.md",
+      "resolution": "NOT RESOLVED — both interpretations are valid for different purposes (MASTER_PROJECT_MEMORY ranks by recency; SOURCE_OF_TRUTH ranks by permanence)",
+      "impact": "LOW — does not affect day-to-day AI answers"
+    }
+  ],
+
+  "known_stale_files": [
+    {
+      "file": "workspace/_structured_data/statistics.json",
+      "issue": "Generated 2026-07-26 (v1.0). Reports 18 markdown files and 6 AI bootstrap files. Workspace now has 96+ files.",
+      "impact": "LOW — stats file is informational only"
+    },
+    {
+      "file": "workspace/_structured_data/manifest.json",
+      "issue": "Version 1.0, reports 32 workspace files. Pre-dates v2.0/v3.0/v4.0 phases.",
+      "impact": "LOW — manifest is informational only"
+    },
+    {
+      "file": "workspace/_navigator/SOURCE_INDEX.md",
+      "issue": "Lists 'chatgpt chat till 26-7.docx' but actual file is 'chatgpt chat till 27-7.docx'",
+      "impact": "VERY LOW — minor filename discrepancy"
+    }
+  ],
+
+  "project_genesis": {
+    "origin": "3-minute Arabic-language video of Samplia sampling Mentos at Madrid Gran Via",
+    "origin_file": "inbox/samples app text idea.txt",
+    "origin_transcript": "workspace/03_Research/SOURCE_VIDEO_TRANSCRIPT.md",
+    "method": "18-phase ChatGPT due diligence prompt applied to video concept",
+    "result": "14 source documents → 96+ workspace files"
+  }
+}

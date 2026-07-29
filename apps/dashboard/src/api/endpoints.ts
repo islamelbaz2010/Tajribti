@@ -36,7 +36,7 @@ export const qrApi = {
 
 export const reportApi = {
   getAiSummary: (campaignId: string): Promise<AiReport> =>
-    client.get(`/report/${campaignId}/summary`),
+    client.get(`/report/${campaignId}/ai-summary`),
   getPdfData: (campaignId: string): Promise<PdfData> =>
     client.get(`/report/${campaignId}/pdf-data`),
 };

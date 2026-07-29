@@ -61,8 +61,11 @@ class ApiClient {
     return Campaign.fromJson(res.data as Map<String, dynamic>);
   }
 
-  Future<RedemptionResult> redeemQr(String qrCode) async {
-    final res = await _dio.post('/qr/redeem', data: {'code': qrCode});
+  Future<RedemptionResult> redeemQr(String qrCode, String campaignId) async {
+    final res = await _dio.post('/qr/redeem', data: {
+      'qrCode': qrCode,
+      'campaignId': campaignId,
+    });
     return RedemptionResult.fromJson(res.data as Map<String, dynamic>);
   }
 

@@ -46,7 +46,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
     } catch (_) {}
 
     try {
-      final result = await apiClient.redeemQr(qrCode);
+      final result = await apiClient.redeemQr(qrCode, widget.campaignId);
       if (!mounted) return;
       context.go('/survey', extra: {
         'redemptionId': result.redemptionId,

@@ -71,12 +71,10 @@ class ApiClient {
 
   Future<void> submitSurvey({
     required String redemptionId,
-    required String campaignId,
     required Map<String, dynamic> answers,
   }) async {
     await _dio.post('/survey/submit', data: {
       'redemptionId': redemptionId,
-      'campaignId': campaignId,
       'answers': answers,
     });
   }

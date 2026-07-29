@@ -52,7 +52,6 @@ class _SurveyScreenState extends State<SurveyScreen> {
     try {
       await apiClient.submitSurvey(
         redemptionId: widget.redemptionId,
-        campaignId: widget.campaignId,
         answers: _answers,
       );
       if (!mounted) return;

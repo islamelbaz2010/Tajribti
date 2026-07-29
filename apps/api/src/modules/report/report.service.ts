@@ -22,7 +22,7 @@ export class ReportService {
     private readonly configService: ConfigService,
   ) {}
 
-  async getAiSummary(campaignId: string): Promise<{ narrative: string; cached: boolean }> {
+  async getAiSummary(campaignId: string): Promise<{ narrative: string; responseCountAtGeneration: number; createdAt: string }> {
     const cachedReport = await this.aiReportRepo.findOne({
       where: { campaignId, invalidatedAt: IsNull() },
       order: { generatedAt: 'DESC' },
@@ -31,10 +31,15 @@ export class ReportService {
     const responseCount = await this.surveyRepo.count({ where: { campaignId } });
 
     if (cachedReport && cachedReport.responseCountAtGeneration === responseCount) {
-      return { narrative: cachedReport.narrative, cached: true };
+      return {
+        narrative: cachedReport.narrative,
+        responseCountAtGeneration: responseCount,
+        createdAt: new Date(cachedReport.generatedAt).toISOString(),
+      };
     }
 
     const narrative = await this.generateNarrative(campaignId, responseCount);
+    const createdAt = new Date().toISOString();
 
     await this.aiReportRepo.save(
       this.aiReportRepo.create({
@@ -44,35 +49,27 @@ export class ReportService {
       }),
     );
 
-    return { narrative, cached: false };
+    return { narrative, responseCountAtGeneration: responseCount, createdAt };
   }
 
   async generatePdfData(campaignId: string): Promise<{
     campaign: Campaign;
     overview: Awaited<ReturnType<AnalyticsService['getOverview']>>;
     demographics: Awaited<ReturnType<AnalyticsService['getDemographics']>>;
-    surveyData: Awaited<ReturnType<AnalyticsService['getSurveyBreakdown']>>;
-    narrative: string;
-    generatedAt: string;
+    survey: Awaited<ReturnType<AnalyticsService['getSurveyBreakdown']>>;
+    report: { narrative: string; responseCountAtGeneration: number; createdAt: string };
   }> {
     const campaign = await this.campaignRepo.findOne({ where: { id: campaignId } });
     if (!campaign) throw new NotFoundException(`Campaign ${campaignId} not found`);
 
-    const [overview, demographics, surveyData, { narrative }] = await Promise.all([
+    const [overview, demographics, survey, report] = await Promise.all([
       this.analyticsService.getOverview(campaignId),
       this.analyticsService.getDemographics(campaignId),
       this.analyticsService.getSurveyBreakdown(campaignId),
       this.getAiSummary(campaignId),
     ]);
 
-    return {
-      campaign,
-      overview,
-      demographics,
-      surveyData,
-      narrative,
-      generatedAt: new Date().toISOString(),
-    };
+    return { campaign, overview, demographics, survey, report };
   }
 
   private async generateNarrative(campaignId: string, responseCount: number): Promise<string> {

@@ -31,7 +31,7 @@ export const analyticsApi = {
 
 export const qrApi = {
   getQrImage: (campaignId: string): Promise<Blob> =>
-    client.get(`/qr/${campaignId}/image`, { responseType: 'blob' }),
+    client.get(`/qr/generate/${campaignId}`, { responseType: 'blob' }),
 };
 
 export const reportApi = {

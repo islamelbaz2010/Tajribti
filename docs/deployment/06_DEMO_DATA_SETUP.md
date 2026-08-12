@@ -57,7 +57,7 @@ bash scripts/seed-demo.sh
 1. Open http://localhost:3001
 2. Log in: `demo@brand.com` / `Demo1234!`
 3. The Overview screen should show **49 redemptions**, not 0
-4. Navigate to Campaign & QR — the campaign name should read `Cairo Consumer Intelligence Pilot`
+4. Navigate to Campaign & QR — Product and Brand should match your configured DEMO_PRODUCT_NAME / DEMO_BRAND_NAME values
 
 ---
 
@@ -88,11 +88,5 @@ Or use the automation script:
 ```bash
 bash scripts/seed-demo.sh --reset
 ```
-
----
-
-## Known Limitation — Reset Does Not Fully Clean Up
-
-`/admin/seed/reset` has a known defect (DEFECT-009): the consumer cleanup SQL uses an exact phone match instead of a pattern, so pre-seeded consumers may not be fully deleted. Workaround: use the Supabase dashboard to manually delete rows from the `consumer`, `redemption_event`, `survey_response`, `campaign`, `qr_code`, and `brand_account` tables, then re-seed.
 
 Proceed to → [07_FIRST_RUN.md](07_FIRST_RUN.md)

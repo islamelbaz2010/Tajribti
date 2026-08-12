@@ -83,6 +83,8 @@ When documents conflict, the following hierarchy governs:
 | 7 | Marketeers Research is a near-direct competitor. "No direct competitor in Egypt" claim is INCORRECT. |
 | 8 | The Founder is an operator-type founder, not a venture fundraiser. Frame advice for capital efficiency. |
 | 9 | Track 0 first. Do not skip to Track 1 discussion until B-01 is closed. |
+| 10 | MEOS v1.0.1 is production-certified and ready to use. Sales Execution Pack is APPROVED (97/100). Founder outreach may begin immediately. |
+| 11 | B-IDs in `READINESS_AUDIT.md` use HISTORICAL numbering (old audit). Current blocking items use `OPEN_DECISIONS_TRACKER.md` B-IDs. Never confuse the two. |
 
 ---
 
@@ -204,14 +206,31 @@ The entire project originated from a 3-minute Arabic-language video showing a Sa
 | Attribute | Value |
 |---|---|
 | Source files | 14 (inbox/ — immutable) |
-| Workspace files | 65+ |
-| Folders | 22 |
-| Quality score | 91/100 (post-audit) |
-| AI context files | 7 (in _ai_bootstrap/) |
+| Workspace files | 120+ |
+| Folders | 25+ |
+| Repository version | v4.2 |
+| Quality score | 91/100 (v2.0 audit) |
+| AI Bootstrap files | 21 (in AI_BOOTSTRAP/ — v1.1 FROZEN) |
 | Indexes | 10 (in _navigator/) |
 | JSON data files | 7 (in _structured_data/) |
 | Workspace created | 2026-07-26 |
-| Last audited | 2026-07-27 |
+| Last audited | 2026-07-27 (Repository Intelligence Audit v4.2 + Remediation Execution) |
+
+---
+
+## 15. Track 0 Commercial Toolkit Status (Added v4.2 — 2026-07-27)
+
+| Item | Status | Details |
+|---|---|---|
+| MEOS v1.0.1 workbook | PRODUCTION CERTIFIED | 9/9 quality gates. 5 sheets, 14 pre-seeded brands, 16 named ranges. Kill Criterion at `Pipeline!B12`. |
+| Sales Execution Pack | APPROVED — 97/100 | PAR 10/10 gates. P-01 (income segment in PDPL Brief) and P-02 (LOI Column I dropdown) both verified applied. |
+| Sales Playbook | APPROVED | 5-stage brand acquisition process. Scripts, objections, MEOS workflow all complete. |
+| Brand OnePager | APPROVED | Client-facing brief — send to brand prospects after first call. |
+| LOI Template | APPROVED | 3 package tiers, commercial terms, timeline. Non-binding for Track 0. |
+| PDPL Lawyer Brief | APPROVED | Brief ready to send to Egyptian data-privacy lawyer — closes B-03. |
+| Egyptian LLC Checklist | APPROVED | Step-by-step incorporation guide — closes B-02. |
+
+**Founder outreach may begin immediately. No further documentation is required.**
 
 ---
 
@@ -220,5 +239,6 @@ The entire project originated from a 3-minute Arabic-language video showing a Sa
 | Date | Update |
 |---|---|
 | 2026-07-27 | Initial MASTER_PROJECT_MEMORY.md created — consolidates PROJECT_MEMORY.md with additional context |
+| 2026-07-27 | v4.2 update — added rules 10 and 11 (MEOS/Sales Pack status, B-ID numbering conflict), updated workspace metadata, added Section 15 Track 0 commercial toolkit status |
 
 *Load this file at the start of every session. If any fact here conflicts with current source documents, update this file — do not rely on a stale memory.*

@@ -8,6 +8,24 @@
 
 ---
 
+## ⚠️ ANNOTATION — B-ID Numbering: Historical vs. Current (CONFLICT-001)
+
+**This document uses HISTORICAL blocking item IDs from the original IERB review (2026-07). These IDs do NOT match the current authoritative B-IDs in `15_Decisions/OPEN_DECISIONS_TRACKER.md`.**
+
+| This Document (Historical IERB) | Current Authoritative (`OPEN_DECISIONS_TRACKER.md`) |
+|---|---|
+| B-01 — Track 0 GO not confirmed | B-01 — Track 0 GO decision confirmation *(same)* |
+| B-02 — No Sales function funded | *(resolved in Remediation — no longer a blocking item)* |
+| B-03 — Cloud region unresolved | *(resolved in Remediation — AWS Bahrain selected)* |
+| B-04 — No Sprint 0 vendor contract budget | *(resolved in Remediation — no longer a blocking item)* |
+| *(not in this document)* | B-02 — Egyptian LLC incorporation confirmed |
+| *(not in this document)* | B-03 — PDPL legal sign-off obtained |
+| *(not in this document)* | B-04 — QR concurrency load test executed |
+
+**When reading blocking item IDs: always use `OPEN_DECISIONS_TRACKER.md` as the current source of truth. This document is a historical audit record only.**
+
+---
+
 ## Summary
 
 The Independent Executive Review Board (IERB) evaluated all Tajribti planning documentation and found it thorough and internally coherent. However, the Board identified 3 Critical Findings, 4 Blocking Issues, and 6 Major Issues that are not documentation gaps — they are open questions whose answers change what gets built, by whom, and whether the company is legally and financially positioned to build it.

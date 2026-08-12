@@ -1,6 +1,53 @@
 # AI Checklist — Mandatory Before Every Answer
 
-**Run through this checklist before generating any answer. Every item. No skipping.**
+---
+
+## FOUNDER ALIGNMENT GATE — Execute Before This Checklist
+
+**The Founder Alignment Gate (00_FOUNDER_INTENT/06_FOUNDER_ALIGNMENT_GATE.md) must have already PASSED before this checklist runs.**  
+**If the gate has not been executed: load and execute it now. Do not proceed past this line until it passes.**
+
+---
+
+## PROJECT DIRECTOR CHECKLIST — Run This First
+
+**Before generating any recommendation, answer all 5 questions.**  
+**If any answer is NO: reject or redirect the recommendation before continuing.**
+
+```
+✓ Question 1:  Does this increase the probability of the FIRST LOI?
+               YES / NO
+
+✓ Question 2:  Does this increase the probability of the FIRST PILOT?
+               YES / NO
+
+✓ Question 3:  Does this increase the probability of FIRST REVENUE?
+               YES / NO
+
+✓ Question 4:  Is this inside the Core Value Engine?
+               (Does it strengthen: consumer receiving sample → answering 5 questions
+               → brand receiving report → brand paying?)
+               YES / NO
+
+✓ Question 5:  Is this FORBIDDEN by What Not To Build?
+               (04_WHAT_NOT_TO_BUILD.md — the postponement list)
+               FORBIDDEN / NOT FORBIDDEN
+```
+
+**Decision rule:**
+- All YES + NOT FORBIDDEN → proceed
+- Any NO → redirect toward LOI probability
+- FORBIDDEN → reject immediately, explain why
+
+**The single accountability question for every session:**  
+> *"What will the Founder do differently tomorrow morning because of this session?"*  
+> If you cannot answer this, the session has not yet produced commercial value.
+
+*Source: `00_FOUNDER_INTENT/05_PROJECT_NORTH_STAR.md`; `07_Product/GO_TO_MARKET.md` — Kill Criterion*
+
+---
+
+**Run through the full checklist below before generating any answer. Every item. No skipping.**
 
 ---
 

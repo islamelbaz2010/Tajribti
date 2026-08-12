@@ -6,7 +6,20 @@ Source: `_navigator/DOCUMENT_INDEX.md`, `MASTER_INDEX.md`, direct workspace know
 
 ---
 
-## AI_BOOTSTRAP/ (This Folder)
+## 00_FOUNDER_INTENT/ (Load First — Every Session)
+
+| File | One-Line Description |
+|---|---|
+| `01_FOUNDER_VISION.md` | WHY this company exists — the original idea, positioning, what it is NOT |
+| `02_CORE_VALUE_ENGINE.md` | The minimum 7-step chain that creates value for brands and consumers |
+| `03_NON_NEGOTIABLE_RULES.md` | 10 absolute rules — Kill Criterion, PDPL, engineering gate, trademark |
+| `04_WHAT_NOT_TO_BUILD.md` | The postponement list — features and commitments explicitly excluded |
+| `05_PROJECT_NORTH_STAR.md` | The single metric: Stage 2+ brand count; success = 3 signed LOIs |
+| `06_FOUNDER_ALIGNMENT_GATE.md` | MANDATORY GATE — 8 questions; execute after 01–05, before every answer |
+
+---
+
+## AI_BOOTSTRAP/ (This Folder — v1.1 FROZEN)
 
 | File | One-Line Description |
 |---|---|
@@ -23,9 +36,14 @@ Source: `_navigator/DOCUMENT_INDEX.md`, `MASTER_INDEX.md`, direct workspace know
 | `10_KNOWLEDGE_MAP.md` | Where each type of institutional knowledge lives |
 | `11_AI_RULES.md` | Anti-drift protocol, 8 absolute rules, scope rules, session protocol |
 | `12_AI_CHECKLIST.md` | 11-step mandatory checklist + quick-fire fact checks |
-| `13_LOADING_ORDER.md` | Session-type loading recipes with token budget estimates |
+| `13_LOADING_ORDER.md` | Session-type loading recipes — 11 types including Track 0 Sales Session |
 | `14_CONTEXT_INDEX.md` | This file — one-line description of every workspace file |
 | `15_SOURCE_OF_TRUTH.md` | Canonical files, authority chain, conflict resolution |
+| `AI_SESSION_TEMPLATE.md` | Mandatory 6-step session opener template + closeout protocol (v4.1) |
+| `BOOTSTRAP_FREEZE_REPORT.md` | Full Bootstrap certification audit — 98/100 readiness, FROZEN (v4.1) |
+| `BOOTSTRAP_VERSION.md` | Bootstrap version record, revision history, update protocol (v4.1) |
+| `PROJECT_FINGERPRINT.json` | Machine-readable project identity, file counts, conflict registry (v4.1) |
+| `TRACEABILITY_INDEX.md` | Every major Bootstrap claim mapped to source file with confidence level (v4.1) |
 
 ---
 
@@ -120,14 +138,6 @@ Source: `_navigator/DOCUMENT_INDEX.md`, `MASTER_INDEX.md`, direct workspace know
 | `IC_MEMO_v1.0.md` | Investment Committee memo — Conditional GO recommendation, reference company assessment |
 | `IC_REPORT_TEMPLATE.md` | Arabic original working draft; 18-phase due diligence structure |
 | `INVESTMENT_DUE_DILIGENCE_REPORT_v2.md` | CANONICAL — 19,661-word comprehensive investment analysis |
-
----
-
-## 05_Market/
-
-| File | One-Line Description |
-|---|---|
-| `README.md` | Stub — market analysis content lives in IC v2.0 and PRD |
 
 ---
 
@@ -239,10 +249,53 @@ Source: `_navigator/DOCUMENT_INDEX.md`, `MASTER_INDEX.md`, direct workspace know
 
 ---
 
+## 05_EBOS/ (MEOS v1 — Track 0 Operational System)
+
+| File | One-Line Description |
+|---|---|
+| `MEOS_v1_Production_Spec.md` | Full MEOS specification — 58KB, complete system design |
+| `MEOS_v1_Operational_Handover.md` | How to operate the MEOS workbook — read this before opening the xlsx |
+| `MEOS_v1_Production_Certificate.md` | Quality certificate — 9/9 gates APPROVED |
+| `MEOS_v1_Release_Notes.md` | 9 patches from v1.0 to v1.0.1 — what changed and why |
+| `MEOS_v1_Sprint_Completion_Report.md` | Sprint completion record + 6 known operational gaps |
+| `MEOS_v1_Track0.xlsx` | THE Track 0 workbook (binary) — Dashboard, CRM, Pipeline, LOI, Calendar sheets |
+
+---
+
+## Sales_Execution_Pack/ (Track 0 Commercial Toolkit — APPROVED)
+
+**PAR status: APPROVED — 97/100. P-01 and P-02 verified applied 2026-07-27. Ready for client use.**
+
+| File | One-Line Description |
+|---|---|
+| `01_Sales_Playbook.md` | Complete 5-stage brand acquisition process — outreach scripts, objections, MEOS workflow |
+| `02_Brand_OnePager.md` | One-page client-facing brand brief — send to prospects after first call |
+| `03_LOI_Template.md` | Letter of Intent template — 3 package tiers, commercial terms, timeline |
+| `Production_Acceptance_Review_v1.0.md` | PAR — quality gates 10/10, score 97/100, APPROVED 2026-07-27 |
+| `04_Legal/Egyptian_LLC_Checklist.md` | Step-by-step guide to close B-02 (Egyptian LLC incorporation) |
+| `04_Legal/PDPL_Lawyer_Brief.md` | Brief for Egyptian data privacy lawyer — closes B-03 (PDPL sign-off) |
+
+---
+
+## docs/ (Repository Analysis and Governance)
+
+| File | One-Line Description |
+|---|---|
+| `Repository_Remediation_Master_Plan_v1.md` | APPROVED 20-section remediation plan — 24 defects, 9 workstreams, 4 phases |
+| `governance/PROJECT_ARCHITECTURE_CONSTITUTION.md` | PAC v1.0 — 25 CAD decisions LOCKED, 16 prohibitions, Sprint 0 pre-conditions |
+| `audit/AUDIT_INDEX.md` | Master audit index — key findings summary, outcome statement |
+| `audit/PART1_REPOSITORY_INVENTORY.md` | Complete ~149-file inventory with 4 audit findings |
+| `audit/PART2A_FILE_REVIEW_CARDS_FOUNDER_BOOTSTRAP.md` | File Review Cards: Founder Intent + AI Bootstrap layers |
+| `audit/PART2B_FILE_REVIEW_CARDS_CORE_DOCS.md` | File Review Cards: Decisions, PRD, Architecture, Audits, Sales Pack |
+| `audit/PART2C_FILE_REVIEW_CARDS_REMAINING.md` | File Review Cards: Memory, Reports, Research, Binary, Stubs |
+| `audit/PART5_TO_10_REMAINING_REPORTS.md` | Parts 5–10: Dependency map, Conflicts, Commercial Value, Risks, Executive Summary |
+
+---
+
 ## Root Files
 
 | File | One-Line Description |
 |---|---|
-| `MASTER_INDEX.md` | Master navigation index — start here for humans; 80+ files indexed |
-| `CHANGELOG.md` | Workspace version history — v1.0 initial build, v2.0 audit, v3.0 governance |
+| `MASTER_INDEX.md` | Master navigation index — start here for humans; 120+ files indexed |
+| `CHANGELOG.md` | Workspace version history — v1.0 through v4.2 |
 | `CONTRIBUTING.md` | How to work in this workspace — file types, naming, procedures |

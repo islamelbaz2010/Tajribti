@@ -6,21 +6,64 @@ Source: `_ai_bootstrap/LOADING_ORDER.md`, `_ai_bootstrap/AI_WORKFLOW.md`, `_ai_b
 
 ---
 
+## MANDATORY PRE-LOAD — Founder Intent (Before Everything Else)
+
+Load these 6 files FIRST. Every session. Before any other file.
+
+```
+0A. 00_FOUNDER_INTENT/01_FOUNDER_VISION.md         (WHY the company exists — the original idea)
+0B. 00_FOUNDER_INTENT/02_CORE_VALUE_ENGINE.md      (WHAT creates value — the minimum chain)
+0C. 00_FOUNDER_INTENT/03_NON_NEGOTIABLE_RULES.md   (WHAT cannot change — 10 rules)
+0D. 00_FOUNDER_INTENT/04_WHAT_NOT_TO_BUILD.md      (WHAT to reject — the postponement list)
+0E. 00_FOUNDER_INTENT/05_PROJECT_NORTH_STAR.md     (THE single metric — Stage 2+ brand count)
+0F. 00_FOUNDER_INTENT/06_FOUNDER_ALIGNMENT_GATE.md (MANDATORY GATE — execute before any answer)
+```
+
+**If any Founder Intent file is missing: STOP. Do not proceed. Report to Founder.**
+
+**After loading 0A–0F, execute the Founder Alignment Gate (file 0F) before loading anything else.**  
+**If the gate fails: STOP. Do not load AI_BOOTSTRAP. Do not answer. Output only the FOUNDER ALIGNMENT FAILED block.**  
+**If the gate passes: continue loading the Universal Minimum below.**
+
+---
+
 ## Universal Minimum Load (Every Session, No Exceptions)
 
-Load these 4 files every single session before answering anything:
+Load these 5 files every single session (after Founder Intent above):
 
 ```
 1.  AI_BOOTSTRAP/00_AI_START_HERE.md          (1-page orientation)
 2.  AI_BOOTSTRAP/02_PROJECT_STATE.md          (current status + blockers)
 3.  AI_BOOTSTRAP/03_FOUNDER_DECISIONS.md      (all locked decisions)
 4.  AI_BOOTSTRAP/11_AI_RULES.md               (operating rules)
+5.  AI_BOOTSTRAP/12_AI_CHECKLIST.md           (Project Director Checklist — mandatory)
 ```
 
-**Estimated load time: ~2 minutes**  
-**Token budget: ~8,000 tokens**
+**Estimated load time: ~3 minutes**  
+**Token budget: ~12,000 tokens**
 
-After these 4, apply `AI_BOOTSTRAP/12_AI_CHECKLIST.md` before generating your first answer.
+The Project Director Checklist in `12_AI_CHECKLIST.md` must be applied before generating your first answer.
+
+---
+
+## Session Type: Track 0 Sales (Brand Outreach)
+
+*Brand call preparation / LinkedIn outreach / discovery call / LOI drafting / MEOS update / objection prep*
+
+```
+Tier 1 — Universal minimum (above)
+Tier 2 — Track 0 commercial context
+    5.  AI_BOOTSTRAP/04_CURRENT_OBJECTIVE.md         (what we're doing right now — 60 days, 3 LOIs)
+    6.  Sales_Execution_Pack/01_Sales_Playbook.md    (5-stage process, scripts, objections, MEOS workflow)
+    7.  05_EBOS/MEOS_v1_Operational_Handover.md     (how to operate the tracking workbook)
+    8.  Sales_Execution_Pack/02_Brand_OnePager.md   (client-facing positioning — read before every call)
+    9.  Sales_Execution_Pack/03_LOI_Template.md     (LOI structure, 3 package tiers, terms)
+    10. 07_Product/GO_TO_MARKET.md                  (14 brand targets, tier sequencing, kill criterion)
+```
+
+**Note:** `05_EBOS/MEOS_v1_Track0.xlsx` is binary — load the Operational Handover guide instead.  
+**Note:** Sales Execution Pack status = APPROVED (PAR v1.0, 97/100, patches P-01 and P-02 applied 2026-07-27).  
+**Kill criterion reminder:** ≥3 signed pilot LOIs in 60 days — ABSOLUTE, cannot be waived.
 
 ---
 

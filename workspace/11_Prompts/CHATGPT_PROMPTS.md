@@ -1,11 +1,11 @@
 # ChatGPT Conversation & Prompt Library
 
-**Title:** ChatGPT Chat History — Investment Analysis Session (until 26 July)  
-**Original Filename:** chatgpt chat till 26-7.docx  
+**Title:** ChatGPT Chat History — Investment Analysis Session (until 27 July)  
+**Original Filename:** chatgpt chat till 27-7.docx  
 **Original Location:** inbox/  
 **Category:** Conversation / Prompts  
-**Date:** Until 2026-07-26  
-**Word Count:** ~4,372  
+**Date:** Until 2026-07-27 (updated from 26-7 version)  
+**Word Count:** ~TBD (68KB)  
 **Keywords:** ChatGPT, prompts, investment analysis, due diligence, peer review, consulting, multidisciplinary, Egypt, Samplia  
 
 ---

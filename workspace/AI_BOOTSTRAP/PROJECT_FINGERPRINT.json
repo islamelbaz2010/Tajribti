@@ -9,13 +9,15 @@
   },
 
   "repository": {
-    "version": "v4.0",
+    "version": "v4.2",
     "version_date": "2026-07-27",
     "version_history": [
       { "version": "v1.0", "date": "2026-07-26", "summary": "Initial 14-phase workspace build from 14 inbox source files" },
       { "version": "v2.0", "date": "2026-07-27", "summary": "Enterprise Knowledge Architect audit — 26 improvements, score 68→91" },
       { "version": "v3.0", "date": "2026-07-27", "summary": "Long-term governance layer — 9 files (DECISION_LOG, RISK_REGISTER, ASSUMPTION_REGISTER, PROJECT_RULES, AI_WORKFLOW, SPRINT_MEMORY_TEMPLATE, CHANGELOG, CONTRIBUTING, MASTER_PROJECT_MEMORY)" },
-      { "version": "v4.0", "date": "2026-07-27", "summary": "AI Bootstrap Layer — 16-file purpose-built AI onboarding folder (AI_BOOTSTRAP/)" }
+      { "version": "v4.0", "date": "2026-07-27", "summary": "AI Bootstrap Layer — 16-file purpose-built AI onboarding folder (AI_BOOTSTRAP/)" },
+      { "version": "v4.1", "date": "2026-07-27", "summary": "Track 0 operational systems — MEOS v1.0.1 (production-certified), Sales Execution Pack (APPROVED 97/100), Founder Intent layer (00_FOUNDER_INTENT/), AI Bootstrap v1.1 + 5 certification files" },
+      { "version": "v4.2", "date": "2026-07-27", "summary": "Repository Intelligence Audit + Remediation Execution — PAR updated (97/100), Navigator synchronized, Bootstrap synchronized, CONFLICT-001 annotated in READINESS_AUDIT.md, docs/audit/ package (6 files)" }
     ],
     "version_source": "workspace/CHANGELOG.md"
   },
@@ -66,10 +68,10 @@
 
   "repository_counts": {
     "source_documents_in_inbox": 14,
-    "workspace_directories": 23,
-    "total_workspace_files_approximate": 96,
+    "workspace_directories": 25,
+    "total_workspace_files_approximate": 120,
     "ai_bootstrap_files": 21,
-    "source_note": "workspace/MASTER_INDEX.md (updated v4.0); workspace/_structured_data/manifest.json (stale — v1.0 pre-dates governance and bootstrap phases)"
+    "source_note": "workspace/MASTER_INDEX.md (updated v4.2); workspace/_structured_data/manifest.json (stale — v1.0 pre-dates all phases after v1.0)"
   },
 
   "knowledge_extracted": {
@@ -112,7 +114,7 @@
       "description": "Blocker IDs B-01 through B-04 used in READINESS_AUDIT.md refer to different items than B-01 through B-04 in OPEN_DECISIONS_TRACKER.md",
       "file_a": "workspace/13_Audits/READINESS_AUDIT.md",
       "file_b": "workspace/15_Decisions/OPEN_DECISIONS_TRACKER.md",
-      "resolution": "NOT RESOLVED — AI_BOOTSTRAP files use OPEN_DECISIONS_TRACKER.md labeling as current-state authoritative",
+      "resolution": "ANNOTATED 2026-07-27 — READINESS_AUDIT.md now has a B-ID annotation block at top of Summary section with full mapping table. AI_BOOTSTRAP files use OPEN_DECISIONS_TRACKER.md labeling as current-state authoritative.",
       "impact": "LOW — contextual only; current state is unambiguous"
     },
     {
@@ -128,18 +130,18 @@
   "known_stale_files": [
     {
       "file": "workspace/_structured_data/statistics.json",
-      "issue": "Generated 2026-07-26 (v1.0). Reports 18 markdown files and 6 AI bootstrap files. Workspace now has 96+ files.",
+      "issue": "Generated 2026-07-26 (v1.0). Reports 18 markdown files and 6 AI bootstrap files. Workspace now has 120+ files.",
       "impact": "LOW — stats file is informational only"
     },
     {
       "file": "workspace/_structured_data/manifest.json",
-      "issue": "Version 1.0, reports 32 workspace files. Pre-dates v2.0/v3.0/v4.0 phases.",
+      "issue": "Version 1.0, reports 32 workspace files. Pre-dates v2.0/v3.0/v4.0/v4.1/v4.2 phases.",
       "impact": "LOW — manifest is informational only"
     },
     {
       "file": "workspace/_navigator/SOURCE_INDEX.md",
-      "issue": "Lists 'chatgpt chat till 26-7.docx' but actual file is 'chatgpt chat till 27-7.docx'",
-      "impact": "VERY LOW — minor filename discrepancy"
+      "issue": "RESOLVED 2026-07-27 — updated from 'chatgpt chat till 26-7.docx' to 'chatgpt chat till 27-7.docx'",
+      "impact": "RESOLVED"
     }
   ],
 

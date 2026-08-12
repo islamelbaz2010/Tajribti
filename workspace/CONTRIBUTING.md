@@ -144,11 +144,13 @@ When Track 0 or later sprints produce evidence about an assumption:
 
 ## Section 8 — Working with AI
 
-See `_ai_bootstrap/AI_WORKFLOW.md` for full guidance. Summary:
+See `AI_BOOTSTRAP/13_LOADING_ORDER.md` for session-type loading recipes (includes Track 0 Sales session). See `_ai_bootstrap/AI_WORKFLOW.md` for full session protocol. Summary:
 
 | Do | Don't |
 |---|---|
-| Load `AI_CONTEXT.md` + `PROJECT_CONTEXT.md` first | Jump into advice without loading context |
+| Load `00_FOUNDER_INTENT/` (6 files) first — mandatory gate | Skip Founder Intent layer |
+| Then load `AI_BOOTSTRAP/00_AI_START_HERE.md` + universal minimum | Jump into advice without loading context |
+| Use `AI_BOOTSTRAP/13_LOADING_ORDER.md` to pick the right session type | Load everything regardless of session type |
 | Tell AI which files to read and update | Let analysis stay in chat window |
 | Run session closeout checklist | End session without writing back to workspace |
 | Verify AI output against workspace facts | Trust AI output that contradicts workspace |
@@ -164,6 +166,14 @@ When two workspace files say different things:
 2. **Update the lower-authority file** to reflect the higher-authority source
 3. **If both files have a claim to authority, escalate to Founder** — log the conflict in DECISION_LOG.md
 4. **Log the fix in CHANGELOG.md**
+
+**Authority chain note — AI session layers:**
+- `00_FOUNDER_INTENT/` (6 files) is the AI session entry layer — derived from FDD, loaded first every session. If 00_FOUNDER_INTENT/ conflicts with FDD, FDD governs.
+- `AI_BOOTSTRAP/` is the AI onboarding layer (v1.1 FROZEN) — structural guidance, not an authority document. Factual claims in AI_BOOTSTRAP trace back to source documents via `TRACEABILITY_INDEX.md`.
+- `Sales_Execution_Pack/` defers to FDD and IC v2.0 on any commercial or positioning claim.
+
+**B-ID numbering conflict note:**
+`13_Audits/READINESS_AUDIT.md` uses historical B-IDs from the original IERB review. `15_Decisions/OPEN_DECISIONS_TRACKER.md` uses current B-IDs. When referencing blocking items, always use OPEN_DECISIONS_TRACKER.md as authoritative. See the annotation block at top of READINESS_AUDIT.md for the full mapping.
 
 ---
 
@@ -186,10 +196,10 @@ When a document is replaced by a newer version:
 | Add a new decision | `15_Decisions/DECISION_LOG.md` |
 | Add a new risk | `02_Project_Management/RISK_REGISTER.md` |
 | Mark an assumption validated | `15_Decisions/ASSUMPTION_REGISTER.md` |
-| Know what to load for an AI session | `_ai_bootstrap/LOADING_ORDER.md` |
+| Know what to load for an AI session | `AI_BOOTSTRAP/13_LOADING_ORDER.md` (authoritative — 11 session types) |
 | Start a new sprint | `02_Project_Management/SPRINT_MEMORY_TEMPLATE.md` |
 | Find any document fast | `_navigator/ENTRY_POINTS.md` |
 | Know which document governs | `00_Source_of_Truth/SOURCE_OF_TRUTH.md` |
 | Check what's changed recently | `CHANGELOG.md` |
 | Understand project rules | `00_Source_of_Truth/PROJECT_RULES.md` |
-| Get AI oriented quickly | `_ai_bootstrap/AI_CONTEXT.md` |
+| Get AI oriented quickly | `00_FOUNDER_INTENT/` (load first) → `AI_BOOTSTRAP/00_AI_START_HERE.md` |

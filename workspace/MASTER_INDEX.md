@@ -5,7 +5,7 @@
 **Project:** Tajribti (تجربتي) — Egypt's Consumer Intelligence Platform  
 **Status:** ❌ Development NOT Authorized — Readiness Score 67/100  
 **Generated:** 2026-07-26 | **Last Updated:** 2026-07-27  
-**Source:** 14 inbox files → 96+ workspace files across 23 folders  
+**Source:** 14 inbox files → 120+ workspace files across 25+ folders  
 
 ---
 
@@ -16,7 +16,15 @@ workspace/
 │
 ├── MASTER_INDEX.md                ← YOU ARE HERE
 │
-├── AI_BOOTSTRAP/                  ← START HERE (AI sessions) — 16 purpose-built onboarding files
+├── 00_FOUNDER_INTENT/             ← LOAD FIRST (every AI session, before AI_BOOTSTRAP)
+│   ├── 01_FOUNDER_VISION.md       ← The original idea — WHY this company exists
+│   ├── 02_CORE_VALUE_ENGINE.md    ← The minimum chain — WHAT creates value
+│   ├── 03_NON_NEGOTIABLE_RULES.md ← 10 rules that cannot be changed
+│   ├── 04_WHAT_NOT_TO_BUILD.md    ← The postponement list — WHAT to reject
+│   ├── 05_PROJECT_NORTH_STAR.md   ← The single metric — Stage 2+ brand count
+│   └── 06_FOUNDER_ALIGNMENT_GATE.md ← MANDATORY GATE — execute after 01–05, before any answer
+│
+├── AI_BOOTSTRAP/                  ← LOAD SECOND (AI sessions) — 16 purpose-built onboarding files
 │   ├── 00_AI_START_HERE.md        ← Read first, every session
 │   ├── 01_PROJECT_CONSTITUTION.md ← What IS / IS NOT the project
 │   ├── 02_PROJECT_STATE.md        ← Authorization status + blockers
@@ -85,7 +93,13 @@ workspace/
 │   ├── IC_MEMO_v1.0.md            ← IC Memo + conditional GO
 │   └── IC_REPORT_TEMPLATE.md      ← Original Arabic working draft
 │
-├── 05_EBOS/                       ← Reserved — future EBOS content
+├── 05_EBOS/                       ← MEOS v1 — Track 0 operational system
+│   ├── MEOS_v1_Production_Spec.md     ← MEOS full specification (58KB)
+│   ├── MEOS_v1_Operational_Handover.md ← How to operate the workbook (read before opening)
+│   ├── MEOS_v1_Production_Certificate.md ← 9/9 quality gates APPROVED
+│   ├── MEOS_v1_Release_Notes.md       ← 9 patches: v1.0 → v1.0.1
+│   ├── MEOS_v1_Sprint_Completion_Report.md ← Sprint record + known gaps
+│   └── MEOS_v1_Track0.xlsx            ← THE workbook (binary — open in Excel)
 │
 ├── 06_Enterprise_Architecture/
 │   └── ENTERPRISE_ARCHITECTURE.md ← EA domains, capabilities, tech decisions
@@ -137,8 +151,29 @@ workspace/
 │   ├── READY_FOR_AI.md            ← AI readiness certification
 │   └── FINAL_QUALITY_SCORE.md     ← Final scored assessment (91/100)
 │
-└── 18_Archive/                    ← Superseded document versions
-    └── SUPERSEDED_DOCUMENTS.md    ← Registry of superseded files
+├── 18_Archive/                    ← Superseded document versions
+│   └── SUPERSEDED_DOCUMENTS.md    ← Registry of superseded files
+│
+├── Sales_Execution_Pack/          ← Track 0 commercial toolkit (APPROVED — ready for use)
+│   ├── 01_Sales_Playbook.md       ← Complete brand sales process, scripts, objections
+│   ├── 02_Brand_OnePager.md       ← One-page client-facing brand brief
+│   ├── 03_LOI_Template.md         ← Letter of Intent template (3 package tiers)
+│   ├── Production_Acceptance_Review_v1.0.md ← PAR — APPROVED 97/100 (P-01, P-02 applied)
+│   └── 04_Legal/
+│       ├── Egyptian_LLC_Checklist.md ← Closes B-02 (Egyptian LLC incorporation)
+│       └── PDPL_Lawyer_Brief.md   ← Closes B-03 (PDPL legal sign-off)
+│
+└── docs/                          ← Repository analysis and governance
+    ├── Repository_Remediation_Master_Plan_v1.md ← APPROVED remediation plan
+    ├── governance/
+    │   └── PROJECT_ARCHITECTURE_CONSTITUTION.md ← PAC v1.0 — 25 CAD decisions (LOCKED)
+    └── audit/
+        ├── AUDIT_INDEX.md
+        ├── PART1_REPOSITORY_INVENTORY.md
+        ├── PART2A_FILE_REVIEW_CARDS_FOUNDER_BOOTSTRAP.md
+        ├── PART2B_FILE_REVIEW_CARDS_CORE_DOCS.md
+        ├── PART2C_FILE_REVIEW_CARDS_REMAINING.md
+        └── PART5_TO_10_REMAINING_REPORTS.md
 
 CHANGELOG.md                       ← Workspace version history (root)
 CONTRIBUTING.md                    ← How to maintain this workspace (root)
@@ -147,6 +182,13 @@ CONTRIBUTING.md                    ← How to maintain this workspace (root)
 ---
 
 ## Quick Navigation by Role
+
+### Running Track 0 sales (brand outreach)?
+→ `Sales_Execution_Pack/01_Sales_Playbook.md` — complete sales process  
+→ `Sales_Execution_Pack/02_Brand_OnePager.md` — send to brand prospects  
+→ `Sales_Execution_Pack/03_LOI_Template.md` — complete and send when ready  
+→ `05_EBOS/MEOS_v1_Operational_Handover.md` — how to use the tracking workbook  
+→ `05_EBOS/MEOS_v1_Track0.xlsx` — the daily tracking workbook (open in Excel)
 
 ### New to the project?
 → `_ai_bootstrap/AI_CONTEXT.md` (2 min read)  
@@ -178,9 +220,9 @@ CONTRIBUTING.md                    ← How to maintain this workspace (root)
 → `CONTRIBUTING.md`
 
 ### AI assistant?
-→ Load `_ai_bootstrap/AI_CONTEXT.md` first  
-→ Then `14_Memory/MASTER_PROJECT_MEMORY.md`  
-→ Then `_ai_bootstrap/LOADING_ORDER.md` for full context sequence  
+→ Load `00_FOUNDER_INTENT/` (6 files) first — mandatory gate  
+→ Then `AI_BOOTSTRAP/00_AI_START_HERE.md`  
+→ Then `AI_BOOTSTRAP/13_LOADING_ORDER.md` for session-type loading recipes (includes Track 0 Sales Session)  
 → See `_ai_bootstrap/AI_WORKFLOW.md` for session protocol
 
 ---
@@ -218,4 +260,4 @@ Readiness Audit → Remediation     [Authorization gate]
 
 ---
 
-*Workspace v3.0 — Permanent source of truth. See `CHANGELOG.md` for version history. See `CONTRIBUTING.md` to maintain this workspace.*
+*Workspace v4.2 — Permanent source of truth. See `CHANGELOG.md` for version history. See `CONTRIBUTING.md` to maintain this workspace.*

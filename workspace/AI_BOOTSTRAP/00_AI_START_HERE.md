@@ -1,6 +1,31 @@
 # AI START HERE — Tajribti
 
-**Read this file first. Every time. No exceptions.**
+---
+
+## ⚠️ MANDATORY FIRST STEP — LOAD FOUNDER INTENT BEFORE THIS FILE
+
+**Before reading anything else, load these 6 files in order:**
+
+```
+STEP 0A:  00_FOUNDER_INTENT/01_FOUNDER_VISION.md         ← WHY the company exists
+STEP 0B:  00_FOUNDER_INTENT/02_CORE_VALUE_ENGINE.md      ← WHAT creates value
+STEP 0C:  00_FOUNDER_INTENT/03_NON_NEGOTIABLE_RULES.md   ← WHAT cannot be changed
+STEP 0D:  00_FOUNDER_INTENT/04_WHAT_NOT_TO_BUILD.md      ← WHAT to reject immediately
+STEP 0E:  00_FOUNDER_INTENT/05_PROJECT_NORTH_STAR.md     ← THE single success metric
+STEP 0F:  00_FOUNDER_INTENT/06_FOUNDER_ALIGNMENT_GATE.md ← EXECUTE THIS GATE NOW
+```
+
+**If any of these files is missing or unreadable: STOP. Do not proceed.**
+
+**After loading STEP 0F, execute the Founder Alignment Gate immediately.**  
+**Gate FAILS → Output only the FOUNDER ALIGNMENT FAILED block. Do not read this file further.**  
+**Gate PASSES → Continue reading this file and the Universal Minimum below.**
+
+These files define the Founder's intent. Everything below is downstream.
+
+---
+
+**Read this file next. Every time. No exceptions.**
 
 ---
 

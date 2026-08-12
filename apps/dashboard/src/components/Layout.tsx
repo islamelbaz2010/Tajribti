@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { campaignApi } from '../api/endpoints';
 
 const NAV_ITEMS = [
   { to: '/overview', label: 'Live Overview' },
@@ -13,8 +14,16 @@ const NAV_ITEMS = [
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { logout } = useAuth();
+  const { logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [clientName, setClientName] = useState<string>('Demo');
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    campaignApi.getDemoActive()
+      .then((c) => setClientName(c.brandName))
+      .catch(() => {});
+  }, [isAuthenticated]);
 
   const handleLogout = () => {
     logout();
@@ -26,7 +35,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <aside style={styles.sidebar}>
         <div style={styles.logo}>
           <span style={styles.logoText}>Tajribti</span>
-          <span style={styles.logoBadge}>Demo</span>
+          <span style={styles.logoBadge}>{clientName}</span>
         </div>
         <nav style={styles.nav}>
           {NAV_ITEMS.map(({ to, label }) => (

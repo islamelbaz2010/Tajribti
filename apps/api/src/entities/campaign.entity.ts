@@ -35,7 +35,7 @@ export class Campaign {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'brand_account_id', nullable: true })
+  @Column({ name: 'brand_account_id', type: 'uuid', nullable: true })
   brandAccountId: string | null;
 
   @ManyToOne(() => BrandAccount, { nullable: true })
@@ -48,13 +48,13 @@ export class Campaign {
   @Column({ name: 'product_name', length: 100 })
   productName: string;
 
-  @Column({ name: 'product_image', length: 500, nullable: true })
+  @Column({ name: 'product_image', type: 'varchar', length: 500, nullable: true })
   productImage: string | null;
 
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
-  @Column({ name: 'location_name', length: 100, nullable: true })
+  @Column({ name: 'location_name', type: 'varchar', length: 100, nullable: true })
   locationName: string | null;
 
   @Column({ name: 'location_address', type: 'text', nullable: true })

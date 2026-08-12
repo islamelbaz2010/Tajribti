@@ -152,7 +152,18 @@ export class AdminService {
     }
     await this.campaignRepo.delete({ isDemo: true });
 
-    await this.consumerRepo.delete({ phone: this.buildDemoPhonePattern() });
+    await this.consumerRepo
+      .createQueryBuilder()
+      .delete()
+      .where('phone LIKE :pattern', { pattern: '+20100%' })
+      .execute();
+
+    const brandEmail = this.configService.get('DEMO_BRAND_EMAIL') ?? 'demo@brand.com';
+    await this.brandRepo
+      .createQueryBuilder()
+      .delete()
+      .where('email = :email', { email: brandEmail })
+      .execute();
 
     return { message: 'Demo data reset. Run /admin/seed to reseed.' };
   }

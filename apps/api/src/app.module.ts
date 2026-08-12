@@ -39,9 +39,7 @@ import { AiReport } from './entities/ai-report.entity';
           AiReport,
         ],
         synchronize: configService.get('NODE_ENV') !== 'production',
-        ssl: {
-          rejectUnauthorized: false,
-        },
+        ssl: configService.get('DATABASE_URL', '').includes('localhost') ? false : { rejectUnauthorized: false },
         logging: configService.get('NODE_ENV') === 'development',
       }),
       inject: [ConfigService],

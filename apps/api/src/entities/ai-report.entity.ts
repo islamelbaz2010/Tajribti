@@ -29,6 +29,6 @@ export class AiReport {
   @CreateDateColumn({ name: 'generated_at' })
   generatedAt: Date;
 
-  @Column({ name: 'invalidated_at', nullable: true })
+  @Column({ name: 'invalidated_at', type: 'timestamp', nullable: true })
   invalidatedAt: Date | null;
 }

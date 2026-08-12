@@ -17,19 +17,19 @@ export class Consumer {
   @Column({ unique: true, length: 20 })
   phone: string;
 
-  @Column({ length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   name: string | null;
 
-  @Column({ name: 'age_range', length: 20, nullable: true })
+  @Column({ name: 'age_range', type: 'varchar', length: 20, nullable: true })
   ageRange: string | null;
 
-  @Column({ length: 20, nullable: true })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   gender: string | null;
 
-  @Column({ length: 50, nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   city: string | null;
 
-  @Column({ length: 50, nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   interest: string | null;
 
   @CreateDateColumn({ name: 'created_at' })

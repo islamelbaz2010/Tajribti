@@ -22,7 +22,7 @@ export class BrandAccount {
   @Column({ length: 255 })
   password: string;
 
-  @Column({ name: 'logo_url', length: 500, nullable: true })
+  @Column({ name: 'logo_url', type: 'varchar', length: 500, nullable: true })
   logoUrl: string | null;
 
   @CreateDateColumn({ name: 'created_at' })

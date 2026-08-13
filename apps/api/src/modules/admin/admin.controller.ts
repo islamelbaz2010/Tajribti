@@ -1,22 +1,33 @@
-import { Controller, Post, Get, UseGuards, SetMetadata } from '@nestjs/common';
+import { Controller, Post, Headers, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AdminService } from './admin.service';
-import { JwtAuthGuard, IS_PUBLIC_KEY } from '../auth/guards/jwt.guard';
-
-const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly configService: ConfigService,
+  ) {}
 
-  @Public()
+  private checkAdminSecret(provided: string | undefined): void {
+    const expected = this.configService.get<string>('ADMIN_SECRET');
+    if (!expected) {
+      throw new UnauthorizedException('Admin endpoints are not configured');
+    }
+    if (provided !== expected) {
+      throw new UnauthorizedException('Invalid admin secret');
+    }
+  }
+
   @Post('seed')
-  seed() {
+  seed(@Headers('x-admin-secret') secret: string | undefined) {
+    this.checkAdminSecret(secret);
     return this.adminService.seedDemo();
   }
 
-  @Public()
   @Post('seed/reset')
-  resetSeed() {
+  resetSeed(@Headers('x-admin-secret') secret: string | undefined) {
+    this.checkAdminSecret(secret);
     return this.adminService.resetDemo();
   }
 }

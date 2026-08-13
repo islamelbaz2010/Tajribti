@@ -7,6 +7,7 @@
 set -euo pipefail
 
 API_BASE="${API_BASE:-http://localhost:3000/api/v1}"
+ADMIN_SECRET="${ADMIN_SECRET:-}"
 RESET=false
 
 for arg in "$@"; do
@@ -32,10 +33,16 @@ wait_for_api() {
 }
 
 do_seed() {
+  if [[ -z "$ADMIN_SECRET" ]]; then
+    echo "[✗] ADMIN_SECRET is not set. Export it before running this script."
+    exit 1
+  fi
+
   echo ""
   echo "Seeding demo data..."
   RESPONSE=$(curl -s -X POST "${API_BASE}/admin/seed" \
-    -H "Content-Type: application/json")
+    -H "Content-Type: application/json" \
+    -H "x-admin-secret: ${ADMIN_SECRET}")
 
   echo "$RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$RESPONSE"
 
@@ -63,9 +70,15 @@ do_seed() {
 }
 
 do_reset() {
+  if [[ -z "$ADMIN_SECRET" ]]; then
+    echo "[✗] ADMIN_SECRET is not set. Export it before running this script."
+    exit 1
+  fi
+
   echo "Resetting demo data..."
   RESET_RESPONSE=$(curl -s -X POST "${API_BASE}/admin/seed/reset" \
-    -H "Content-Type: application/json")
+    -H "Content-Type: application/json" \
+    -H "x-admin-secret: ${ADMIN_SECRET}")
   echo "$RESET_RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$RESET_RESPONSE"
   echo "[✓] Reset complete."
   echo ""

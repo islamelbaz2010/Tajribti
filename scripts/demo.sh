@@ -71,6 +71,7 @@ echo "  Location : $LOCATION_NAME"
 patch_env "DEMO_BRAND_NAME"    "$BRAND_NAME"
 patch_env "DEMO_PRODUCT_NAME"  "$PRODUCT_NAME"
 patch_env "DEMO_LOCATION_NAME" "$LOCATION_NAME"
+patch_env "ADMIN_SECRET"       "local-demo-secret"
 
 echo "  [✓] Written to apps/api/.env (not committed)"
 
@@ -101,7 +102,7 @@ bash "$REPO_ROOT/scripts/run-demo.sh"
 # ─── Step 4: Seed demo data ───────────────────────────────────────────────────
 
 step 4 "Seeding demo data (reset + reseed)..."
-bash "$REPO_ROOT/scripts/seed-demo.sh" --reset
+ADMIN_SECRET="local-demo-secret" bash "$REPO_ROOT/scripts/seed-demo.sh" --reset
 
 # ─── Step 5: Health check ─────────────────────────────────────────────────────
 

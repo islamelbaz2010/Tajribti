@@ -46,10 +46,10 @@ echo "  Backend PID: $API_PID (log: $LOG_DIR/api.log)"
 
 # Wait for backend to be ready
 echo "  Waiting for backend..."
-RETRIES=30
+RETRIES=90
 for i in $(seq 1 $RETRIES); do
   STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 "http://localhost:3000/api/v1/admin/seed" 2>/dev/null || echo "000")
-  if [[ "$STATUS" == "405" || "$STATUS" == "409" || "$STATUS" == "200" ]]; then
+  if [[ "$STATUS" == "405" || "$STATUS" == "409" || "$STATUS" == "200" || "$STATUS" == "404" ]]; then
     echo "  [✓] Backend ready (HTTP $STATUS)"
     break
   fi

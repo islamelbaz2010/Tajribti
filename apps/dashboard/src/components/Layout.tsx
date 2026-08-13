@@ -3,20 +3,40 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { campaignApi } from '../api/endpoints';
 
-const NAV_ITEMS = [
-  { to: '/overview', label: 'Live Overview' },
-  { to: '/campaign', label: 'Campaign & QR' },
-  { to: '/insights', label: 'Demographics' },
-  { to: '/survey', label: 'Survey Results' },
-  { to: '/summary', label: 'AI Summary' },
-  { to: '/participants', label: 'Participants' },
-  { to: '/report', label: 'Download Report' },
+const NAV_SECTIONS = [
+  {
+    group: 'CAMPAIGN',
+    items: [
+      { to: '/overview', label: 'Overview' },
+      { to: '/campaign', label: 'Trial QR' },
+    ],
+  },
+  {
+    group: 'CONSUMERS',
+    items: [
+      { to: '/insights', label: 'Who Tried It?' },
+      { to: '/survey', label: 'What Did They Say?' },
+      { to: '/participants', label: 'Participants' },
+    ],
+  },
+  {
+    group: 'INTELLIGENCE',
+    items: [
+      { to: '/summary', label: 'What Did We Learn?' },
+    ],
+  },
+  {
+    group: 'REPORT',
+    items: [
+      { to: '/report', label: 'Campaign Report' },
+    ],
+  },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [clientName, setClientName] = useState<string>('Demo');
+  const [clientName, setClientName] = useState<string>('');
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -33,24 +53,40 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div style={styles.root}>
       <aside style={styles.sidebar}>
-        <div style={styles.logo}>
-          <span style={styles.logoText}>Tajribti</span>
-          <span style={styles.logoBadge}>{clientName}</span>
+        <div style={styles.logoArea}>
+          <div style={styles.logoRow}>
+            <span style={styles.logoText}>TAJRIBTI</span>
+            <span style={styles.demoBadge}>DEMO</span>
+          </div>
+          {clientName && (
+            <div style={styles.clientName}>{clientName}</div>
+          )}
+          <div style={styles.liveRow}>
+            <div style={styles.liveDot} />
+            <span style={styles.liveLabel}>Consumer Intelligence · Active</span>
+          </div>
         </div>
+
         <nav style={styles.nav}>
-          {NAV_ITEMS.map(({ to, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              style={({ isActive }) => ({
-                ...styles.navItem,
-                ...(isActive ? styles.navItemActive : {}),
-              })}
-            >
-              {label}
-            </NavLink>
+          {NAV_SECTIONS.map(({ group, items }) => (
+            <div key={group} style={styles.navSection}>
+              <div style={styles.navGroupLabel}>{group}</div>
+              {items.map(({ to, label }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  style={({ isActive }) => ({
+                    ...styles.navItem,
+                    ...(isActive ? styles.navItemActive : {}),
+                  })}
+                >
+                  {label}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
+
         <button style={styles.logoutBtn} onClick={handleLogout}>
           Sign Out
         </button>
@@ -65,72 +101,118 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     height: '100vh',
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    background: '#f5f6fa',
+    background: '#070c1a',
   },
   sidebar: {
-    width: 220,
-    background: '#1a1a2e',
-    color: '#fff',
+    width: 232,
+    background: '#040812',
+    borderRight: '1px solid #111d35',
     display: 'flex',
     flexDirection: 'column',
-    padding: '24px 0',
     flexShrink: 0,
+    overflowY: 'auto',
   },
-  logo: {
-    padding: '0 20px 24px',
-    borderBottom: '1px solid rgba(255,255,255,0.1)',
-    marginBottom: 16,
+  logoArea: {
+    padding: '24px 20px 18px',
+    borderBottom: '1px solid #111d35',
+  },
+  logoRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
   },
   logoText: {
-    fontSize: 22,
-    fontWeight: 700,
-    display: 'block',
-    color: '#fff',
+    fontSize: 16,
+    fontWeight: 900,
+    color: '#edf0ff',
+    letterSpacing: 3,
   },
-  logoBadge: {
-    fontSize: 11,
-    background: '#e94560',
-    color: '#fff',
-    borderRadius: 4,
-    padding: '2px 6px',
-    marginTop: 4,
-    display: 'inline-block',
+  demoBadge: {
+    fontSize: 9,
+    fontWeight: 800,
+    color: '#040812',
+    background: '#b2f24d',
+    borderRadius: 3,
+    padding: '2px 7px',
+    letterSpacing: 1.5,
+  },
+  clientName: {
+    fontSize: 13,
     fontWeight: 600,
-    letterSpacing: 0.5,
+    color: '#b2f24d',
+    marginBottom: 8,
+    lineHeight: 1.3,
+  },
+  liveRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: '50%',
+    background: '#b2f24d',
+    animation: 'pulse 1.8s infinite',
+    flexShrink: 0,
+  },
+  liveLabel: {
+    fontSize: 10,
+    color: '#2e3d5e',
+    fontWeight: 500,
+    letterSpacing: 0.3,
   },
   nav: {
     display: 'flex',
     flexDirection: 'column',
     flex: 1,
-    gap: 2,
-    padding: '0 12px',
+    padding: '8px 12px',
+  },
+  navSection: {
+    marginTop: 16,
+  },
+  navGroupLabel: {
+    fontSize: 9,
+    fontWeight: 700,
+    color: '#2e3d5e',
+    letterSpacing: 1.5,
+    padding: '0 8px',
+    marginBottom: 4,
   },
   navItem: {
-    color: 'rgba(255,255,255,0.65)',
+    display: 'block',
+    color: '#4a5a7e',
     textDecoration: 'none',
-    padding: '10px 12px',
-    borderRadius: 8,
-    fontSize: 14,
+    padding: '8px 12px',
+    borderRadius: 6,
+    fontSize: 13,
     fontWeight: 500,
     transition: 'all 0.15s',
+    borderLeft: '2px solid transparent',
+    marginBottom: 1,
   },
   navItemActive: {
-    background: 'rgba(233,69,96,0.2)',
-    color: '#e94560',
+    background: 'rgba(178, 242, 77, 0.07)',
+    color: '#b2f24d',
+    borderLeft: '2px solid #b2f24d',
   },
   main: {
     flex: 1,
     overflow: 'auto',
     padding: 32,
+    background: '#070c1a',
   },
   logoutBtn: {
-    margin: '16px 20px 0',
+    margin: '12px 20px 24px',
     background: 'transparent',
-    border: '1px solid rgba(255,255,255,0.2)',
-    color: 'rgba(255,255,255,0.6)',
-    borderRadius: 8,
+    border: '1px solid #111d35',
+    color: '#2e3d5e',
+    borderRadius: 6,
     padding: '8px 12px',
     cursor: 'pointer',
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: 500,
+    textAlign: 'left' as const,
   },
 };

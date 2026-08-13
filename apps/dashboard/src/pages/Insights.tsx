@@ -1,12 +1,35 @@
 import React, { useEffect, useState } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
 } from 'recharts';
 import { analyticsApi, campaignApi } from '../api/endpoints';
 import type { DemographicsData } from '../api/types';
 
-const COLORS = ['#1a1a2e', '#e94560', '#0f3460', '#533483', '#16213e'];
+const COLORS = ['#b2f24d', '#38bdf8', '#fb7185', '#a78bfa', '#fbbf24'];
+
+const CHART_TOOLTIP = {
+  contentStyle: {
+    background: '#0c1526',
+    border: '1px solid #1a2540',
+    color: '#edf0ff',
+    borderRadius: 6,
+    fontSize: 12,
+  },
+  itemStyle: { color: '#edf0ff' },
+  labelStyle: { color: '#7c8eb8', marginBottom: 4 },
+  cursor: { fill: 'rgba(255,255,255,0.04)' },
+};
+
+const AXIS_TICK = { fontSize: 11, fill: '#3d4a6a' };
+const AXIS_LINE = { stroke: '#1a2540' };
 
 export default function Insights() {
   const [data, setData] = useState<DemographicsData | null>(null);
@@ -21,25 +44,35 @@ export default function Insights() {
   }, []);
 
   if (error) return <div style={styles.error}>{error}</div>;
-  if (!data) return <div style={styles.loading}>Loading demographics…</div>;
+  if (!data) return <div style={styles.loading}>Loading demographic signals…</div>;
+
+  const totalParticipants = data.ageDistribution.reduce((s, r) => s + r.count, 0);
 
   return (
     <div>
-      <h1 style={styles.title}>Demographics</h1>
+      <div style={styles.header}>
+        <span style={styles.demoBadge}>CONSUMERS</span>
+        <h1 style={styles.title}>Who Tried It?</h1>
+        <p style={styles.sub}>
+          Demographic profile of {totalParticipants} consumers who participated in this trial
+        </p>
+      </div>
 
-      <div style={styles.grid}>
-        <ChartCard title="Age Distribution">
+      <div style={styles.chartsGrid}>
+        <div style={styles.card}>
+          <div style={styles.cardTitle}>Age Distribution</div>
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={data.ageDistribution} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-              <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip formatter={(v) => [`${v ?? 0}`, 'Participants']} />
-              <Bar dataKey="count" fill="#1a1a2e" radius={[4, 4, 0, 0]} />
+            <BarChart data={data.ageDistribution} margin={{ top: 5, right: 10, left: -10, bottom: 5 }} barCategoryGap="30%">
+              <XAxis dataKey="label" tick={AXIS_TICK} axisLine={AXIS_LINE} tickLine={false} />
+              <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} />
+              <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v ?? 0}`, 'Participants']} />
+              <Bar dataKey="count" fill="#b2f24d" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </ChartCard>
+        </div>
 
-        <ChartCard title="Gender Split">
+        <div style={styles.card}>
+          <div style={styles.cardTitle}>Gender Split</div>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie
@@ -49,62 +82,159 @@ export default function Insights() {
                 cx="50%"
                 cy="50%"
                 outerRadius={80}
-                label={(entry) => `${(entry as any).label ?? ''} ${Math.round(((entry as any).percent ?? 0) * 100)}%`}
-                labelLine={false}
+                label={(entry: any) =>
+                  `${entry.label ?? ''} ${Math.round((entry.percent ?? 0) * 100)}%`
+                }
+                labelLine={{ stroke: '#1a2540' }}
               >
-                {data.genderDistribution.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                {data.genderDistribution.map((_, index) => (
+                  <Cell key={index} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Legend />
-              <Tooltip formatter={(v) => [`${v ?? 0}`, 'Participants']} />
+              <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v ?? 0}`, 'Participants']} />
             </PieChart>
           </ResponsiveContainer>
-        </ChartCard>
+          <div style={styles.legend}>
+            {data.genderDistribution.map((d, i) => (
+              <div key={d.label} style={styles.legendItem}>
+                <div style={{ ...styles.legendDot, background: COLORS[i % COLORS.length] }} />
+                <span style={styles.legendLabel}>{d.label}</span>
+                <span style={styles.legendCount}>{d.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
-        <ChartCard title="City Distribution" wide>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={data.cityDistribution} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-              <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip formatter={(v) => [`${v ?? 0}`, 'Participants']} />
-              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                {data.cityDistribution.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Bar>
+        <div style={{ ...styles.card, ...styles.cardWide }}>
+          <div style={styles.cardTitle}>City Distribution</div>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={data.cityDistribution} margin={{ top: 5, right: 10, left: -10, bottom: 5 }} barCategoryGap="35%">
+              <XAxis dataKey="label" tick={AXIS_TICK} axisLine={AXIS_LINE} tickLine={false} />
+              <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} />
+              <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v ?? 0}`, 'Participants']} />
+              <Bar dataKey="count" fill="#38bdf8" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </ChartCard>
+        </div>
       </div>
-    </div>
-  );
-}
 
-function ChartCard({ title, children, wide }: { title: string; children: React.ReactNode; wide?: boolean }) {
-  return (
-    <div style={{ ...styles.card, ...(wide ? styles.cardWide : {}) }}>
-      <h2 style={styles.cardTitle}>{title}</h2>
-      {children}
+      {data.ageDistribution.length > 0 && data.genderDistribution.length > 0 && (
+        <div style={styles.segmentCard}>
+          <div style={styles.segmentRow}>
+            <div style={styles.segmentStat}>
+              <div style={styles.segmentLabel}>LARGEST AGE GROUP</div>
+              <div style={styles.segmentValue}>
+                {data.ageDistribution[0]?.label}
+              </div>
+              <div style={styles.segmentDesc}>
+                {data.ageDistribution[0]?.count} participants · {data.ageDistribution[0]?.percentage}% of trial cohort
+              </div>
+            </div>
+            <div style={styles.segmentDivider} />
+            <div style={styles.segmentStat}>
+              <div style={styles.segmentLabel}>GENDER SPLIT</div>
+              <div style={styles.segmentValue}>
+                {data.genderDistribution.map((g, i) => (
+                  <span key={g.label}>
+                    {i > 0 && <span style={styles.segmentSep}> · </span>}
+                    {g.percentage}% {g.label}
+                  </span>
+                ))}
+              </div>
+              <div style={styles.segmentDesc}>
+                Independent distributions — not cross-tabulated
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  loading: { color: '#666', fontSize: 16, marginTop: 40 },
-  error: { color: '#e94560', fontSize: 15, marginTop: 40 },
-  title: { fontSize: 28, fontWeight: 700, color: '#1a1a2e', marginBottom: 24 },
-  grid: {
+  loading: { color: '#2e3d5e', fontSize: 14, marginTop: 32 },
+  error: { color: '#fb7185', fontSize: 14, marginTop: 32 },
+  header: { marginBottom: 24 },
+  demoBadge: {
+    display: 'inline-block',
+    fontSize: 9,
+    fontWeight: 800,
+    color: '#040812',
+    background: '#b2f24d',
+    borderRadius: 3,
+    padding: '3px 8px',
+    letterSpacing: 1.5,
+    marginBottom: 6,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: 800,
+    color: '#edf0ff',
+    margin: '4px 0 6px',
+    letterSpacing: -0.3,
+  },
+  sub: { fontSize: 13, color: '#2e3d5e', margin: 0 },
+  chartsGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: 20,
+    gap: 16,
+    marginBottom: 16,
   },
   card: {
-    background: '#fff',
-    borderRadius: 12,
-    padding: 24,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+    background: '#0a1120',
+    border: '1px solid #111d35',
+    borderRadius: 14,
+    padding: '20px 24px',
   },
   cardWide: { gridColumn: '1 / -1' },
-  cardTitle: { fontSize: 16, fontWeight: 700, color: '#1a1a2e', marginTop: 0, marginBottom: 16 },
+  cardTitle: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#2e3d5e',
+    letterSpacing: 1.5,
+    marginBottom: 16,
+    textTransform: 'uppercase' as const,
+  },
+  legend: { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 },
+  legendItem: { display: 'flex', alignItems: 'center', gap: 8 },
+  legendDot: { width: 8, height: 8, borderRadius: '50%', flexShrink: 0 },
+  legendLabel: { fontSize: 12, color: '#7c8eb8', flex: 1 },
+  legendCount: { fontSize: 12, color: '#edf0ff', fontWeight: 600 },
+  segmentCard: {
+    background: 'rgba(178, 242, 77, 0.05)',
+    border: '1px solid rgba(178, 242, 77, 0.15)',
+    borderRadius: 14,
+    padding: '20px 24px',
+  },
+  segmentRow: {
+    display: 'flex',
+    gap: 24,
+    alignItems: 'flex-start',
+  },
+  segmentStat: {
+    flex: 1,
+  },
+  segmentDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    background: 'rgba(178, 242, 77, 0.12)',
+    flexShrink: 0,
+  },
+  segmentLabel: {
+    fontSize: 9,
+    fontWeight: 800,
+    color: '#b2f24d',
+    letterSpacing: 2,
+    marginBottom: 6,
+  },
+  segmentValue: {
+    fontSize: 20,
+    fontWeight: 800,
+    color: '#edf0ff',
+    marginBottom: 6,
+    letterSpacing: -0.3,
+  },
+  segmentSep: { color: '#1a2540' },
+  segmentDesc: { fontSize: 11, color: '#4a5a7e', lineHeight: 1.6 },
 };

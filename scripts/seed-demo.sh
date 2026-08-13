@@ -18,7 +18,8 @@ wait_for_api() {
   local delay=2
   echo "Waiting for backend at $API_BASE ..."
   for i in $(seq 1 $retries); do
-    if curl -sf "$API_BASE/../health" &>/dev/null || curl -sf "${API_BASE%/api/v1}/api/v1/admin/seed" -o /dev/null 2>&1 | grep -q "405\|409\|200"; then
+    STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 "${API_BASE}/admin/seed" 2>/dev/null || echo "000")
+    if [[ "$STATUS" == "200" || "$STATUS" == "404" || "$STATUS" == "405" || "$STATUS" == "409" ]]; then
       echo "Backend is reachable."
       return 0
     fi

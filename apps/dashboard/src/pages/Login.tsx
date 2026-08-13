@@ -26,35 +26,51 @@ export default function Login() {
 
   return (
     <div style={styles.root}>
-      <div style={styles.card}>
-        <div style={styles.header}>
-          <span style={styles.logo}>Tajribti</span>
-          <p style={styles.subtitle}>Brand Intelligence Dashboard</p>
+      <div style={styles.panel}>
+        <div style={styles.logoRow}>
+          <span style={styles.logoText}>TAJRIBTI</span>
+          <span style={styles.demoBadge}>DEMO</span>
         </div>
+        <div style={styles.tagline}>Consumer Intelligence Platform</div>
+
+        <div style={styles.concept}>
+          {['TRIAL', 'SIGNAL', 'INTELLIGENCE', 'DECISION'].map((step, i, arr) => (
+            <React.Fragment key={step}>
+              <span style={styles.conceptStep}>{step}</span>
+              {i < arr.length - 1 && <span style={styles.arrow}>→</span>}
+            </React.Fragment>
+          ))}
+        </div>
+
         <form onSubmit={handleSubmit} style={styles.form}>
-          <label style={styles.label}>Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={styles.input}
-            required
-            autoFocus
-          />
-          <label style={styles.label}>Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={styles.input}
-            required
-          />
+          <div style={styles.fieldGroup}>
+            <label style={styles.label}>Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={styles.input}
+              required
+              autoFocus
+            />
+          </div>
+          <div style={styles.fieldGroup}>
+            <label style={styles.label}>Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={styles.input}
+              required
+            />
+          </div>
           {error && <p style={styles.error}>{error}</p>}
           <button type="submit" style={styles.btn} disabled={loading}>
-            {loading ? 'Signing in…' : 'Sign In'}
+            {loading ? 'Signing in…' : 'Sign In →'}
           </button>
         </form>
-        <p style={styles.hint}>Demo: demo@brand.com / Demo1234!</p>
+
+        <p style={styles.hint}>Demo credentials are pre-filled.</p>
       </div>
     </div>
   );
@@ -63,49 +79,118 @@ export default function Login() {
 const styles: Record<string, React.CSSProperties> = {
   root: {
     minHeight: '100vh',
+    background: '#070c1a',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: '#1a1a2e',
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    padding: 24,
   },
-  card: {
-    background: '#fff',
+  panel: {
+    background: '#0a1120',
+    border: '1px solid #111d35',
     borderRadius: 16,
-    padding: '48px 40px',
-    width: 380,
-    boxShadow: '0 24px 48px rgba(0,0,0,0.3)',
+    padding: '48px 44px',
+    width: '100%',
+    maxWidth: 400,
   },
-  header: { textAlign: 'center', marginBottom: 32 },
-  logo: {
-    fontSize: 32,
+  logoRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 6,
+  },
+  logoText: {
+    fontSize: 20,
+    fontWeight: 900,
+    color: '#edf0ff',
+    letterSpacing: 3,
+  },
+  demoBadge: {
+    fontSize: 9,
     fontWeight: 800,
-    color: '#1a1a2e',
-    display: 'block',
-    marginBottom: 8,
+    color: '#040812',
+    background: '#b2f24d',
+    borderRadius: 3,
+    padding: '2px 8px',
+    letterSpacing: 1.5,
   },
-  subtitle: { color: '#666', fontSize: 14, margin: 0 },
-  form: { display: 'flex', flexDirection: 'column', gap: 8 },
-  label: { fontSize: 13, fontWeight: 600, color: '#333' },
+  tagline: {
+    fontSize: 12,
+    color: '#2e3d5e',
+    marginBottom: 28,
+    fontWeight: 500,
+  },
+  concept: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 36,
+    flexWrap: 'wrap' as const,
+  },
+  conceptStep: {
+    fontSize: 9,
+    fontWeight: 800,
+    color: '#b2f24d',
+    letterSpacing: 1.5,
+  },
+  arrow: {
+    color: '#1a2540',
+    fontSize: 12,
+    fontWeight: 700,
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 16,
+  },
+  fieldGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#2e3d5e',
+    letterSpacing: 0.5,
+  },
   input: {
-    border: '1.5px solid #e0e0e0',
+    background: '#070c1a',
+    border: '1px solid #1a2540',
     borderRadius: 8,
     padding: '10px 14px',
-    fontSize: 14,
+    fontSize: 13,
+    color: '#edf0ff',
     outline: 'none',
-    marginBottom: 8,
+    fontFamily: "'Inter', 'Segoe UI', sans-serif",
   },
-  error: { color: '#e94560', fontSize: 13, margin: '4px 0' },
+  error: {
+    fontSize: 12,
+    color: '#fb7185',
+    background: 'rgba(251, 113, 133, 0.08)',
+    border: '1px solid rgba(251, 113, 133, 0.2)',
+    borderRadius: 6,
+    padding: '8px 12px',
+    margin: 0,
+  },
   btn: {
-    background: '#1a1a2e',
-    color: '#fff',
+    background: '#b2f24d',
+    color: '#040812',
     border: 'none',
     borderRadius: 8,
-    padding: '12px',
-    fontSize: 15,
-    fontWeight: 600,
+    padding: '12px 24px',
+    fontSize: 13,
+    fontWeight: 800,
     cursor: 'pointer',
-    marginTop: 8,
+    letterSpacing: 0.5,
+    marginTop: 4,
   },
-  hint: { textAlign: 'center', fontSize: 12, color: '#aaa', marginTop: 20, marginBottom: 0 },
+  hint: {
+    textAlign: 'center' as const,
+    fontSize: 11,
+    color: '#1a2540',
+    marginTop: 20,
+    marginBottom: 0,
+  },
 };

@@ -8,6 +8,7 @@ import { Consumer } from '../../entities/consumer.entity';
 import { RedemptionEvent } from '../../entities/redemption-event.entity';
 import { SurveyResponse } from '../../entities/survey-response.entity';
 import { BrandAccount } from '../../entities/brand-account.entity';
+import { AiReport } from '../../entities/ai-report.entity';
 import { ConfigService } from '@nestjs/config';
 
 const AGE_RANGES = ['18-24', '25-34', '35-44', '45-54', '55+'] as const;
@@ -75,6 +76,8 @@ export class AdminService {
     private readonly surveyRepo: Repository<SurveyResponse>,
     @InjectRepository(BrandAccount)
     private readonly brandRepo: Repository<BrandAccount>,
+    @InjectRepository(AiReport)
+    private readonly aiReportRepo: Repository<AiReport>,
     private readonly configService: ConfigService,
   ) {}
 
@@ -146,6 +149,7 @@ export class AdminService {
   async resetDemo(): Promise<{ message: string }> {
     const demos = await this.campaignRepo.find({ where: { isDemo: true } });
     for (const campaign of demos) {
+      await this.aiReportRepo.delete({ campaignId: campaign.id });
       await this.surveyRepo.delete({ campaignId: campaign.id });
       await this.redemptionRepo.delete({ campaignId: campaign.id });
       await this.qrRepo.delete({ campaignId: campaign.id });
@@ -177,7 +181,7 @@ export class AdminService {
     const genderWeights = [0.45, 0.55];
 
     for (let i = 0; i < count; i++) {
-      const phone = `+20${100000000 + i + Math.floor(Math.random() * 1000)}`;
+      const phone = `+20100${String(i).padStart(6, '0')}`;
       const ageRange = this.weightedPick(AGE_RANGES, ageWeights);
       const gender = this.weightedPick(GENDERS, genderWeights);
       const city = CITIES[Math.floor(Math.random() * CITIES.length)];

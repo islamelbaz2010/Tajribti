@@ -43,8 +43,15 @@ export default function Participants() {
   return (
     <div>
       <div style={styles.header}>
-        <h1 style={styles.title}>Participants</h1>
-        <span style={styles.badge}>{total} total</span>
+        <div>
+          <span style={styles.demoBadge}>CONSUMERS</span>
+          <h1 style={styles.title}>Participants</h1>
+          <p style={styles.sub}>Anonymised consumer records from this trial campaign</p>
+        </div>
+        <div style={styles.totalBadge}>
+          <span style={styles.totalNum}>{total}</span>
+          <span style={styles.totalLabel}>total signals</span>
+        </div>
       </div>
 
       {loading ? (
@@ -55,26 +62,34 @@ export default function Participants() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  {['#', 'Age', 'Gender', 'City', 'Survey', 'Time'].map((h) => (
+                  {['#', 'Age Range', 'Gender', 'City', 'Survey', 'Time'].map((h) => (
                     <th key={h} style={styles.th}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((p, i) => (
-                  <tr key={p.id} style={i % 2 === 0 ? styles.rowEven : styles.rowOdd}>
-                    <td style={styles.td}>{(page - 1) * PAGE_SIZE + i + 1}</td>
+                  <tr
+                    key={p.id}
+                    style={{ ...styles.tr, ...(i % 2 !== 0 ? styles.trAlt : {}) }}
+                  >
+                    <td style={styles.td}>
+                      <span style={styles.rowNum}>{(page - 1) * PAGE_SIZE + i + 1}</span>
+                    </td>
                     <td style={styles.td}>{p.ageRange ?? '—'}</td>
                     <td style={styles.td}>{p.gender ?? '—'}</td>
                     <td style={styles.td}>{p.city ?? '—'}</td>
                     <td style={styles.td}>
                       <span style={p.hasSurvey ? styles.badgeGreen : styles.badgeGray}>
-                        {p.hasSurvey ? 'Done' : 'Pending'}
+                        {p.hasSurvey ? 'Complete' : 'Pending'}
                       </span>
                     </td>
-                    <td style={styles.td}>
+                    <td style={{ ...styles.td, color: '#2e3d5e' }}>
                       {new Date(p.redeemedAt).toLocaleString('en-EG', {
-                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
                       })}
                     </td>
                   </tr>
@@ -86,7 +101,7 @@ export default function Participants() {
           {totalPages > 1 && (
             <div style={styles.pagination}>
               <button
-                style={styles.pageBtn}
+                style={{ ...styles.pageBtn, opacity: page <= 1 ? 0.4 : 1 }}
                 disabled={page <= 1}
                 onClick={() => goToPage(page - 1)}
               >
@@ -94,7 +109,7 @@ export default function Participants() {
               </button>
               <span style={styles.pageInfo}>Page {page} of {totalPages}</span>
               <button
-                style={styles.pageBtn}
+                style={{ ...styles.pageBtn, opacity: page >= totalPages ? 0.4 : 1 }}
                 disabled={page >= totalPages}
                 onClick={() => goToPage(page + 1)}
               >
@@ -109,53 +124,86 @@ export default function Participants() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  loading: { color: '#666', fontSize: 16, marginTop: 40 },
-  error: { color: '#e94560', fontSize: 15, marginTop: 40 },
-  header: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 },
-  title: { fontSize: 28, fontWeight: 700, color: '#1a1a2e', margin: 0 },
-  badge: {
-    background: '#1a1a2e',
-    color: '#fff',
-    borderRadius: 20,
-    padding: '4px 12px',
-    fontSize: 13,
-    fontWeight: 600,
+  loading: { color: '#2e3d5e', fontSize: 14, marginTop: 32 },
+  error: { color: '#fb7185', fontSize: 14, marginTop: 32 },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 24,
   },
+  demoBadge: {
+    display: 'inline-block',
+    fontSize: 9,
+    fontWeight: 800,
+    color: '#040812',
+    background: '#b2f24d',
+    borderRadius: 3,
+    padding: '3px 8px',
+    letterSpacing: 1.5,
+    marginBottom: 4,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: 800,
+    color: '#edf0ff',
+    margin: '4px 0 6px',
+    letterSpacing: -0.3,
+  },
+  sub: { fontSize: 13, color: '#2e3d5e', margin: 0 },
+  totalBadge: {
+    background: '#0a1120',
+    border: '1px solid #111d35',
+    borderRadius: 12,
+    padding: '14px 20px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  totalNum: { fontSize: 28, fontWeight: 900, color: '#b2f24d', lineHeight: 1 },
+  totalLabel: { fontSize: 10, color: '#2e3d5e', marginTop: 4, letterSpacing: 0.5 },
   tableWrap: {
-    background: '#fff',
+    background: '#0a1120',
+    border: '1px solid #111d35',
     borderRadius: 12,
     overflow: 'hidden',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
   },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {
-    background: '#f8f9fa',
+    background: '#040812',
     padding: '12px 16px',
-    textAlign: 'left',
-    fontSize: 12,
+    textAlign: 'left' as const,
+    fontSize: 10,
     fontWeight: 700,
-    color: '#888',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    borderBottom: '1px solid #eee',
+    color: '#2e3d5e',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 1,
+    borderBottom: '1px solid #111d35',
   },
-  td: { padding: '12px 16px', fontSize: 14, color: '#333' },
-  rowEven: {},
-  rowOdd: { background: '#fafafa' },
+  tr: {},
+  trAlt: { background: 'rgba(255,255,255,0.01)' },
+  td: {
+    padding: '11px 16px',
+    fontSize: 13,
+    color: '#7c8eb8',
+    borderBottom: '1px solid #0e1a2e',
+  },
+  rowNum: { fontSize: 11, color: '#2e3d5e', fontWeight: 600 },
   badgeGreen: {
-    background: '#d1fae5',
-    color: '#059669',
+    background: 'rgba(178, 242, 77, 0.1)',
+    color: '#b2f24d',
     borderRadius: 4,
     padding: '2px 8px',
-    fontSize: 12,
-    fontWeight: 600,
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: 0.3,
   },
   badgeGray: {
-    background: '#f3f4f6',
-    color: '#9ca3af',
+    background: '#0e1a2e',
+    color: '#2e3d5e',
     borderRadius: 4,
     padding: '2px 8px',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 600,
   },
   pagination: {
@@ -166,14 +214,14 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: 20,
   },
   pageBtn: {
-    background: '#1a1a2e',
-    color: '#fff',
-    border: 'none',
+    background: '#0a1120',
+    border: '1px solid #1a2540',
+    color: '#7c8eb8',
     borderRadius: 8,
     padding: '8px 16px',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',
   },
-  pageInfo: { fontSize: 14, color: '#666' },
+  pageInfo: { fontSize: 12, color: '#2e3d5e' },
 };

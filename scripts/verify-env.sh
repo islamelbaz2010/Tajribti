@@ -102,7 +102,7 @@ section "Dependencies"
 section "Flutter (optional — required for consumer app)"
 
 if command -v flutter &>/dev/null; then
-  FLUTTER_VER=$(flutter --version 2>/dev/null | head -1)
+  FLUTTER_VER=$(flutter --version 2>/dev/null | head -1 || true)
   pass "Flutter installed: $FLUTTER_VER"
 else
   echo "  [!] Flutter not installed — consumer app cannot be run on this machine"

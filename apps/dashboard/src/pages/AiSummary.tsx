@@ -12,19 +12,25 @@ export default function AiSummary() {
       .getDemoActive()
       .then((c) => reportApi.getAiSummary(c.id))
       .then(setReport)
-      .catch(() => setError('Failed to generate AI summary.'))
+      .catch(() => setError('Failed to generate intelligence summary.'))
       .finally(() => setLoading(false));
   }, []);
 
   return (
     <div>
-      <h1 style={styles.title}>AI Summary</h1>
+      <div style={styles.header}>
+        <span style={styles.demoBadge}>INTELLIGENCE</span>
+        <h1 style={styles.title}>What Did We Learn?</h1>
+        <p style={styles.sub}>
+          Structured consumer intelligence generated from trial survey data
+        </p>
+      </div>
 
       {loading && (
         <div style={styles.loadingCard}>
           <div style={styles.spinner} />
-          <p style={styles.loadingText}>Generating insights from {0} responses…</p>
-          <p style={styles.loadingHint}>This takes 3–8 seconds on first load</p>
+          <p style={styles.loadingText}>Processing survey data…</p>
+          <p style={styles.loadingHint}>Generating intelligence summary from trial responses</p>
         </div>
       )}
 
@@ -35,25 +41,45 @@ export default function AiSummary() {
       {report && !loading && (
         <div>
           <div style={styles.metaRow}>
-            <span style={styles.meta}>Based on {report.responseCountAtGeneration} survey responses</span>
-            <span style={styles.meta}>Generated {new Date(report.createdAt).toLocaleString('en-EG')}</span>
+            <span style={styles.meta}>
+              Based on {report.responseCountAtGeneration} survey responses
+            </span>
+            <span style={styles.meta}>
+              {new Date(report.createdAt).toLocaleString('en-EG')}
+            </span>
           </div>
           <div style={styles.reportCard}>
-            <div style={styles.aiLabel}>
-              <span style={styles.aiIcon}>AI</span>
+            <div style={styles.intelligenceBadge}>
+              <span style={styles.intelligenceIcon}>INTELLIGENCE</span>
               Consumer Intelligence Summary
             </div>
             <div style={styles.narrative}>
               {report.narrative.split('\n').map((line, i) => {
                 if (!line.trim()) return <br key={i} />;
                 if (line.startsWith('**') && line.endsWith('**')) {
-                  return <p key={i} style={styles.narrativeHeading}>{line.replace(/\*\*/g, '')}</p>;
+                  return (
+                    <p key={i} style={styles.narrativeHeading}>
+                      {line.replace(/\*\*/g, '')}
+                    </p>
+                  );
                 }
                 if (line.startsWith('- ')) {
-                  return <li key={i} style={styles.narrativeBullet}>{line.slice(2)}</li>;
+                  return (
+                    <li key={i} style={styles.narrativeBullet}>
+                      {line.slice(2)}
+                    </li>
+                  );
                 }
                 return <p key={i} style={styles.narrativePara}>{line}</p>;
               })}
+            </div>
+          </div>
+
+          <div style={styles.decisionCard}>
+            <div style={styles.decisionLabel}>DECISION READY</div>
+            <div style={styles.decisionDesc}>
+              This intelligence is ready for brand action. Use the Campaign Report screen to export
+              a PDF briefing for your marketing team.
             </div>
           </div>
         </div>
@@ -63,73 +89,126 @@ export default function AiSummary() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  title: { fontSize: 28, fontWeight: 700, color: '#1a1a2e', marginBottom: 24 },
+  header: { marginBottom: 24 },
+  demoBadge: {
+    display: 'inline-block',
+    fontSize: 9,
+    fontWeight: 800,
+    color: '#040812',
+    background: '#b2f24d',
+    borderRadius: 3,
+    padding: '3px 8px',
+    letterSpacing: 1.5,
+    marginBottom: 6,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: 800,
+    color: '#edf0ff',
+    margin: '4px 0 6px',
+    letterSpacing: -0.3,
+  },
+  sub: { fontSize: 13, color: '#2e3d5e', margin: 0 },
   loadingCard: {
-    background: '#fff',
-    borderRadius: 12,
+    background: '#0a1120',
+    border: '1px solid #111d35',
+    borderRadius: 14,
     padding: 48,
-    textAlign: 'center',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+    textAlign: 'center' as const,
   },
   spinner: {
-    width: 40,
-    height: 40,
-    border: '3px solid #f0f0f0',
-    borderTop: '3px solid #1a1a2e',
+    width: 36,
+    height: 36,
+    border: '2px solid #111d35',
+    borderTop: '2px solid #b2f24d',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
     margin: '0 auto 16px',
   },
-  loadingText: { fontSize: 16, color: '#333', marginBottom: 4 },
-  loadingHint: { fontSize: 13, color: '#aaa', margin: 0 },
+  loadingText: { fontSize: 15, color: '#7c8eb8', marginBottom: 4 },
+  loadingHint: { fontSize: 12, color: '#2e3d5e', margin: 0 },
   errorCard: {
-    background: '#fff5f5',
-    border: '1px solid #fecaca',
+    background: 'rgba(251, 113, 133, 0.06)',
+    border: '1px solid rgba(251, 113, 133, 0.2)',
     borderRadius: 12,
     padding: 24,
-    color: '#e94560',
-    fontSize: 14,
+    color: '#fb7185',
+    fontSize: 13,
   },
   metaRow: {
     display: 'flex',
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  meta: { fontSize: 13, color: '#aaa' },
+  meta: { fontSize: 12, color: '#2e3d5e' },
   reportCard: {
-    background: '#fff',
-    borderRadius: 12,
+    background: '#0a1120',
+    border: '1px solid #111d35',
+    borderRadius: 14,
     padding: 32,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+    marginBottom: 16,
   },
-  aiLabel: {
+  intelligenceBadge: {
     display: 'flex',
     alignItems: 'center',
-    gap: 8,
-    fontSize: 13,
-    color: '#888',
+    gap: 10,
+    fontSize: 12,
+    color: '#2e3d5e',
     fontWeight: 600,
     marginBottom: 24,
     paddingBottom: 16,
-    borderBottom: '1px solid #f0f0f0',
+    borderBottom: '1px solid #111d35',
   },
-  aiIcon: {
-    background: '#1a1a2e',
-    color: '#fff',
-    borderRadius: 6,
-    padding: '2px 6px',
-    fontSize: 11,
+  intelligenceIcon: {
+    background: '#b2f24d',
+    color: '#040812',
+    borderRadius: 4,
+    padding: '3px 8px',
+    fontSize: 9,
     fontWeight: 800,
+    letterSpacing: 1.5,
   },
   narrative: { lineHeight: 1.8 },
-  narrativePara: { color: '#333', fontSize: 15, margin: '0 0 12px' },
-  narrativeHeading: { fontSize: 16, fontWeight: 700, color: '#1a1a2e', margin: '20px 0 8px' },
-  narrativeBullet: {
-    color: '#444',
+  narrativePara: {
+    color: '#7c8eb8',
     fontSize: 14,
+    margin: '0 0 12px',
+    lineHeight: 1.8,
+  },
+  narrativeHeading: {
+    fontSize: 15,
+    fontWeight: 700,
+    color: '#edf0ff',
+    margin: '20px 0 8px',
+  },
+  narrativeBullet: {
+    color: '#7c8eb8',
+    fontSize: 13,
     marginBottom: 6,
     paddingLeft: 4,
     listStyle: 'disc',
     marginLeft: 20,
+  },
+  decisionCard: {
+    background: 'rgba(178, 242, 77, 0.05)',
+    border: '1px solid rgba(178, 242, 77, 0.15)',
+    borderRadius: 12,
+    padding: '16px 20px',
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 16,
+  },
+  decisionLabel: {
+    fontSize: 9,
+    fontWeight: 800,
+    color: '#b2f24d',
+    letterSpacing: 2,
+    whiteSpace: 'nowrap' as const,
+    paddingTop: 2,
+  },
+  decisionDesc: {
+    fontSize: 12,
+    color: '#4a5a7e',
+    lineHeight: 1.6,
   },
 };

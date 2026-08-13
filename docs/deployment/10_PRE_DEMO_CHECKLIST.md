@@ -79,7 +79,7 @@ Then verify the dashboard shows 49.
 | Issue | What to Say |
 |-------|-------------|
 | Thank You screen shows "+0 points" | "Points are recorded server-side — the display will show the correct value in the production build" |
-| AI summary takes 5-8 seconds | "The AI is generating a fresh narrative in real time" |
+| AI summary takes 5-8 seconds (live AI only — instant when no API key is configured) | "The platform is processing the survey data to generate the intelligence summary" |
 | Mansoura city not available | Do not select it — use Cairo or Other |
 
 ---

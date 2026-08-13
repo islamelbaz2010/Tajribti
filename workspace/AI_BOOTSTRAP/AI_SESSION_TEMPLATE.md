@@ -67,10 +67,10 @@ After reading, confirm these 12 facts by stating them explicitly:
 
 | # | Expected |
 |---|---|
-| 1 | "Tajribti (تجربتي)" — provisional name, NOT authorized for development |
-| 2 | NOT AUTHORIZED. 67/100 |
-| 3 | Track 0 — commercial validation. Engineering has NOT started. |
-| 4 | Execute $15K–$25K commercial validation; secure ≥3 brand LOIs; close 4 blocking items |
+| 1 | "Tajribti (تجربتي)" — provisional name; MEOS v1 demo LOCKED + FROZEN; Real Pilot MVP READY LOCALLY (commit ed72a20) |
+| 2 | Real Pilot MVP complete locally. NOT deployed to cloud. Track 1 full engineering: NOT AUTHORIZED until B-01/B-02/B-03/B-04. IERB baseline: 67/100. |
+| 3 | Pilot Deployment phase — Real Pilot MVP committed on sprint/pilot-readiness-mvp. Demo FROZEN at sprint/meos-production-build / 0209b9a. |
+| 4 | Deploy Real Pilot MVP to cloud; run one real brand campaign; do NOT start P1/P2 features until field pilot data exists |
 | 5 | 4 blocking items: B-01 (Track 0 GO), B-02 (LLC), B-03 (PDPL), B-04 (QR load test) |
 | 6 | `15_Decisions/FOUNDER_DECISIONS.md` (FDD) |
 | 7 | Consumer Intelligence Platform (B2B2C) |
@@ -78,7 +78,7 @@ After reading, confirm these 12 facts by stating them explicitly:
 | 9 | ILLUSTRATIVE — not validated |
 | 10 | Marketeers Research (Egypt/KSA/GCC, AI-powered "Smart Value™" FMCG analytics) |
 | 11 | PROVISIONAL — trademark and domain clearance pending |
-| 12 | CAN help with: strategy, brand outreach, LOI drafting, legal research, PDPL brief. CANNOT help with: engineering, production code, infra setup. |
+| 12 | CAN help with: pilot deployment (Railway/Vercel/Supabase/Twilio), first real campaign setup, monitoring. CANNOT help with: new features, Track 1 engineering, modifying the frozen demo. |
 
 ---
 
@@ -104,13 +104,15 @@ If no conflicts found:
 Based on the user's question, load additional files from `AI_BOOTSTRAP/13_LOADING_ORDER.md`:
 
 ```
-Strategic advice    → Load Tier 2: 01, 04, 05 + GTM, IC Memo, Risk Register
-Product/features    → Load Tier 2: PRD, Domain Model, Product Strategy
-Technical           → Load Tier 2: Technical Architecture, Architecture Map, EA
-Investment          → Load Tier 2: IC v2.0, IC Memo, Remediation Audit, Assumptions
-Competitive         → Load Tier 2: Peer Review, Product Strategy, IC v2.0, GTM
-Sprint planning     → Load Tier 2: Current Objective, Delivery Plan, Sprint Template
-Decision making     → Load Tier 2: Open Decisions Tracker, Decision Log, Constitution
+Strategic advice       → Load Tier 2: 01, 04, 05 + GTM, IC Memo, Risk Register
+Product/features       → Load Tier 2: PRD, Domain Model, Product Strategy
+Technical              → Load Tier 2: Technical Architecture, Architecture Map, EA
+Investment             → Load Tier 2: IC v2.0, IC Memo, Remediation Audit, Assumptions
+Competitive            → Load Tier 2: Peer Review, Product Strategy, IC v2.0, GTM
+Sprint planning        → Load Tier 2: Current Objective, Delivery Plan, Sprint Template
+Decision making        → Load Tier 2: Open Decisions Tracker, Decision Log, Constitution
+Commercial Execution   → Load: 02_PROJECT_STATE.md, scripts/demo.sh, Sales_Execution_Pack/
+Demo / brand outreach  → Load: 02_PROJECT_STATE.md, 04_CURRENT_OBJECTIVE.md, Sales_Execution_Pack/
 ```
 
 ---
@@ -133,8 +135,9 @@ After completing Steps 1–5, output:
 SESSION READY
 
 Project: Tajribti (تجربتي) — Egypt's Consumer Intelligence Platform
-Authorization: NOT AUTHORIZED for development
-Current Phase: Track 0 — Commercial Validation
+Demo State: MEOS v1 LOCKED + FROZEN — bash scripts/demo.sh — commit 0209b9a
+Pilot State: Real Pilot MVP READY LOCALLY — commit ed72a20 — NOT yet deployed
+Phase: Pilot Deployment (Track 1 full engineering NOT yet authorized)
 Loaded Files: [list files loaded this session]
 Detected Conflicts: [none / list them]
 Session Scope: [what you can and cannot help with today]

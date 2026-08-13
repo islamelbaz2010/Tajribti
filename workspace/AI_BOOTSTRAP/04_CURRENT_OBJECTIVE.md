@@ -1,148 +1,112 @@
 # Current Objective — One Page
 
 **This file describes EXACTLY what we are trying to accomplish RIGHT NOW.**  
-**Last updated:** 2026-07-27
+**Last updated:** 2026-08-13
 
 ---
 
 ## The One Sentence
 
-Execute a 60-day, $15K–$25K commercial validation sprint to prove — or disprove — that Egyptian FMCG brands will pay for consumer intelligence from physical trial data.
+Deploy the Real Pilot MVP to a controlled cloud environment and run one real, measured brand campaign with real consumers.
 
-*Source: `04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md` — Investment Parameters*
+*Source: Real Pilot MVP Final Handoff; `AI_BOOTSTRAP/02_PROJECT_STATE.md`*
 
 ---
 
 ## What "Right Now" Means
 
-**Zero engineering. Zero product. Zero code.**
+**Real Pilot MVP is built, tested, and committed. It has never been deployed.**
 
-The current phase is a commercial and legal validation sprint, not a build phase. Engineering starts only after Track 0 produces a GO decision.
+The local implementation is complete (commit `ed72a20` on `sprint/pilot-readiness-mvp`). All 7 acceptance tests passed locally. The next required action is cloud deployment and execution of one real field pilot.
 
-*Source: `13_Audits/REMEDIATION_REAUDIT.md` Section B; `04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md`*
+Commercial demo is FROZEN at commit `0209b9a` on `sprint/meos-production-build`. Do not touch it.
 
----
-
-## The 4 Things That Must Happen
-
-### 1. Brand LOIs — the commercial gate (B-01)
-
-Reach ≥3 Egyptian FMCG, beauty, or pharma-OTC brands with enough interest to sign pilot letters of intent (LOIs).
-
-**How:** Outreach to the 14 pre-identified brand targets using a brand pitch deck and brand briefing document. Discovery calls. Pilot proposals. LOI signature.
-
-**Kill criterion:** If fewer than 3 LOIs are signed in 60 days → NO-GO. Engineering does not start. Period.
-
-*Source: `07_Product/GO_TO_MARKET.md` GTM Sequence; `12_Reviews/PEER_REVIEW_MASTER_REPORT.md` Kill Criterion*
-
-**14 Priority brand targets (from workspace):**
-
-| Brand | Category | Why |
-|---|---|---|
-| Procter & Gamble Egypt | FMCG | High SKU velocity, established sampling budgets |
-| Unilever Egypt | FMCG | Household penetration campaigns |
-| Nestlé Egypt | FMCG | New product launches |
-| PepsiCo Egypt | FMCG | Snacks + beverages |
-| Coca-Cola Egypt | FMCG | Consumer activation |
-| Johnson & Johnson Egypt | FMCG/OTC | OTC pharma + baby care |
-| L'Oréal Egypt | Beauty | Skincare new products |
-| Dabur Egypt | FMCG/Herbal | Growing MENA presence |
-| Hana Group | Beauty | Egyptian beauty market leader |
-| OLA (Chipsy) Egypt | FMCG | Snacks |
-| El-Rashidi El-Mizan | FMCG | Local FMCG conglomerate |
-| Fine Egypt | FMCG | Household paper products |
-| Juhayna | FMCG | Dairy/beverages |
-| Lactel Egypt | FMCG | Dairy |
-
-*Source: `07_Product/GO_TO_MARKET.md` Brand Target List*
+*Source: Real Pilot MVP Final Handoff; `AI_BOOTSTRAP/02_PROJECT_STATE.md`*
 
 ---
 
-### 2. LLC Incorporation — the legal and operational gate (B-02)
+## The 5 Deployment Steps
 
-Register the Egyptian legal entity. Until registered, no contracts can be signed, no bank accounts opened, no vendor relationships established.
+### 1. API Deployment (Railway or equivalent)
 
-**Status:** Not yet incorporated.
+Deploy `apps/api` to a publicly accessible host.
 
-**What closes it:** Commercial register number or confirmed formation date.
+Required env vars:
+```
+DATABASE_URL=<supabase-or-pg-connection-string>
+JWT_SECRET=<random-secret>
+JWT_REFRESH_SECRET=<random-secret>
+DEMO_MODE=false
+TWILIO_ACCOUNT_SID=<sid>
+TWILIO_AUTH_TOKEN=<token>
+TWILIO_PHONE_NUMBER=<+20...>
+OPENAI_API_KEY=<key>
+CONSUMER_WEB_URL=<vercel-dashboard-url>
+```
 
-*Source: `15_Decisions/OPEN_DECISIONS_TRACKER.md` B-02; `13_Audits/REMEDIATION_REAUDIT.md`*
+### 2. Dashboard Deployment (Vercel)
 
----
+Deploy `apps/dashboard` to Vercel.
 
-### 3. PDPL Legal Review — the data compliance gate (B-03)
+Required env var:
+```
+REACT_APP_API_URL=<railway-api-url>/api/v1
+```
 
-Engage an Egyptian data-privacy lawyer to provide a written scope opinion on Tajribti's consumer data collection model under the Personal Data Protection Law (PDPL — Law No. 151 of 2020).
+The dashboard serves BOTH the brand portal AND the consumer mobile web journey (`/join/:campaignId/*`).
 
-**What we need:** A written memo that confirms: (a) consent mechanism design; (b) permissible data categories; (c) data residency requirements; and (d) whether AWS Bahrain satisfies Egyptian PDPL.
+### 3. First Real Brand Account
 
-**Status:** Not yet engaged. No lawyer yet hired.
+No self-registration UI exists. Insert directly:
+```sql
+INSERT INTO brand_accounts (id, name, email, password, created_at)
+VALUES (gen_random_uuid(), 'Brand Name', 'brand@email.com', '<bcrypt>', NOW());
+```
 
-**What closes it:** Written memo received.
+Or add a temporary admin endpoint for account creation.
 
-*Source: `15_Decisions/OPEN_DECISIONS_TRACKER.md` B-03; `02_Project_Management/RISK_REGISTER.md` R-LC-01*
+### 4. First Real Campaign
 
----
+Brand logs in → `POST /api/v1/campaigns` → receives `campaignId` → `GET /qr/generate/:campaignId` → print QR on sample products.
 
-### 4. QR Load Test — the technical risk gate (B-04)
+### 5. First Real Consumer
 
-After Track 0 GO and CTO hire, execute a QR concurrency load test. The QR Redemption feature (TJ-005) has a concurrent race condition risk — multiple consumers scanning the same QR simultaneously. The load test must validate that the idempotency solution holds.
-
-**Status:** BLOCKED until B-01 (GO) and CTO hire.
-
-**What closes it:** Load test report showing idempotency holds at target concurrent-scan load.
-
-*Source: `15_Decisions/OPEN_DECISIONS_TRACKER.md` B-04; `09_Technical/TECHNICAL_ARCHITECTURE.md`; `08_PRD/MASTER_PRD_v1.0.md` TJ-005*
+Consumer receives a sample product, scans QR with phone camera, completes the Arabic mobile web journey in under 3 minutes. Data appears in brand dashboard.
 
 ---
 
 ## What Success Looks Like
 
-After 60 days, the Founder presents to IC:
-
 ```
-✅  ≥3 brand LOIs signed (kill criterion met)
-✅  LLC registered or formation date confirmed
-✅  PDPL written opinion received
-✅  QR load test completed (or clear path to completion post-hire)
-→   IC issues Track 1 GO authorization
-→   Engineering begins
+✅  API deployed and reachable at public URL
+✅  Dashboard deployed — brand portal + /join/* consumer journey both live
+✅  Real OTP SMS delivered to Egyptian mobile number
+✅  Real brand account created
+✅  Real campaign created via API
+✅  Real QR generated and printed
+✅  At least one real consumer completes the full journey
+✅  Real signal appears in brand analytics dashboard
+→   Controlled pilot is running
 ```
-
-*Source: `04_Investment/IC_MEMO_v1.0.md` — Conditional GO Recommendation*
-
----
-
-## What Failure Looks Like
-
-```
-❌  <3 brand LOIs after 60 days
-→   IC issues NO-GO
-→   Project pauses or pivots
-→   NO engineering started
-```
-
-*Source: `07_Product/GO_TO_MARKET.md` Kill Criterion; `15_Decisions/OPEN_DECISIONS_TRACKER.md`*
 
 ---
 
 ## What an AI Should Help With Right Now
 
-- Brand pitch materials (deck, email scripts, objection handlers)
-- Brand discovery call templates and frameworks
-- Pricing discovery questions
-- LOI template document drafting
-- LLC incorporation checklist for Egypt
-- PDPL research and lawyer engagement brief
-- Track 0 sprint planning
-- Risk analysis of the current phase
+- Pilot deployment planning and execution (Railway, Vercel, Supabase setup)
+- Environment variable configuration
+- Twilio SMS setup for Egypt (+20 numbers)
+- Database migration strategy (TypeORM synchronize vs. migrations)
+- First real brand account creation
+- First real campaign setup
+- Monitoring and troubleshooting the live deployment
 
 ## What an AI Should NOT Help With Right Now
 
-- Engineering design (no code, no architecture refinement beyond what exists)
-- Technical debt planning
-- Infrastructure setup
-- Any feature below P0 priority
-- Post-launch optimization
+- P1 features (brand self-registration, campaign management UI) — not yet authorized
+- P2 features (PDPL consent screen, consumer data deletion) — not yet authorized
+- New dashboard screens or API endpoints beyond committed MVP
+- Track 1 full engineering — still gated on B-01/B-02/B-03/B-04
+- Modifying the commercial demo (FROZEN at commit 0209b9a)
 
-*Source: `_ai_bootstrap/AI_WORKFLOW.md` — What to Ask AI*
+*Source: Real Pilot MVP Final Handoff — Sections 9, 10*

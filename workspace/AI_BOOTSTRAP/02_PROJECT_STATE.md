@@ -1,46 +1,81 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-07-27
+**Last updated:** 2026-08-13
+
+---
+
+## Product State — CURRENT
+
+```
+✅  MEOS v1 COMMERCIAL DEMO — LOCKED + FROZEN
+    Branch  : sprint/meos-production-build
+    Commit  : 0209b9a ("Finalize commercial demo and one-command launcher")
+    Launcher: bash scripts/demo.sh
+    Verified: PASS — 49 seeded signals, all 7 screens functional
+    Login   : demo@brand.com / Demo1234!
+    URL     : http://localhost:3001 (after launcher)
+    Signals : 49 simulated consumers — NOT real data
+
+✅  REAL PILOT MVP — READY LOCALLY
+    Branch  : sprint/pilot-readiness-mvp
+    Commit  : ed72a20 ("feat: Real Pilot MVP — mobile web consumer journey")
+    What it enables:
+      - Brand creates a real campaign via API
+      - QR generates a URL a phone camera opens directly (no app install)
+      - Consumer: scan → Arabic mobile web → OTP → profile → survey → done
+      - Real data lands in DB (isDemoSeed:false, isDemo:false)
+      - Brand dashboard serves authenticated brand's own real data
+      - Analytics + report endpoints require brand JWT + ownership check
+    Acceptance tests: ALL 7 PASS
+    TypeScript: CLEAN (API + Dashboard)
+    Demo regression: PASS (demo.sh still produces 49 signals)
+
+⚠️  REAL FIELD PILOT — NOT YET DEPLOYED
+    Cloud deployment: NOT EXECUTED
+    Twilio SMS (real OTP): NOT CONFIGURED
+    Real brand account: NOT CREATED
+    Real consumer data: ZERO (no field pilot has happened)
+```
 
 ---
 
 ## Authorization Status
 
 ```
-❌  DEVELOPMENT NOT AUTHORIZED
-    IERB Re-Audit Score: 67/100 (improved from 58/100 after remediation)
-    Previous score: 58/100 (original audit)
+⚠️  TRACK 1 FULL ENGINEERING — NOT AUTHORIZED
+    Real Pilot MVP build: COMPLETE (authorized as minimum pilot sprint)
+    IERB Re-Audit Score (baseline): 67/100 (pre-demo)
+    Track 1 gate: B-01, B-02, B-03, B-04 still open
 ```
 
-*Source: `13_Audits/REMEDIATION_REAUDIT.md` — Section D*
+*Source: `13_Audits/REMEDIATION_REAUDIT.md` — Section D (baseline); Real Pilot MVP Final Handoff*
 
 ---
 
-## Current Sprint
+## Current Phase
 
-**Track 0 — Commercial Validation Sprint**
+**Pilot Deployment**
 
-- Budget: $15,000–$25,000
-- Duration: 60 days
-- Engineering: NONE (zero code, zero infra)
-- Status: Authorized but GO/NO-GO not yet confirmed
-
-*Source: `04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md` — Investment Parameters; `15_Decisions/OPEN_DECISIONS_TRACKER.md`*
+- Real Pilot MVP code: complete and committed on `sprint/pilot-readiness-mvp`
+- Commercial demo: frozen on `sprint/meos-production-build` — do not touch
+- Next action: deploy to a controlled cloud environment and run one real campaign
 
 ---
 
 ## Current Objective
 
-Secure brand LOIs, confirm legal entity, obtain PDPL legal opinion, and close all 4 blocking items to unlock Track 1 authorization.
+Deploy the Real Pilot MVP and run one real, controlled brand campaign.
 
 **Specifically:**
-- Reach ≥3–5 brand prospects with signed pilot LOIs
-- Confirm Egyptian LLC incorporation (or set a formation date)
-- Engage Egyptian data-privacy lawyer for PDPL written scope opinion
-- (B-04 requires engineering — depends on B-01 first)
+- Deploy API to Railway (or equivalent); set all env vars including `CONSUMER_WEB_URL`
+- Deploy Dashboard to Vercel; set `REACT_APP_API_URL`
+- Configure Twilio for real SMS OTP (`DEMO_MODE=false`)
+- Create first real brand account in the database
+- Brand creates campaign via API → generates QR → prints on samples
+- First real consumers scan → complete journey → data appears in dashboard
 
-*Source: `04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md`; `13_Audits/REMEDIATION_REAUDIT.md` Section B*
+*Source: Real Pilot MVP Final Handoff — Section 9 (Remaining Manual Prerequisites)*
 
 ---
 
@@ -106,9 +141,15 @@ Immediately after GO:
 | Technical Architecture (full stack designed) | PDPL legal review |
 | Master Delivery Plan (WBS, sprint 0–6, risks, QA, DevOps) | Legal entity formation |
 | Independent Readiness Audit (58/100 → 67/100 after remediation) | QR load test |
-| Enterprise Knowledge Workspace (73 files, 24 directories) | Any engineering work |
+| Enterprise Knowledge Workspace (73 files, 24 directories) | Track 1 full engineering |
+| **MEOS v1 Commercial Demo** — 7-screen dashboard, NestJS API, 49 seeded signals | — |
+| **One-command launcher** — `bash scripts/demo.sh` + `--brand/--product/--location` | — |
+| **Consumer Signals design system** — dark theme applied across all screens | — |
+| **Real Pilot MVP** — campaign API, mobile web consumer journey, analytics auth, real data | — |
+| **Mobile web consumer journey** — QR → phone → OTP → profile → survey → thank-you (Arabic) | — |
+| **Analytics/report security** — brand JWT + campaign ownership on all 6 endpoints | — |
 
-*Source: `_ai_bootstrap/PROJECT_CONTEXT.md` — What Has Been Done section*
+*Source: `_ai_bootstrap/PROJECT_CONTEXT.md` — What Has Been Done section; Real Pilot MVP Final Handoff*
 
 ---
 

@@ -10,6 +10,11 @@
 
 | Version | Date | Summary |
 |---|---|---|
+| v4.8 | 2026-08-13 | Real Pilot MVP — mobile web consumer journey committed (ed72a20); project state updated to Pilot Deployment phase |
+| v4.7 | 2026-08-13 | First Target Account List created — Top 3 with decision-makers, triggers, outreach messages, demo commands (06_First_Target_Account_List.md) |
+| v4.6 | 2026-08-13 | Demo Script LOCKED — 3 commercial-safety corrections applied; demo verified PASS; commercial demo FROZEN |
+| v4.5 | 2026-08-13 | Demo Presentation Script created — screen-by-screen brand meeting guide (05_Demo_Presentation_Script.md); demo verified PASS (canonical + personalized) |
+| v4.4 | 2026-08-13 | MEOS v1 Commercial Demo — built, verified PASS, locked (commit 0209b9a); bootstrap updated to Commercial Execution phase |
 | v4.3 | 2026-07-27 | Track 0 Commercial Execution — GTM Blueprint v1.0 produced and written to workspace |
 | v4.2 | 2026-07-27 | Repository Intelligence & Evidence Audit — 6-file audit deliverable written to docs/audit/ |
 | v4.1 | 2026-07-27 | Bootstrap Certification — 5 new files added; conflicts documented; FROZEN at score 98/100 |
@@ -17,6 +22,199 @@
 | v3.0 | 2026-07-27 | Long-term development governance layer added (9 new files) |
 | v2.0 | 2026-07-27 | Enterprise Knowledge Architect audit + 26 improvements applied |
 | v1.0 | 2026-07-26 | Initial workspace built from 14 inbox source files (14-phase build) |
+
+---
+
+## [v4.8] — 2026-08-13 — Real Pilot MVP Sprint Closure
+
+### Commits
+
+| Commit | Branch | Message |
+|---|---|---|
+| `ed72a20` | `sprint/pilot-readiness-mvp` | feat: Real Pilot MVP — mobile web consumer journey |
+
+### Implementation Scope
+
+| Area | Changes |
+|---|---|
+| Campaign API | `POST /campaigns`, `GET /campaigns/my` — brand-scoped; `isDemo:false`; default 5-question survey injected |
+| Campaign DTO | `apps/api/src/modules/campaign/dto/create-campaign.dto.ts` — NEW with class-validator |
+| QR Service | Real campaigns → URL payload (`CONSUMER_WEB_URL/join/:campaignId`); demo campaigns retain JSON (Flutter compat) |
+| QR Entry | `POST /qr/enter/:campaignId` — consumer JWT; idempotent; creates RedemptionEvent with `isDemoSeed:false` |
+| Mobile web consumer journey | 6 screens (Arabic RTL): JoinLayout, JoinPage, PhonePage, OtpPage, RegisterPage, SurveyPage, ThankYouPage |
+| Consumer routes | Mounted at `/join/:campaignId/*` in existing React dashboard — no new infrastructure |
+| Analytics security | Removed all `@Public()` from analytics + report endpoints; brand JWT + ownership check required |
+| Report security | Same; fallback narrative rewritten — no demo/simulated language |
+| Admin resetDemo | Fixed FK constraint failure when non-demo campaigns exist under demo brand account |
+| Env docs | `CONSUMER_WEB_URL` documented in `.env.example` |
+
+### Verification
+
+| Test | Result |
+|---|---|
+| A — Real campaign creation | PASS |
+| B — Real QR URL encoding | PASS |
+| C — Consumer web journey end-to-end | PASS |
+| D — Consumer JWT rejected on analytics | PASS (403) |
+| E — Brand analytics returns own data | PASS |
+| F — Cross-campaign ownership check | PASS (403) |
+| G — Commercial demo regression (demo.sh) | PASS — 49 signals, DEMO badge, all screens |
+| TypeScript API | CLEAN |
+| TypeScript Dashboard | CLEAN |
+
+### Status
+
+```
+COMMERCIAL DEMO:  READY + FROZEN
+REAL PILOT MVP:   READY LOCALLY (NOT yet deployed to cloud)
+NEXT:             PILOT DEPLOYMENT
+```
+
+### What Was NOT Done (Intentionally)
+
+- Cloud deployment (Railway/Vercel/Supabase) — requires operator execution
+- Twilio SMS configuration — requires credentials
+- P1 features (brand self-registration, campaign management UI)
+- P2 features (PDPL consent, consumer data deletion)
+
+---
+
+## [v4.6] — 2026-08-13 — Demo Script Commercial-Safety Lock
+
+### File Changed
+
+`Sales_Execution_Pack/05_Demo_Presentation_Script.md` — 3 targeted wording corrections only.
+
+| Correction | Before | After |
+|---|---|---|
+| Consumer interaction | "mobile web flow — no app to download" | "frictionless — the consumer scans the QR, completes the short interaction on their phone, and the signal is captured automatically" |
+| Reporting timing | "Within 24 hours of campaign end" | "At the end of the campaign" |
+| Pilot duration | "A pilot campaign runs for 30 to 60 days" | "We can structure a pilot around a defined campaign period…" |
+
+### Verification
+
+- All 5 prohibited terms removed: `mobile web`, `no app`, `24 hours`, `30 to 60`, `30-60` — PASS
+- All required content preserved: simulated-data disclosure, "The software is real. The flows are real. The data is not.", all 7 screen URLs, commands, What Not To Say, recovery instructions — PASS
+- Canonical demo launch: PASS
+- Personalized demo launch (Nestlé Egypt / Nescafé Classic / Maadi City Centre): PASS
+- Dashboard HTTP 200: PASS
+- Personalization in API: PASS
+- Canonical restored: PASS
+
+### Product Code Changed
+
+NO. Zero product code changes. Zero API changes. Zero schema changes.
+
+### Status
+
+COMMERCIAL DEMO FROZEN.
+
+---
+
+## [v4.5] — 2026-08-13 — Demo Presentation Script
+
+### Files Created
+
+| File | Change |
+|---|---|
+| `Sales_Execution_Pack/05_Demo_Presentation_Script.md` | NEW — screen-by-screen founder presentation guide for brand discovery meetings |
+
+### What Was Verified
+
+- Canonical demo launch: PASS (`bash scripts/demo.sh`)
+- Personalized demo launch: PASS (Nestlé Egypt / Nescafé Classic / Maadi City Centre)
+- All 6 key API endpoints: PASS (overview, demographics, survey, participants, ai-summary, qr/generate)
+- AI summary narrative: truthful disclosure confirmed ("illustrative narrative", "simulated consumer interactions")
+- Dashboard HTTP 200: PASS
+- Login (demo@brand.com / Demo1234!): PASS
+- Canonical restore: PASS
+
+### What Was Found
+
+Review of the complete Sales Execution Pack and demo infrastructure confirmed:
+- Sales Playbook (01), Brand OnePager (02), LOI Template (03), Legal (04), GTM Blueprint — all complete, approved 97/100
+- demo.sh launcher functional, 5-step orchestration (env → start → seed → health check → banner)
+- 7 dashboard screens functional via sidebar navigation
+- One genuine gap: no screen-by-screen demo talking guide existed anywhere in repository
+
+### What Was NOT Changed
+
+- No product code changed
+- No database schema changed
+- No API changed
+- No dashboard screens changed
+- No existing Sales Execution Pack files changed
+- No demo infrastructure changed
+
+### Session Summary
+
+Commercial demo package is now complete. The minimum viable presentation set is:
+1. `bash scripts/demo.sh` — starts everything
+2. `Sales_Execution_Pack/05_Demo_Presentation_Script.md` — founder's screen-by-screen guide
+3. `Sales_Execution_Pack/02_Brand_OnePager.md` — leave-behind for prospects
+4. `Sales_Execution_Pack/01_Sales_Playbook.md` — discovery call + LOI process
+5. `Sales_Execution_Pack/03_LOI_Template.md` — send after meeting
+
+### Blocking Items — Unchanged
+
+B-01, B-02, B-03, B-04 remain open. No engineering work was authorized or performed.
+
+---
+
+## [v4.4] — 2026-08-13 — MEOS v1 Commercial Demo Build + Lock
+
+### Files Created or Modified
+
+| File | Change |
+|---|---|
+| `scripts/demo.sh` | NEW — one-command demo orchestrator with `--brand/--product/--location` flags |
+| `apps/dashboard/src/pages/Insights.tsx` | Chart tooltip dark theme + "PRIMARY TARGET SEGMENT" callout replaced with factual cards |
+| `apps/dashboard/src/pages/SurveyResults.tsx` | Chart tooltip dark theme |
+| `apps/dashboard/src/components/Layout.tsx` | Consumer Signals redesign (NAV_SECTIONS, sidebar, DEMO badge) |
+| `apps/dashboard/src/index.css` | Dark body background + signalRing keyframes |
+| `apps/dashboard/src/pages/Overview.tsx` | Consumer Signals redesign |
+| `apps/dashboard/src/pages/Login.tsx` | Dark theme |
+| `apps/dashboard/src/pages/CampaignDetail.tsx` | Dark theme |
+| `apps/dashboard/src/pages/AiSummary.tsx` | Dark theme |
+| `apps/dashboard/src/pages/Participants.tsx` | Dark theme |
+| `apps/dashboard/src/pages/Report.tsx` | Dark theme |
+| `scripts/run-demo.sh` | RETRIES=90; HTTP 404 accepted as health-check pass for NestJS POST-only routes |
+| `scripts/seed-demo.sh` | Deterministic phone +20100NNNNNN; health-check status logic fixed |
+| `scripts/verify-env.sh` | `flutter --version \|\| true` — prevents pipefail exit 255 |
+| `apps/api/src/modules/admin/admin.service.ts` | Deterministic phone; AiReport FK deleted first in resetDemo() |
+| `apps/api/src/modules/admin/admin.module.ts` | AiReport added to TypeOrmModule.forFeature + @InjectRepository |
+
+### Workspace Bootstrap Files Updated
+
+| File | Change |
+|---|---|
+| `AI_BOOTSTRAP/00_AI_START_HERE.md` | Current Status updated to MEOS v1 LOCKED; Rule 3 updated |
+| `AI_BOOTSTRAP/02_PROJECT_STATE.md` | Full state update: Demo State section added, authorization updated, sprint updated |
+| `AI_BOOTSTRAP/04_CURRENT_OBJECTIVE.md` | Objective updated to Commercial Execution; demo command added |
+| `AI_BOOTSTRAP/AI_SESSION_TEMPLATE.md` | Expected answers updated; Commercial Execution session type added |
+| `14_Memory/MASTER_PROJECT_MEMORY.md` | Section 2 updated; Rule 4 updated; Section 16 session close record added |
+| `CHANGELOG.md` | v4.4 entry added |
+
+### Session Summary
+
+MEOS v1 commercial demo built across three sequential sub-sessions (Session A, B, C):
+- Session A: Consumer Signals dark-theme redesign across all 7 dashboard screens
+- Session B: Backend seed/reset infrastructure — deterministic phones, FK ordering, health-check fixes
+- Session C: Demo launcher (scripts/demo.sh), chart tooltips, segment callout fix, full verification
+
+Demo verification sequence: canonical → personalized (Coca-Cola Egypt) → canonical restore. All three PASS.
+
+Locked via commit 0209b9a on branch `sprint/meos-production-build`. NOT pushed per Founder instruction.
+
+### Git State
+
+- Branch: `sprint/meos-production-build`
+- Commit: `0209b9a` ("Finalize commercial demo and one-command launcher")
+- Status: NOT pushed (intentional)
+
+### Blocking Items — Unchanged
+
+B-01, B-02, B-03, B-04 remain open. Demo build was authorized under MEOS sprint. Track 1 full engineering still gated.
 
 ---
 

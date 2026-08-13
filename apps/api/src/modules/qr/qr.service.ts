@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import * as QRCode from 'qrcode';
 import { QrCode, QrCodeStatus } from '../../entities/qr-code.entity';
 import { RedemptionEvent } from '../../entities/redemption-event.entity';
@@ -25,6 +26,7 @@ export class QrService {
     private readonly redemptionRepo: Repository<RedemptionEvent>,
     @InjectRepository(Campaign)
     private readonly campaignRepo: Repository<Campaign>,
+    private readonly configService: ConfigService,
   ) {}
 
   async redeemQr(dto: RedeemQrDto): Promise<{
@@ -81,6 +83,59 @@ export class QrService {
     };
   }
 
+  // Web consumer entry — looks up ACTIVE QR by campaignId, no code string needed
+  async enterCampaignWeb(campaignId: string, consumerId: string): Promise<{
+    success: boolean;
+    redemptionId: string;
+    productName: string;
+    rewardPoints: number;
+  }> {
+    const qrCode = await this.qrRepo.findOne({
+      where: { campaignId, status: QrCodeStatus.ACTIVE },
+      relations: ['campaign'],
+    });
+
+    if (!qrCode) {
+      throw new NotFoundException('Campaign QR not found. Ask the brand to generate the campaign QR first.');
+    }
+
+    const campaign = qrCode.campaign;
+
+    if (campaign.status !== CampaignStatus.ACTIVE) {
+      throw new BadRequestException('Campaign is not active');
+    }
+
+    const existingRedemption = await this.redemptionRepo.findOne({
+      where: { consumerId, campaignId },
+    });
+
+    if (existingRedemption) {
+      // Return the existing redemption so the consumer can continue to the survey
+      return {
+        success: true,
+        redemptionId: existingRedemption.id,
+        productName: campaign.productName,
+        rewardPoints: campaign.rewardPoints,
+      };
+    }
+
+    const redemption = await this.redemptionRepo.save(
+      this.redemptionRepo.create({
+        consumerId,
+        campaignId,
+        qrCodeId: qrCode.id,
+        isDemoSeed: false,
+      }),
+    );
+
+    return {
+      success: true,
+      redemptionId: redemption.id,
+      productName: campaign.productName,
+      rewardPoints: campaign.rewardPoints,
+    };
+  }
+
   async generateQrImage(campaignId: string): Promise<Buffer> {
     const campaign = await this.campaignRepo.findOne({
       where: { id: campaignId },
@@ -106,11 +161,20 @@ export class QrService {
       );
     }
 
-    const payload = JSON.stringify({
-      type: 'tajribti_campaign',
-      campaign_id: campaignId,
-      qr_code: qrCode.code,
-    });
+    // Real campaigns encode a URL so the phone camera opens the browser consumer journey.
+    // Demo campaigns keep the JSON format for Flutter scanner compatibility.
+    let payload: string;
+    if (campaign.isDemo) {
+      payload = JSON.stringify({
+        type: 'tajribti_campaign',
+        campaign_id: campaignId,
+        qr_code: qrCode.code,
+      });
+    } else {
+      const consumerWebUrl =
+        this.configService.get<string>('CONSUMER_WEB_URL') ?? 'http://localhost:3001';
+      payload = `${consumerWebUrl}/join/${campaignId}`;
+    }
 
     const buffer = await QRCode.toBuffer(payload, {
       type: 'png',

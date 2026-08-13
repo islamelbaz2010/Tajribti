@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   SetMetadata,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { QrService } from './qr.service';
@@ -44,6 +45,14 @@ export class QrController {
       consumerId: req.user.id,
       campaignId: dto.campaignId,
     });
+  }
+
+  // Mobile web consumer entry — no qrCode string required, campaignId sufficient
+  @Post('enter/:campaignId')
+  @HttpCode(HttpStatus.OK)
+  enter(@Param('campaignId') campaignId: string, @Request() req: RequestWithUser) {
+    if (req.user.type !== 'consumer') throw new ForbiddenException('Consumer account required');
+    return this.qrService.enterCampaignWeb(campaignId, req.user.id);
   }
 
   @Public()

@@ -1,24 +1,44 @@
-import { Controller, Get, Param, Res, UseGuards, SetMetadata } from '@nestjs/common';
-import { Response } from 'express';
+import {
+  Controller,
+  Get,
+  Param,
+  Request,
+  UseGuards,
+  ForbiddenException,
+} from '@nestjs/common';
 import { ReportService } from './report.service';
-import { JwtAuthGuard, IS_PUBLIC_KEY } from '../auth/guards/jwt.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 
-const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
+interface RequestWithUser extends Request {
+  user: AuthenticatedUser;
+}
 
 @Controller('report')
 @UseGuards(JwtAuthGuard)
 export class ReportController {
   constructor(private readonly reportService: ReportService) {}
 
-  @Public()
+  private async assertOwnership(req: RequestWithUser, campaignId: string): Promise<void> {
+    if (req.user.type !== 'brand') throw new ForbiddenException('Brand account required');
+    await this.reportService.assertBrandOwnership(campaignId, req.user.id);
+  }
+
   @Get(':campaignId/ai-summary')
-  getAiSummary(@Param('campaignId') campaignId: string) {
+  async getAiSummary(
+    @Param('campaignId') campaignId: string,
+    @Request() req: RequestWithUser,
+  ) {
+    await this.assertOwnership(req, campaignId);
     return this.reportService.getAiSummary(campaignId);
   }
 
-  @Public()
   @Get(':campaignId/pdf-data')
-  getPdfData(@Param('campaignId') campaignId: string) {
+  async getPdfData(
+    @Param('campaignId') campaignId: string,
+    @Request() req: RequestWithUser,
+  ) {
+    await this.assertOwnership(req, campaignId);
     return this.reportService.generatePdfData(campaignId);
   }
 }

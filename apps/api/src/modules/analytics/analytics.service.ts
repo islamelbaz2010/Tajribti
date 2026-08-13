@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RedemptionEvent } from '../../entities/redemption-event.entity';
 import { SurveyResponse } from '../../entities/survey-response.entity';
 import { Consumer } from '../../entities/consumer.entity';
+import { Campaign } from '../../entities/campaign.entity';
 
 export interface DistributionItem {
   label: string;
@@ -58,7 +59,15 @@ export class AnalyticsService {
     private readonly surveyRepo: Repository<SurveyResponse>,
     @InjectRepository(Consumer)
     private readonly consumerRepo: Repository<Consumer>,
+    @InjectRepository(Campaign)
+    private readonly campaignRepo: Repository<Campaign>,
   ) {}
+
+  async assertBrandOwnership(campaignId: string, brandId: string): Promise<void> {
+    const campaign = await this.campaignRepo.findOne({ where: { id: campaignId } });
+    if (!campaign) throw new NotFoundException('Campaign not found');
+    if (campaign.brandAccountId !== brandId) throw new ForbiddenException('Access denied');
+  }
 
   async getOverview(campaignId: string): Promise<OverviewData> {
     const redemptions = await this.redemptionRepo.find({

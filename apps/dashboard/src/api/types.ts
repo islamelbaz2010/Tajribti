@@ -47,6 +47,16 @@ export interface ParticipantsResponse {
   total: number;
 }
 
+export interface SurveyQuestion {
+  id: string;
+  text: string;
+  textAr: string;
+  type: 'stars' | 'scale' | 'multiple_choice' | 'text';
+  options?: string[];
+  optionsAr?: string[];
+  required: boolean;
+}
+
 export interface Campaign {
   id: string;
   productName: string;
@@ -60,6 +70,8 @@ export interface Campaign {
   endDate: string;
   productImage: string;
   rewardPoints: number;
+  isDemo: boolean;
+  surveyQuestions: SurveyQuestion[];
 }
 
 export interface AiReport {

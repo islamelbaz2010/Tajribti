@@ -37,11 +37,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [clientName, setClientName] = useState<string>('');
+  const [isDemo, setIsDemo] = useState<boolean>(true);
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    campaignApi.getDemoActive()
-      .then((c) => setClientName(c.brandName))
+    campaignApi.getMyActiveCampaign()
+      .then((c) => {
+        if (c) {
+          setClientName(c.brandName);
+          setIsDemo(c.isDemo);
+        }
+      })
       .catch(() => {});
   }, [isAuthenticated]);
 
@@ -56,7 +62,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div style={styles.logoArea}>
           <div style={styles.logoRow}>
             <span style={styles.logoText}>TAJRIBTI</span>
-            <span style={styles.demoBadge}>DEMO</span>
+            {isDemo && <span style={styles.demoBadge}>DEMO</span>}
           </div>
           {clientName && (
             <div style={styles.clientName}>{clientName}</div>

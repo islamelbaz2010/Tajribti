@@ -282,7 +282,7 @@ export default function Overview() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    campaignApi.getDemoActive().then(setCampaign).catch(console.error);
+    campaignApi.getMyActiveCampaign().then(setCampaign).catch(console.error);
   }, []);
 
   useEffect(() => {

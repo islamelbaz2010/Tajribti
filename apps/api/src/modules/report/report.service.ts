@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -21,6 +21,12 @@ export class ReportService {
     private readonly analyticsService: AnalyticsService,
     private readonly configService: ConfigService,
   ) {}
+
+  async assertBrandOwnership(campaignId: string, brandId: string): Promise<void> {
+    const campaign = await this.campaignRepo.findOne({ where: { id: campaignId } });
+    if (!campaign) throw new NotFoundException('Campaign not found');
+    if (campaign.brandAccountId !== brandId) throw new ForbiddenException('Access denied');
+  }
 
   async getAiSummary(campaignId: string): Promise<{ narrative: string; responseCountAtGeneration: number; createdAt: string }> {
     const cachedReport = await this.aiReportRepo.findOne({
@@ -241,6 +247,6 @@ Write exactly 4-6 sentences of executive insight for a brand marketing director.
     topDescriptor: string;
     topCity: string;
   }): string {
-    return `This demo uses an illustrative narrative generated from the demo campaign data.\n\nOf the ${data.totalConsumers} simulated consumer interactions in this demo scenario, ${data.purchaseIntentPercent}% indicated they would purchase ${data.productName} at retail. The ${data.topGender} ${data.topAgeRange} segment demonstrated the highest purchase intent, representing the primary target demographic for distribution planning. The most frequently chosen product descriptor was "${data.topDescriptor}", consistent with the brand's intended positioning. Recommendation: prioritize the ${data.topGender} ${data.topAgeRange} segment in initial retail seeding and concentrate early distribution in ${data.topCity}.`;
+    return `Of the ${data.totalConsumers} consumers who participated in the ${data.productName} trial, ${data.purchaseIntentPercent}% indicated they would purchase the product at retail. The ${data.topGender} ${data.topAgeRange} segment demonstrated the highest purchase intent, representing the primary target demographic for distribution planning. The most frequently chosen product descriptor was "${data.topDescriptor}", consistent with the brand's intended positioning. Recommendation: prioritize the ${data.topGender} ${data.topAgeRange} segment in initial retail seeding and concentrate early distribution in ${data.topCity}.`;
   }
 }

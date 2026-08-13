@@ -14,7 +14,7 @@ export default function Participants() {
 
   useEffect(() => {
     campaignApi
-      .getDemoActive()
+      .getMyActiveCampaign()
       .then((c) => { setCampaignId(c.id); return c.id; })
       .then((id) => analyticsApi.getParticipants(id, 1))
       .then((r) => { setRows(r.participants); setTotal(r.total); })

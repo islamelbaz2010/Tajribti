@@ -147,14 +147,23 @@ export class AdminService {
   }
 
   async resetDemo(): Promise<{ message: string }> {
-    const demos = await this.campaignRepo.find({ where: { isDemo: true } });
-    for (const campaign of demos) {
+    const brandEmail = this.configService.get('DEMO_BRAND_EMAIL') ?? 'demo@brand.com';
+    const demoBrand = await this.brandRepo.findOne({ where: { email: brandEmail } });
+
+    // Delete all campaigns under the demo brand account (demo and any test real campaigns)
+    const allDemoBrandCampaigns = demoBrand
+      ? await this.campaignRepo.find({ where: { brandAccountId: demoBrand.id } })
+      : await this.campaignRepo.find({ where: { isDemo: true } });
+
+    for (const campaign of allDemoBrandCampaigns) {
       await this.aiReportRepo.delete({ campaignId: campaign.id });
       await this.surveyRepo.delete({ campaignId: campaign.id });
       await this.redemptionRepo.delete({ campaignId: campaign.id });
       await this.qrRepo.delete({ campaignId: campaign.id });
     }
-    await this.campaignRepo.delete({ isDemo: true });
+    await this.campaignRepo.delete(
+      demoBrand ? { brandAccountId: demoBrand.id } : { isDemo: true },
+    );
 
     await this.consumerRepo
       .createQueryBuilder()
@@ -162,7 +171,6 @@ export class AdminService {
       .where('phone LIKE :pattern', { pattern: '+20100%' })
       .execute();
 
-    const brandEmail = this.configService.get('DEMO_BRAND_EMAIL') ?? 'demo@brand.com';
     await this.brandRepo
       .createQueryBuilder()
       .delete()

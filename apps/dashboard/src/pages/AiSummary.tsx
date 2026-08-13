@@ -9,7 +9,7 @@ export default function AiSummary() {
 
   useEffect(() => {
     campaignApi
-      .getDemoActive()
+      .getMyActiveCampaign()
       .then((c) => reportApi.getAiSummary(c.id))
       .then(setReport)
       .catch(() => setError('Failed to generate intelligence summary.'))

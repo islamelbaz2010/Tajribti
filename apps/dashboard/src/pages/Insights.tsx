@@ -37,7 +37,7 @@ export default function Insights() {
 
   useEffect(() => {
     campaignApi
-      .getDemoActive()
+      .getMyActiveCampaign()
       .then((c) => analyticsApi.getDemographics(c.id))
       .then(setData)
       .catch(() => setError('Failed to load demographics.'));

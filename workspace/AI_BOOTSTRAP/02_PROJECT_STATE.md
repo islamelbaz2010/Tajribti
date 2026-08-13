@@ -17,22 +17,36 @@
     URL     : http://localhost:3001 (after launcher)
     Signals : 49 simulated consumers — NOT real data
 
-✅  REAL PILOT MVP — READY LOCALLY
+✅  REAL PILOT MVP — DEPLOYED (PARTIALLY READY)
     Branch  : sprint/pilot-readiness-mvp
-    Commit  : ed72a20 ("feat: Real Pilot MVP — mobile web consumer journey")
-    What it enables:
-      - Brand creates a real campaign via API
-      - QR generates a URL a phone camera opens directly (no app install)
-      - Consumer: scan → Arabic mobile web → OTP → profile → survey → done
-      - Real data lands in DB (isDemoSeed:false, isDemo:false)
-      - Brand dashboard serves authenticated brand's own real data
-      - Analytics + report endpoints require brand JWT + ownership check
-    Acceptance tests: ALL 7 PASS
-    TypeScript: CLEAN (API + Dashboard)
-    Demo regression: PASS (demo.sh still produces 49 signals)
+    Commit  : 67d29d3 (latest — chore: add .railwayignore)
+    GitHub  : github.com/islamelbaz2010/Tajribti
 
-⚠️  REAL FIELD PILOT — NOT YET DEPLOYED
-    Cloud deployment: NOT EXECUTED
+    Railway API (LIVE):
+      URL      : https://api-production-266c.up.railway.app/api/v1
+      Project  : tajribti-pilot
+      Service  : api (ff7272bd)
+      DB       : PostgreSQL online — 8 tables auto-created (synchronize:true)
+      DEMO_MODE: false
+      CORS     : https://dashboard-six-flame-wsaixia9cm.vercel.app
+
+    Vercel Dashboard (LIVE):
+      URL      : https://dashboard-six-flame-wsaixia9cm.vercel.app
+      Project  : dashboard (islam-elbaz-s-projects)
+      API_URL  : https://api-production-266c.up.railway.app/api/v1 (baked at build)
+
+    Consumer Web (LIVE — same Vercel URL):
+      Entry    : https://dashboard-six-flame-wsaixia9cm.vercel.app/join/:campaignId
+      Deep links: handled by vercel.json SPA rewrite
+
+    What is NOT yet operational:
+      - Real brand account: NOT CREATED (Founder must provide brand credentials)
+      - Twilio SMS OTP: NOT CONFIGURED (OTP generated but SMS not delivered)
+      - Real consumer journey: NOT VERIFIED end-to-end (blocked by above)
+      - Real campaign + QR: NOT CREATED (requires brand account first)
+
+⚠️  REAL FIELD PILOT — NOT YET VERIFIED
+    Infrastructure: DEPLOYED
     Twilio SMS (real OTP): NOT CONFIGURED
     Real brand account: NOT CREATED
     Real consumer data: ZERO (no field pilot has happened)
@@ -55,27 +69,26 @@
 
 ## Current Phase
 
-**Pilot Deployment**
+**Pilot Activation** — infrastructure deployed, two blockers before first real consumer
 
-- Real Pilot MVP code: complete and committed on `sprint/pilot-readiness-mvp`
-- Commercial demo: frozen on `sprint/meos-production-build` — do not touch
-- Next action: deploy to a controlled cloud environment and run one real campaign
+- Railway API: LIVE at https://api-production-266c.up.railway.app
+- Vercel Dashboard: LIVE at https://dashboard-six-flame-wsaixia9cm.vercel.app
+- PostgreSQL: ONLINE, schema created, no data
+- Remaining: Twilio credentials + first real brand account
 
 ---
 
 ## Current Objective
 
-Deploy the Real Pilot MVP and run one real, controlled brand campaign.
+Activate the deployed Real Pilot MVP for one real, controlled brand campaign.
 
-**Specifically:**
-- Deploy API to Railway (or equivalent); set all env vars including `CONSUMER_WEB_URL`
-- Deploy Dashboard to Vercel; set `REACT_APP_API_URL`
-- Configure Twilio for real SMS OTP (`DEMO_MODE=false`)
-- Create first real brand account in the database
-- Brand creates campaign via API → generates QR → prints on samples
-- First real consumers scan → complete journey → data appears in dashboard
+**Remaining two actions (in order):**
+1. Configure Twilio (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`) in Railway env vars → redeploy API → real OTP goes live
+2. Create first real brand account (Founder provides: brand name, email, password → Claude inserts via Railway Postgres → brand can log in)
 
-*Source: Real Pilot MVP Final Handoff — Section 9 (Remaining Manual Prerequisites)*
+After both: Brand logs in → creates campaign → generates QR → prints on samples → first real consumers scan → real pilot begins.
+
+*Source: Deployment Session, 2026-08-13*
 
 ---
 

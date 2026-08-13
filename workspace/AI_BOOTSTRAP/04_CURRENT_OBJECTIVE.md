@@ -7,106 +7,110 @@
 
 ## The One Sentence
 
-Deploy the Real Pilot MVP to a controlled cloud environment and run one real, measured brand campaign with real consumers.
+Activate the deployed Real Pilot MVP — unblock OTP and create the first real brand account — so one real brand can run one real campaign with real consumers.
 
-*Source: Real Pilot MVP Final Handoff; `AI_BOOTSTRAP/02_PROJECT_STATE.md`*
+*Source: Deployment Session 2026-08-13; `AI_BOOTSTRAP/02_PROJECT_STATE.md`*
 
 ---
 
 ## What "Right Now" Means
 
-**Real Pilot MVP is built, tested, and committed. It has never been deployed.**
+**The Real Pilot MVP is deployed. Infrastructure is live.**
 
-The local implementation is complete (commit `ed72a20` on `sprint/pilot-readiness-mvp`). All 7 acceptance tests passed locally. The next required action is cloud deployment and execution of one real field pilot.
+Railway API: https://api-production-266c.up.railway.app/api/v1  
+Vercel Dashboard: https://dashboard-six-flame-wsaixia9cm.vercel.app  
+PostgreSQL: ONLINE (tajribti-pilot project, 8 tables, zero data)
 
-Commercial demo is FROZEN at commit `0209b9a` on `sprint/meos-production-build`. Do not touch it.
+Two blockers remain before a real consumer can complete the journey:
 
-*Source: Real Pilot MVP Final Handoff; `AI_BOOTSTRAP/02_PROJECT_STATE.md`*
+1. **Twilio not configured** — OTP is generated but SMS not delivered. Real consumers cannot verify their phone without it.  
+2. **No real brand account** — The database is clean. No brand can log in until the first account is created.
+
+Commercial demo: FROZEN at commit `0209b9a` on `sprint/meos-production-build`. Do not touch.
 
 ---
 
-## The 5 Deployment Steps
+## The 2 Remaining Activation Steps
 
-### 1. API Deployment (Railway or equivalent)
+### 1. Configure Twilio (Founder provides credentials → Claude sets Railway env vars)
 
-Deploy `apps/api` to a publicly accessible host.
+In Railway dashboard or via Claude Code: set these on the `api` service in the `tajribti-pilot` project:
 
-Required env vars:
 ```
-DATABASE_URL=<supabase-or-pg-connection-string>
-JWT_SECRET=<random-secret>
-JWT_REFRESH_SECRET=<random-secret>
-DEMO_MODE=false
-TWILIO_ACCOUNT_SID=<sid>
-TWILIO_AUTH_TOKEN=<token>
-TWILIO_PHONE_NUMBER=<+20...>
-OPENAI_API_KEY=<key>
-CONSUMER_WEB_URL=<vercel-dashboard-url>
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_FROM_NUMBER=+1xxxxxxxxxx   # Must be able to send to Egyptian (+20) numbers
 ```
 
-### 2. Dashboard Deployment (Vercel)
+Railway auto-redeploys after env var change. OTP SMS goes live immediately.
 
-Deploy `apps/dashboard` to Vercel.
+### 2. Create First Real Brand Account (Founder provides: name, email, password)
 
-Required env var:
+Claude will:
+- Generate bcrypt hash of the password
+- Open Railway Postgres TCP proxy
+- Insert the brand account via SQL
+- Test login via API
+- Close proxy
+
+After this the brand can log in at the Vercel dashboard URL and create their first campaign.
+
+---
+
+## After Both Blockers Are Cleared
+
 ```
-REACT_APP_API_URL=<railway-api-url>/api/v1
+Brand logs in at https://dashboard-six-flame-wsaixia9cm.vercel.app
+→ POST /api/v1/campaigns   (create campaign)
+→ GET  /api/v1/qr/generate/:campaignId  (download QR PNG)
+→ Print QR on sample product packaging
+→ Distribute to real consumers at field location
+→ Consumer scans QR → phone camera opens:
+     https://dashboard-six-flame-wsaixia9cm.vercel.app/join/:campaignId
+→ OTP → registration → survey → real signal in DB
+→ Brand analytics dashboard reflects real data
+→ AI report generated (Anthropic/OpenAI if key set, fallback narrative otherwise)
+→   REAL FIELD PILOT: RUNNING
 ```
-
-The dashboard serves BOTH the brand portal AND the consumer mobile web journey (`/join/:campaignId/*`).
-
-### 3. First Real Brand Account
-
-No self-registration UI exists. Insert directly:
-```sql
-INSERT INTO brand_accounts (id, name, email, password, created_at)
-VALUES (gen_random_uuid(), 'Brand Name', 'brand@email.com', '<bcrypt>', NOW());
-```
-
-Or add a temporary admin endpoint for account creation.
-
-### 4. First Real Campaign
-
-Brand logs in → `POST /api/v1/campaigns` → receives `campaignId` → `GET /qr/generate/:campaignId` → print QR on sample products.
-
-### 5. First Real Consumer
-
-Consumer receives a sample product, scans QR with phone camera, completes the Arabic mobile web journey in under 3 minutes. Data appears in brand dashboard.
 
 ---
 
 ## What Success Looks Like
 
 ```
-✅  API deployed and reachable at public URL
-✅  Dashboard deployed — brand portal + /join/* consumer journey both live
-✅  Real OTP SMS delivered to Egyptian mobile number
-✅  Real brand account created
-✅  Real campaign created via API
-✅  Real QR generated and printed
-✅  At least one real consumer completes the full journey
-✅  Real signal appears in brand analytics dashboard
-→   Controlled pilot is running
+✅  Railway API: LIVE                   (done)
+✅  PostgreSQL: ONLINE, clean schema    (done)
+✅  Vercel Dashboard: LIVE              (done)
+✅  CORS: correctly configured          (done)
+✅  Consumer web deep links: working    (done)
+✅  Admin endpoints: protected (R-01)   (done)
+⬜  Twilio OTP: CONFIGURED              (blocker 1)
+⬜  Real brand account: CREATED         (blocker 2)
+⬜  Real campaign: CREATED              (requires brand account)
+⬜  Real QR: GENERATED                  (requires campaign)
+⬜  Real consumer completes journey     (requires all above)
+⬜  Real signal in dashboard            (requires consumer journey)
+→   REAL FIELD PILOT: NOT YET VERIFIED
 ```
 
 ---
 
 ## What an AI Should Help With Right Now
 
-- Pilot deployment planning and execution (Railway, Vercel, Supabase setup)
-- Environment variable configuration
-- Twilio SMS setup for Egypt (+20 numbers)
-- Database migration strategy (TypeORM synchronize vs. migrations)
-- First real brand account creation
-- First real campaign setup
-- Monitoring and troubleshooting the live deployment
+- Setting Twilio env vars in Railway when Founder provides credentials
+- Creating first real brand account via Railway Postgres when Founder provides name/email/password
+- Verifying brand login works after account creation
+- Helping brand create first campaign via API (curl commands)
+- Generating QR code for the first campaign
+- Verifying consumer journey end-to-end
 
 ## What an AI Should NOT Help With Right Now
 
 - P1 features (brand self-registration, campaign management UI) — not yet authorized
 - P2 features (PDPL consent screen, consumer data deletion) — not yet authorized
-- New dashboard screens or API endpoints beyond committed MVP
+- New dashboard screens or API endpoints
 - Track 1 full engineering — still gated on B-01/B-02/B-03/B-04
-- Modifying the commercial demo (FROZEN at commit 0209b9a)
+- Modifying the commercial demo (FROZEN)
+- Rebuilding the deployment infrastructure (it's live and working)
 
-*Source: Real Pilot MVP Final Handoff — Sections 9, 10*
+*Source: Deployment Session, 2026-08-13*

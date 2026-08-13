@@ -61,22 +61,25 @@ Source: `04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md` — Executive Conc
    Branch : sprint/meos-production-build
    Commit : 0209b9a — DO NOT MODIFY
 
-✅ REAL PILOT MVP — READY LOCALLY (2026-08-13)
+⚠️ REAL PILOT MVP — DEPLOYED / PARTIALLY READY (2026-08-13)
    Branch : sprint/pilot-readiness-mvp
-   Commit : ed72a20
-   Phase  : Pilot Deployment (code complete — NOT yet deployed to cloud)
-   Status : 7 acceptance tests PASS, TypeScript clean, demo regression PASS
+   Commit : 67d29d3 (pushed to GitHub)
+   Railway API   : https://api-production-266c.up.railway.app/api/v1 ✅ LIVE
+   Vercel Dash   : https://dashboard-six-flame-wsaixia9cm.vercel.app  ✅ LIVE
+   PostgreSQL    : ONLINE — 8 tables, clean (no real data yet)
+   OTP           : NOT CONFIGURED (Twilio credentials missing)
+   Brand account : NOT CREATED (awaiting Founder input)
 
 ⚠️ TRACK 1 FULL ENGINEERING — STILL GATED (B-01 / B-02 / B-03 / B-04)
 ```
 
-Source: `AI_BOOTSTRAP/02_PROJECT_STATE.md`; Real Pilot MVP Final Handoff
+Source: `AI_BOOTSTRAP/02_PROJECT_STATE.md`; Deployment Session 2026-08-13
 
 ---
 
 ## Current Goal
 
-Deploy the Real Pilot MVP to a controlled cloud environment and run one real brand campaign. The 4 Track 1 blocking items remain open:
+Activate the deployed pilot: configure Twilio OTP + create first real brand account. The 4 Track 1 blocking items remain open:
 
 | # | Blocker |
 |---|---|

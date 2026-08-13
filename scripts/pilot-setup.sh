@@ -35,7 +35,7 @@ echo "================================================"
 # ─── Step 1: Health check ─────────────────────────────────────────────────────
 
 echo ""
-echo "[1/5] Health check..."
+echo "[1/4] Health check..."
 STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$PILOT_API_URL/campaigns" 2>/dev/null || echo "000")
 if [[ "$STATUS" != "401" && "$STATUS" != "200" ]]; then
   echo "  [✗] API not reachable (HTTP $STATUS). Check Railway deployment."
@@ -43,26 +43,18 @@ if [[ "$STATUS" != "401" && "$STATUS" != "200" ]]; then
 fi
 echo "  [✓] API reachable (HTTP $STATUS)"
 
-# ─── Step 2: Seed demo brand (optional — for demo.sh compatibility) ───────────
+# ─── Step 2: Create real brand account ────────────────────────────────────────
 
 echo ""
-echo "[2/5] Seeding demo brand (for commercial demo access)..."
-SEED_RESULT=$(curl -s -X POST "$PILOT_API_URL/admin/seed" -H "Content-Type: application/json" 2>/dev/null)
-echo "  $SEED_RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'  [✓] Demo seeded — campaign: {d.get(\"data\",{}).get(\"campaignId\",\"?\")}' if d.get('success') else f'  [!] Seed result: {d}')" 2>/dev/null || echo "  [!] Seed response: $SEED_RESULT"
-
-# ─── Step 3: Create real brand account ────────────────────────────────────────
-
-echo ""
-echo "[3/5] Creating real brand account..."
+echo "[2/4] Creating real brand account..."
 echo "  Email: $BRAND_EMAIL"
 echo "  Brand: $BRAND_NAME"
 echo ""
-echo "  NOTE: There is no self-registration API yet."
-echo "  You must create the brand account directly in the database."
+echo "  NOTE: There is no self-registration API. Insert directly via SQL."
 echo ""
 echo "  Run this SQL on your Railway Postgres instance:"
+echo "  (Railway dashboard > Postgres plugin > Query tab)"
 echo ""
-echo "  -- In Railway dashboard > Postgres > Query"
 cat <<SQL
 INSERT INTO brand_accounts (id, name, email, password, created_at)
 SELECT
@@ -80,10 +72,10 @@ echo ""
 echo "  Press Enter after inserting the brand account, or Ctrl+C to stop here."
 read -r
 
-# ─── Step 4: Test brand login ─────────────────────────────────────────────────
+# ─── Step 3: Test brand login ─────────────────────────────────────────────────
 
 echo ""
-echo "[4/5] Testing brand login..."
+echo "[3/4] Testing brand login..."
 LOGIN_RESULT=$(curl -s -X POST "$PILOT_API_URL/auth/brand/login" \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"$BRAND_EMAIL\",\"password\":\"$BRAND_PASSWORD\"}" 2>/dev/null)
@@ -98,7 +90,7 @@ fi
 echo "  [✓] Brand login successful"
 echo "  Access token: ${ACCESS_TOKEN:0:20}..."
 
-# ─── Step 5: Summary ──────────────────────────────────────────────────────────
+# ─── Step 4: Summary ──────────────────────────────────────────────────────────
 
 echo ""
 echo "================================================"
@@ -107,8 +99,7 @@ echo "================================================"
 echo ""
 echo "  Next steps:"
 echo ""
-echo "  1. Log in to the brand dashboard:"
-echo "     URL:      $( echo "$PILOT_API_URL" | sed 's|/api/v1||' | sed 's|api\.|dashboard.|' )"
+echo "  1. Log in to the brand dashboard (Vercel URL):"
 echo "     Email:    $BRAND_EMAIL"
 echo "     Password: $BRAND_PASSWORD"
 echo ""
@@ -132,6 +123,7 @@ echo "     Authorization: Bearer $ACCESS_TOKEN"
 echo ""
 echo "  4. Print the QR on product packaging and distribute."
 echo ""
-echo "  5. Consumer scans QR → phone camera opens:"
-echo "     https://your-dashboard.vercel.app/join/{campaignId}"
+echo "  Consumer flow after scan:"
+echo "     CONSUMER_WEB_URL/join/{campaignId}"
+echo "     → OTP → registration → survey → real data in dashboard"
 echo ""

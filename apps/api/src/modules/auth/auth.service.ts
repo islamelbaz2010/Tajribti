@@ -62,7 +62,7 @@ export class AuthService {
     );
 
     if (!isDemoMode) {
-      await this.sendSmsSafe(phone, code);
+      await this.sendAkedlyOtp(phone, code);
     }
 
     this.logger.log(
@@ -185,26 +185,37 @@ export class AuthService {
     return this.configService.get<string>('DEMO_MODE') === 'true';
   }
 
-  private async sendSmsSafe(phone: string, code: string): Promise<void> {
+  private async sendAkedlyOtp(phone: string, code: string): Promise<void> {
     try {
-      const accountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
-      const authToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
-      const fromNumber = this.configService.get<string>('TWILIO_FROM_NUMBER');
+      const apiKey = this.configService.get<string>('AKEDLY_API_KEY');
+      const pipelineId = this.configService.get<string>('AKEDLY_PIPELINE_ID');
+      const templateId = this.configService.get<string>('AKEDLY_TEMPLATE_ID');
+      const otpVar = this.configService.get<string>('AKEDLY_OTP_VAR') ?? 'otp';
 
-      if (!accountSid || !authToken || !fromNumber) {
-        this.logger.warn('Twilio not configured — OTP not sent via SMS');
+      if (!apiKey || !pipelineId || !templateId) {
+        this.logger.warn('Akedly not configured — OTP not delivered');
         return;
       }
 
-      const twilio = await import('twilio');
-      const client = twilio.default(accountSid, authToken);
-      await client.messages.create({
-        body: `Tajribti: رمز التحقق الخاص بك هو ${code}. صالح لمدة 5 دقائق.`,
-        from: fromNumber,
-        to: phone,
+      const res = await fetch('https://api.akedly.io/api/v1/utilities/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          APIKey: apiKey,
+          pipelineID: pipelineId,
+          templateId: templateId,
+          variableValues: { [otpVar]: code },
+          phone,
+          customerUserId: phone,
+        }),
       });
+
+      if (!res.ok) {
+        const text = await res.text();
+        this.logger.error(`Akedly delivery failed for ${phone}: ${text}`);
+      }
     } catch (error) {
-      this.logger.error(`Failed to send OTP SMS to ${phone}`, error);
+      this.logger.error(`Akedly OTP request threw for ${phone}`, error);
     }
   }
 }

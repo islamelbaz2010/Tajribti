@@ -62,7 +62,6 @@ export default function OtpPage() {
             {loading ? '…' : 'تأكيد'}
           </button>
         </form>
-        <p style={s.hint}>في بيئة الاختبار، الرمز هو: 0000</p>
       </div>
     </div>
   );

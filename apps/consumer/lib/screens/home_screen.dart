@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/auth_service.dart';
 import '../core/constants.dart';
+import '../core/l10n.dart';
 import '../core/session.dart';
+import '../widgets/lang_toggle.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -16,22 +18,27 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.l10n;
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: context.dir,
       child: Scaffold(
         backgroundColor: kBackground,
         appBar: AppBar(
           backgroundColor: kPrimary,
-          title: const Text(
-            'تجربتي',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 20),
+          title: Text(
+            s.homeTitle,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 20),
           ),
           automaticallyImplyLeading: false,
           actions: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4),
+              child: Center(child: LangToggle(light: true)),
+            ),
             IconButton(
               icon: const Icon(Icons.logout, color: Colors.white70),
               onPressed: () => _logout(context),
-              tooltip: 'تسجيل الخروج',
+              tooltip: s.logout,
             ),
           ],
         ),
@@ -51,9 +58,9 @@ class HomeScreen extends StatelessWidget {
                   child: const Icon(Icons.qr_code_scanner_rounded, size: 48, color: kPrimary),
                 ),
                 const SizedBox(height: 28),
-                const Text(
-                  'جاهز لتجربة جديدة؟',
-                  style: TextStyle(
+                Text(
+                  s.homeReady,
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w900,
                     color: kPrimary,
@@ -62,7 +69,7 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'امسح رمز QR على المنتج لتبدأ تجربتك وتشارك رأيك',
+                  s.homeSub,
                   style: TextStyle(
                     fontSize: 15,
                     color: Colors.grey.shade600,
@@ -77,9 +84,9 @@ class HomeScreen extends StatelessWidget {
                   child: ElevatedButton.icon(
                     onPressed: () => context.go('/scanner'),
                     icon: const Icon(Icons.qr_code_scanner_rounded, size: 22),
-                    label: const Text(
-                      'مسح QR',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    label: Text(
+                      s.scanQr,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kAccent,

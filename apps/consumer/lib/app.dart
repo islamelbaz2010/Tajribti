@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'core/l10n.dart';
 import 'screens/splash_screen.dart';
 import 'screens/scanner_screen.dart';
 import 'screens/campaign_screen.dart';
@@ -41,19 +43,56 @@ final _router = GoRouter(
   ],
 );
 
-class TajribtiApp extends StatelessWidget {
+class TajribtiApp extends StatefulWidget {
   const TajribtiApp({super.key});
 
   @override
+  State<TajribtiApp> createState() => _TajribtiAppState();
+}
+
+class _TajribtiAppState extends State<TajribtiApp> {
+  @override
+  void initState() {
+    super.initState();
+    langNotifier.init().then((_) {
+      if (mounted) setState(() {});
+    });
+    langNotifier.addListener(_onLangChange);
+  }
+
+  void _onLangChange() => setState(() {});
+
+  @override
+  void dispose() {
+    langNotifier.removeListener(_onLangChange);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'تجربتي',
-      debugShowCheckedModeBanner: false,
-      routerConfig: _router,
-      theme: ThemeData(
-        colorSchemeSeed: const Color(0xFF1a1a2e),
-        useMaterial3: true,
-        fontFamily: 'sans-serif',
+    return LangProvider(
+      child: ValueListenableBuilder<bool>(
+        valueListenable: langNotifier,
+        builder: (_, isAr, __) {
+          final cairoBase = GoogleFonts.cairoTextTheme();
+          return MaterialApp.router(
+            title: isAr ? 'تجربتي' : 'Tajribti',
+            debugShowCheckedModeBanner: false,
+            routerConfig: _router,
+            locale: Locale(isAr ? 'ar' : 'en'),
+            theme: ThemeData(
+              colorSchemeSeed: const Color(0xFF1a1a2e),
+              useMaterial3: true,
+              textTheme: cairoBase.copyWith(
+                displayLarge: cairoBase.displayLarge?.copyWith(fontWeight: FontWeight.w900),
+                displayMedium: cairoBase.displayMedium?.copyWith(fontWeight: FontWeight.w900),
+                headlineLarge: cairoBase.headlineLarge?.copyWith(fontWeight: FontWeight.w900),
+                headlineMedium: cairoBase.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+                bodyLarge: cairoBase.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

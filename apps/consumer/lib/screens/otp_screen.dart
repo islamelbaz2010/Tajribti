@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
 import '../core/auth_service.dart';
 import '../core/constants.dart';
+import '../core/l10n.dart';
 import '../core/session.dart';
+import '../widgets/lang_toggle.dart';
 
 class OtpScreen extends StatefulWidget {
   final String phone;
@@ -42,14 +44,14 @@ class _OtpScreenState extends State<OtpScreen> {
 
   Future<void> _resend() async {
     if (!_canResend) return;
-    setState(() { _error = null; });
+    setState(() => _error = null);
     try {
       await apiClient.requestOtp(widget.phone);
       for (final c in _controllers) c.clear();
       _focusNodes[0].requestFocus();
       _startCountdown();
     } catch (_) {
-      setState(() => _error = 'تعذر إعادة الإرسال. حاول مجدداً.');
+      if (mounted) setState(() => _error = context.l10n.resendFailed);
     }
   }
 
@@ -85,7 +87,6 @@ class _OtpScreenState extends State<OtpScreen> {
         return;
       }
 
-      // Existing user — enter campaign if one is active, else go home
       if (JourneySession.hasActiveCampaign) {
         try {
           final entry = await apiClient.enterCampaign(JourneySession.campaignId!);
@@ -97,7 +98,6 @@ class _OtpScreenState extends State<OtpScreen> {
             'pointsEarned': entry.pointsEarned,
           });
         } catch (_) {
-          // If enterCampaign fails (already entered, campaign not active, etc.), go home
           if (!mounted) return;
           context.go('/home');
         }
@@ -105,7 +105,7 @@ class _OtpScreenState extends State<OtpScreen> {
         context.go('/home');
       }
     } catch (e) {
-      setState(() => _error = 'رمز غير صحيح. تحقق من الرمز وأعد المحاولة.');
+      setState(() => _error = context.l10n.otpWrong);
       for (final c in _controllers) c.clear();
       if (mounted) _focusNodes[0].requestFocus();
     } finally {
@@ -122,11 +122,18 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.l10n;
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: context.dir,
       child: Scaffold(
         backgroundColor: kBackground,
-        appBar: AppBar(backgroundColor: kBackground, elevation: 0),
+        appBar: AppBar(
+          backgroundColor: kBackground,
+          elevation: 0,
+          actions: const [
+            Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle())),
+          ],
+        ),
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(28),
@@ -134,7 +141,7 @@ class _OtpScreenState extends State<OtpScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'أدخل رمز التحقق',
+                  s.otpTitle,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w900,
                     color: kPrimary,
@@ -142,7 +149,7 @@ class _OtpScreenState extends State<OtpScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'تم إرسال رمز مكون من 6 أرقام إلى',
+                  s.otpSentTo,
                   style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
                 ),
                 Text(
@@ -190,15 +197,15 @@ class _OtpScreenState extends State<OtpScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'لم يصلك الرمز؟  ',
+                      s.didntReceive,
                       style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
                     ),
                     if (_canResend)
                       GestureDetector(
                         onTap: _resend,
-                        child: const Text(
-                          'إعادة الإرسال',
-                          style: TextStyle(
+                        child: Text(
+                          s.resend,
+                          style: const TextStyle(
                             fontSize: 14,
                             color: kPrimary,
                             fontWeight: FontWeight.w700,
@@ -208,19 +215,19 @@ class _OtpScreenState extends State<OtpScreen> {
                       )
                     else
                       Text(
-                        'إعادة الإرسال خلال ${_countdown}ث',
+                        s.resendIn(_countdown),
                         style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
                       ),
                   ],
                 ),
                 const Spacer(),
                 if (_loading)
-                  const Center(
+                  Center(
                     child: Column(
                       children: [
-                        CircularProgressIndicator(color: kPrimary),
-                        SizedBox(height: 12),
-                        Text('جارٍ التحقق…', style: TextStyle(color: kPrimary, fontSize: 14)),
+                        const CircularProgressIndicator(color: kPrimary),
+                        const SizedBox(height: 12),
+                        Text(s.verifying, style: const TextStyle(color: kPrimary, fontSize: 14)),
                       ],
                     ),
                   ),

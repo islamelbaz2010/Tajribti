@@ -1,7 +1,7 @@
 # Current Objective — One Page
 
 **This file describes EXACTLY what we are trying to accomplish RIGHT NOW.**  
-**Last updated:** 2026-08-13
+**Last updated:** 2026-08-14
 
 ---
 
@@ -23,7 +23,7 @@ PostgreSQL: ONLINE (tajribti-pilot project, 8 tables, zero data)
 
 Two blockers remain before a real consumer can complete the journey:
 
-1. **Twilio not configured** — OTP is generated but SMS not delivered. Real consumers cannot verify their phone without it.  
+1. **Akedly Template ID not yet set** — OTP code generation works; WhatsApp delivery requires AKEDLY_TEMPLATE_ID (currently in review with Akedly). AKEDLY_API_KEY and AKEDLY_PIPELINE_ID are available now.
 2. **No real brand account** — The database is clean. No brand can log in until the first account is created.
 
 Commercial demo: FROZEN at commit `0209b9a` on `sprint/meos-production-build`. Do not touch.
@@ -32,17 +32,21 @@ Commercial demo: FROZEN at commit `0209b9a` on `sprint/meos-production-build`. D
 
 ## The 2 Remaining Activation Steps
 
-### 1. Configure Twilio (Founder provides credentials → Claude sets Railway env vars)
+### 1. Set Akedly Credentials in Railway (WhatsApp OTP — Founder sets when Template ID is approved)
 
-In Railway dashboard or via Claude Code: set these on the `api` service in the `tajribti-pilot` project:
+In Railway dashboard: set these on the `api` service in the `tajribti-pilot` project:
 
 ```
-TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_AUTH_TOKEN=your_auth_token
-TWILIO_FROM_NUMBER=+1xxxxxxxxxx   # Must be able to send to Egyptian (+20) numbers
+AKEDLY_API_KEY=d53379cf4b992b6684fedf9d0d367f194f6b89438710b63774e0e68fc26a715f
+AKEDLY_PIPELINE_ID=6a7db76861a103e7b2a0b7ec
+AKEDLY_TEMPLATE_ID=<approved-template-id>      ← SET THIS WHEN AKEDLY APPROVES IT
+AKEDLY_OTP_VAR=otp                             ← default; change only if template uses different var name
 ```
 
-Railway auto-redeploys after env var change. OTP SMS goes live immediately.
+Railway auto-redeploys after env var change. WhatsApp OTP goes live immediately.
+The integration code is complete and soft-fails gracefully until Template ID is set.
+
+⚠️ OTP is currently blocked only by AKEDLY_TEMPLATE_ID being in review. API key and Pipeline ID are ready.
 
 ### 2. Create First Real Brand Account (Founder provides: name, email, password)
 
@@ -78,18 +82,19 @@ Brand logs in at https://dashboard-six-flame-wsaixia9cm.vercel.app
 ## What Success Looks Like
 
 ```
-✅  Railway API: LIVE                   (done)
-✅  PostgreSQL: ONLINE, clean schema    (done)
-✅  Vercel Dashboard: LIVE              (done)
-✅  CORS: correctly configured          (done)
-✅  Consumer web deep links: working    (done)
-✅  Admin endpoints: protected (R-01)   (done)
-⬜  Twilio OTP: CONFIGURED              (blocker 1)
-⬜  Real brand account: CREATED         (blocker 2)
-⬜  Real campaign: CREATED              (requires brand account)
-⬜  Real QR: GENERATED                  (requires campaign)
-⬜  Real consumer completes journey     (requires all above)
-⬜  Real signal in dashboard            (requires consumer journey)
+✅  Railway API: LIVE                          (done)
+✅  PostgreSQL: ONLINE, clean schema           (done)
+✅  Vercel Dashboard: LIVE                     (done)
+✅  CORS: correctly configured                 (done)
+✅  Consumer web deep links: working           (done)
+✅  Admin endpoints: protected                 (done)
+✅  Akedly OTP integration: code complete      (done — soft-fail until Template ID set)
+⬜  Akedly Template ID: SET IN RAILWAY         (blocker 1 — Template ID in review)
+⬜  Real brand account: CREATED               (blocker 2)
+⬜  Real campaign: CREATED                    (requires brand account)
+⬜  Real QR: GENERATED                        (requires campaign)
+⬜  Real consumer completes journey           (requires all above)
+⬜  Real signal in dashboard                  (requires consumer journey)
 →   REAL FIELD PILOT: NOT YET VERIFIED
 ```
 
@@ -97,12 +102,12 @@ Brand logs in at https://dashboard-six-flame-wsaixia9cm.vercel.app
 
 ## What an AI Should Help With Right Now
 
-- Setting Twilio env vars in Railway when Founder provides credentials
+- Setting Akedly env vars in Railway when Template ID is approved (AKEDLY_TEMPLATE_ID)
 - Creating first real brand account via Railway Postgres when Founder provides name/email/password
 - Verifying brand login works after account creation
 - Helping brand create first campaign via API (curl commands)
 - Generating QR code for the first campaign
-- Verifying consumer journey end-to-end
+- Verifying consumer journey end-to-end (real OTP requires Template ID to be approved first)
 
 ## What an AI Should NOT Help With Right Now
 

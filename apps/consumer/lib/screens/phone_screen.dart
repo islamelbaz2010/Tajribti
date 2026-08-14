@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../core/l10n.dart';
 import '../core/session.dart';
+import '../widgets/lang_toggle.dart';
 
 class PhoneScreen extends StatefulWidget {
   const PhoneScreen({super.key});
@@ -23,9 +25,10 @@ class _PhoneScreenState extends State<PhoneScreen> {
   }
 
   Future<void> _requestOtp() async {
+    final s = context.l10n;
     final phone = _controller.text.trim();
     if (phone.length < 12) {
-      setState(() => _error = 'أدخل رقم هاتف مصري صحيح (+201XXXXXXXXX)');
+      setState(() => _error = s.phoneError);
       return;
     }
     setState(() { _loading = true; _error = null; });
@@ -34,7 +37,8 @@ class _PhoneScreenState extends State<PhoneScreen> {
       if (!mounted) return;
       context.push('/otp', extra: phone);
     } catch (e) {
-      setState(() => _error = 'تعذر الإرسال. تحقق من اتصالك بالإنترنت.');
+      if (!mounted) return;
+      setState(() => _error = context.l10n.sendError);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -42,17 +46,31 @@ class _PhoneScreenState extends State<PhoneScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.l10n;
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: context.dir,
       child: Scaffold(
         backgroundColor: kBackground,
+        appBar: AppBar(
+          backgroundColor: kBackground,
+          elevation: 0,
+          leading: context.canPop()
+              ? IconButton(
+                  icon: Icon(s.isRtl ? Icons.arrow_forward_ios : Icons.arrow_back_ios, color: kPrimary, size: 20),
+                  onPressed: () => context.pop(),
+                )
+              : null,
+          actions: const [
+            Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle())),
+          ],
+        ),
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(28),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 24),
+                const SizedBox(height: 8),
                 if (JourneySession.hasActiveCampaign)
                   Container(
                     margin: const EdgeInsets.only(bottom: 20),
@@ -66,17 +84,17 @@ class _PhoneScreenState extends State<PhoneScreen> {
                       children: [
                         const Icon(Icons.check_circle_outline, size: 18, color: kPrimary),
                         const SizedBox(width: 8),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'سجّل برقم هاتفك لإتمام تجربتك',
-                            style: TextStyle(fontSize: 13, color: kPrimary, fontWeight: FontWeight.w600),
+                            s.phoneCampaignBanner,
+                            style: const TextStyle(fontSize: 13, color: kPrimary, fontWeight: FontWeight.w600),
                           ),
                         ),
                       ],
                     ),
                   ),
                 Text(
-                  'مرحباً بك',
+                  s.welcome,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w900,
                     color: kPrimary,
@@ -84,7 +102,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'أدخل رقم هاتفك لتلقّي رمز التحقق',
+                  s.phoneSubtitle,
                   style: TextStyle(fontSize: 16, color: Colors.grey.shade600, height: 1.5),
                 ),
                 const SizedBox(height: 40),
@@ -94,8 +112,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
                   textDirection: TextDirection.ltr,
                   style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: 1),
                   decoration: InputDecoration(
-                    labelText: 'رقم الهاتف',
-                    labelStyle: const TextStyle(fontFamily: 'sans-serif'),
+                    labelText: s.phoneLabel,
                     filled: true,
                     fillColor: Colors.white,
                     border: OutlineInputBorder(
@@ -112,7 +129,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'مثال: +201012345678',
+                  s.phoneExample,
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
                 ),
                 const Spacer(),
@@ -125,6 +142,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
                       backgroundColor: kPrimary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
                     ),
                     child: _loading
                         ? const SizedBox(
@@ -132,9 +150,9 @@ class _PhoneScreenState extends State<PhoneScreen> {
                             height: 24,
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                           )
-                        : const Text(
-                            'إرسال الرمز',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                        : Text(
+                            s.sendCode,
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                           ),
                   ),
                 ),

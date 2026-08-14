@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../core/l10n.dart';
 import '../core/models.dart';
 import '../widgets/star_rating.dart';
 import '../widgets/scale_input.dart';
@@ -43,7 +44,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
       final campaign = await apiClient.getCampaignById(widget.campaignId);
       setState(() { _campaign = campaign; _loadingCampaign = false; });
     } catch (e) {
-      setState(() { _error = 'تعذر تحميل الاستبيان'; _loadingCampaign = false; });
+      setState(() { _error = '_loadFail'; _loadingCampaign = false; });
     }
   }
 
@@ -59,7 +60,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
     } catch (e) {
       setState(() {
         _submitting = false;
-        _error = 'تعذر إرسال الإجابات. حاول مرة أخرى.';
+        _error = '_submitFail';
       });
     }
   }
@@ -83,11 +84,40 @@ class _SurveyScreenState extends State<SurveyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.l10n;
+
     if (_loadingCampaign) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator(color: kPrimary)));
+      return Scaffold(
+        backgroundColor: kBackground,
+        body: const Center(child: CircularProgressIndicator(color: kPrimary)),
+      );
     }
-    if (_error != null && _campaign == null) {
-      return Scaffold(body: Center(child: Text(_error!, style: const TextStyle(color: kAccent))));
+
+    if (_error == '_loadFail' && _campaign == null) {
+      return Directionality(
+        textDirection: context.dir,
+        child: Scaffold(
+          backgroundColor: kBackground,
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, color: kAccent, size: 48),
+                  const SizedBox(height: 16),
+                  Text(s.surveyError, style: const TextStyle(color: kAccent, fontSize: 16), textAlign: TextAlign.center),
+                  const SizedBox(height: 24),
+                  TextButton(
+                    onPressed: _loadCampaign,
+                    child: Text(s.retry, style: const TextStyle(color: kPrimary, fontSize: 16)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
     }
 
     final questions = _campaign!.surveyQuestions;
@@ -96,7 +126,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
     final progress = (_currentStep + 1) / questions.length;
 
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: context.dir,
       child: Scaffold(
         backgroundColor: kBackground,
         body: SafeArea(
@@ -116,29 +146,29 @@ class _SurveyScreenState extends State<SurveyScreen> {
                     children: [
                       const SizedBox(height: 16),
                       Text(
-                        '${_currentStep + 1} / ${questions.length}',
+                        s.surveyProgress(_currentStep + 1, questions.length),
                         style: TextStyle(color: Colors.grey.shade400, fontSize: 13, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        q.textAr,
+                        s.isRtl ? q.textAr : (q.text.isNotEmpty ? q.text : q.textAr),
                         style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: kPrimary, height: 1.4),
                       ),
                       if (!q.required)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
-                          child: Text('(اختياري)', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                          child: Text(s.optional, style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
                         ),
                       const SizedBox(height: 40),
-                      _buildInput(q),
+                      _buildInput(q, s),
                     ],
                   ),
                 ),
               ),
-              if (_error != null)
+              if (_error == '_submitFail')
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 28),
-                  child: Text(_error!, style: const TextStyle(color: kAccent, fontSize: 13)),
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
+                  child: Text(s.submitError, style: const TextStyle(color: kAccent, fontSize: 13)),
                 ),
               Padding(
                 padding: const EdgeInsets.all(24),
@@ -156,7 +186,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
                     child: _submitting
                         ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                         : Text(
-                            isLast ? 'إرسال الإجابات' : 'التالي',
+                            isLast ? s.submitAnswers : s.nextQuestion,
                             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                           ),
                   ),
@@ -169,7 +199,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
     );
   }
 
-  Widget _buildInput(SurveyQuestion q) {
+  Widget _buildInput(SurveyQuestion q, AppStr s) {
     switch (q.type) {
       case 'stars':
         return Center(
@@ -182,11 +212,13 @@ class _SurveyScreenState extends State<SurveyScreen> {
         return ScaleInput(
           value: (_answers[q.id] as int?) ?? 0,
           onChanged: (v) => setState(() => _answers[q.id] = v),
-          labelMin: 'غير محتمل',
-          labelMax: 'محتمل جداً',
+          labelMin: s.scaleUnlikely,
+          labelMax: s.scaleLikely,
         );
       case 'multiple_choice':
-        final opts = q.optionsAr.isNotEmpty ? q.optionsAr : q.options;
+        final opts = s.isRtl
+            ? (q.optionsAr.isNotEmpty ? q.optionsAr : q.options)
+            : q.options;
         final vals = q.options;
         return ChoiceChipGroup(
           options: opts,
@@ -203,7 +235,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
           onChanged: (v) => setState(() => _answers[q.id] = v),
           maxLines: 4,
           decoration: InputDecoration(
-            hintText: 'اكتب رأيك هنا…',
+            hintText: s.writeOpinion,
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),

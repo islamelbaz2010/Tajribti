@@ -2,11 +2,81 @@ import React, { useEffect, useState, useRef } from 'react';
 import { campaignApi, reportApi } from '../api/endpoints';
 import type { PdfData } from '../api/types';
 
+/* ─── Arabic string table ─── */
+const AR = {
+  reportTitle: 'تقرير ذكاء المستهلك',
+  loading: 'جارٍ تحضير التقرير…',
+  downloadBtn: 'تحميل PDF ←',
+  generating: 'جارٍ إنشاء PDF…',
+  sampleData: 'بيانات تجريبية',
+  confidential: 'سري',
+  sampleBanner: 'بيانات تجريبية · لأغراض التقييم فقط',
+  respondents: 'مشارك',
+  verifiedParticipants: 'المشاركون الموثقون',
+  completionRate: 'معدل الإتمام',
+  purchaseIntent: 'نية الشراء',
+  s01: 'الملخص التنفيذي',
+  s02: 'ملف الجمهور',
+  s03: 'تحليل نية الشراء',
+  s04: 'صوت المستهلك',
+  s05: 'الاكتشافات الرئيسية',
+  s06: 'التوصيات',
+  s07: 'المنهجية وسلامة البيانات',
+  basedOn: 'بناءً على',
+  verifiedSurveys: 'استجابة استبيان موثقة · تم الإنشاء',
+  audienceIntro: 'أتمّ المستهلكون تجربة فعلية موثقة للمنتج في',
+  audienceAuth: 'تحقق جميع المشاركين عبر رمز OTP على واتساب. تعكس البيانات الديموغرافية معلومات مُبلَّغاً عنها ذاتياً مجموعة مباشرة بعد التجربة.',
+  ageDistribution: 'التوزيع العمري',
+  gender: 'الجنس',
+  cityDistrict: 'المدينة / المنطقة',
+  intentScore: 'نقاط النية',
+  wouldBuy: 'سيشتري',
+  probably: 'على الأرجح',
+  unsure: 'غير متأكد',
+  intentNote: '"سيشتري" = المستجيبون الذين اختاروا 5/5 على مقياس نية الشراء. "على الأرجح" = 4/5. "غير متأكد" = ≤3/5.',
+  descriptorsTitle: 'توصيفات المنتج — أكثر استجابات المستهلكين شيوعاً',
+  verbatimsTitle: 'ملاحظات المستهلك المفتوحة',
+  noVerbatimsDemo: 'لا توجد استجابات مفتوحة في مجموعة البيانات التجريبية. في حملة حقيقية، تظهر هنا ملاحظات المستهلكين.',
+  noVerbatimsLive: 'لا توجد استجابات مفتوحة مسجلة لهذه الحملة.',
+  responses: 'استجابة',
+  strongestSignal: 'الإشارة الأقوى',
+  primarySegment: 'القطاع الأساسي',
+  dataQuality: 'جودة البيانات',
+  productPerception: 'تصور المنتج',
+  geoConcentration: 'التركيز الجغرافي',
+  insufficientDemo: 'بيانات ديموغرافية غير كافية',
+  insufficientDemoBody: 'لم يقدم عدد كافٍ من المشاركين بيانات ديموغرافية لتحديد القطاع الأساسي.',
+  surveyCompletion: 'إتمام الاستبيان',
+  methodSampleSize: 'حجم العينة',
+  methodCollection: 'طريقة الجمع',
+  methodCollectionVal: 'تجربة فعلية للمنتج ← مسح QR ← تحقق OTP واتساب ← استبيان على الويب',
+  methodLocation: 'موقع الحملة',
+  methodNotSpecified: 'غير محدد',
+  methodSurveyLength: 'طول الاستبيان',
+  methodSurveyLengthVal: '5 أسئلة: تقييم التجربة، نية الشراء، وصف المنتج، الرضا العام، ملاحظات مفتوحة',
+  methodAuth: 'توثيق المستهلك',
+  methodAuthVal: 'رقم هاتف + رمز مرة واحدة عبر واتساب (Akedly)',
+  methodDataStatus: 'حالة البيانات',
+  methodDataStatusDemo: 'بيانات تجريبية — أرقام توضيحية لأغراض التقييم فقط.',
+  methodDataStatusLive: 'بيانات حملة حقيقية — استجابات موثقة من مشاركين حقيقيين.',
+  methodGenerated: 'تاريخ الإنشاء',
+  demoDisclaimer: 'يتضمن هذا التقرير بيانات تجريبية لأغراض العرض والتقييم. جميع الأرقام توضيحية.',
+  dataLimitationsTitle: 'قيود البيانات',
+  limitationSelfSelected: '• عينة ذاتية الاختيار: المستهلكون الذين قبلوا مسح الرمز قد لا يمثلون المستهلكين بشكل عام.',
+  limitationSmallSample: '• حجم عينة صغير: النتائج مؤشرات توجيهية وليست استنتاجات تمثيلية إحصائياً.',
+  limitationSingleLocation: '• بيانات موقع واحد: قد تختلف النتائج عبر بيئات البيع بالتجزئة أو المناطق الجغرافية.',
+  limitationImmediate: '• استجابة فورية بعد التجربة: قد تختلف نية الشراء الفورية عن سلوك الشراء الفعلي.',
+  footerPlatform: 'تجربتي · منصة ذكاء المستهلك',
+  footerNotForDist: 'بيانات تجريبية — غير مخصصة للتوزيع',
+  footerGenerated: 'تم الإنشاء',
+};
+
 export default function Report() {
   const [data, setData] = useState<PdfData | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
+  const [isAr, setIsAr] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -17,6 +87,8 @@ export default function Report() {
       .catch(() => setError('Failed to load report data.'))
       .finally(() => setLoading(false));
   }, []);
+
+  const t = (en: string, ar: string) => (isAr ? ar : en);
 
   const handleDownload = async () => {
     if (!data || !reportRef.current) return;
@@ -35,24 +107,22 @@ export default function Report() {
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-      const pageWidth = pdf.internal.pageSize.getWidth();   // 210 mm
-      const pageHeight = pdf.internal.pageSize.getHeight(); // 297 mm
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
       const imgHeightMm = (canvas.height * pageWidth) / canvas.width;
 
       let remaining = imgHeightMm;
       let yOffset = 0;
 
-      // Slice the captured image across A4 pages
       while (remaining > 0) {
         pdf.addImage(imgData, 'PNG', 0, -yOffset, pageWidth, imgHeightMm);
         remaining -= pageHeight;
         yOffset += pageHeight;
-        if (remaining > 0) {
-          pdf.addPage();
-        }
+        if (remaining > 0) pdf.addPage();
       }
 
-      const filename = `tajribti-report-${data.campaign.productName.replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 10)}.pdf`;
+      const lang = isAr ? 'ar' : 'en';
+      const filename = `tajribti-report-${data.campaign.productName.replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 10)}-${lang}.pdf`;
       pdf.save(filename);
     } catch {
       setError('PDF generation failed. Try again.');
@@ -61,7 +131,7 @@ export default function Report() {
     }
   };
 
-  if (loading) return <div style={outer.loading}>Preparing intelligence report…</div>;
+  if (loading) return <div style={outer.loading}>{isAr ? AR.loading : 'Preparing intelligence report…'}</div>;
   if (error) return <div style={outer.error}>{error}</div>;
   if (!data) return null;
 
@@ -72,44 +142,76 @@ export default function Report() {
   const topCity = demographics.cityDistribution[0];
   const topDescriptor = survey.questionBreakdown['q3']?.[0]?.label ?? null;
 
-  const reportDate = new Date(report.createdAt).toLocaleDateString('en-EG', {
+  const locale = isAr ? 'ar-EG' : 'en-EG';
+  const reportDate = new Date(report.createdAt).toLocaleDateString(locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
+
+  const fontFamily = isAr
+    ? "'Cairo', 'Segoe UI', Arial, sans-serif"
+    : "'Inter', 'Segoe UI', Arial, sans-serif";
+
+  const pageStyle: React.CSSProperties = {
+    ...pg.page,
+    fontFamily,
+    direction: isAr ? 'rtl' : 'ltr',
+    textAlign: isAr ? 'right' : 'left',
+  };
+
+  /* RTL-aware border flip for narrative / verbatim blocks */
+  const narrativeStyle: React.CSSProperties = isAr
+    ? { ...pg.narrative, borderLeft: 'none', borderRight: '4px solid #1a1a2e', borderRadius: '8px 0 0 8px' }
+    : pg.narrative;
+
+  const verbatimStyle = (v: string) => {
+    const base: React.CSSProperties = isAr
+      ? { ...pg.verbatim, borderLeft: 'none', borderRight: '3px solid #1a1a2e', borderRadius: '6px 0 0 6px' }
+      : pg.verbatim;
+    return base;
+  };
 
   return (
     <div>
       {/* Page header — not captured in PDF */}
       <div style={outer.actionBar}>
         <div>
-          {isDemo && <span style={outer.demoBadge}>SAMPLE DATA</span>}
-          <h1 style={outer.title}>Campaign Intelligence Report</h1>
+          {isDemo && <span style={outer.demoBadge}>{t('SAMPLE DATA', AR.sampleData)}</span>}
+          <h1 style={outer.title}>{t('Campaign Intelligence Report', AR.reportTitle)}</h1>
           <p style={outer.subtitle}>
             {campaign.brandName} · {campaign.productName}
           </p>
         </div>
-        <button style={outer.downloadBtn} onClick={handleDownload} disabled={generating}>
-          {generating ? 'Generating PDF…' : 'Download PDF →'}
-        </button>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <button
+            style={outer.langBtn}
+            onClick={() => setIsAr(!isAr)}
+          >
+            {isAr ? 'EN' : 'عربي'}
+          </button>
+          <button style={outer.downloadBtn} onClick={handleDownload} disabled={generating}>
+            {generating ? t('Generating PDF…', AR.generating) : t('Download PDF →', AR.downloadBtn)}
+          </button>
+        </div>
       </div>
 
       <div style={outer.reportOuter}>
-        <div ref={reportRef} style={pg.page}>
+        <div ref={reportRef} style={pageStyle}>
           {/* ─── COVER ─── */}
           <div style={pg.coverBlock}>
             <div style={pg.coverTopBar}>
-              <div style={pg.tajribtiLogo}>TAJRIBTI</div>
+              <div style={{ ...pg.tajribtiLogo, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                {isAr ? 'تجربتي' : 'TAJRIBTI'}
+              </div>
               {isDemo ? (
-                <div style={pg.demoBanner}>
-                  SAMPLE DATA · For evaluation purposes only
-                </div>
+                <div style={pg.demoBanner}>{t('SAMPLE DATA · For evaluation purposes only', AR.sampleBanner)}</div>
               ) : (
-                <div style={pg.confidentialBadge}>CONFIDENTIAL</div>
+                <div style={pg.confidentialBadge}>{t('CONFIDENTIAL', AR.confidential)}</div>
               )}
             </div>
             <div style={pg.coverHero}>
-              <div style={pg.reportTypeLabel}>CONSUMER INTELLIGENCE REPORT</div>
+              <div style={pg.reportTypeLabel}>{t('CONSUMER INTELLIGENCE REPORT', AR.reportTitle.toUpperCase())}</div>
               <h1 style={pg.coverProduct}>{campaign.productName}</h1>
               <p style={pg.coverBrand}>{campaign.brandName}</p>
               <div style={pg.coverMetaRow}>
@@ -118,33 +220,36 @@ export default function Report() {
                 )}
                 <span style={pg.coverMetaChip}>📅 {reportDate}</span>
                 <span style={pg.coverMetaChip}>
-                  {overview.surveyCompletions} respondents
+                  {overview.surveyCompletions} {t('respondents', AR.respondents)}
                 </span>
               </div>
             </div>
             <div style={pg.coverKpis}>
               <div style={pg.coverKpi}>
                 <div style={pg.coverKpiNum}>{overview.totalRedemptions}</div>
-                <div style={pg.coverKpiLabel}>Verified Participants</div>
+                <div style={pg.coverKpiLabel}>{t('Verified Participants', AR.verifiedParticipants)}</div>
               </div>
               <div style={pg.coverKpiDivider} />
               <div style={pg.coverKpi}>
                 <div style={pg.coverKpiNum}>{overview.completionRate}%</div>
-                <div style={pg.coverKpiLabel}>Completion Rate</div>
+                <div style={pg.coverKpiLabel}>{t('Completion Rate', AR.completionRate)}</div>
               </div>
               <div style={pg.coverKpiDivider} />
               <div style={pg.coverKpi}>
-                <div style={{ ...pg.coverKpiNum, color: overview.purchaseIntentPercent >= 50 ? '#166534' : '#92400e' }}>
+                <div style={{
+                  ...pg.coverKpiNum,
+                  color: overview.purchaseIntentPercent >= 50 ? '#166534' : '#92400e',
+                }}>
                   {overview.purchaseIntentPercent}%
                 </div>
-                <div style={pg.coverKpiLabel}>Purchase Intent</div>
+                <div style={pg.coverKpiLabel}>{t('Purchase Intent', AR.purchaseIntent)}</div>
               </div>
             </div>
           </div>
 
           {/* ─── EXECUTIVE SUMMARY ─── */}
-          <ReportSection title="Executive Summary" num="01">
-            <div style={pg.narrative}>
+          <ReportSection title={t('Executive Summary', AR.s01)} num="01" isAr={isAr}>
+            <div style={narrativeStyle}>
               {report.narrative.split('\n').map((line, i) => {
                 if (!line.trim()) return <br key={i} />;
                 return (
@@ -155,18 +260,20 @@ export default function Report() {
               })}
             </div>
             <p style={pg.narrativeMeta}>
-              Based on {report.responseCountAtGeneration} verified survey responses · Generated{' '}
-              {reportDate}
+              {t(
+                `Based on ${report.responseCountAtGeneration} verified survey responses · Generated ${reportDate}`,
+                `${AR.basedOn} ${report.responseCountAtGeneration} ${AR.verifiedSurveys} ${reportDate}`
+              )}
             </p>
 
             <div style={pg.kpiRow}>
-              <KpiCard label="Verified Participants" value={overview.totalRedemptions} />
+              <KpiCard label={t('Verified Participants', AR.verifiedParticipants)} value={overview.totalRedemptions} />
               <KpiCard
-                label="Survey Completion Rate"
+                label={t('Survey Completion Rate', AR.completionRate)}
                 value={`${overview.completionRate}%`}
               />
               <KpiCard
-                label="Purchase Intent"
+                label={t('Purchase Intent', AR.purchaseIntent)}
                 value={`${overview.purchaseIntentPercent}%`}
                 accent
               />
@@ -174,16 +281,17 @@ export default function Report() {
           </ReportSection>
 
           {/* ─── AUDIENCE PROFILE ─── */}
-          <ReportSection title="Audience Profile" num="02">
+          <ReportSection title={t('Audience Profile', AR.s02)} num="02" isAr={isAr}>
             <p style={pg.sectionIntro}>
-              {overview.totalRedemptions} consumers completed a verified physical product trial
-              at {campaign.locationName}. All participants authenticated via WhatsApp OTP.
-              Demographics reflect self-reported data collected immediately post-trial.
+              {t(
+                `${overview.totalRedemptions} consumers completed a verified physical product trial at ${campaign.locationName}. All participants authenticated via WhatsApp OTP. Demographics reflect self-reported data collected immediately post-trial.`,
+                `${AR.audienceIntro} ${campaign.locationName}. ${AR.audienceAuth}`
+              )}
             </p>
 
             <div style={pg.demoGrid}>
               <div>
-                <div style={pg.chartLabel}>Age Distribution</div>
+                <div style={pg.chartLabel}>{t('Age Distribution', AR.ageDistribution)}</div>
                 {demographics.ageDistribution.map((item) => (
                   <CssBar
                     key={item.label}
@@ -191,11 +299,12 @@ export default function Report() {
                     percentage={item.percentage}
                     count={item.count}
                     color="#1a1a2e"
+                    isAr={isAr}
                   />
                 ))}
               </div>
               <div>
-                <div style={pg.chartLabel}>Gender</div>
+                <div style={pg.chartLabel}>{t('Gender', AR.gender)}</div>
                 {demographics.genderDistribution.map((item, i) => (
                   <CssBar
                     key={item.label}
@@ -203,11 +312,12 @@ export default function Report() {
                     percentage={item.percentage}
                     count={item.count}
                     color={i === 0 ? '#1a1a2e' : '#6b7fa8'}
+                    isAr={isAr}
                   />
                 ))}
               </div>
               <div>
-                <div style={pg.chartLabel}>City / District</div>
+                <div style={pg.chartLabel}>{t('City / District', AR.cityDistrict)}</div>
                 {demographics.cityDistribution.slice(0, 5).map((item) => (
                   <CssBar
                     key={item.label}
@@ -215,6 +325,7 @@ export default function Report() {
                     percentage={item.percentage}
                     count={item.count}
                     color="#1a1a2e"
+                    isAr={isAr}
                   />
                 ))}
               </div>
@@ -222,19 +333,22 @@ export default function Report() {
           </ReportSection>
 
           {/* ─── PURCHASE INTENT ─── */}
-          <ReportSection title="Purchase Intent Analysis" num="03">
+          <ReportSection title={t('Purchase Intent Analysis', AR.s03)} num="03" isAr={isAr}>
             <div style={pg.intentLayout}>
               <div style={pg.intentScoreBox}>
                 <div style={pg.intentScoreNum}>{survey.purchaseIntentScore}</div>
                 <div style={pg.intentScoreMax}>/100</div>
-                <div style={pg.intentScoreLabel}>Intent Score</div>
+                <div style={pg.intentScoreLabel}>{t('Intent Score', AR.intentScore)}</div>
               </div>
               <div style={pg.intentBarsCol}>
                 {survey.purchaseIntentDistribution.map((item) => {
                   const isTop = item.label === 'Would Buy';
+                  const label = isAr
+                    ? (item.label === 'Would Buy' ? AR.wouldBuy : item.label === 'Probably' ? AR.probably : AR.unsure)
+                    : item.label;
                   return (
                     <div key={item.label} style={pg.intentBarRow}>
-                      <span style={pg.intentBarLabel}>{item.label}</span>
+                      <span style={pg.intentBarLabel}>{label}</span>
                       <div style={pg.intentBarTrack}>
                         <div
                           style={{
@@ -258,25 +372,25 @@ export default function Report() {
                     </div>
                   );
                 })}
-                <p style={pg.intentNote}>
-                  "Would Buy" = respondents selecting 5/5 on purchase intent scale. "Probably" =
-                  4/5. "Unsure" = ≤3/5.
-                </p>
+                <p style={pg.intentNote}>{t(
+                  '"Would Buy" = respondents selecting 5/5 on purchase intent scale. "Probably" = 4/5. "Unsure" = ≤3/5.',
+                  AR.intentNote
+                )}</p>
               </div>
             </div>
           </ReportSection>
 
           {/* ─── CONSUMER VOICE ─── */}
-          <ReportSection title="Consumer Voice" num="04">
+          <ReportSection title={t('Consumer Voice', AR.s04)} num="04" isAr={isAr}>
             {survey.questionBreakdown['q3'] && survey.questionBreakdown['q3'].length > 0 && (
               <div style={pg.voiceBlock}>
-                <div style={pg.chartLabel}>Product Descriptor — Most Common Consumer Responses</div>
+                <div style={pg.chartLabel}>{t('Product Descriptor — Most Common Consumer Responses', AR.descriptorsTitle)}</div>
                 <div style={pg.descriptorList}>
                   {survey.questionBreakdown['q3'].map((item, i) => (
                     <div key={item.label} style={pg.descriptorRow}>
                       <span style={pg.descriptorRank}>{i + 1}</span>
                       <span style={pg.descriptorLabel}>{item.label}</span>
-                      <span style={pg.descriptorCount}>{item.count} responses</span>
+                      <span style={pg.descriptorCount}>{item.count} {t('responses', AR.responses)}</span>
                     </div>
                   ))}
                 </div>
@@ -284,10 +398,10 @@ export default function Report() {
             )}
 
             <div style={pg.voiceBlock}>
-              <div style={pg.chartLabel}>Open-Ended Consumer Feedback</div>
+              <div style={pg.chartLabel}>{t('Open-Ended Consumer Feedback', AR.verbatimsTitle)}</div>
               {survey.verbatims.length > 0 ? (
                 survey.verbatims.map((v, i) => (
-                  <div key={i} style={pg.verbatim}>
+                  <div key={i} style={verbatimStyle(v)}>
                     <span style={pg.verbatimMark}>"</span>
                     {v}
                   </div>
@@ -295,58 +409,82 @@ export default function Report() {
               ) : (
                 <p style={pg.emptyNote}>
                   {isDemo
-                    ? 'No open-ended responses in this sample dataset. In a live campaign, consumer verbatims appear here.'
-                    : 'No open-ended responses recorded for this campaign.'}
+                    ? t(
+                        'No open-ended responses in this sample dataset. In a live campaign, consumer verbatims appear here.',
+                        AR.noVerbatimsDemo
+                      )
+                    : t(
+                        'No open-ended responses recorded for this campaign.',
+                        AR.noVerbatimsLive
+                      )}
                 </p>
               )}
             </div>
           </ReportSection>
 
           {/* ─── KEY FINDINGS ─── */}
-          <ReportSection title="Key Findings" num="05">
+          <ReportSection title={t('Key Findings', AR.s05)} num="05" isAr={isAr}>
             <div style={pg.findingsGrid}>
               <FindingCard
-                type="Strongest Signal"
-                heading={`${overview.purchaseIntentPercent}% Purchase Intent`}
-                body={`${overview.purchaseIntentPercent}% of respondents indicated they would purchase ${campaign.productName} at retail price following the free trial. ${overview.purchaseIntentPercent >= 60 ? 'This is a strong positive signal for retail launch planning.' : 'This result warrants further research before a broad retail push.'}`}
+                type={t('Strongest Signal', AR.strongestSignal)}
+                heading={`${overview.purchaseIntentPercent}% ${t('Purchase Intent', AR.purchaseIntent)}`}
+                body={isAr
+                  ? `${overview.purchaseIntentPercent}% من المستجيبين أشاروا إلى نيتهم شراء ${campaign.productName} بسعر التجزئة بعد التجربة المجانية. ${overview.purchaseIntentPercent >= 60 ? 'هذه إشارة إيجابية قوية لتخطيط الإطلاق بالتجزئة.' : 'تستوجب هذه النتيجة مزيداً من البحث قبل التوسع.'}`
+                  : `${overview.purchaseIntentPercent}% of respondents indicated they would purchase ${campaign.productName} at retail price following the free trial. ${overview.purchaseIntentPercent >= 60 ? 'This is a strong positive signal for retail launch planning.' : 'This result warrants further research before a broad retail push.'}`
+                }
                 positive={overview.purchaseIntentPercent >= 50}
               />
 
               {topAge && topGender ? (
                 <FindingCard
-                  type="Primary Segment"
-                  heading={`${topGender.label}, ${topAge.label}`}
-                  body={`The dominant consumer segment is ${topGender.label} respondents aged ${topAge.label}, representing ${topGender.percentage}% (gender) and ${topAge.percentage}% (age) of the trial cohort. Retail targeting and media placement should prioritize this demographic for initial launch.`}
+                  type={t('Primary Segment', AR.primarySegment)}
+                  heading={`${topGender.label}، ${topAge.label}`}
+                  body={isAr
+                    ? `القطاع المهيمن هو المستجيبون من الفئة ${topGender.label} بأعمار ${topAge.label}، يمثلون ${topGender.percentage}% (الجنس) و${topAge.percentage}% (العمر) من مجموع المشاركين في التجربة.`
+                    : `The dominant consumer segment is ${topGender.label} respondents aged ${topAge.label}, representing ${topGender.percentage}% (gender) and ${topAge.percentage}% (age) of the trial cohort. Retail targeting and media placement should prioritize this demographic for initial launch.`
+                  }
                   positive
                 />
               ) : (
                 <FindingCard
-                  type="Primary Segment"
-                  heading="Insufficient demographic data"
-                  body="Not enough participants have provided demographic data to identify a primary segment. Ensure profile collection is enabled on the consumer journey."
+                  type={t('Primary Segment', AR.primarySegment)}
+                  heading={t('Insufficient demographic data', AR.insufficientDemo)}
+                  body={t(
+                    'Not enough participants have provided demographic data to identify a primary segment.',
+                    AR.insufficientDemoBody
+                  )}
                   positive={false}
                 />
               )}
 
               <FindingCard
-                type="Data Quality"
-                heading={`${overview.completionRate}% Survey Completion`}
-                body={`${overview.surveyCompletions} of ${overview.totalRedemptions} trial participants completed the full post-trial survey. ${overview.completionRate >= 70 ? 'Strong completion rate indicates high consumer engagement with the trial experience.' : 'Completion rate below 70% — the post-trial survey UX should be reviewed to reduce friction.'}`}
+                type={t('Data Quality', AR.dataQuality)}
+                heading={`${overview.completionRate}% ${t('Survey Completion', AR.surveyCompletion)}`}
+                body={isAr
+                  ? `أتمّ ${overview.surveyCompletions} من أصل ${overview.totalRedemptions} مشاركاً الاستبيان الكامل. ${overview.completionRate >= 70 ? 'معدل إتمام قوي يعكس تفاعلاً عالياً مع تجربة المنتج.' : 'معدل الإتمام أقل من 70% — ينبغي مراجعة تجربة الاستبيان لتقليل الاحتكاك.'}`
+                  : `${overview.surveyCompletions} of ${overview.totalRedemptions} trial participants completed the full post-trial survey. ${overview.completionRate >= 70 ? 'Strong completion rate indicates high consumer engagement with the trial experience.' : 'Completion rate below 70% — the post-trial survey UX should be reviewed to reduce friction.'}`
+                }
                 positive={overview.completionRate >= 70}
               />
 
               {topDescriptor ? (
                 <FindingCard
-                  type="Product Perception"
+                  type={t('Product Perception', AR.productPerception)}
                   heading={`"${topDescriptor}"`}
-                  body={`The most frequently chosen product descriptor is "${topDescriptor}", reflecting how consumers characterize the product after a physical trial. This aligns with${topDescriptor ? ` the brand's intended positioning and` : ''} represents the most common consumer vocabulary — important input for retail packaging and advertising copy.`}
+                  body={isAr
+                    ? `أكثر توصيف اختاره المستهلكون للمنتج هو "${topDescriptor}"، مما يعكس الصورة الذهنية التي تكوّنت بعد التجربة الفعلية. هذا مدخل مهم لصياغة رسائل التعبئة والإعلان.`
+                    : `The most frequently chosen product descriptor is "${topDescriptor}", reflecting how consumers characterize the product after a physical trial. Important input for retail packaging and advertising copy.`
+                  }
                   positive
                 />
               ) : topCity ? (
                 <FindingCard
-                  type="Geographic Concentration"
+                  type={t('Geographic Concentration', AR.geoConcentration)}
                   heading={`${topCity.label} (${topCity.percentage}%)`}
-                  body={`${topCity.percentage}% of trial participants came from ${topCity.label}. This concentration reflects the campaign location and provides a strong baseline for ${topCity.label}-focused retail expansion strategy.`}
+                  body={isAr
+                    ? `${topCity.percentage}% من المشاركين في التجربة جاؤوا من ${topCity.label}. يوفر هذا التركيز قاعدة قوية لاستراتيجية التوسع بالتجزئة المتمركزة في ${topCity.label}.`
+                    : `${topCity.percentage}% of trial participants came from ${topCity.label}. This concentration provides a strong baseline for ${topCity.label}-focused retail expansion strategy.`
+                  }
                   positive
                 />
               ) : null}
@@ -354,79 +492,143 @@ export default function Report() {
           </ReportSection>
 
           {/* ─── RECOMMENDATIONS ─── */}
-          <ReportSection title="Recommended Actions" num="06">
+          <ReportSection title={t('Recommended Actions', AR.s06)} num="06" isAr={isAr}>
             <div style={pg.recList}>
               <RecItem
                 num={1}
-                text={`Focus initial retail distribution on ${topCity?.label ?? campaign.locationName}. Trial data from this location is now available to support placement decisions.`}
+                text={isAr
+                  ? `ركّز التوزيع الأولي للتجزئة على ${topCity?.label ?? campaign.locationName}. بيانات التجربة من هذا الموقع متاحة الآن لدعم قرارات التوزيع.`
+                  : `Focus initial retail distribution on ${topCity?.label ?? campaign.locationName}. Trial data from this location is now available to support placement decisions.`
+                }
               />
               {topAge && topGender && (
                 <RecItem
                   num={2}
-                  text={`Prioritize ${topGender.label} ${topAge.label} in media and influencer strategy. This segment represents the highest trial participation and likely the highest purchase intent.`}
+                  text={isAr
+                    ? `أعطِ الأولوية لفئة ${topGender.label} بأعمار ${topAge.label} في الميزانية الإعلامية واستراتيجية المؤثرين. هذا القطاع سجّل أعلى نسبة مشاركة في التجربة.`
+                    : `Prioritize ${topGender.label} ${topAge.label} in media and influencer strategy. This segment represents the highest trial participation and likely the highest purchase intent.`
+                  }
                 />
               )}
               <RecItem
                 num={3}
-                text={`${overview.purchaseIntentPercent >= 60 ? `With ${overview.purchaseIntentPercent}% purchase intent, the product is well-positioned for the next phase of field sampling. Consider scaling the trial footprint.` : `Purchase intent at ${overview.purchaseIntentPercent}% is a starting point. Consider adjusting the trial experience or targeting before scaling.`}`}
+                text={isAr
+                  ? (overview.purchaseIntentPercent >= 60
+                    ? `بنية شراء ${overview.purchaseIntentPercent}%، المنتج مؤهل جيداً للمرحلة التالية من التوزيع. فكّر في توسيع نطاق التجارب الميدانية.`
+                    : `نية الشراء عند ${overview.purchaseIntentPercent}% هي نقطة بداية. فكّر في تعديل تجربة التجربة أو الاستهداف قبل التوسع.`)
+                  : (overview.purchaseIntentPercent >= 60
+                    ? `With ${overview.purchaseIntentPercent}% purchase intent, the product is well-positioned for the next phase of field sampling. Consider scaling the trial footprint.`
+                    : `Purchase intent at ${overview.purchaseIntentPercent}% is a starting point. Consider adjusting the trial experience or targeting before scaling.`)
+                }
               />
               {topDescriptor && (
                 <RecItem
                   num={4}
-                  text={`Consumer-chosen descriptor "${topDescriptor}" should be tested as a primary message in retail shelf copy and on-pack communication.`}
+                  text={isAr
+                    ? `يجب اختبار التوصيف "${topDescriptor}" الذي اختاره المستهلكون كرسالة رئيسية في نصوص الرف التجاري والتواصل على العبوة.`
+                    : `Consumer-chosen descriptor "${topDescriptor}" should be tested as a primary message in retail shelf copy and on-pack communication.`
+                  }
                 />
               )}
             </div>
           </ReportSection>
 
           {/* ─── METHODOLOGY ─── */}
-          <ReportSection title="Methodology & Data Integrity" num="07" noBorder>
+          <ReportSection title={t('Methodology & Data Integrity', AR.s07)} num="07" noBorder isAr={isAr}>
             <div style={pg.methodTable}>
-              <MethodRow label="Sample Size" value={`${overview.surveyCompletions} completed surveys (${overview.totalRedemptions} verified trial participants)`} />
-              <MethodRow label="Collection Method" value="Physical product trial → QR scan → WhatsApp OTP verification → Mobile web survey" />
-              <MethodRow label="Campaign Location" value={campaign.locationName || 'Not specified'} />
-              <MethodRow label="Survey Length" value="5 questions: trial rating, purchase intent, product descriptor, overall satisfaction, open-ended feedback" />
-              <MethodRow label="Consumer Authentication" value="Phone number + one-time password delivered via WhatsApp (Akedly)" />
               <MethodRow
-                label="Data Status"
-                value={
-                  isDemo
-                    ? 'SAMPLE DATA — illustrative figures for evaluation purposes only. Not derived from real consumer interactions.'
-                    : 'REAL CAMPAIGN DATA — verified consumer responses from authenticated trial participants.'
+                label={t('Sample Size', AR.methodSampleSize)}
+                value={`${overview.surveyCompletions} ${t('completed surveys', 'استبيان مكتمل')} (${overview.totalRedemptions} ${t('verified trial participants', 'مشارك موثق في التجربة')})`}
+              />
+              <MethodRow
+                label={t('Collection Method', AR.methodCollection)}
+                value={t(
+                  'Physical product trial → QR scan → WhatsApp OTP verification → Mobile web survey',
+                  AR.methodCollectionVal
+                )}
+              />
+              <MethodRow
+                label={t('Campaign Location', AR.methodLocation)}
+                value={campaign.locationName || t('Not specified', AR.methodNotSpecified)}
+              />
+              <MethodRow
+                label={t('Survey Length', AR.methodSurveyLength)}
+                value={t(
+                  '5 questions: trial rating, purchase intent, product descriptor, overall satisfaction, open-ended feedback',
+                  AR.methodSurveyLengthVal
+                )}
+              />
+              <MethodRow
+                label={t('Consumer Authentication', AR.methodAuth)}
+                value={t(
+                  'Phone number + one-time password delivered via WhatsApp (Akedly)',
+                  AR.methodAuthVal
+                )}
+              />
+              <MethodRow
+                label={t('Data Status', AR.methodDataStatus)}
+                value={isDemo
+                  ? t(
+                      'SAMPLE DATA — illustrative figures for evaluation purposes only. Not derived from real consumer interactions.',
+                      AR.methodDataStatusDemo
+                    )
+                  : t(
+                      'REAL CAMPAIGN DATA — verified consumer responses from authenticated trial participants.',
+                      AR.methodDataStatusLive
+                    )
                 }
                 highlight={isDemo}
               />
-              <MethodRow label="Report Generated" value={reportDate} last />
+              <MethodRow
+                label={t('Report Generated', AR.methodGenerated)}
+                value={reportDate}
+                last
+              />
             </div>
 
             {isDemo && (
               <div style={pg.demoDisclaimer}>
-                This report contains sample data generated for demonstration and evaluation purposes.
-                All figures, including participant counts, demographics, and purchase intent percentages,
-                are illustrative. A live campaign report would reflect verified consumer responses from
-                real trial participants.
+                {t(
+                  'This report contains sample data generated for demonstration and evaluation purposes. All figures, including participant counts, demographics, and purchase intent percentages, are illustrative. A live campaign report would reflect verified consumer responses from real trial participants.',
+                  AR.demoDisclaimer
+                )}
               </div>
             )}
 
             <div style={pg.limitationsBox}>
-              <div style={pg.limitationsTitle}>DATA LIMITATIONS</div>
+              <div style={pg.limitationsTitle}>{t('DATA LIMITATIONS', AR.dataLimitationsTitle)}</div>
               <div style={pg.limitationsBody}>
-                • Self-selected sample: consumers who accepted and scanned the QR code may not represent the broader consumer population.
-                {overview.surveyCompletions < 100 &&
-                  ' • Small sample size: findings are directional indicators and should not be treated as statistically representative conclusions.'}
-                {' '}• Single-location data: results reflect one trial site and may vary across retail environments or geographies.
-                {' '}• Immediate post-trial response: purchase intent captured immediately after a free trial may differ from actual retail purchase behaviour.
+                {t(
+                  '• Self-selected sample: consumers who accepted and scanned the QR code may not represent the broader consumer population.',
+                  AR.limitationSelfSelected
+                )}
+                {overview.surveyCompletions < 100 && (
+                  <>{' '}{t(
+                    '• Small sample size: findings are directional indicators and should not be treated as statistically representative conclusions.',
+                    AR.limitationSmallSample
+                  )}</>
+                )}
+                {' '}{t(
+                  '• Single-location data: results reflect one trial site and may vary across retail environments or geographies.',
+                  AR.limitationSingleLocation
+                )}
+                {' '}{t(
+                  '• Immediate post-trial response: purchase intent captured immediately after a free trial may differ from actual retail purchase behaviour.',
+                  AR.limitationImmediate
+                )}
               </div>
             </div>
           </ReportSection>
 
           {/* ─── FOOTER ─── */}
           <div style={pg.footer}>
-            <span>Tajribti · Consumer Intelligence Platform</span>
+            <span>{t('Tajribti · Consumer Intelligence Platform', AR.footerPlatform)}</span>
             <span>
-              {isDemo ? 'SAMPLE DATA — NOT FOR DISTRIBUTION' : 'CONFIDENTIAL'}
+              {isDemo
+                ? t('SAMPLE DATA — NOT FOR DISTRIBUTION', AR.footerNotForDist)
+                : t('CONFIDENTIAL', AR.confidential)}
             </span>
-            <span>Generated {reportDate}</span>
+            <span>{t('Generated', AR.footerGenerated)} {reportDate}</span>
           </div>
         </div>
       </div>
@@ -441,11 +643,13 @@ function ReportSection({
   children,
   noBorder,
   num,
+  isAr,
 }: {
   title: string;
   children: React.ReactNode;
   noBorder?: boolean;
   num?: string;
+  isAr?: boolean;
 }) {
   return (
     <div style={{ ...pg.section, ...(noBorder ? {} : pg.sectionBorder) }}>
@@ -480,19 +684,21 @@ function CssBar({
   percentage,
   count,
   color,
+  isAr,
 }: {
   label: string;
   percentage: number;
   count: number;
   color: string;
+  isAr?: boolean;
 }) {
   return (
-    <div style={pg.barRow}>
-      <span style={pg.barLabel}>{label}</span>
+    <div style={{ ...pg.barRow, flexDirection: isAr ? 'row-reverse' : 'row' }}>
+      <span style={{ ...pg.barLabel, textAlign: isAr ? 'right' : 'left' }}>{label}</span>
       <div style={pg.barTrack}>
         <div style={{ ...pg.barFill, width: `${percentage}%`, background: color }} />
       </div>
-      <span style={pg.barPct}>{percentage}%</span>
+      <span style={{ ...pg.barPct, textAlign: isAr ? 'left' : 'right' }}>{percentage}%</span>
       <span style={pg.barCount}>({count})</span>
     </div>
   );
@@ -584,6 +790,19 @@ const outer: Record<string, React.CSSProperties> = {
     color: '#2e3d5e',
     margin: 0,
   },
+  langBtn: {
+    background: 'rgba(255,255,255,0.06)',
+    color: '#edf0ff',
+    border: '1px solid rgba(255,255,255,0.15)',
+    borderRadius: 8,
+    padding: '10px 18px',
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: 'pointer',
+    letterSpacing: 0.5,
+    marginTop: 12,
+    fontFamily: "'Cairo', 'Inter', sans-serif",
+  },
   downloadBtn: {
     background: '#b2f24d',
     color: '#040812',
@@ -611,7 +830,6 @@ const pg: Record<string, React.CSSProperties> = {
     padding: '48px 56px',
     maxWidth: 840,
     margin: '0 auto',
-    fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
     color: '#1a1a2e',
   },
 
@@ -645,11 +863,6 @@ const pg: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     color: '#92400e',
     letterSpacing: 0.5,
-  },
-  demoBannerSub: {
-    fontWeight: 400,
-    fontSize: 10,
-    letterSpacing: 0,
   },
   confidentialBadge: {
     background: 'rgba(255,255,255,0.1)',
@@ -728,18 +941,6 @@ const pg: Record<string, React.CSSProperties> = {
     color: 'rgba(255,255,255,0.5)',
     textTransform: 'uppercase' as const,
     letterSpacing: 0.5,
-  },
-  coverMeta: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
-    margin: 0,
-  },
-  coverLeft: {},
-  coverRight: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'flex-end',
-    gap: 12,
   },
 
   /* Sections */
@@ -884,7 +1085,6 @@ const pg: Record<string, React.CSSProperties> = {
     fontSize: 11,
     fontWeight: 700,
     color: '#333',
-    textAlign: 'right' as const,
     flexShrink: 0,
   },
   barCount: {

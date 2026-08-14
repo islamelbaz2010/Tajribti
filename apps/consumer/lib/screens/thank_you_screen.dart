@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/constants.dart';
+import '../core/l10n.dart';
 
 class ThankYouScreen extends StatefulWidget {
   final int pointsEarned;
@@ -10,39 +11,31 @@ class ThankYouScreen extends StatefulWidget {
   State<ThankYouScreen> createState() => _ThankYouScreenState();
 }
 
-class _ThankYouScreenState extends State<ThankYouScreen> with TickerProviderStateMixin {
-  late AnimationController _scaleController;
-  late AnimationController _confettiController;
+class _ThankYouScreenState extends State<ThankYouScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
   late Animation<double> _scaleAnim;
   late Animation<double> _fadeAnim;
 
   @override
   void initState() {
     super.initState();
-    _scaleController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-    _confettiController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-    _scaleAnim = CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut);
-    _fadeAnim = CurvedAnimation(parent: _scaleController, curve: Curves.easeIn);
-    _scaleController.forward();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+    _scaleAnim = CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut);
+    _fadeAnim = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
+    _ctrl.forward();
   }
 
   @override
   void dispose() {
-    _scaleController.dispose();
-    _confettiController.dispose();
+    _ctrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = context.l10n;
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: context.dir,
       child: Scaffold(
         backgroundColor: kPrimary,
         body: SafeArea(
@@ -59,7 +52,7 @@ class _ThankYouScreenState extends State<ThankYouScreen> with TickerProviderStat
                       child: Container(
                         width: 100,
                         height: 100,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: kAccent,
                           shape: BoxShape.circle,
                         ),
@@ -67,9 +60,9 @@ class _ThankYouScreenState extends State<ThankYouScreen> with TickerProviderStat
                       ),
                     ),
                     const SizedBox(height: 32),
-                    const Text(
-                      'شكراً لك!',
-                      style: TextStyle(
+                    Text(
+                      s.thankYou,
+                      style: const TextStyle(
                         fontSize: 40,
                         fontWeight: FontWeight.w900,
                         color: Colors.white,
@@ -77,7 +70,7 @@ class _ThankYouScreenState extends State<ThankYouScreen> with TickerProviderStat
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'تم إرسال رأيك بنجاح',
+                      s.feedbackSent,
                       style: TextStyle(
                         fontSize: 18,
                         color: Colors.white.withOpacity(0.7),
@@ -102,9 +95,9 @@ class _ThankYouScreenState extends State<ThankYouScreen> with TickerProviderStat
                             ),
                           ),
                           Text(
-                            'نقطة مضافة لحسابك',
+                            s.pointsAddedLabel,
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 15,
                               color: Colors.white.withOpacity(0.7),
                             ),
                           ),
@@ -121,10 +114,11 @@ class _ThankYouScreenState extends State<ThankYouScreen> with TickerProviderStat
                           backgroundColor: Colors.white,
                           foregroundColor: kPrimary,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          elevation: 0,
                         ),
-                        child: const Text(
-                          'العودة للرئيسية',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                        child: Text(
+                          s.backHome,
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ),

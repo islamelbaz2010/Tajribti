@@ -2,14 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../core/l10n.dart';
 import '../core/session.dart';
 import '../widgets/choice_chip_group.dart';
-
-const _ageRanges = ['18-24', '25-34', '35-44', '45-54', '55+'];
-const _genders = ['ذكر', 'أنثى'];
-const _genderValues = ['male', 'female'];
-const _cities = ['القاهرة', 'الجيزة', 'الإسكندرية', 'المنصورة', 'أخرى'];
-const _cityValues = ['Cairo', 'Giza', 'Alexandria', 'Mansoura', 'Other'];
+import '../widgets/lang_toggle.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -21,8 +17,8 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _nameController = TextEditingController();
   String? _ageRange;
-  String? _gender;
-  String? _city;
+  String? _genderLabel;
+  String? _cityLabel;
   bool _loading = false;
   String? _error;
 
@@ -33,22 +29,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _submit() async {
-    if (_nameController.text.trim().isEmpty || _ageRange == null || _gender == null || _city == null) {
-      setState(() => _error = 'يرجى إكمال جميع الحقول');
+    final s = context.l10n;
+    if (_nameController.text.trim().isEmpty || _ageRange == null || _genderLabel == null || _cityLabel == null) {
+      setState(() => _error = s.fillAll);
       return;
     }
+
+    final genderIdx = s.genders.indexOf(_genderLabel!);
+    final cityIdx = s.cities.indexOf(_cityLabel!);
+
     setState(() { _loading = true; _error = null; });
     try {
-      final genderIdx = _genders.indexOf(_gender!);
-      final cityIdx = _cities.indexOf(_city!);
       await apiClient.register(
         name: _nameController.text.trim(),
         ageRange: _ageRange!,
-        gender: _genderValues[genderIdx],
-        city: _cityValues[cityIdx],
+        gender: s.genderValues[genderIdx],
+        city: s.cityValues[cityIdx],
       );
 
-      // After profile creation, enter the active campaign if one exists
       if (JourneySession.hasActiveCampaign) {
         try {
           final entry = await apiClient.enterCampaign(JourneySession.campaignId!);
@@ -61,13 +59,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
           });
           return;
         } catch (_) {
-          // Campaign entry failed — proceed to home so user isn't stuck
+          // Campaign entry failed — navigate home without error
         }
       }
       if (!mounted) return;
       context.go('/home');
     } catch (e) {
-      setState(() => _error = 'تعذر حفظ البيانات. حاول مرة أخرى.');
+      if (!mounted) return;
+      setState(() => _error = context.l10n.saveError);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -75,17 +74,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.l10n;
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: context.dir,
       child: Scaffold(
         backgroundColor: kBackground,
+        appBar: AppBar(
+          backgroundColor: kBackground,
+          elevation: 0,
+          actions: const [
+            Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle())),
+          ],
+        ),
         body: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(28),
+            padding: const EdgeInsets.fromLTRB(28, 0, 28, 28),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
@@ -93,53 +99,53 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    'خطوة واحدة وتنتهي',
-                    style: TextStyle(fontSize: 12, color: kAccent, fontWeight: FontWeight.w700),
+                    s.oneMoreStep,
+                    style: const TextStyle(fontSize: 12, color: kAccent, fontWeight: FontWeight.w700),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'أخبرنا عن نفسك',
+                  s.tellUsAbout,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w900,
                     color: kPrimary,
                   ),
                 ),
                 Text(
-                  'لنوفر لك تجربة مناسبة',
+                  s.forBetterExp,
                   style: TextStyle(color: Colors.grey.shade500),
                 ),
                 const SizedBox(height: 32),
-                _Label('الاسم'),
+                _Label(s.nameLabel),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _nameController,
                   textCapitalization: TextCapitalization.words,
-                  decoration: _inputDeco('اسمك الأول'),
+                  decoration: _inputDeco(s.nameHint),
                 ),
                 const SizedBox(height: 24),
-                _Label('الفئة العمرية'),
+                _Label(s.ageLabel),
                 const SizedBox(height: 12),
                 ChoiceChipGroup(
-                  options: _ageRanges,
+                  options: s.ageRanges,
                   selected: _ageRange,
                   onSelected: (v) => setState(() => _ageRange = v),
                 ),
                 const SizedBox(height: 24),
-                _Label('الجنس'),
+                _Label(s.genderLabel),
                 const SizedBox(height: 12),
                 ChoiceChipGroup(
-                  options: _genders,
-                  selected: _gender,
-                  onSelected: (v) => setState(() => _gender = v),
+                  options: s.genders,
+                  selected: _genderLabel,
+                  onSelected: (v) => setState(() => _genderLabel = v),
                 ),
                 const SizedBox(height: 24),
-                _Label('المدينة'),
+                _Label(s.cityLabel),
                 const SizedBox(height: 12),
                 ChoiceChipGroup(
-                  options: _cities,
-                  selected: _city,
-                  onSelected: (v) => setState(() => _city = v),
+                  options: s.cities,
+                  selected: _cityLabel,
+                  onSelected: (v) => setState(() => _cityLabel = v),
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 16),
@@ -162,6 +168,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       backgroundColor: kPrimary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
                     ),
                     child: _loading
                         ? const SizedBox(
@@ -169,7 +176,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             height: 24,
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                           )
-                        : const Text('متابعة', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+                        : Text(s.continueBtn, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -186,6 +193,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     filled: true,
     fillColor: Colors.white,
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: kPrimary, width: 2),
+    ),
     contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
   );
 }

@@ -1,7 +1,7 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-08-14 (Pilot Readiness Sprint — Flutter consumer app completed)
+**Last updated:** 2026-08-14 (Session 2 — Bilingual AR/EN consumer app + Report Arabic mode complete)
 
 ---
 
@@ -40,20 +40,26 @@
       Deep links: handled by vercel.json SPA rewrite
 
     Flutter Consumer App (apps/consumer):
-      Status   : PILOT-READY (completed 2026-08-14)
+      Status   : PILOT-READY + BILINGUAL (completed 2026-08-14 Session 2)
       Screens  : Splash → Scanner → Campaign → Phone → OTP → Register → Survey → ThankYou
-      Arabic   : RTL throughout, all consumer text in Arabic
+      Bilingual: Full AR/EN toggle (LangToggle widget) on every screen
+      Font     : Cairo (Google Fonts) applied via MaterialApp theme — proper Arabic typography
+      L10n     : AppStr + LangProvider + l10n.dart — complete localization without flutter_localizations
+      Persist  : Language preference saved to SharedPreferences across sessions
       Real QR  : Scanner parses URL format QR (/join/:campaignId) used by real campaigns
       Debug text: REMOVED (no demo OTP hint visible to consumers)
       API wiring: getCampaignById + enterCampaign (replaces getDemoActiveCampaign)
       Build flag: --dart-define=API_BASE=https://api-production-266c.up.railway.app/api/v1
 
     Client Report (apps/dashboard/src/pages/Report.tsx):
-      Status   : IMPROVED (completed 2026-08-14)
+      Status   : IMPROVED + BILINGUAL (completed 2026-08-14 Session 2)
       PDF pages: Multi-page A4 pagination (was single tall screenshot)
       Cover    : Dark branded cover with KPI summary (was plain text header)
       Sections : Numbered 01–07, matching directive structure
-      Language : English (Arabic report = V2 scope per directive)
+      Language : EN/AR toggle in action bar — full Arabic RTL report mode
+      Font     : Cairo font loaded via Google Fonts CDN in index.html
+      Arabic   : Complete section titles, labels, narrative, methodology, findings in Arabic
+      PDF name : Stamped with language suffix (-en / -ar) and date
 
     What is NOT yet operational:
       - Real brand account: NOT CREATED (Founder must provide brand credentials)
@@ -184,6 +190,8 @@ Immediately after GO:
 | **Analytics/report security** — brand JWT + campaign ownership on all 6 endpoints | — |
 | **Intelligence Report upgrade** (2026-08-14) — expanded to 7 sections: executive summary, demographics, intent analysis, consumer voice, key findings, recommendations, methodology | — |
 | **CONFLICT-C resolved** — stale Twilio references replaced with Akedly throughout project state docs | — |
+| **Flutter consumer app — bilingual AR/EN** (2026-08-14 Session 2) — LangProvider + AppStr + LangToggle + Cairo font; all 8 screens localized; language persisted in SharedPreferences | — |
+| **Intelligence Report — Arabic mode** (2026-08-14 Session 2) — EN/AR toggle in dashboard; full RTL direction; complete Arabic translations for all 7 sections; Cairo font via CDN | — |
 
 *Source: `_ai_bootstrap/PROJECT_CONTEXT.md` — What Has Been Done section; Real Pilot MVP Final Handoff*
 

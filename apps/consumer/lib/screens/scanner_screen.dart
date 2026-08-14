@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../core/constants.dart';
+import '../core/l10n.dart';
 import '../core/session.dart';
+import '../widgets/lang_toggle.dart';
 
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
@@ -21,24 +23,16 @@ class _ScannerScreenState extends State<ScannerScreen> {
     super.dispose();
   }
 
-  /// Extract campaignId from whatever the QR contains:
-  ///   - URL:  https://.../join/<uuid>
-  ///   - JSON: {"campaign_id": "<uuid>", "qr_code": "..."}
-  ///   - Raw UUID or tajribti: prefix
   String? _parseCampaignId(String raw) {
-    // URL format (real campaigns)
     final joinMatch = RegExp(r'/join/([0-9a-f-]{36})', caseSensitive: false).firstMatch(raw);
     if (joinMatch != null) return joinMatch.group(1);
 
-    // JSON format (demo campaigns)
     final jsonMatch = RegExp(r'"campaign_id"\s*:\s*"([0-9a-f-]{36})"', caseSensitive: false).firstMatch(raw);
     if (jsonMatch != null) return jsonMatch.group(1);
 
-    // Raw UUID
     final uuidMatch = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', caseSensitive: false).hasMatch(raw.trim());
     if (uuidMatch) return raw.trim();
 
-    // tajribti: prefix format
     final tajribtiMatch = RegExp(r'tajribti:([0-9a-f-]{36}):').firstMatch(raw);
     if (tajribtiMatch != null) return tajribtiMatch.group(1);
 
@@ -58,9 +52,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
     if (campaignId == null) {
       if (!mounted) return;
+      final s = context.l10n;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('رمز QR غير معروف. تأكد من مسح الرمز الصحيح.'),
+        SnackBar(
+          content: Text(s.scanError),
           backgroundColor: kAccent,
           behavior: SnackBarBehavior.floating,
         ),
@@ -77,26 +72,35 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.l10n;
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: context.dir,
       child: Scaffold(
         backgroundColor: Colors.black,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          title: const Text('مسح رمز QR', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+          title: Text(
+            s.scanTitle,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          ),
           leading: context.canPop()
               ? IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
                   onPressed: () => context.pop(),
                 )
               : null,
+          actions: const [
+            Padding(
+              padding: EdgeInsets.only(right: 12),
+              child: Center(child: LangToggle(light: true)),
+            ),
+          ],
         ),
         body: Stack(
           children: [
             MobileScanner(controller: _controller, onDetect: _onDetect),
 
-            // Scan frame overlay
             Center(
               child: Container(
                 width: 260,
@@ -109,21 +113,20 @@ class _ScannerScreenState extends State<ScannerScreen> {
               ),
             ),
 
-            // Hint text
             Positioned(
               bottom: 72,
               left: 0,
               right: 0,
               child: Column(
                 children: [
-                  const Text(
-                    'ضع رمز QR داخل الإطار',
+                  Text(
+                    s.scanHint,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'سيتم التعرف عليه تلقائياً',
+                    s.scanSub,
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 13),
                   ),

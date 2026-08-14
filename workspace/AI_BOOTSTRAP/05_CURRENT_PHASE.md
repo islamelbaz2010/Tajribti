@@ -1,20 +1,26 @@
 # Current Phase
 
-**Last updated:** 2026-07-27
+**Last updated:** 2026-08-14
 
 ---
 
 ## Current Phase
 
-### Track 0 — Commercial Validation Sprint
+### Track 0 — Commercial Validation Sprint (with authorized Pilot Engineering)
 
 **Status:** Authorized by IC (Conditional GO — pending Track 0 outcomes)  
 **Budget:** $15,000–$25,000  
 **Duration:** 60 days  
-**Engineering:** ZERO — no code, no infrastructure  
+**Engineering:** Founder-authorized Pilot Readiness Sprint (within Track 0 scope) — COMPLETE  
 **Authorization level:** Activity authorized, full GO not yet confirmed
 
-*Source: `04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md` — Investment Parameters; `04_Investment/IC_MEMO_v1.0.md`*
+⚠️ **Engineering authorization note (2026-08-14):** The original IC guidance said "ZERO engineering." The Founder authorized two engineering sprints as Pilot Readiness work within Track 0, not Track 1:
+- Sprint 1 (2026-08-13): Real Pilot MVP — NestJS API + Vercel dashboard + mobile web consumer journey — DEPLOYED to Railway + Vercel
+- Sprint 2 (2026-08-14): Flutter consumer app (bilingual AR/EN) + Intelligence Report (bilingual) — committed, APK pending CI build
+
+Track 1 Full Engineering (Sprint 0–6 per delivery plan) remains BLOCKED on B-01/B-02/B-03/B-04.
+
+*Source: `04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md` — Investment Parameters; `04_Investment/IC_MEMO_v1.0.md`; `AI_BOOTSTRAP/02_PROJECT_STATE.md`*
 
 ---
 

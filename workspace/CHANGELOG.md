@@ -10,6 +10,8 @@
 
 | Version | Date | Summary |
 |---|---|---|
+| v5.0 | 2026-08-14 | Session 2 — Bilingual AR/EN Flutter consumer app + Arabic Intelligence Report mode committed (9cd1fc2) |
+| v4.9 | 2026-08-14 | Session 1 — Flutter consumer app pilot-complete + client report upgraded committed (b8b461b) |
 | v4.8 | 2026-08-13 | Real Pilot MVP — mobile web consumer journey committed (ed72a20); project state updated to Pilot Deployment phase |
 | v4.7 | 2026-08-13 | First Target Account List created — Top 3 with decision-makers, triggers, outreach messages, demo commands (06_First_Target_Account_List.md) |
 | v4.6 | 2026-08-13 | Demo Script LOCKED — 3 commercial-safety corrections applied; demo verified PASS; commercial demo FROZEN |
@@ -22,6 +24,93 @@
 | v3.0 | 2026-07-27 | Long-term development governance layer added (9 new files) |
 | v2.0 | 2026-07-27 | Enterprise Knowledge Architect audit + 26 improvements applied |
 | v1.0 | 2026-07-26 | Initial workspace built from 14 inbox source files (14-phase build) |
+
+---
+
+## [v5.0] — 2026-08-14 — Bilingual Consumer App + Arabic Report Mode
+
+### Commit
+
+| Commit | Branch | Message |
+|---|---|---|
+| `9cd1fc2` | `sprint/pilot-readiness-mvp` | feat: bilingual AR/EN consumer app + Arabic report mode |
+
+### Files Created
+
+| File | Description |
+|---|---|
+| `apps/consumer/lib/core/l10n.dart` | LangNotifier + LangProvider + AppStr — full AR/EN string table, SharedPreferences persistence |
+| `apps/consumer/lib/widgets/lang_toggle.dart` | Reusable language toggle chip (light/dark variants) |
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `apps/consumer/lib/app.dart` | TajribtiApp → StatefulWidget; Cairo font via GoogleFonts.cairoTextTheme; LangProvider wraps tree |
+| `apps/consumer/lib/screens/*.dart` (all 8) | Replaced hardcoded Arabic strings with `context.l10n.*`; `TextDirection.rtl` → `context.dir`; LangToggle in AppBar |
+| `apps/consumer/lib/screens/register_screen.dart` | Gender/city chips use `context.l10n` lists (locale-aware labels, fixed English API values) |
+| `apps/consumer/lib/screens/survey_screen.dart` | Scale labels, question text selection (Arabic/English), error states all localized |
+| `apps/consumer/pubspec.yaml` | Added `google_fonts: ^6.1.0` |
+| `apps/dashboard/public/index.html` | Cairo font preloaded via Google Fonts CDN |
+| `apps/dashboard/src/pages/Report.tsx` | EN/AR toggle in action bar; RTL direction + Cairo font in Arabic mode; full Arabic translations for all 7 sections; CssBar RTL flip; PDF filename `-ar`/`-en` suffix |
+| `workspace/AI_BOOTSTRAP/02_PROJECT_STATE.md` | Updated Flutter and Report status to BILINGUAL |
+| `workspace/AI_BOOTSTRAP/00_AI_START_HERE.md` | Fixed stale Twilio reference; updated commit hash; added Akedly activation steps |
+
+### Verification
+
+| Test | Result |
+|---|---|
+| TypeScript dashboard (`npx tsc --noEmit`) | CLEAN — zero errors |
+| Commercial demo (frozen) | UNTOUCHED — commit `0209b9a` on `sprint/meos-production-build` |
+| JoinPage.tsx (mobile web bridge) | UNTOUCHED — verified header confirms no modification |
+
+### What Was NOT Done (Intentionally)
+
+- APK build — requires macOS 14+ (machine is 13.0); APK must use CI
+- V2/V3/V4 features
+- Brand self-registration UI
+- New OTP architecture
+- New external services
+
+---
+
+## [v4.9] — 2026-08-14 — Flutter Consumer App Pilot-Complete + Report Upgrade
+
+### Commit
+
+| Commit | Branch | Message |
+|---|---|---|
+| `b8b461b` | `sprint/pilot-readiness-mvp` | feat: complete Flutter consumer app + improve client report for real pilot |
+
+### Files Created
+
+| File | Description |
+|---|---|
+| `apps/consumer/lib/core/session.dart` | JourneySession — static class threading campaignId/redemptionId across all screens |
+| `apps/consumer/lib/screens/campaign_screen.dart` | Campaign Entry screen (P0 requirement) — loads real campaign, handles auth/entry |
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `apps/consumer/lib/core/api_client.dart` | Added `getCampaignById()` + `enterCampaign()` — real campaign API wiring |
+| `apps/consumer/lib/screens/scanner_screen.dart` | Rewritten — parses 4 QR formats; navigates to `/campaign` |
+| `apps/consumer/lib/screens/otp_screen.dart` | Debug text REMOVED; 60s countdown; correct post-auth campaign flow |
+| `apps/consumer/lib/screens/register_screen.dart` | Nested try-catch for `enterCampaign` after registration |
+| `apps/consumer/lib/screens/survey_screen.dart` | `getDemoActiveCampaign` → `getCampaignById(campaignId)` |
+| `apps/consumer/lib/screens/home_screen.dart` | Removed demo dependency — QR scanner entry point |
+| `apps/consumer/lib/screens/phone_screen.dart` | Campaign context banner; improved errors |
+| `apps/consumer/lib/screens/splash_screen.dart` | Unauthenticated → `/scanner` (not `/phone`) |
+| `apps/consumer/lib/app.dart` | Added `/campaign` route; removed `campaignId` extra from scanner |
+| `apps/dashboard/src/pages/Report.tsx` | Multi-page A4 PDF; branded dark cover; 7 numbered sections (01–07) |
+
+### Status After This Session
+
+```
+Flutter consumer app: PILOT-READY — full journey functional with real campaign API
+Report:              UPGRADED — branded cover, 7 sections, multi-page A4
+APK:                 NOT BUILT — requires macOS 14+
+```
 
 ---
 

@@ -61,25 +61,29 @@ Source: `04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md` — Executive Conc
    Branch : sprint/meos-production-build
    Commit : 0209b9a — DO NOT MODIFY
 
-⚠️ REAL PILOT MVP — DEPLOYED / PARTIALLY READY (2026-08-13)
+⚠️ REAL PILOT MVP — DEPLOYED / MOBILE APP BILINGUAL-COMPLETE (2026-08-14)
    Branch : sprint/pilot-readiness-mvp
-   Commit : 67d29d3 (pushed to GitHub)
+   HEAD   : 9cd1fc2 (pushed to GitHub)
    Railway API   : https://api-production-266c.up.railway.app/api/v1 ✅ LIVE
    Vercel Dash   : https://dashboard-six-flame-wsaixia9cm.vercel.app  ✅ LIVE
    PostgreSQL    : ONLINE — 8 tables, clean (no real data yet)
-   OTP           : NOT CONFIGURED (Twilio credentials missing)
+   Flutter app   : BILINGUAL AR/EN — LangProvider + Cairo font + full l10n (9cd1fc2)
+   Report        : BILINGUAL AR/EN — EN/AR toggle, RTL layout, Cairo font (9cd1fc2)
+   OTP           : Akedly WhatsApp OTP integrated; BLOCKED on AKEDLY_TEMPLATE_ID (in review)
    Brand account : NOT CREATED (awaiting Founder input)
 
 ⚠️ TRACK 1 FULL ENGINEERING — STILL GATED (B-01 / B-02 / B-03 / B-04)
 ```
 
-Source: `AI_BOOTSTRAP/02_PROJECT_STATE.md`; Deployment Session 2026-08-13
+⚠️ IMPORTANT: OTP provider is Akedly (WhatsApp), NOT Twilio. Twilio was removed in commit e0a300a.
+
+Source: `AI_BOOTSTRAP/02_PROJECT_STATE.md`; Sessions 2026-08-13 and 2026-08-14
 
 ---
 
 ## Current Goal
 
-Activate the deployed pilot: configure Twilio OTP + create first real brand account. The 4 Track 1 blocking items remain open:
+Activate the deployed pilot: set Akedly Template ID in Railway + create first real brand account. The 4 Track 1 blocking items remain open:
 
 | # | Blocker |
 |---|---|
@@ -87,6 +91,10 @@ Activate the deployed pilot: configure Twilio OTP + create first real brand acco
 | B-02 | Egyptian LLC incorporation confirmed |
 | B-03 | PDPL written legal sign-off obtained |
 | B-04 | QR concurrency load test executed |
+
+**Immediate activation steps (engineering complete — Founder inputs only):**
+1. Set `AKEDLY_TEMPLATE_ID` in Railway → WhatsApp OTP live (AKEDLY_API_KEY and AKEDLY_PIPELINE_ID already set)
+2. Create first real brand account (Founder provides name/email/password → Claude inserts via Railway Postgres)
 
 Source: `AI_BOOTSTRAP/04_CURRENT_OBJECTIVE.md`
 

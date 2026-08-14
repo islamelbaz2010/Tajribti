@@ -40,7 +40,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
 
   Future<void> _loadCampaign() async {
     try {
-      final campaign = await apiClient.getDemoActiveCampaign();
+      final campaign = await apiClient.getCampaignById(widget.campaignId);
       setState(() { _campaign = campaign; _loadingCampaign = false; });
     } catch (e) {
       setState(() { _error = 'تعذر تحميل الاستبيان'; _loadingCampaign = false; });

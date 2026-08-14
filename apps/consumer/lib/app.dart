@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'screens/splash_screen.dart';
+import 'screens/scanner_screen.dart';
+import 'screens/campaign_screen.dart';
 import 'screens/phone_screen.dart';
 import 'screens/otp_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/home_screen.dart';
-import 'screens/scanner_screen.dart';
 import 'screens/survey_screen.dart';
 import 'screens/thank_you_screen.dart';
 
@@ -13,6 +14,8 @@ final _router = GoRouter(
   initialLocation: '/',
   routes: [
     GoRoute(path: '/', builder: (_, __) => const SplashScreen()),
+    GoRoute(path: '/scanner', builder: (_, __) => const ScannerScreen()),
+    GoRoute(path: '/campaign', builder: (_, __) => const CampaignScreen()),
     GoRoute(path: '/phone', builder: (_, __) => const PhoneScreen()),
     GoRoute(
       path: '/otp',
@@ -20,10 +23,6 @@ final _router = GoRouter(
     ),
     GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
     GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
-    GoRoute(
-      path: '/scanner',
-      builder: (_, state) => ScannerScreen(campaignId: state.extra as String),
-    ),
     GoRoute(
       path: '/survey',
       builder: (_, state) {

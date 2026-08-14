@@ -28,7 +28,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     if (!mounted) return;
     final loggedIn = await AuthService.isLoggedIn();
     if (!mounted) return;
-    context.go(loggedIn ? '/home' : '/phone');
+    context.go(loggedIn ? '/home' : '/scanner');
   }
 
   @override

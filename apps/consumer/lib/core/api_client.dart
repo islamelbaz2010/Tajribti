@@ -56,9 +56,19 @@ class ApiClient {
     return res.data as Map<String, dynamic>;
   }
 
+  Future<Campaign> getCampaignById(String id) async {
+    final res = await _dio.get('/campaigns/$id');
+    return Campaign.fromJson(res.data as Map<String, dynamic>);
+  }
+
   Future<Campaign> getDemoActiveCampaign() async {
     final res = await _dio.get('/campaigns/demo/active');
     return Campaign.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  Future<RedemptionResult> enterCampaign(String campaignId) async {
+    final res = await _dio.post('/qr/enter/$campaignId');
+    return RedemptionResult.fromJson(res.data as Map<String, dynamic>);
   }
 
   Future<RedemptionResult> redeemQr(String qrCode, String campaignId) async {

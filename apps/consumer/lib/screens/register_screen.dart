@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../core/session.dart';
 import '../widgets/choice_chip_group.dart';
 
 const _ageRanges = ['18-24', '25-34', '35-44', '45-54', '55+'];
@@ -46,10 +47,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
         gender: _genderValues[genderIdx],
         city: _cityValues[cityIdx],
       );
+
+      // After profile creation, enter the active campaign if one exists
+      if (JourneySession.hasActiveCampaign) {
+        try {
+          final entry = await apiClient.enterCampaign(JourneySession.campaignId!);
+          JourneySession.setRedemption(entry.redemptionId, entry.pointsEarned);
+          if (!mounted) return;
+          context.go('/survey', extra: {
+            'redemptionId': entry.redemptionId,
+            'campaignId': JourneySession.campaignId!,
+            'pointsEarned': entry.pointsEarned,
+          });
+          return;
+        } catch (_) {
+          // Campaign entry failed — proceed to home so user isn't stuck
+        }
+      }
       if (!mounted) return;
       context.go('/home');
     } catch (e) {
-      setState(() => _error = 'تعذر الحفظ. حاول مرة أخرى.');
+      setState(() => _error = 'تعذر حفظ البيانات. حاول مرة أخرى.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -67,17 +85,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 24),
-                Text('أخبرنا عن نفسك', style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: kPrimary,
-                )),
-                Text('لنوفر لك تجربة مناسبة', style: TextStyle(color: Colors.grey.shade500)),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: kAccent.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'خطوة واحدة وتنتهي',
+                    style: TextStyle(fontSize: 12, color: kAccent, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'أخبرنا عن نفسك',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: kPrimary,
+                  ),
+                ),
+                Text(
+                  'لنوفر لك تجربة مناسبة',
+                  style: TextStyle(color: Colors.grey.shade500),
+                ),
                 const SizedBox(height: 32),
                 _Label('الاسم'),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _nameController,
+                  textCapitalization: TextCapitalization.words,
                   decoration: _inputDeco('اسمك الأول'),
                 ),
                 const SizedBox(height: 24),
@@ -106,12 +143,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 16),
-                  Text(_error!, style: const TextStyle(color: kAccent, fontSize: 14)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: kAccent.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(_error!, style: const TextStyle(color: kAccent, fontSize: 14)),
+                  ),
                 ],
                 const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,
-                  height: 56,
+                  height: 58,
                   child: ElevatedButton(
                     onPressed: _loading ? null : _submit,
                     style: ElevatedButton.styleFrom(
@@ -120,8 +164,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
                     child: _loading
-                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('متابعة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : const Text('متابعة', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -149,6 +197,6 @@ class _Label extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     text,
-    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1a1a2e)),
+    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: kPrimary),
   );
 }

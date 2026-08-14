@@ -1,41 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../core/api_client.dart';
 import '../core/auth_service.dart';
 import '../core/constants.dart';
-import '../core/models.dart';
+import '../core/session.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  Campaign? _campaign;
-  bool _loading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final campaign = await apiClient.getDemoActiveCampaign();
-      setState(() { _campaign = campaign; _loading = false; });
-    } catch (e) {
-      setState(() { _error = 'تعذر تحميل الحملات'; _loading = false; });
-    }
-  }
-
-  Future<void> _logout() async {
+  Future<void> _logout(BuildContext context) async {
+    JourneySession.clear();
     await AuthService.logout();
-    if (!mounted) return;
-    context.go('/phone');
+    if (!context.mounted) return;
+    context.go('/scanner');
   }
 
   @override
@@ -46,140 +22,77 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: kBackground,
         appBar: AppBar(
           backgroundColor: kPrimary,
-          title: const Text('تجربتي', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+          title: const Text(
+            'تجربتي',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 20),
+          ),
+          automaticallyImplyLeading: false,
           actions: [
             IconButton(
               icon: const Icon(Icons.logout, color: Colors.white70),
-              onPressed: _logout,
+              onPressed: () => _logout(context),
+              tooltip: 'تسجيل الخروج',
             ),
           ],
-          automaticallyImplyLeading: false,
         ),
-        body: _loading
-            ? const Center(child: CircularProgressIndicator(color: kPrimary))
-            : _error != null
-                ? Center(child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(_error!, style: const TextStyle(color: kAccent)),
-                      const SizedBox(height: 16),
-                      TextButton(onPressed: _load, child: const Text('إعادة المحاولة')),
-                    ],
-                  ))
-                : _campaign == null
-                    ? const Center(child: Text('لا توجد حملات نشطة حالياً'))
-                    : _CampaignCard(campaign: _campaign!),
-        floatingActionButton: _campaign != null
-            ? FloatingActionButton.extended(
-                backgroundColor: kAccent,
-                onPressed: () => context.push('/scanner', extra: _campaign!.id),
-                icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
-                label: const Text('مسح QR', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-              )
-            : null,
-      ),
-    );
-  }
-}
-
-class _CampaignCard extends StatelessWidget {
-  final Campaign campaign;
-  const _CampaignCard({required this.campaign});
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 8),
-          Text('الحملة المتاحة', style: TextStyle(fontSize: 13, color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 16, offset: const Offset(0, 4))],
-            ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                  child: Image.network(
-                    campaign.productImage,
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      height: 200,
-                      color: kPrimary,
-                      child: const Icon(Icons.image_not_supported, color: Colors.white54, size: 48),
-                    ),
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: kPrimary.withOpacity(0.06),
+                    shape: BoxShape.circle,
                   ),
+                  child: const Icon(Icons.qr_code_scanner_rounded, size: 48, color: kPrimary),
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(campaign.productName, style: const TextStyle(
-                              fontSize: 22, fontWeight: FontWeight.w900, color: kPrimary,
-                            )),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(color: kAccent, borderRadius: BorderRadius.circular(20)),
-                            child: Text(
-                              '${campaign.rewardPoints} نقطة',
-                              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(campaign.brandName, style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          const Icon(Icons.location_on_outlined, size: 16, color: kAccent),
-                          const SizedBox(width: 4),
-                          Text(campaign.locationName, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(campaign.description, style: TextStyle(color: Colors.grey.shade700, fontSize: 14, height: 1.5)),
-                      const SizedBox(height: 20),
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: kPrimary.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.info_outline, size: 18, color: kPrimary),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'اضغط زر "مسح QR" لمسح الرمز وبدء التجربة',
-                                style: TextStyle(fontSize: 13, color: kPrimary),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                const SizedBox(height: 28),
+                const Text(
+                  'جاهز لتجربة جديدة؟',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    color: kPrimary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'امسح رمز QR على المنتج لتبدأ تجربتك وتشارك رأيك',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.grey.shade600,
+                    height: 1.6,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 40),
+                SizedBox(
+                  width: double.infinity,
+                  height: 58,
+                  child: ElevatedButton.icon(
+                    onPressed: () => context.go('/scanner'),
+                    icon: const Icon(Icons.qr_code_scanner_rounded, size: 22),
+                    label: const Text(
+                      'مسح QR',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kAccent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

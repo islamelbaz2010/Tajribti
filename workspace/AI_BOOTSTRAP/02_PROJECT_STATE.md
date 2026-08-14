@@ -1,7 +1,7 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-08-13
+**Last updated:** 2026-08-14 (Pilot Readiness Sprint — Flutter consumer app completed)
 
 ---
 
@@ -39,15 +39,32 @@
       Entry    : https://dashboard-six-flame-wsaixia9cm.vercel.app/join/:campaignId
       Deep links: handled by vercel.json SPA rewrite
 
+    Flutter Consumer App (apps/consumer):
+      Status   : PILOT-READY (completed 2026-08-14)
+      Screens  : Splash → Scanner → Campaign → Phone → OTP → Register → Survey → ThankYou
+      Arabic   : RTL throughout, all consumer text in Arabic
+      Real QR  : Scanner parses URL format QR (/join/:campaignId) used by real campaigns
+      Debug text: REMOVED (no demo OTP hint visible to consumers)
+      API wiring: getCampaignById + enterCampaign (replaces getDemoActiveCampaign)
+      Build flag: --dart-define=API_BASE=https://api-production-266c.up.railway.app/api/v1
+
+    Client Report (apps/dashboard/src/pages/Report.tsx):
+      Status   : IMPROVED (completed 2026-08-14)
+      PDF pages: Multi-page A4 pagination (was single tall screenshot)
+      Cover    : Dark branded cover with KPI summary (was plain text header)
+      Sections : Numbered 01–07, matching directive structure
+      Language : English (Arabic report = V2 scope per directive)
+
     What is NOT yet operational:
       - Real brand account: NOT CREATED (Founder must provide brand credentials)
-      - Twilio SMS OTP: NOT CONFIGURED (OTP generated but SMS not delivered)
-      - Real consumer journey: NOT VERIFIED end-to-end (blocked by above)
+      - Akedly WhatsApp OTP: NOT CONFIGURED (code integrated; AKEDLY_TEMPLATE_ID in review)
+      - Real consumer journey: NOT VERIFIED end-to-end (blocked by above two items)
       - Real campaign + QR: NOT CREATED (requires brand account first)
+      - Flutter APK: NOT BUILT (requires macOS 14+ for Flutter toolchain on this machine)
 
 ⚠️  REAL FIELD PILOT — NOT YET VERIFIED
     Infrastructure: DEPLOYED
-    Twilio SMS (real OTP): NOT CONFIGURED
+    Akedly WhatsApp OTP: NOT CONFIGURED (AKEDLY_TEMPLATE_ID pending approval)
     Real brand account: NOT CREATED
     Real consumer data: ZERO (no field pilot has happened)
 ```
@@ -74,7 +91,7 @@
 - Railway API: LIVE at https://api-production-266c.up.railway.app
 - Vercel Dashboard: LIVE at https://dashboard-six-flame-wsaixia9cm.vercel.app
 - PostgreSQL: ONLINE, schema created, no data
-- Remaining: Twilio credentials + first real brand account
+- Remaining: Akedly Template ID (in review) + first real brand account
 
 ---
 
@@ -83,7 +100,11 @@
 Activate the deployed Real Pilot MVP for one real, controlled brand campaign.
 
 **Remaining two actions (in order):**
-1. Configure Twilio (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`) in Railway env vars → redeploy API → real OTP goes live
+1. Set Akedly credentials in Railway env vars → redeploy API → real WhatsApp OTP goes live
+   - AKEDLY_API_KEY: d53379cf4b992b6684fedf9d0d367f194f6b89438710b63774e0e68fc26a715f
+   - AKEDLY_PIPELINE_ID: 6a7db76861a103e7b2a0b7ec
+   - AKEDLY_TEMPLATE_ID: **IN REVIEW** — set when approved
+   - AKEDLY_OTP_VAR: otp (default; set only if Akedly template uses a different variable name)
 2. Create first real brand account (Founder provides: brand name, email, password → Claude inserts via Railway Postgres → brand can log in)
 
 After both: Brand logs in → creates campaign → generates QR → prints on samples → first real consumers scan → real pilot begins.
@@ -161,6 +182,8 @@ Immediately after GO:
 | **Real Pilot MVP** — campaign API, mobile web consumer journey, analytics auth, real data | — |
 | **Mobile web consumer journey** — QR → phone → OTP → profile → survey → thank-you (Arabic) | — |
 | **Analytics/report security** — brand JWT + campaign ownership on all 6 endpoints | — |
+| **Intelligence Report upgrade** (2026-08-14) — expanded to 7 sections: executive summary, demographics, intent analysis, consumer voice, key findings, recommendations, methodology | — |
+| **CONFLICT-C resolved** — stale Twilio references replaced with Akedly throughout project state docs | — |
 
 *Source: `_ai_bootstrap/PROJECT_CONTEXT.md` — What Has Been Done section; Real Pilot MVP Final Handoff*
 

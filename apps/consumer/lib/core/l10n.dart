@@ -27,7 +27,7 @@ final langNotifier = LangNotifier();
 // ── InheritedWidget ───────────────────────────────────────────────────────────
 
 class LangProvider extends InheritedNotifier<LangNotifier> {
-  const LangProvider({super.key, required super.child})
+  LangProvider({super.key, required super.child})
       : super(notifier: langNotifier);
 
   static bool isAr(BuildContext context) {

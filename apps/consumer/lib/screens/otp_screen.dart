@@ -28,8 +28,6 @@ class _OtpScreenState extends State<OtpScreen> {
   int _countdown = 60;
   String? _error;
 
-  // Server-side binding: transactionReqID identifies this OTP transaction.
-  // Stored in screen memory only — not persisted to SharedPreferences.
   String? _transactionReqID;
 
   String get _otp => _controllers.map((c) => c.text).join();
@@ -40,9 +38,6 @@ class _OtpScreenState extends State<OtpScreen> {
     _challengeAndRequest();
   }
 
-  // Step 1: Get challenge from backend proxy (API key stays server-side).
-  // Step 2: Solve PoW on device in a background Isolate (never blocks UI thread).
-  // Step 3: Request OTP — backend forwards powSolution to Akedly V1.2 and binds transactionReqID → phone.
   Future<void> _challengeAndRequest() async {
     setState(() {
       _challengeLoading = true;
@@ -56,8 +51,8 @@ class _OtpScreenState extends State<OtpScreen> {
       final difficulty = challengeData['difficulty'] as int;
       final challengeToken = challengeData['challengeToken'] as String;
 
-      // PoW runs in a Dart Isolate — does not block UI thread.
-      final nonce = await AkedlyShield.solvePowInIsolate(challenge, difficulty);
+      // solvePowInIsolate is exported directly by akedly_shield.
+      final nonce = await solvePowInIsolate(challenge, difficulty);
 
       final result = await apiClient.requestOtp(
         widget.phone,
@@ -159,7 +154,6 @@ class _OtpScreenState extends State<OtpScreen> {
       if (statusCode == 410) {
         errorMsg = context.l10n.otpExpired;
       } else if (statusCode == 401) {
-        // Check for max-attempts via response body
         final bodyMsg = (e is DioException)
             ? (e.response?.data is Map ? e.response!.data['message'] as String? : null)
             : null;
@@ -219,10 +213,7 @@ class _OtpScreenState extends State<OtpScreen> {
         children: [
           const CircularProgressIndicator(color: kPrimary),
           const SizedBox(height: 16),
-          Text(
-            s.preparingCode,
-            style: const TextStyle(color: kPrimary, fontSize: 15),
-          ),
+          Text(s.preparingCode, style: const TextStyle(color: kPrimary, fontSize: 15)),
         ],
       ),
     );
@@ -232,30 +223,16 @@ class _OtpScreenState extends State<OtpScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          s.otpTitle,
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w900,
-            color: kPrimary,
-          ),
-        ),
+        Text(s.otpTitle, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, color: kPrimary)),
         const SizedBox(height: 40),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: kAccent.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(10),
-          ),
+          decoration: BoxDecoration(color: kAccent.withOpacity(0.08), borderRadius: BorderRadius.circular(10)),
           child: Row(
             children: [
               const Icon(Icons.error_outline, size: 18, color: kAccent),
               const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  _error ?? s.challengeError,
-                  style: const TextStyle(color: kAccent, fontSize: 14),
-                ),
-              ),
+              Expanded(child: Text(_error ?? s.challengeError, style: const TextStyle(color: kAccent, fontSize: 14))),
             ],
           ),
         ),
@@ -263,15 +240,7 @@ class _OtpScreenState extends State<OtpScreen> {
         Center(
           child: GestureDetector(
             onTap: _challengeAndRequest,
-            child: Text(
-              s.retry,
-              style: const TextStyle(
-                fontSize: 15,
-                color: kPrimary,
-                fontWeight: FontWeight.w700,
-                decoration: TextDecoration.underline,
-              ),
-            ),
+            child: Text(s.retry, style: const TextStyle(fontSize: 15, color: kPrimary, fontWeight: FontWeight.w700, decoration: TextDecoration.underline)),
           ),
         ),
       ],
@@ -282,55 +251,28 @@ class _OtpScreenState extends State<OtpScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          s.otpTitle,
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w900,
-            color: kPrimary,
-          ),
-        ),
+        Text(s.otpTitle, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, color: kPrimary)),
         const SizedBox(height: 8),
-        Text(
-          s.otpSentTo,
-          style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
-        ),
-        Text(
-          widget.phone,
-          style: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w700,
-            color: kPrimary,
-            letterSpacing: 1,
-          ),
-          textDirection: TextDirection.ltr,
-        ),
+        Text(s.otpSentTo, style: TextStyle(fontSize: 15, color: Colors.grey.shade600)),
+        Text(widget.phone, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: kPrimary, letterSpacing: 1), textDirection: TextDirection.ltr),
         const SizedBox(height: 40),
         Directionality(
           textDirection: TextDirection.ltr,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(6, (i) => _DigitBox(
-              controller: _controllers[i],
-              focusNode: _focusNodes[i],
-              onChanged: (v) => _onDigitChanged(i, v),
-            )),
+            children: List.generate(6, (i) => _DigitBox(controller: _controllers[i], focusNode: _focusNodes[i], onChanged: (v) => _onDigitChanged(i, v))),
           ),
         ),
         const SizedBox(height: 20),
         if (_error != null)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: kAccent.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(10),
-            ),
+            decoration: BoxDecoration(color: kAccent.withOpacity(0.08), borderRadius: BorderRadius.circular(10)),
             child: Row(
               children: [
                 const Icon(Icons.error_outline, size: 18, color: kAccent),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: Text(_error!, style: const TextStyle(color: kAccent, fontSize: 14)),
-                ),
+                Expanded(child: Text(_error!, style: const TextStyle(color: kAccent, fontSize: 14))),
               ],
             ),
           ),
@@ -338,28 +280,14 @@ class _OtpScreenState extends State<OtpScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              s.didntReceive,
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
-            ),
+            Text(s.didntReceive, style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
             if (_canResend)
               GestureDetector(
                 onTap: _resend,
-                child: Text(
-                  s.resend,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: kPrimary,
-                    fontWeight: FontWeight.w700,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
+                child: Text(s.resend, style: const TextStyle(fontSize: 14, color: kPrimary, fontWeight: FontWeight.w700, decoration: TextDecoration.underline)),
               )
             else
-              Text(
-                s.resendIn(_countdown),
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
-              ),
+              Text(s.resendIn(_countdown), style: TextStyle(fontSize: 14, color: Colors.grey.shade400)),
           ],
         ),
         const Spacer(),
@@ -384,11 +312,7 @@ class _DigitBox extends StatelessWidget {
   final FocusNode focusNode;
   final ValueChanged<String> onChanged;
 
-  const _DigitBox({
-    required this.controller,
-    required this.focusNode,
-    required this.onChanged,
-  });
+  const _DigitBox({required this.controller, required this.focusNode, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -407,14 +331,8 @@ class _DigitBox extends StatelessWidget {
           counterText: '',
           filled: true,
           fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: kPrimary, width: 2),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kPrimary, width: 2)),
         ),
         onChanged: onChanged,
       ),

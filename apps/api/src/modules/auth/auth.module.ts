@@ -8,8 +8,10 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt.guard';
 import { Consumer } from '../../entities/consumer.entity';
-import { OtpSession } from '../../entities/otp-session.entity';
 import { BrandAccount } from '../../entities/brand-account.entity';
+
+// OtpSession entity is retained in app.module.ts entity list so the DB table is not dropped.
+// AuthModule no longer uses OtpSession — V1.2 delegates OTP lifecycle to Akedly.
 
 @Module({
   imports: [
@@ -25,7 +27,7 @@ import { BrandAccount } from '../../entities/brand-account.entity';
       }),
       inject: [ConfigService],
     }),
-    TypeOrmModule.forFeature([Consumer, OtpSession, BrandAccount]),
+    TypeOrmModule.forFeature([Consumer, BrandAccount]),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtAuthGuard],

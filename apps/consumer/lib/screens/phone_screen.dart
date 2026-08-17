@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../core/l10n.dart';
 import '../core/session.dart';
@@ -15,7 +14,6 @@ class PhoneScreen extends StatefulWidget {
 
 class _PhoneScreenState extends State<PhoneScreen> {
   final _controller = TextEditingController(text: '+20');
-  bool _loading = false;
   String? _error;
 
   @override
@@ -24,24 +22,15 @@ class _PhoneScreenState extends State<PhoneScreen> {
     super.dispose();
   }
 
-  Future<void> _requestOtp() async {
+  void _requestOtp() {
     final s = context.l10n;
     final phone = _controller.text.trim();
     if (phone.length < 12) {
       setState(() => _error = s.phoneError);
       return;
     }
-    setState(() { _loading = true; _error = null; });
-    try {
-      await apiClient.requestOtp(phone);
-      if (!mounted) return;
-      context.push('/otp', extra: phone);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = context.l10n.sendError);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+    // Challenge → PoW → OTP request happens inside OtpScreen on init.
+    context.push('/otp', extra: phone);
   }
 
   @override
@@ -137,23 +126,17 @@ class _PhoneScreenState extends State<PhoneScreen> {
                   width: double.infinity,
                   height: 58,
                   child: ElevatedButton(
-                    onPressed: _loading ? null : _requestOtp,
+                    onPressed: _requestOtp,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kPrimary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       elevation: 0,
                     ),
-                    child: _loading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          )
-                        : Text(
-                            s.sendCode,
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                          ),
+                    child: Text(
+                      s.sendCode,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),

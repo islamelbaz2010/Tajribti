@@ -31,13 +31,39 @@ class ApiClient {
     ));
   }
 
-  Future<Map<String, dynamic>> requestOtp(String phone) async {
-    final res = await _dio.post('/auth/otp/request', data: {'phone': phone});
+  // Returns Akedly V1.2 challenge data (challenge, difficulty, challengeToken, turnstile.required, ...).
+  // API key never leaves the backend — this calls the Tajribti proxy endpoint.
+  Future<Map<String, dynamic>> getChallenge() async {
+    final res = await _dio.get('/auth/akedly/challenge');
     return res.data as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> verifyOtp(String phone, String code) async {
-    final res = await _dio.post('/auth/otp/verify', data: {'phone': phone, 'code': code});
+  // powSolution is required in production (DEMO_MODE=false).
+  // Returns transactionReqID and expiresAt in production; just message in demo mode.
+  Future<Map<String, dynamic>> requestOtp(
+    String phone, {
+    Map<String, dynamic>? powSolution,
+    String? turnstileToken,
+  }) async {
+    final data = <String, dynamic>{'phone': phone};
+    if (powSolution != null) data['powSolution'] = powSolution;
+    if (turnstileToken != null) data['turnstileToken'] = turnstileToken;
+    final res = await _dio.post('/auth/otp/request', data: data);
+    return res.data as Map<String, dynamic>;
+  }
+
+  // transactionReqID comes from the requestOtp response (server-side bound to phone).
+  // phone is still sent for backward compat / demo mode; ignored by backend for JWT identity in production.
+  Future<Map<String, dynamic>> verifyOtp({
+    required String transactionReqID,
+    required String code,
+    required String phone,
+  }) async {
+    final res = await _dio.post('/auth/otp/verify', data: {
+      'transactionReqID': transactionReqID,
+      'code': code,
+      'phone': phone,
+    });
     return res.data as Map<String, dynamic>;
   }
 

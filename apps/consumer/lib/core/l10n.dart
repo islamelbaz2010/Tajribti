@@ -88,7 +88,11 @@ class AppStr {
   // ── OTP ───────────────────────────────────────────────────────────────────
   String get otpTitle       => ar ? 'أدخل رمز التحقق'             : 'Enter Verification Code';
   String get otpSentTo      => ar ? 'تم إرسال رمز مكون من 6 أرقام إلى' : 'A 6-digit code was sent to';
+  String get preparingCode  => ar ? 'جارٍ تجهيز رمز التحقق…'     : 'Preparing verification…';
   String get otpWrong       => ar ? 'رمز غير صحيح. تحقق من الرمز وأعد المحاولة.' : 'Incorrect code. Check and try again.';
+  String get otpExpired     => ar ? 'انتهت صلاحية الرمز. اطلب رمزاً جديداً.' : 'Code expired. Please request a new one.';
+  String get otpTooMany     => ar ? 'محاولات كثيرة. اطلب رمزاً جديداً.' : 'Too many attempts. Please request a new OTP.';
+  String get challengeError => ar ? 'تعذر الاتصال بخدمة التحقق. أعد المحاولة.' : 'Could not reach verification service. Please retry.';
   String get didntReceive   => ar ? 'لم يصلك الرمز؟  '            : "Didn't receive the code?  ";
   String get resend         => ar ? 'إعادة الإرسال'               : 'Resend';
   String resendIn(int n)    => ar ? 'إعادة الإرسال خلال ${n}ث'   : 'Resend in ${n}s';

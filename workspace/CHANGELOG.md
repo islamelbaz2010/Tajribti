@@ -10,6 +10,8 @@
 
 | Version | Date | Summary |
 |---|---|---|
+| v6.1 | 2026-08-17 | Session 4 — Real Pilot Validation: 2 critical bugs found and fixed; ML Kit ProGuard fix device-confirmed; enterCampaignWeb DEMO bug fixed and deployed; Akedly OTP external blocker documented |
+| v6.0 | 2026-08-17 | Session 3 — Full analysis sprint: Chat Context Extraction, Decision Reconciliation, Product Version Audit v2, Management Situation Analysis v2, Portfolio Assessment (analysis-only; no product code) |
 | v5.0 | 2026-08-14 | Session 2 — Bilingual AR/EN Flutter consumer app + Arabic Intelligence Report mode committed (9cd1fc2) |
 | v4.9 | 2026-08-14 | Session 1 — Flutter consumer app pilot-complete + client report upgraded committed (b8b461b) |
 | v4.8 | 2026-08-13 | Real Pilot MVP — mobile web consumer journey committed (ed72a20); project state updated to Pilot Deployment phase |
@@ -24,6 +26,98 @@
 | v3.0 | 2026-07-27 | Long-term development governance layer added (9 new files) |
 | v2.0 | 2026-07-27 | Enterprise Knowledge Architect audit + 26 improvements applied |
 | v1.0 | 2026-07-26 | Initial workspace built from 14 inbox source files (14-phase build) |
+
+---
+
+## [v6.0] — 2026-08-17 — Analysis Sprint: Decision Reconciliation + Portfolio Assessment
+
+### Session type
+
+Analysis-only. No product code modified. No deployments. All changes are workspace documentation.
+
+### Protocol executed
+
+1. Chat Context Extraction (UNIVERSAL CHAT CONTEXT EXTRACTION v1) — 7,089-line ChatGPT snapshot
+2. Assessment Preparation / Decision Reconciliation — 28 decisions reconciled (D-001 through D-028)
+3. Product Version Audit v2 — updated for commits b8b461b + 9cd1fc2 + 9da53d2
+4. Management Situation Analysis v2 — updated with CONFLICT-INTERNAL-C and D-028
+5. Portfolio Assessment — full independent assessment for portfolio comparison
+
+### Files Created
+
+| File | Description |
+|---|---|
+| `workspace/16_Reports/CHAT_CONTEXT_EXTRACTION_2026-08-17.md` | Full extraction of Founder decisions from 7,089-line historical ChatGPT archive (CHAT-D01 through CHAT-D20) |
+| `workspace/16_Reports/ASSESSMENT_PREPARATION_DECISION_RECONCILIATION_2026-08-17.md` | Reconciliation of all chat decisions against authoritative repository sources — D-001 through D-028; 28 decisions classified |
+| `workspace/16_Reports/PORTFOLIO_ASSESSMENT_2026-08-17.md` | Independent portfolio assessment — 16 sections, 12 scored dimensions; Stage-Gate: VALIDATE |
+
+### Files Updated
+
+| File | Change |
+|---|---|
+| `workspace/13_Audits/PRODUCT_VERSION_AUDIT.md` | Updated from v1 (2026-08-14) to v2 (2026-08-17); added DELTA for commits b8b461b + 9cd1fc2 + 9da53d2; added CONFLICT-INTERNAL-C |
+| `workspace/16_Reports/MANAGEMENT_SITUATION_ANALYSIS.md` | Updated from v1 (2026-08-14) to v2 (2026-08-17); added CONFLICT-INTERNAL-C, D-028; updated DO NOW/WAIT/DO NOT DO NOW |
+| `workspace/15_Decisions/DECISION_LOG.md` | Appended Phase 2 section: DL-046 (Flutter first demo), DL-047 (Report quality Samplia benchmark), DL-048 (CONFLICT-INTERNAL-C) |
+| `workspace/15_Decisions/OPEN_DECISIONS_TRACKER.md` | Added COMMERCIAL SPRINT section: CONFLICT-INTERNAL-C and D-028 open decisions |
+| `workspace/CHANGELOG.md` | This file — v6.0 entry added |
+| `workspace/AI_BOOTSTRAP/14_CONTEXT_INDEX.md` | Added new files from this session to 13_Audits/ and 16_Reports/ sections |
+
+### Key findings this session
+
+| Finding | Type |
+|---------|------|
+| D-009 (first client must see Flutter) — CONFIRMED Founder decision, previously undocumented in workspace | Decision |
+| D-028 (Intelligence Report "very very weak"; Samplia is visual benchmark) — CONFIRMED Founder decision, previously undocumented | Decision |
+| CONFLICT-INTERNAL-C — D-009 cannot be honored on macOS 13; Flutter 3.44.8 requires macOS 14+ | NEW CONFLICT |
+| Stage-Gate decision: VALIDATE — do not build until commercial assumptions are tested | Assessment outcome |
+| Commercial state: zero LOIs, zero revenue, zero consumers, zero brand interviews | Current reality |
+| Kill criterion clock is active: <3 LOIs in 60 days = NO-GO | Active gate |
+
+---
+
+## [v6.1] — 2026-08-17 — Real Pilot Validation: Two Critical Bugs Fixed
+
+### Session type
+
+Engineering (authorized — bug fixes only). Device validation on OPPO CPH2481. No new features.
+
+### Commits
+
+| Commit | Branch | Message |
+|---|---|---|
+| `a17d9f8` | `sprint/pilot-readiness-mvp` | fix(api): allow enterCampaignWeb to find demo-status QR codes |
+| `8acfa8d` | `sprint/pilot-readiness-mvp` | fix(consumer): add ML Kit R8 ProGuard keep rules for scanner |
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `apps/api/src/modules/qr/qr.service.ts` | `enterCampaignWeb` WHERE clause extended to OR-match DEMO status QR codes |
+| `apps/consumer/android/app/build.gradle.kts` | ProGuard rules file wired into release build |
+
+### Files Created
+
+| File | Description |
+|---|---|
+| `apps/consumer/android/app/proguard-rules.pro` | ML Kit ComponentRegistrar keep rules — prevents R8 from stripping reflection-loaded classes |
+| `workspace/16_Reports/PILOT_VALIDATION_REPORT_2026-08-17.md` | Phase-by-phase validation report with final verdict |
+
+### Key findings this session
+
+| Finding | Type |
+|---------|------|
+| ML Kit ProGuard fix confirmed working on OPPO CPH2481 — no `NoSuchMethodException`, camera at 25fps | BUG FIXED (device-confirmed) |
+| `enterCampaignWeb` returned 404 for all demo campaigns — WHERE clause excluded DEMO-status QR codes | BUG FIXED |
+| `AKEDLY_TEMPLATE_ID` not set in Railway — OTP generated but not delivered | EXTERNAL BLOCKER (Founder action required) |
+| Pilot verdict: B — CONDITIONALLY OPERATIONAL (blocked by Akedly only) | Outcome |
+
+### Pilot state after this session
+
+| Component | State |
+|---|---|
+| enterCampaignWeb bug | ✅ FIXED — deployed to Railway |
+| ML Kit ProGuard fix | ✅ DEVICE-CONFIRMED — on sprint branch |
+| Akedly OTP | ❌ External blocker — set AKEDLY_TEMPLATE_ID in Railway to unblock |
 
 ---
 

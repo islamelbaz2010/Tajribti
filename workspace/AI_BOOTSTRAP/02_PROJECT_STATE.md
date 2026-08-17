@@ -1,7 +1,7 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-08-14 (Session 2 — Bilingual AR/EN consumer app + Report Arabic mode complete)
+**Last updated:** 2026-08-17 (Session 4 — Real Pilot Validation; 2 bugs fixed; Akedly OTP remains external blocker)
 
 ---
 
@@ -62,17 +62,21 @@
       PDF name : Stamped with language suffix (-en / -ar) and date
 
     What is NOT yet operational:
-      - Real brand account: NOT CREATED (Founder must provide brand credentials)
       - Akedly WhatsApp OTP: NOT CONFIGURED (code integrated; AKEDLY_TEMPLATE_ID in review)
-      - Real consumer journey: NOT VERIFIED end-to-end (blocked by above two items)
-      - Real campaign + QR: NOT CREATED (requires brand account first)
-      - Flutter APK: NOT BUILT (requires macOS 14+ for Flutter toolchain on this machine)
+      - Real consumer journey: NOT VERIFIED end-to-end (blocked by Akedly OTP delivery)
 
-⚠️  REAL FIELD PILOT — NOT YET VERIFIED
-    Infrastructure: DEPLOYED
-    Akedly WhatsApp OTP: NOT CONFIGURED (AKEDLY_TEMPLATE_ID pending approval)
-    Real brand account: NOT CREATED
+    What WAS fixed (2026-08-17 Session 4 — bug fixes only):
+      - enterCampaignWeb: fixed to accept DEMO-status QR codes (was returning 404 for demo campaigns)
+      - ML Kit ProGuard: keep rules added — camera scanner confirmed working on OPPO CPH2481
+      - Demo seed: confirmed running — campaign 9c370244-... ACTIVE, QR tajribti:9c370244-...:demo seeded
+
+⚠️  REAL FIELD PILOT — CONDITIONALLY READY (Verdict B)
+    Infrastructure: DEPLOYED + BUG-FIXED (2026-08-17)
+    Akedly WhatsApp OTP: NOT CONFIGURED — single remaining blocker
+    Demo seed: CONFIRMED RUNNING (campaign 9c370244-..., QR tajribti:9c370244-...:demo)
+    ML Kit scanner: DEVICE-CONFIRMED working on OPPO CPH2481
     Real consumer data: ZERO (no field pilot has happened)
+    Next action: Founder sets AKEDLY_TEMPLATE_ID in Railway → pilot is live
 ```
 
 ---

@@ -47,19 +47,22 @@ class _OtpScreenState extends State<OtpScreen> {
     try {
       final challengeData = await apiClient.getChallenge();
 
-      final challenge = challengeData['challenge'] as String;
-      final difficulty = challengeData['difficulty'] as int;
-      final challengeToken = challengeData['challengeToken'] as String;
+      // When challengeRequired=false (Akedly Dev Mode or PoW disabled in pipeline),
+      // the response omits challenge/difficulty/challengeToken — skip PoW entirely.
+      final challengeRequired = challengeData['challengeRequired'] as bool? ?? true;
 
-      // solvePowInIsolate is exported directly by akedly_shield.
-      final nonce = await solvePowInIsolate(challenge, difficulty);
+      Map<String, dynamic>? powSolution;
+      if (challengeRequired) {
+        final challenge = challengeData['challenge'] as String;
+        final difficulty = challengeData['difficulty'] as int;
+        final challengeToken = challengeData['challengeToken'] as String;
+        final nonce = await solvePowInIsolate(challenge, difficulty);
+        powSolution = {'challengeToken': challengeToken, 'nonce': nonce};
+      }
 
       final result = await apiClient.requestOtp(
         widget.phone,
-        powSolution: {
-          'challengeToken': challengeToken,
-          'nonce': nonce,
-        },
+        powSolution: powSolution,
       );
 
       _transactionReqID = result['transactionReqID'] as String?;

@@ -117,24 +117,24 @@ export class AuthService {
       return { message: 'OTP sent successfully', transactionReqID: 'DEMO_MODE' };
     }
 
-    if (!dto.powSolution) {
-      throw new BadRequestException('powSolution is required');
-    }
-
     this.purgeExpiredVerifications();
 
     const apiKey = this.configService.getOrThrow<string>('AKEDLY_API_KEY');
     const pipelineId = this.configService.getOrThrow<string>('AKEDLY_PIPELINE_ID');
 
+    // powSolution is omitted when challengeRequired=false (Akedly Dev Mode / PoW disabled).
+    // Akedly enforces PoW when its pipeline requires it; we don't pre-check here.
     const sendBody: Record<string, unknown> = {
       APIKey: apiKey,
       pipelineID: pipelineId,
       verificationAddress: { phoneNumber: phone },
-      powSolution: {
+    };
+    if (dto.powSolution) {
+      sendBody['powSolution'] = {
         challengeToken: dto.powSolution.challengeToken,
         nonce: dto.powSolution.nonce,
-      },
-    };
+      };
+    }
     if (dto.turnstileToken) {
       sendBody['turnstileToken'] = dto.turnstileToken;
     }

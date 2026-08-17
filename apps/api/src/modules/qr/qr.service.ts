@@ -91,7 +91,10 @@ export class QrService {
     rewardPoints: number;
   }> {
     const qrCode = await this.qrRepo.findOne({
-      where: { campaignId, status: QrCodeStatus.ACTIVE },
+      where: [
+        { campaignId, status: QrCodeStatus.ACTIVE },
+        { campaignId, status: QrCodeStatus.DEMO },
+      ],
       relations: ['campaign'],
     });
 

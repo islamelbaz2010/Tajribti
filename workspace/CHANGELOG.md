@@ -10,11 +10,359 @@
 
 | Version | Date | Summary |
 |---|---|---|
+| v5.0 | 2026-08-14 | Session 2 — Bilingual AR/EN Flutter consumer app + Arabic Intelligence Report mode committed (9cd1fc2) |
+| v4.9 | 2026-08-14 | Session 1 — Flutter consumer app pilot-complete + client report upgraded committed (b8b461b) |
+| v4.8 | 2026-08-13 | Real Pilot MVP — mobile web consumer journey committed (ed72a20); project state updated to Pilot Deployment phase |
+| v4.7 | 2026-08-13 | First Target Account List created — Top 3 with decision-makers, triggers, outreach messages, demo commands (06_First_Target_Account_List.md) |
+| v4.6 | 2026-08-13 | Demo Script LOCKED — 3 commercial-safety corrections applied; demo verified PASS; commercial demo FROZEN |
+| v4.5 | 2026-08-13 | Demo Presentation Script created — screen-by-screen brand meeting guide (05_Demo_Presentation_Script.md); demo verified PASS (canonical + personalized) |
+| v4.4 | 2026-08-13 | MEOS v1 Commercial Demo — built, verified PASS, locked (commit 0209b9a); bootstrap updated to Commercial Execution phase |
+| v4.3 | 2026-07-27 | Track 0 Commercial Execution — GTM Blueprint v1.0 produced and written to workspace |
+| v4.2 | 2026-07-27 | Repository Intelligence & Evidence Audit — 6-file audit deliverable written to docs/audit/ |
 | v4.1 | 2026-07-27 | Bootstrap Certification — 5 new files added; conflicts documented; FROZEN at score 98/100 |
 | v4.0 | 2026-07-27 | AI Bootstrap Layer — 16-file purpose-built AI onboarding folder (AI_BOOTSTRAP/) |
 | v3.0 | 2026-07-27 | Long-term development governance layer added (9 new files) |
 | v2.0 | 2026-07-27 | Enterprise Knowledge Architect audit + 26 improvements applied |
 | v1.0 | 2026-07-26 | Initial workspace built from 14 inbox source files (14-phase build) |
+
+---
+
+## [v5.0] — 2026-08-14 — Bilingual Consumer App + Arabic Report Mode
+
+### Commit
+
+| Commit | Branch | Message |
+|---|---|---|
+| `9cd1fc2` | `sprint/pilot-readiness-mvp` | feat: bilingual AR/EN consumer app + Arabic report mode |
+
+### Files Created
+
+| File | Description |
+|---|---|
+| `apps/consumer/lib/core/l10n.dart` | LangNotifier + LangProvider + AppStr — full AR/EN string table, SharedPreferences persistence |
+| `apps/consumer/lib/widgets/lang_toggle.dart` | Reusable language toggle chip (light/dark variants) |
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `apps/consumer/lib/app.dart` | TajribtiApp → StatefulWidget; Cairo font via GoogleFonts.cairoTextTheme; LangProvider wraps tree |
+| `apps/consumer/lib/screens/*.dart` (all 8) | Replaced hardcoded Arabic strings with `context.l10n.*`; `TextDirection.rtl` → `context.dir`; LangToggle in AppBar |
+| `apps/consumer/lib/screens/register_screen.dart` | Gender/city chips use `context.l10n` lists (locale-aware labels, fixed English API values) |
+| `apps/consumer/lib/screens/survey_screen.dart` | Scale labels, question text selection (Arabic/English), error states all localized |
+| `apps/consumer/pubspec.yaml` | Added `google_fonts: ^6.1.0` |
+| `apps/dashboard/public/index.html` | Cairo font preloaded via Google Fonts CDN |
+| `apps/dashboard/src/pages/Report.tsx` | EN/AR toggle in action bar; RTL direction + Cairo font in Arabic mode; full Arabic translations for all 7 sections; CssBar RTL flip; PDF filename `-ar`/`-en` suffix |
+| `workspace/AI_BOOTSTRAP/02_PROJECT_STATE.md` | Updated Flutter and Report status to BILINGUAL |
+| `workspace/AI_BOOTSTRAP/00_AI_START_HERE.md` | Fixed stale Twilio reference; updated commit hash; added Akedly activation steps |
+
+### Verification
+
+| Test | Result |
+|---|---|
+| TypeScript dashboard (`npx tsc --noEmit`) | CLEAN — zero errors |
+| Commercial demo (frozen) | UNTOUCHED — commit `0209b9a` on `sprint/meos-production-build` |
+| JoinPage.tsx (mobile web bridge) | UNTOUCHED — verified header confirms no modification |
+
+### What Was NOT Done (Intentionally)
+
+- APK build — requires macOS 14+ (machine is 13.0); APK must use CI
+- V2/V3/V4 features
+- Brand self-registration UI
+- New OTP architecture
+- New external services
+
+---
+
+## [v4.9] — 2026-08-14 — Flutter Consumer App Pilot-Complete + Report Upgrade
+
+### Commit
+
+| Commit | Branch | Message |
+|---|---|---|
+| `b8b461b` | `sprint/pilot-readiness-mvp` | feat: complete Flutter consumer app + improve client report for real pilot |
+
+### Files Created
+
+| File | Description |
+|---|---|
+| `apps/consumer/lib/core/session.dart` | JourneySession — static class threading campaignId/redemptionId across all screens |
+| `apps/consumer/lib/screens/campaign_screen.dart` | Campaign Entry screen (P0 requirement) — loads real campaign, handles auth/entry |
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `apps/consumer/lib/core/api_client.dart` | Added `getCampaignById()` + `enterCampaign()` — real campaign API wiring |
+| `apps/consumer/lib/screens/scanner_screen.dart` | Rewritten — parses 4 QR formats; navigates to `/campaign` |
+| `apps/consumer/lib/screens/otp_screen.dart` | Debug text REMOVED; 60s countdown; correct post-auth campaign flow |
+| `apps/consumer/lib/screens/register_screen.dart` | Nested try-catch for `enterCampaign` after registration |
+| `apps/consumer/lib/screens/survey_screen.dart` | `getDemoActiveCampaign` → `getCampaignById(campaignId)` |
+| `apps/consumer/lib/screens/home_screen.dart` | Removed demo dependency — QR scanner entry point |
+| `apps/consumer/lib/screens/phone_screen.dart` | Campaign context banner; improved errors |
+| `apps/consumer/lib/screens/splash_screen.dart` | Unauthenticated → `/scanner` (not `/phone`) |
+| `apps/consumer/lib/app.dart` | Added `/campaign` route; removed `campaignId` extra from scanner |
+| `apps/dashboard/src/pages/Report.tsx` | Multi-page A4 PDF; branded dark cover; 7 numbered sections (01–07) |
+
+### Status After This Session
+
+```
+Flutter consumer app: PILOT-READY — full journey functional with real campaign API
+Report:              UPGRADED — branded cover, 7 sections, multi-page A4
+APK:                 NOT BUILT — requires macOS 14+
+```
+
+---
+
+## [v4.8] — 2026-08-13 — Real Pilot MVP Sprint Closure
+
+### Commits
+
+| Commit | Branch | Message |
+|---|---|---|
+| `ed72a20` | `sprint/pilot-readiness-mvp` | feat: Real Pilot MVP — mobile web consumer journey |
+
+### Implementation Scope
+
+| Area | Changes |
+|---|---|
+| Campaign API | `POST /campaigns`, `GET /campaigns/my` — brand-scoped; `isDemo:false`; default 5-question survey injected |
+| Campaign DTO | `apps/api/src/modules/campaign/dto/create-campaign.dto.ts` — NEW with class-validator |
+| QR Service | Real campaigns → URL payload (`CONSUMER_WEB_URL/join/:campaignId`); demo campaigns retain JSON (Flutter compat) |
+| QR Entry | `POST /qr/enter/:campaignId` — consumer JWT; idempotent; creates RedemptionEvent with `isDemoSeed:false` |
+| Mobile web consumer journey | 6 screens (Arabic RTL): JoinLayout, JoinPage, PhonePage, OtpPage, RegisterPage, SurveyPage, ThankYouPage |
+| Consumer routes | Mounted at `/join/:campaignId/*` in existing React dashboard — no new infrastructure |
+| Analytics security | Removed all `@Public()` from analytics + report endpoints; brand JWT + ownership check required |
+| Report security | Same; fallback narrative rewritten — no demo/simulated language |
+| Admin resetDemo | Fixed FK constraint failure when non-demo campaigns exist under demo brand account |
+| Env docs | `CONSUMER_WEB_URL` documented in `.env.example` |
+
+### Verification
+
+| Test | Result |
+|---|---|
+| A — Real campaign creation | PASS |
+| B — Real QR URL encoding | PASS |
+| C — Consumer web journey end-to-end | PASS |
+| D — Consumer JWT rejected on analytics | PASS (403) |
+| E — Brand analytics returns own data | PASS |
+| F — Cross-campaign ownership check | PASS (403) |
+| G — Commercial demo regression (demo.sh) | PASS — 49 signals, DEMO badge, all screens |
+| TypeScript API | CLEAN |
+| TypeScript Dashboard | CLEAN |
+
+### Status
+
+```
+COMMERCIAL DEMO:  READY + FROZEN
+REAL PILOT MVP:   READY LOCALLY (NOT yet deployed to cloud)
+NEXT:             PILOT DEPLOYMENT
+```
+
+### What Was NOT Done (Intentionally)
+
+- Cloud deployment (Railway/Vercel/Supabase) — requires operator execution
+- Twilio SMS configuration — requires credentials
+- P1 features (brand self-registration, campaign management UI)
+- P2 features (PDPL consent, consumer data deletion)
+
+---
+
+## [v4.6] — 2026-08-13 — Demo Script Commercial-Safety Lock
+
+### File Changed
+
+`Sales_Execution_Pack/05_Demo_Presentation_Script.md` — 3 targeted wording corrections only.
+
+| Correction | Before | After |
+|---|---|---|
+| Consumer interaction | "mobile web flow — no app to download" | "frictionless — the consumer scans the QR, completes the short interaction on their phone, and the signal is captured automatically" |
+| Reporting timing | "Within 24 hours of campaign end" | "At the end of the campaign" |
+| Pilot duration | "A pilot campaign runs for 30 to 60 days" | "We can structure a pilot around a defined campaign period…" |
+
+### Verification
+
+- All 5 prohibited terms removed: `mobile web`, `no app`, `24 hours`, `30 to 60`, `30-60` — PASS
+- All required content preserved: simulated-data disclosure, "The software is real. The flows are real. The data is not.", all 7 screen URLs, commands, What Not To Say, recovery instructions — PASS
+- Canonical demo launch: PASS
+- Personalized demo launch (Nestlé Egypt / Nescafé Classic / Maadi City Centre): PASS
+- Dashboard HTTP 200: PASS
+- Personalization in API: PASS
+- Canonical restored: PASS
+
+### Product Code Changed
+
+NO. Zero product code changes. Zero API changes. Zero schema changes.
+
+### Status
+
+COMMERCIAL DEMO FROZEN.
+
+---
+
+## [v4.5] — 2026-08-13 — Demo Presentation Script
+
+### Files Created
+
+| File | Change |
+|---|---|
+| `Sales_Execution_Pack/05_Demo_Presentation_Script.md` | NEW — screen-by-screen founder presentation guide for brand discovery meetings |
+
+### What Was Verified
+
+- Canonical demo launch: PASS (`bash scripts/demo.sh`)
+- Personalized demo launch: PASS (Nestlé Egypt / Nescafé Classic / Maadi City Centre)
+- All 6 key API endpoints: PASS (overview, demographics, survey, participants, ai-summary, qr/generate)
+- AI summary narrative: truthful disclosure confirmed ("illustrative narrative", "simulated consumer interactions")
+- Dashboard HTTP 200: PASS
+- Login (demo@brand.com / Demo1234!): PASS
+- Canonical restore: PASS
+
+### What Was Found
+
+Review of the complete Sales Execution Pack and demo infrastructure confirmed:
+- Sales Playbook (01), Brand OnePager (02), LOI Template (03), Legal (04), GTM Blueprint — all complete, approved 97/100
+- demo.sh launcher functional, 5-step orchestration (env → start → seed → health check → banner)
+- 7 dashboard screens functional via sidebar navigation
+- One genuine gap: no screen-by-screen demo talking guide existed anywhere in repository
+
+### What Was NOT Changed
+
+- No product code changed
+- No database schema changed
+- No API changed
+- No dashboard screens changed
+- No existing Sales Execution Pack files changed
+- No demo infrastructure changed
+
+### Session Summary
+
+Commercial demo package is now complete. The minimum viable presentation set is:
+1. `bash scripts/demo.sh` — starts everything
+2. `Sales_Execution_Pack/05_Demo_Presentation_Script.md` — founder's screen-by-screen guide
+3. `Sales_Execution_Pack/02_Brand_OnePager.md` — leave-behind for prospects
+4. `Sales_Execution_Pack/01_Sales_Playbook.md` — discovery call + LOI process
+5. `Sales_Execution_Pack/03_LOI_Template.md` — send after meeting
+
+### Blocking Items — Unchanged
+
+B-01, B-02, B-03, B-04 remain open. No engineering work was authorized or performed.
+
+---
+
+## [v4.4] — 2026-08-13 — MEOS v1 Commercial Demo Build + Lock
+
+### Files Created or Modified
+
+| File | Change |
+|---|---|
+| `scripts/demo.sh` | NEW — one-command demo orchestrator with `--brand/--product/--location` flags |
+| `apps/dashboard/src/pages/Insights.tsx` | Chart tooltip dark theme + "PRIMARY TARGET SEGMENT" callout replaced with factual cards |
+| `apps/dashboard/src/pages/SurveyResults.tsx` | Chart tooltip dark theme |
+| `apps/dashboard/src/components/Layout.tsx` | Consumer Signals redesign (NAV_SECTIONS, sidebar, DEMO badge) |
+| `apps/dashboard/src/index.css` | Dark body background + signalRing keyframes |
+| `apps/dashboard/src/pages/Overview.tsx` | Consumer Signals redesign |
+| `apps/dashboard/src/pages/Login.tsx` | Dark theme |
+| `apps/dashboard/src/pages/CampaignDetail.tsx` | Dark theme |
+| `apps/dashboard/src/pages/AiSummary.tsx` | Dark theme |
+| `apps/dashboard/src/pages/Participants.tsx` | Dark theme |
+| `apps/dashboard/src/pages/Report.tsx` | Dark theme |
+| `scripts/run-demo.sh` | RETRIES=90; HTTP 404 accepted as health-check pass for NestJS POST-only routes |
+| `scripts/seed-demo.sh` | Deterministic phone +20100NNNNNN; health-check status logic fixed |
+| `scripts/verify-env.sh` | `flutter --version \|\| true` — prevents pipefail exit 255 |
+| `apps/api/src/modules/admin/admin.service.ts` | Deterministic phone; AiReport FK deleted first in resetDemo() |
+| `apps/api/src/modules/admin/admin.module.ts` | AiReport added to TypeOrmModule.forFeature + @InjectRepository |
+
+### Workspace Bootstrap Files Updated
+
+| File | Change |
+|---|---|
+| `AI_BOOTSTRAP/00_AI_START_HERE.md` | Current Status updated to MEOS v1 LOCKED; Rule 3 updated |
+| `AI_BOOTSTRAP/02_PROJECT_STATE.md` | Full state update: Demo State section added, authorization updated, sprint updated |
+| `AI_BOOTSTRAP/04_CURRENT_OBJECTIVE.md` | Objective updated to Commercial Execution; demo command added |
+| `AI_BOOTSTRAP/AI_SESSION_TEMPLATE.md` | Expected answers updated; Commercial Execution session type added |
+| `14_Memory/MASTER_PROJECT_MEMORY.md` | Section 2 updated; Rule 4 updated; Section 16 session close record added |
+| `CHANGELOG.md` | v4.4 entry added |
+
+### Session Summary
+
+MEOS v1 commercial demo built across three sequential sub-sessions (Session A, B, C):
+- Session A: Consumer Signals dark-theme redesign across all 7 dashboard screens
+- Session B: Backend seed/reset infrastructure — deterministic phones, FK ordering, health-check fixes
+- Session C: Demo launcher (scripts/demo.sh), chart tooltips, segment callout fix, full verification
+
+Demo verification sequence: canonical → personalized (Coca-Cola Egypt) → canonical restore. All three PASS.
+
+Locked via commit 0209b9a on branch `sprint/meos-production-build`. NOT pushed per Founder instruction.
+
+### Git State
+
+- Branch: `sprint/meos-production-build`
+- Commit: `0209b9a` ("Finalize commercial demo and one-command launcher")
+- Status: NOT pushed (intentional)
+
+### Blocking Items — Unchanged
+
+B-01, B-02, B-03, B-04 remain open. Demo build was authorized under MEOS sprint. Track 1 full engineering still gated.
+
+---
+
+## [v4.3] — 2026-07-27 — Track 0 Commercial Execution Blueprint
+
+### Files Created
+
+| File | Location | Description |
+|---|---|---|
+| `GTM_BLUEPRINT_v1.0.md` | `Sales_Execution_Pack/` | Complete 21-part GTM commercial operating manual for Track 0 |
+
+### Session Summary
+
+Full GTM Commercial Execution Blueprint produced from Founder Questionnaire answers (answered 2026-07-27). Covers all 21 required sections: GTM strategy, channel matrix, ICP, brand targets, agency targets, sales scripts (Arabic + English), discovery questions, objection handling, follow-up sequences, LinkedIn strategy, agency partnership strategy, referral strategy, 60-day execution plan, KPIs, pipeline dashboard, risk matrix, success metrics, weekly review process.
+
+### Strategic Decisions Embedded in Blueprint
+
+- **Primary channel:** Own agency clients first (fastest to LOI — existing relationship), then agency-to-agency peer partnerships
+- **Secondary channel:** LinkedIn systematic outreach (25 messages/week, Etisalat + Agency Founder profile converts above average)
+- **Fallback:** Industry events sprint (AMCHAM, BCFE)
+- **Tier 1 brand targets:** Edita, Juhayna, Domty, Americana, Kellogg's Egypt
+- **ICP:** Marketing Director / Head of Marketing at Egyptian FMCG company, Cairo, sampling campaign planned in next 6 months
+- **LOI conversion strategy:** Emphasize non-binding nature; zero-cash pilot option available
+- **Key hidden asset identified:** Founder's existing agency clients are the fastest path to the first LOI — no cold outreach required for the first target
+
+### Blocking Items — Unchanged
+
+B-01 (Track 0 GO), B-02 (LLC), B-03 (PDPL), B-04 (QR load test) remain OPEN. Development NOT AUTHORIZED. GTM Blueprint does not change these statuses.
+
+---
+
+## [v4.2] — 2026-07-27 — Repository Intelligence & Evidence Audit
+
+### Files Created
+
+| File | Location | Description |
+|---|---|---|
+| `AUDIT_INDEX.md` | `docs/audit/` | Master index of audit deliverable — key findings for Founder |
+| `PART1_REPOSITORY_INVENTORY.md` | `docs/audit/` | Complete inventory of all ~149 files with 4 audit findings |
+| `PART2A_FILE_REVIEW_CARDS_FOUNDER_BOOTSTRAP.md` | `docs/audit/` | File Review Cards: Founder Intent + AI Bootstrap layers |
+| `PART2B_FILE_REVIEW_CARDS_CORE_DOCS.md` | `docs/audit/` | File Review Cards: Core decisions, architecture, product, audit docs |
+| `PART2C_FILE_REVIEW_CARDS_REMAINING.md` | `docs/audit/` | File Review Cards: Memory, reports, navigator, binary, stubs |
+| `PART5_TO_10_REMAINING_REPORTS.md` | `docs/audit/` | Parts 3-10: Knowledge Inventory, Founder Alignment, Dependencies, Duplicates, Conflicts, Commercial Value, Risks, Executive Summary |
+
+### Mission Summary
+
+Full 10-phase Repository Intelligence & Evidence Audit completed. Every readable text file read completely (no sampling). ~119 readable files, ~15 binary files, ~7 empty directories. Zero files deleted, moved, archived, or restructured. All files remain READY FOR REVIEW.
+
+### Key Findings
+
+| Finding | Severity |
+|---|---|
+| PAR Patch P-02 not applied — Sales Pack cannot go to clients | CRITICAL for Track 0 |
+| CONFLICT-001: B-series ID collision between READINESS_AUDIT.md and OPEN_DECISIONS_TRACKER.md | HIGH |
+| MASTER_INDEX.md stale — 12+ new files not listed | HIGH |
+| inbox/chatgpt chat till 27-7.docx not yet processed | HIGH |
+| IC v2.0 workspace representation is 130-line summary (not 19,661-word full doc) | HIGH |
+| CONFLICT-003: PAR M-01 may already be resolved (income segment present in PDPL Brief) | MEDIUM |
+| SOURCE_OF_TRUTH.md has broken path for SUPERSEDED_DOCUMENTS.md | MEDIUM |
 
 ---
 

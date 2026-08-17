@@ -1,46 +1,121 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-07-27
+**Last updated:** 2026-08-14 (Session 2 — Bilingual AR/EN consumer app + Report Arabic mode complete)
+
+---
+
+## Product State — CURRENT
+
+```
+✅  MEOS v1 COMMERCIAL DEMO — LOCKED + FROZEN
+    Branch  : sprint/meos-production-build
+    Commit  : 0209b9a ("Finalize commercial demo and one-command launcher")
+    Launcher: bash scripts/demo.sh
+    Verified: PASS — 49 seeded signals, all 7 screens functional
+    Login   : demo@brand.com / Demo1234!
+    URL     : http://localhost:3001 (after launcher)
+    Signals : 49 simulated consumers — NOT real data
+
+✅  REAL PILOT MVP — DEPLOYED (PARTIALLY READY)
+    Branch  : sprint/pilot-readiness-mvp
+    Commit  : 67d29d3 (latest — chore: add .railwayignore)
+    GitHub  : github.com/islamelbaz2010/Tajribti
+
+    Railway API (LIVE):
+      URL      : https://api-production-266c.up.railway.app/api/v1
+      Project  : tajribti-pilot
+      Service  : api (ff7272bd)
+      DB       : PostgreSQL online — 8 tables auto-created (synchronize:true)
+      DEMO_MODE: false
+      CORS     : https://dashboard-six-flame-wsaixia9cm.vercel.app
+
+    Vercel Dashboard (LIVE):
+      URL      : https://dashboard-six-flame-wsaixia9cm.vercel.app
+      Project  : dashboard (islam-elbaz-s-projects)
+      API_URL  : https://api-production-266c.up.railway.app/api/v1 (baked at build)
+
+    Consumer Web (LIVE — same Vercel URL):
+      Entry    : https://dashboard-six-flame-wsaixia9cm.vercel.app/join/:campaignId
+      Deep links: handled by vercel.json SPA rewrite
+
+    Flutter Consumer App (apps/consumer):
+      Status   : PILOT-READY + BILINGUAL (completed 2026-08-14 Session 2)
+      Screens  : Splash → Scanner → Campaign → Phone → OTP → Register → Survey → ThankYou
+      Bilingual: Full AR/EN toggle (LangToggle widget) on every screen
+      Font     : Cairo (Google Fonts) applied via MaterialApp theme — proper Arabic typography
+      L10n     : AppStr + LangProvider + l10n.dart — complete localization without flutter_localizations
+      Persist  : Language preference saved to SharedPreferences across sessions
+      Real QR  : Scanner parses URL format QR (/join/:campaignId) used by real campaigns
+      Debug text: REMOVED (no demo OTP hint visible to consumers)
+      API wiring: getCampaignById + enterCampaign (replaces getDemoActiveCampaign)
+      Build flag: --dart-define=API_BASE=https://api-production-266c.up.railway.app/api/v1
+
+    Client Report (apps/dashboard/src/pages/Report.tsx):
+      Status   : IMPROVED + BILINGUAL (completed 2026-08-14 Session 2)
+      PDF pages: Multi-page A4 pagination (was single tall screenshot)
+      Cover    : Dark branded cover with KPI summary (was plain text header)
+      Sections : Numbered 01–07, matching directive structure
+      Language : EN/AR toggle in action bar — full Arabic RTL report mode
+      Font     : Cairo font loaded via Google Fonts CDN in index.html
+      Arabic   : Complete section titles, labels, narrative, methodology, findings in Arabic
+      PDF name : Stamped with language suffix (-en / -ar) and date
+
+    What is NOT yet operational:
+      - Real brand account: NOT CREATED (Founder must provide brand credentials)
+      - Akedly WhatsApp OTP: NOT CONFIGURED (code integrated; AKEDLY_TEMPLATE_ID in review)
+      - Real consumer journey: NOT VERIFIED end-to-end (blocked by above two items)
+      - Real campaign + QR: NOT CREATED (requires brand account first)
+      - Flutter APK: NOT BUILT (requires macOS 14+ for Flutter toolchain on this machine)
+
+⚠️  REAL FIELD PILOT — NOT YET VERIFIED
+    Infrastructure: DEPLOYED
+    Akedly WhatsApp OTP: NOT CONFIGURED (AKEDLY_TEMPLATE_ID pending approval)
+    Real brand account: NOT CREATED
+    Real consumer data: ZERO (no field pilot has happened)
+```
 
 ---
 
 ## Authorization Status
 
 ```
-❌  DEVELOPMENT NOT AUTHORIZED
-    IERB Re-Audit Score: 67/100 (improved from 58/100 after remediation)
-    Previous score: 58/100 (original audit)
+⚠️  TRACK 1 FULL ENGINEERING — NOT AUTHORIZED
+    Real Pilot MVP build: COMPLETE (authorized as minimum pilot sprint)
+    IERB Re-Audit Score (baseline): 67/100 (pre-demo)
+    Track 1 gate: B-01, B-02, B-03, B-04 still open
 ```
 
-*Source: `13_Audits/REMEDIATION_REAUDIT.md` — Section D*
+*Source: `13_Audits/REMEDIATION_REAUDIT.md` — Section D (baseline); Real Pilot MVP Final Handoff*
 
 ---
 
-## Current Sprint
+## Current Phase
 
-**Track 0 — Commercial Validation Sprint**
+**Pilot Activation** — infrastructure deployed, two blockers before first real consumer
 
-- Budget: $15,000–$25,000
-- Duration: 60 days
-- Engineering: NONE (zero code, zero infra)
-- Status: Authorized but GO/NO-GO not yet confirmed
-
-*Source: `04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md` — Investment Parameters; `15_Decisions/OPEN_DECISIONS_TRACKER.md`*
+- Railway API: LIVE at https://api-production-266c.up.railway.app
+- Vercel Dashboard: LIVE at https://dashboard-six-flame-wsaixia9cm.vercel.app
+- PostgreSQL: ONLINE, schema created, no data
+- Remaining: Akedly Template ID (in review) + first real brand account
 
 ---
 
 ## Current Objective
 
-Secure brand LOIs, confirm legal entity, obtain PDPL legal opinion, and close all 4 blocking items to unlock Track 1 authorization.
+Activate the deployed Real Pilot MVP for one real, controlled brand campaign.
 
-**Specifically:**
-- Reach ≥3–5 brand prospects with signed pilot LOIs
-- Confirm Egyptian LLC incorporation (or set a formation date)
-- Engage Egyptian data-privacy lawyer for PDPL written scope opinion
-- (B-04 requires engineering — depends on B-01 first)
+**Remaining two actions (in order):**
+1. Set Akedly credentials in Railway env vars → redeploy API → real WhatsApp OTP goes live
+   - AKEDLY_API_KEY: d53379cf4b992b6684fedf9d0d367f194f6b89438710b63774e0e68fc26a715f
+   - AKEDLY_PIPELINE_ID: 6a7db76861a103e7b2a0b7ec
+   - AKEDLY_TEMPLATE_ID: **IN REVIEW** — set when approved
+   - AKEDLY_OTP_VAR: otp (default; set only if Akedly template uses a different variable name)
+2. Create first real brand account (Founder provides: brand name, email, password → Claude inserts via Railway Postgres → brand can log in)
 
-*Source: `04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md`; `13_Audits/REMEDIATION_REAUDIT.md` Section B*
+After both: Brand logs in → creates campaign → generates QR → prints on samples → first real consumers scan → real pilot begins.
+
+*Source: Deployment Session, 2026-08-13*
 
 ---
 
@@ -106,9 +181,19 @@ Immediately after GO:
 | Technical Architecture (full stack designed) | PDPL legal review |
 | Master Delivery Plan (WBS, sprint 0–6, risks, QA, DevOps) | Legal entity formation |
 | Independent Readiness Audit (58/100 → 67/100 after remediation) | QR load test |
-| Enterprise Knowledge Workspace (73 files, 24 directories) | Any engineering work |
+| Enterprise Knowledge Workspace (73 files, 24 directories) | Track 1 full engineering |
+| **MEOS v1 Commercial Demo** — 7-screen dashboard, NestJS API, 49 seeded signals | — |
+| **One-command launcher** — `bash scripts/demo.sh` + `--brand/--product/--location` | — |
+| **Consumer Signals design system** — dark theme applied across all screens | — |
+| **Real Pilot MVP** — campaign API, mobile web consumer journey, analytics auth, real data | — |
+| **Mobile web consumer journey** — QR → phone → OTP → profile → survey → thank-you (Arabic) | — |
+| **Analytics/report security** — brand JWT + campaign ownership on all 6 endpoints | — |
+| **Intelligence Report upgrade** (2026-08-14) — expanded to 7 sections: executive summary, demographics, intent analysis, consumer voice, key findings, recommendations, methodology | — |
+| **CONFLICT-C resolved** — stale Twilio references replaced with Akedly throughout project state docs | — |
+| **Flutter consumer app — bilingual AR/EN** (2026-08-14 Session 2) — LangProvider + AppStr + LangToggle + Cairo font; all 8 screens localized; language persisted in SharedPreferences | — |
+| **Intelligence Report — Arabic mode** (2026-08-14 Session 2) — EN/AR toggle in dashboard; full RTL direction; complete Arabic translations for all 7 sections; Cairo font via CDN | — |
 
-*Source: `_ai_bootstrap/PROJECT_CONTEXT.md` — What Has Been Done section*
+*Source: `_ai_bootstrap/PROJECT_CONTEXT.md` — What Has Been Done section; Real Pilot MVP Final Handoff*
 
 ---
 

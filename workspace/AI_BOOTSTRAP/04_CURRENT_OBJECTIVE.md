@@ -1,148 +1,121 @@
 # Current Objective — One Page
 
 **This file describes EXACTLY what we are trying to accomplish RIGHT NOW.**  
-**Last updated:** 2026-07-27
+**Last updated:** 2026-08-14
 
 ---
 
 ## The One Sentence
 
-Execute a 60-day, $15K–$25K commercial validation sprint to prove — or disprove — that Egyptian FMCG brands will pay for consumer intelligence from physical trial data.
+Activate the deployed Real Pilot MVP — unblock OTP and create the first real brand account — so one real brand can run one real campaign with real consumers.
 
-*Source: `04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md` — Investment Parameters*
+*Source: Deployment Session 2026-08-13; `AI_BOOTSTRAP/02_PROJECT_STATE.md`*
 
 ---
 
 ## What "Right Now" Means
 
-**Zero engineering. Zero product. Zero code.**
+**The Real Pilot MVP is deployed. Infrastructure is live.**
 
-The current phase is a commercial and legal validation sprint, not a build phase. Engineering starts only after Track 0 produces a GO decision.
+Railway API: https://api-production-266c.up.railway.app/api/v1  
+Vercel Dashboard: https://dashboard-six-flame-wsaixia9cm.vercel.app  
+PostgreSQL: ONLINE (tajribti-pilot project, 8 tables, zero data)
 
-*Source: `13_Audits/REMEDIATION_REAUDIT.md` Section B; `04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md`*
+Two blockers remain before a real consumer can complete the journey:
 
----
+1. **Akedly Template ID not yet set** — OTP code generation works; WhatsApp delivery requires AKEDLY_TEMPLATE_ID (currently in review with Akedly). AKEDLY_API_KEY and AKEDLY_PIPELINE_ID are available now.
+2. **No real brand account** — The database is clean. No brand can log in until the first account is created.
 
-## The 4 Things That Must Happen
-
-### 1. Brand LOIs — the commercial gate (B-01)
-
-Reach ≥3 Egyptian FMCG, beauty, or pharma-OTC brands with enough interest to sign pilot letters of intent (LOIs).
-
-**How:** Outreach to the 14 pre-identified brand targets using a brand pitch deck and brand briefing document. Discovery calls. Pilot proposals. LOI signature.
-
-**Kill criterion:** If fewer than 3 LOIs are signed in 60 days → NO-GO. Engineering does not start. Period.
-
-*Source: `07_Product/GO_TO_MARKET.md` GTM Sequence; `12_Reviews/PEER_REVIEW_MASTER_REPORT.md` Kill Criterion*
-
-**14 Priority brand targets (from workspace):**
-
-| Brand | Category | Why |
-|---|---|---|
-| Procter & Gamble Egypt | FMCG | High SKU velocity, established sampling budgets |
-| Unilever Egypt | FMCG | Household penetration campaigns |
-| Nestlé Egypt | FMCG | New product launches |
-| PepsiCo Egypt | FMCG | Snacks + beverages |
-| Coca-Cola Egypt | FMCG | Consumer activation |
-| Johnson & Johnson Egypt | FMCG/OTC | OTC pharma + baby care |
-| L'Oréal Egypt | Beauty | Skincare new products |
-| Dabur Egypt | FMCG/Herbal | Growing MENA presence |
-| Hana Group | Beauty | Egyptian beauty market leader |
-| OLA (Chipsy) Egypt | FMCG | Snacks |
-| El-Rashidi El-Mizan | FMCG | Local FMCG conglomerate |
-| Fine Egypt | FMCG | Household paper products |
-| Juhayna | FMCG | Dairy/beverages |
-| Lactel Egypt | FMCG | Dairy |
-
-*Source: `07_Product/GO_TO_MARKET.md` Brand Target List*
+Commercial demo: FROZEN at commit `0209b9a` on `sprint/meos-production-build`. Do not touch.
 
 ---
 
-### 2. LLC Incorporation — the legal and operational gate (B-02)
+## The 2 Remaining Activation Steps
 
-Register the Egyptian legal entity. Until registered, no contracts can be signed, no bank accounts opened, no vendor relationships established.
+### 1. Set Akedly Credentials in Railway (WhatsApp OTP — Founder sets when Template ID is approved)
 
-**Status:** Not yet incorporated.
+In Railway dashboard: set these on the `api` service in the `tajribti-pilot` project:
 
-**What closes it:** Commercial register number or confirmed formation date.
+```
+AKEDLY_API_KEY=d53379cf4b992b6684fedf9d0d367f194f6b89438710b63774e0e68fc26a715f
+AKEDLY_PIPELINE_ID=6a7db76861a103e7b2a0b7ec
+AKEDLY_TEMPLATE_ID=<approved-template-id>      ← SET THIS WHEN AKEDLY APPROVES IT
+AKEDLY_OTP_VAR=otp                             ← default; change only if template uses different var name
+```
 
-*Source: `15_Decisions/OPEN_DECISIONS_TRACKER.md` B-02; `13_Audits/REMEDIATION_REAUDIT.md`*
+Railway auto-redeploys after env var change. WhatsApp OTP goes live immediately.
+The integration code is complete and soft-fails gracefully until Template ID is set.
+
+⚠️ OTP is currently blocked only by AKEDLY_TEMPLATE_ID being in review. API key and Pipeline ID are ready.
+
+### 2. Create First Real Brand Account (Founder provides: name, email, password)
+
+Claude will:
+- Generate bcrypt hash of the password
+- Open Railway Postgres TCP proxy
+- Insert the brand account via SQL
+- Test login via API
+- Close proxy
+
+After this the brand can log in at the Vercel dashboard URL and create their first campaign.
 
 ---
 
-### 3. PDPL Legal Review — the data compliance gate (B-03)
+## After Both Blockers Are Cleared
 
-Engage an Egyptian data-privacy lawyer to provide a written scope opinion on Tajribti's consumer data collection model under the Personal Data Protection Law (PDPL — Law No. 151 of 2020).
-
-**What we need:** A written memo that confirms: (a) consent mechanism design; (b) permissible data categories; (c) data residency requirements; and (d) whether AWS Bahrain satisfies Egyptian PDPL.
-
-**Status:** Not yet engaged. No lawyer yet hired.
-
-**What closes it:** Written memo received.
-
-*Source: `15_Decisions/OPEN_DECISIONS_TRACKER.md` B-03; `02_Project_Management/RISK_REGISTER.md` R-LC-01*
-
----
-
-### 4. QR Load Test — the technical risk gate (B-04)
-
-After Track 0 GO and CTO hire, execute a QR concurrency load test. The QR Redemption feature (TJ-005) has a concurrent race condition risk — multiple consumers scanning the same QR simultaneously. The load test must validate that the idempotency solution holds.
-
-**Status:** BLOCKED until B-01 (GO) and CTO hire.
-
-**What closes it:** Load test report showing idempotency holds at target concurrent-scan load.
-
-*Source: `15_Decisions/OPEN_DECISIONS_TRACKER.md` B-04; `09_Technical/TECHNICAL_ARCHITECTURE.md`; `08_PRD/MASTER_PRD_v1.0.md` TJ-005*
+```
+Brand logs in at https://dashboard-six-flame-wsaixia9cm.vercel.app
+→ POST /api/v1/campaigns   (create campaign)
+→ GET  /api/v1/qr/generate/:campaignId  (download QR PNG)
+→ Print QR on sample product packaging
+→ Distribute to real consumers at field location
+→ Consumer scans QR → phone camera opens:
+     https://dashboard-six-flame-wsaixia9cm.vercel.app/join/:campaignId
+→ OTP → registration → survey → real signal in DB
+→ Brand analytics dashboard reflects real data
+→ AI report generated (Anthropic/OpenAI if key set, fallback narrative otherwise)
+→   REAL FIELD PILOT: RUNNING
+```
 
 ---
 
 ## What Success Looks Like
 
-After 60 days, the Founder presents to IC:
-
 ```
-✅  ≥3 brand LOIs signed (kill criterion met)
-✅  LLC registered or formation date confirmed
-✅  PDPL written opinion received
-✅  QR load test completed (or clear path to completion post-hire)
-→   IC issues Track 1 GO authorization
-→   Engineering begins
+✅  Railway API: LIVE                          (done)
+✅  PostgreSQL: ONLINE, clean schema           (done)
+✅  Vercel Dashboard: LIVE                     (done)
+✅  CORS: correctly configured                 (done)
+✅  Consumer web deep links: working           (done)
+✅  Admin endpoints: protected                 (done)
+✅  Akedly OTP integration: code complete      (done — soft-fail until Template ID set)
+⬜  Akedly Template ID: SET IN RAILWAY         (blocker 1 — Template ID in review)
+⬜  Real brand account: CREATED               (blocker 2)
+⬜  Real campaign: CREATED                    (requires brand account)
+⬜  Real QR: GENERATED                        (requires campaign)
+⬜  Real consumer completes journey           (requires all above)
+⬜  Real signal in dashboard                  (requires consumer journey)
+→   REAL FIELD PILOT: NOT YET VERIFIED
 ```
-
-*Source: `04_Investment/IC_MEMO_v1.0.md` — Conditional GO Recommendation*
-
----
-
-## What Failure Looks Like
-
-```
-❌  <3 brand LOIs after 60 days
-→   IC issues NO-GO
-→   Project pauses or pivots
-→   NO engineering started
-```
-
-*Source: `07_Product/GO_TO_MARKET.md` Kill Criterion; `15_Decisions/OPEN_DECISIONS_TRACKER.md`*
 
 ---
 
 ## What an AI Should Help With Right Now
 
-- Brand pitch materials (deck, email scripts, objection handlers)
-- Brand discovery call templates and frameworks
-- Pricing discovery questions
-- LOI template document drafting
-- LLC incorporation checklist for Egypt
-- PDPL research and lawyer engagement brief
-- Track 0 sprint planning
-- Risk analysis of the current phase
+- Setting Akedly env vars in Railway when Template ID is approved (AKEDLY_TEMPLATE_ID)
+- Creating first real brand account via Railway Postgres when Founder provides name/email/password
+- Verifying brand login works after account creation
+- Helping brand create first campaign via API (curl commands)
+- Generating QR code for the first campaign
+- Verifying consumer journey end-to-end (real OTP requires Template ID to be approved first)
 
 ## What an AI Should NOT Help With Right Now
 
-- Engineering design (no code, no architecture refinement beyond what exists)
-- Technical debt planning
-- Infrastructure setup
-- Any feature below P0 priority
-- Post-launch optimization
+- P1 features (brand self-registration, campaign management UI) — not yet authorized
+- P2 features (PDPL consent screen, consumer data deletion) — not yet authorized
+- New dashboard screens or API endpoints
+- Track 1 full engineering — still gated on B-01/B-02/B-03/B-04
+- Modifying the commercial demo (FROZEN)
+- Rebuilding the deployment infrastructure (it's live and working)
 
-*Source: `_ai_bootstrap/AI_WORKFLOW.md` — What to Ask AI*
+*Source: Deployment Session, 2026-08-13*

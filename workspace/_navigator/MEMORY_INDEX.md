@@ -54,6 +54,15 @@ This index captures the most important non-obvious facts about this project that
 
 ---
 
+## Track 0 Commercial Readiness (Added v4.2 — 2026-07-27)
+
+- **MEOS v1.0.1 is production-certified.** 9/9 quality gates passed. 5 sheets, 14 pre-seeded brand accounts, 16 named ranges. Kill Criterion tracked at `Pipeline!B12` (≥5 Stage 2+ brands).
+- **Sales Execution Pack is APPROVED.** PAR score: 97/100. Both patches (P-01 income segment, P-02 LOI Column I dropdown) verified applied 2026-07-27. Ready for Founder outreach immediately.
+- **B-ID numbering conflict.** `13_Audits/READINESS_AUDIT.md` uses HISTORICAL B-IDs from the original IERB review (B-02=Sales function, B-03=Cloud region, B-04=Vendor budget). `15_Decisions/OPEN_DECISIONS_TRACKER.md` uses CURRENT B-IDs (B-02=Egyptian LLC, B-03=PDPL, B-04=QR load test). When referencing blocking items, always use OPEN_DECISIONS_TRACKER.md as authoritative.
+- **Track 0 kill criterion is ABSOLUTE.** ≥3 signed pilot LOIs in 60 days. Cannot be waived. Tracked separately from the Pipeline B12 metric (≥5 Stage 2+ brands is the GO/NO-GO criterion).
+
+---
+
 ## Document Authority Shortcuts
 
 | "What does Tajribti do?" | `01_Project_Overview/PROJECT_OVERVIEW.md` |
@@ -61,3 +70,6 @@ This index captures the most important non-obvious facts about this project that
 | "Is development authorized?" | `13_Audits/REMEDIATION_REAUDIT.md` — NO |
 | "What's the tech stack?" | `09_Technical/TECHNICAL_ARCHITECTURE.md` |
 | "Who are the competitors?" | `12_Reviews/PEER_REVIEW_MASTER_REPORT.md` |
+| "Is the Sales Pack ready?" | `Sales_Execution_Pack/Production_Acceptance_Review_v1.0.md` — APPROVED 97/100 |
+| "How do I use the MEOS workbook?" | `05_EBOS/MEOS_v1_Operational_Handover.md` |
+| "What blocking items are currently open?" | `15_Decisions/OPEN_DECISIONS_TRACKER.md` — 4 items (B-01 through B-04) |

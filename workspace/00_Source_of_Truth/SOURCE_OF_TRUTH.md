@@ -17,6 +17,9 @@
 | Competitive intelligence | Peer Review Master Report | `12_Reviews/PEER_REVIEW_MASTER_REPORT.md` | Final |
 | Prompt library | ChatGPT Prompts | `11_Prompts/CHATGPT_PROMPTS.md` | — |
 | Business concept origin | Source Video Transcript | `03_Research/SOURCE_VIDEO_TRANSCRIPT.md` | — |
+| Track 0 commercial process | Sales Playbook | `Sales_Execution_Pack/01_Sales_Playbook.md` | APPROVED (PAR 97/100) |
+| Track 0 operational system | MEOS v1 Operational Handover | `05_EBOS/MEOS_v1_Operational_Handover.md` | v1.0.1 Production Certified |
+| Repository architecture decisions | Project Architecture Constitution | `docs/governance/PROJECT_ARCHITECTURE_CONSTITUTION.md` | v1.0 LOCKED |
 
 ---
 
@@ -48,7 +51,7 @@ The following files in `inbox/` are the original, immutable sources. They must n
 | Report A 1-Investment_Committee_Report_Master_Template.docx | Immutable source |
 | Report B 1-Investment Committee Memo — Final Edition v1.0.docx | Immutable source |
 | Report B 1-Samplia_Egypt_Peer_Review_Final_Master_Report.docx | Immutable source |
-| chatgpt chat till 26-7.docx | Immutable source |
+| chatgpt chat till 27-7.docx | Immutable source |
 | samples app text idea.txt | Immutable source |
 
 ---

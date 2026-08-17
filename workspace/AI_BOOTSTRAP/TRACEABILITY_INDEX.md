@@ -160,6 +160,19 @@ After remediation, original B-02, B-03, B-04 were CLOSED. The OPEN_DECISIONS_TRA
 
 ---
 
+## 11. Track 0 Commercial Toolkit Claims (Added v4.2 — 2026-07-27)
+
+| Claim | Bootstrap File | Source File(s) | Confidence | Notes |
+|---|---|---|---|---|
+| MEOS v1.0.1 is production-certified | 04, 13 | `05_EBOS/MEOS_v1_Production_Certificate.md` — 9/9 gates APPROVED; `05_EBOS/MEOS_v1_Release_Notes.md` | HIGH | 9 patches from v1.0 to v1.0.1 documented |
+| Sales Execution Pack is APPROVED (97/100) | 13 | `Sales_Execution_Pack/Production_Acceptance_Review_v1.0.md` — Decision: APPROVED; Score: 97/100 | HIGH | P-01 and P-02 verified applied 2026-07-27 |
+| Kill Criterion = ≥5 Stage 2+ brands in Pipeline!B12 | 04, 13 | `05_EBOS/MEOS_v1_Operational_Handover.md` Section 1 Dashboard | HIGH | Distinct from 3-LOI success gate |
+| LOI Column I is a dropdown (not a date field) | 13 | `05_EBOS/MEOS_v1_Operational_Handover.md` Section 4 LOI sheet; `Sales_Execution_Pack/01_Sales_Playbook.md` Step 7 | HIGH | P-02 patch corrected this in Playbook |
+| Income segment is a confirmed data deliverable | 13 | `Sales_Execution_Pack/04_Legal/PDPL_Lawyer_Brief.md` Demographics row | HIGH | P-01 added this; consistent with Brand OnePager and LOI Template |
+| Track 0 commercial toolkit is ready for Founder outreach | 13 | `Sales_Execution_Pack/Production_Acceptance_Review_v1.0.md` Section 6 Decision | HIGH | No further documentation required per PAR |
+
+---
+
 ## Statements With No Direct Source (Derived / Synthesized)
 
 The following statements in AI_BOOTSTRAP are synthesized from multiple sources or are structural descriptions rather than directly quoted facts. They are derived, not invented.

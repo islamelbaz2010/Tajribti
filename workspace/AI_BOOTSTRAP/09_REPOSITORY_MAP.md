@@ -13,7 +13,15 @@ workspace/
 ├── CHANGELOG.md                  ← Version history, append-only
 ├── CONTRIBUTING.md               ← How to work in this workspace
 │
-├── AI_BOOTSTRAP/                 ← AI onboarding layer (this folder)
+├── 00_FOUNDER_INTENT/            ← LOAD FIRST (every AI session) — Founder governance layer
+│   ├── 01_FOUNDER_VISION.md      ← WHY this company exists — the original idea
+│   ├── 02_CORE_VALUE_ENGINE.md   ← WHAT creates value — the minimum 7-step chain
+│   ├── 03_NON_NEGOTIABLE_RULES.md ← 10 rules that cannot be changed
+│   ├── 04_WHAT_NOT_TO_BUILD.md   ← The postponement list — what to reject
+│   ├── 05_PROJECT_NORTH_STAR.md  ← The single metric — Stage 2+ brand count
+│   └── 06_FOUNDER_ALIGNMENT_GATE.md ← MANDATORY GATE — execute before any answer
+│
+├── AI_BOOTSTRAP/                 ← AI onboarding layer (this folder) — v1.1 FROZEN
 │   ├── 00_AI_START_HERE.md
 │   ├── 01_PROJECT_CONSTITUTION.md
 │   ├── 02_PROJECT_STATE.md
@@ -27,9 +35,14 @@ workspace/
 │   ├── 10_KNOWLEDGE_MAP.md
 │   ├── 11_AI_RULES.md
 │   ├── 12_AI_CHECKLIST.md
-│   ├── 13_LOADING_ORDER.md
+│   ├── 13_LOADING_ORDER.md       ← Includes Track 0 Sales Session type (added v4.2)
 │   ├── 14_CONTEXT_INDEX.md
-│   └── 15_SOURCE_OF_TRUTH.md
+│   ├── 15_SOURCE_OF_TRUTH.md
+│   ├── AI_SESSION_TEMPLATE.md    ← Mandatory session opener template (v4.1)
+│   ├── BOOTSTRAP_FREEZE_REPORT.md ← Certification audit 98/100 FROZEN (v4.1)
+│   ├── BOOTSTRAP_VERSION.md      ← Bootstrap version record (v4.1)
+│   ├── PROJECT_FINGERPRINT.json  ← Machine-readable project identity (v4.1)
+│   └── TRACEABILITY_INDEX.md     ← Every Bootstrap claim mapped to source (v4.1)
 │
 ├── _ai_bootstrap/                ← Original AI context files (pre-AI_BOOTSTRAP layer)
 │   ├── AI_CONTEXT.md             ← Project context for AI sessions
@@ -86,8 +99,14 @@ workspace/
 │   ├── IC_REPORT_TEMPLATE.md     ← Working draft (Arabic original)
 │   └── INVESTMENT_DUE_DILIGENCE_REPORT_v2.md ← Canonical 19K-word due diligence
 │
-├── 05_Market/                    ← Market analysis (stub — content in PRD+IC)
-│   └── README.md
+├── 05_EBOS/                      ← MEOS v1 — Track 0 operational system
+│   ├── MEOS_v1_Production_Spec.md    ← Full MEOS specification (58KB)
+│   ├── MEOS_v1_Operational_Handover.md ← How to operate the workbook (read before opening)
+│   ├── MEOS_v1_Production_Certificate.md ← 9/9 quality gates APPROVED
+│   ├── MEOS_v1_Release_Notes.md      ← 9 patches: v1.0 → v1.0.1
+│   ├── MEOS_v1_Sprint_Completion_Report.md ← Sprint record + known gaps
+│   ├── MEOS_v1_Track0.xlsx           ← THE workbook (binary — open in Excel/Sheets)
+│   └── README.md                     ← Directory stub
 │
 ├── 06_Enterprise_Architecture/   ← EA domain and capability model
 │   └── ENTERPRISE_ARCHITECTURE.md ← 5-domain EA map, capabilities, integrations
@@ -132,10 +151,34 @@ workspace/
 │   ├── STATISTICS_REPORT.md
 │   └── WORKSPACE_REPORT.md       ← Source files processed, workspace files generated
 │
-└── 17_Final/                     ← Final audit files
-    ├── FINAL_QUALITY_SCORE.md    ← Final score 91/100
-    ├── READY_FOR_AI.md           ← AI readiness certification
-    └── WORKSPACE_AUDIT.md        ← 26 improvements, 68→91 score
+├── 17_Final/                     ← Final audit files
+│   ├── FINAL_QUALITY_SCORE.md    ← Final score 91/100
+│   ├── READY_FOR_AI.md           ← AI readiness certification
+│   └── WORKSPACE_AUDIT.md        ← 26 improvements, 68→91 score
+│
+├── 18_Archive/                   ← Superseded document versions
+│   └── SUPERSEDED_DOCUMENTS.md   ← Registry of superseded files
+│
+├── Sales_Execution_Pack/         ← Track 0 commercial toolkit — APPROVED (PAR 97/100)
+│   ├── 01_Sales_Playbook.md      ← Complete brand sales process, scripts, objections, MEOS workflow
+│   ├── 02_Brand_OnePager.md      ← One-page client-facing brand brief
+│   ├── 03_LOI_Template.md        ← LOI template (3 package tiers)
+│   ├── Production_Acceptance_Review_v1.0.md ← PAR — APPROVED, P-01+P-02 applied 2026-07-27
+│   └── 04_Legal/
+│       ├── Egyptian_LLC_Checklist.md ← Closes B-02 (Egyptian LLC incorporation)
+│       └── PDPL_Lawyer_Brief.md  ← Closes B-03 (PDPL legal sign-off)
+│
+└── docs/                         ← Repository analysis and governance
+    ├── Repository_Remediation_Master_Plan_v1.md ← APPROVED remediation blueprint
+    ├── governance/
+    │   └── PROJECT_ARCHITECTURE_CONSTITUTION.md ← PAC v1.0 — 25 CAD decisions (LOCKED)
+    └── audit/
+        ├── AUDIT_INDEX.md
+        ├── PART1_REPOSITORY_INVENTORY.md
+        ├── PART2A_FILE_REVIEW_CARDS_FOUNDER_BOOTSTRAP.md
+        ├── PART2B_FILE_REVIEW_CARDS_CORE_DOCS.md
+        ├── PART2C_FILE_REVIEW_CARDS_REMAINING.md
+        └── PART5_TO_10_REMAINING_REPORTS.md
 ```
 
 ---
@@ -171,7 +214,11 @@ The inbox contains the 14 source documents from which this entire workspace was 
 
 | Task | Go to |
 |---|---|
-| Start a new AI session | `AI_BOOTSTRAP/00_AI_START_HERE.md` |
+| Start a new AI session | `00_FOUNDER_INTENT/` (6 files) → `AI_BOOTSTRAP/00_AI_START_HERE.md` |
+| Prepare for a brand call | `Sales_Execution_Pack/01_Sales_Playbook.md` |
+| Send to a brand prospect | `Sales_Execution_Pack/02_Brand_OnePager.md` |
+| Issue or track an LOI | `Sales_Execution_Pack/03_LOI_Template.md` + `05_EBOS/MEOS_v1_Operational_Handover.md` |
+| Track Kill Criterion | `05_EBOS/MEOS_v1_Track0.xlsx` (Pipeline!B12) |
 | Check current status | `AI_BOOTSTRAP/02_PROJECT_STATE.md` |
 | Look up a decision | `AI_BOOTSTRAP/03_FOUNDER_DECISIONS.md` or `15_Decisions/DECISION_LOG.md` |
 | Review architecture | `AI_BOOTSTRAP/08_ARCHITECTURE_MAP.md` or `09_Technical/TECHNICAL_ARCHITECTURE.md` |

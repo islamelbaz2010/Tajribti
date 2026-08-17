@@ -4,6 +4,13 @@
 
 | Task | Entry Point |
 |---|---|
+| **— Track 0 Sales (Brand Outreach) —** | |
+| Prepare for a brand call | `Sales_Execution_Pack/01_Sales_Playbook.md` |
+| Send material to a brand prospect | `Sales_Execution_Pack/02_Brand_OnePager.md` |
+| Issue or track an LOI | `Sales_Execution_Pack/03_LOI_Template.md` + `05_EBOS/MEOS_v1_Operational_Handover.md` |
+| Check Track 0 Kill Criterion status | `05_EBOS/MEOS_v1_Track0.xlsx` (Pipeline!B12 ≥5 Stage 2+ brands) |
+| Check if Sales Pack is ready for client use | `Sales_Execution_Pack/Production_Acceptance_Review_v1.0.md` — APPROVED 97/100 |
+| **— Project Navigation —** | |
 | Understand the project from zero | `AI_CONTEXT.md` |
 | Check current development status | `13_Audits/REMEDIATION_REAUDIT.md` |
 | Find any decision | `DECISION_INDEX.md` |

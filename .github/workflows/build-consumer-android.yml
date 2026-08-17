@@ -1,0 +1,92 @@
+name: Consumer Android APK Build
+
+on:
+  push:
+    branches:
+      - sprint/pilot-readiness-mvp
+      - main
+    paths:
+      - 'apps/consumer/**'
+      - '.github/workflows/build-consumer-android.yml'
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter 3.44.8
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+          cache: true
+
+      - name: Verify Flutter version
+        run: flutter --version
+
+      - name: Generate missing Android platform files
+        working-directory: apps/consumer
+        run: |
+          # Protect the existing AndroidManifest.xml (app-level) before flutter create
+          cp android/app/src/main/AndroidManifest.xml /tmp/AndroidManifest_main.xml.bak
+          # Protect pubspec.yaml in case flutter create attempts to modify it
+          cp pubspec.yaml /tmp/pubspec.yaml.bak
+          # Generate missing platform files: gradlew, gradlew.bat, gradle-wrapper.jar, launcher icons
+          # flutter create skips files that already exist — all committed text files are preserved
+          flutter create --org com.tajribti --platforms android --project-name consumer .
+          # Restore the project's original AndroidManifest.xml
+          cp /tmp/AndroidManifest_main.xml.bak android/app/src/main/AndroidManifest.xml
+          # Restore pubspec.yaml
+          cp /tmp/pubspec.yaml.bak pubspec.yaml
+
+      - name: Verify AndroidManifest.xml preserved
+        working-directory: apps/consumer
+        run: |
+          echo "=== AndroidManifest.xml ==="
+          cat android/app/src/main/AndroidManifest.xml
+          echo ""
+          echo "=== Checking required permissions ==="
+          grep "CAMERA" android/app/src/main/AndroidManifest.xml && echo "CAMERA permission: OK" || echo "ERROR: CAMERA permission missing"
+          grep "INTERNET" android/app/src/main/AndroidManifest.xml && echo "INTERNET permission: OK" || echo "ERROR: INTERNET permission missing"
+          grep "تجربتي" android/app/src/main/AndroidManifest.xml && echo "App label (تجربتي): OK" || echo "ERROR: App label missing"
+
+      - name: Install Flutter dependencies
+        working-directory: apps/consumer
+        run: flutter pub get
+
+      - name: Build release APK
+        working-directory: apps/consumer
+        run: |
+          flutter build apk --release \
+            --dart-define=API_BASE=https://api-production-266c.up.railway.app/api/v1
+
+      - name: Verify APK exists
+        run: |
+          APK_PATH="apps/consumer/build/app/outputs/flutter-apk/app-release.apk"
+          if [ -f "$APK_PATH" ]; then
+            echo "APK produced successfully."
+            ls -lh "$APK_PATH"
+          else
+            echo "ERROR: APK not found at expected path."
+            find apps/consumer/build -name "*.apk" 2>/dev/null || echo "No APK found anywhere in build output."
+            exit 1
+          fi
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tajribti-consumer-android-${{ github.run_number }}
+          path: apps/consumer/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
+          if-no-files-found: error

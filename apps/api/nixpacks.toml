@@ -1,0 +1,15 @@
+# Railway deployment configuration for Tajribti API
+# Root directory on Railway must be set to: apps/api
+# This file tells nixpacks how to build and start the NestJS app.
+
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = ["npm ci --production=false"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "node dist/main"

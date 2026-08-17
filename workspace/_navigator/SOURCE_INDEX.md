@@ -14,5 +14,5 @@
 | Report A 1-Investment_Committee_Report_Master_Template.docx | docx | Medium | 3,989 | Arabic working draft | Investment/Research | `04_Investment/IC_REPORT_TEMPLATE.md` |
 | Report B 1-Investment Committee Memo — Final Edition v1.0.docx | docx | Medium | 1,465 | Final memo v1.0 | Investment | `04_Investment/IC_MEMO_v1.0.md` |
 | Report B 1-Samplia_Egypt_Peer_Review_Final_Master_Report.docx | docx | Medium | 2,915 | Final master review | Review | `12_Reviews/PEER_REVIEW_MASTER_REPORT.md` |
-| chatgpt chat till 26-7.docx | docx | Large | 4,372 | Until 2026-07-26 | Conversation/Prompts | `11_Prompts/CHATGPT_PROMPTS.md` |
+| chatgpt chat till 27-7.docx | docx | Large | ~TBD | Until 2026-07-27 — updated file (replaces 26-7 version); not yet processed | Conversation/Prompts | `11_Prompts/CHATGPT_PROMPTS.md` |
 | samples app text idea.txt | txt | Tiny | 211 | Original idea source | Research/Source | `03_Research/SOURCE_VIDEO_TRANSCRIPT.md` |

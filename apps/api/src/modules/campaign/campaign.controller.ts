@@ -37,6 +37,7 @@ export class CampaignController {
     return this.campaignService.findByBrand(req.user.id);
   }
 
+  @Public()
   @Get()
   findActive() {
     return this.campaignService.findActive();

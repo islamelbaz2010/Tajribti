@@ -319,7 +319,7 @@ export default function Overview() {
       {/* Campaign Identity */}
       <div style={styles.campaignHeader}>
         <div style={styles.headerLeft}>
-          <span style={styles.demoBadge}>DEMO CAMPAIGN</span>
+          {campaign.isDemo && <span style={styles.demoBadge}>DEMO CAMPAIGN</span>}
           <h1 style={styles.brandName}>{campaign.brandName}</h1>
           <p style={styles.campaignSub}>
             {campaign.productName}

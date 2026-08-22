@@ -73,10 +73,10 @@ We are not a sampling company. We are not an activation agency. We are a data co
 
 If this is relevant to a product you are launching or validating in the next 90 days, let us schedule 20 minutes.
 
-**[Founder Name]**  
+**[Islam ElBaz]**  
 Founder, Tajribti  
-**[Phone / WhatsApp]**  
-**[Email]**
+**[01090677722]**  
+**[islam.elbaz2010@gmail.com]**
 
 ---
 

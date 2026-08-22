@@ -82,6 +82,17 @@ class ApiClient {
     return res.data as Map<String, dynamic>;
   }
 
+  Future<List<Campaign>> getActiveCampaigns() async {
+    final res = await _dio.get('/campaigns');
+    final list = res.data as List<dynamic>;
+    return list.map((c) => Campaign.fromJson(c as Map<String, dynamic>)).toList();
+  }
+
+  Future<ConsumerProfile> getConsumerProfile() async {
+    final res = await _dio.get('/auth/me');
+    return ConsumerProfile.fromJson(res.data as Map<String, dynamic>);
+  }
+
   Future<Campaign> getCampaignById(String id) async {
     final res = await _dio.get('/campaigns/$id');
     return Campaign.fromJson(res.data as Map<String, dynamic>);

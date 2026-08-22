@@ -32,9 +32,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   Future<void> _navigate() async {
     await Future.delayed(const Duration(milliseconds: 1600));
     if (!mounted) return;
-    final loggedIn = await AuthService.isLoggedIn();
-    if (!mounted) return;
-    context.go(loggedIn ? '/home' : '/scanner');
+    // Discovery-First (DL-050): home is the universal entry point.
+    // Authenticated consumers see their profile + campaigns.
+    // Unauthenticated consumers browse campaigns and auth on demand.
+    context.go('/home');
   }
 
   @override

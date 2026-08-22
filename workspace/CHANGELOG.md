@@ -10,6 +10,10 @@
 
 | Version | Date | Summary |
 |---|---|---|
+| v6.5 | 2026-08-19 | Session G — Assessment Preparation: Chat Context Extraction (2026-08-18 snapshot) + Decision Reconciliation; 4 conflicts, 2 unformalized management changes, 3 material uncommitted deltas documented; no code changes |
+| v6.4 | 2026-08-18 | Session F — OTP Flow Fix: root cause proven (Flutter null-cast on challengeRequired=false); two-file fix implemented and TypeScript-verified; implementation report produced |
+| v6.3 | 2026-08-17 | Session 5b — Akedly V1.2 Hardening & Acceptance Pass: DEFECT-01 fixed (DEMO_MODE path); formal acceptance report produced; verdict B |
+| v6.2 | 2026-08-17 | Session 5 — Akedly V1.2 Migration: wrong Utilities product replaced with V1.2 REST Authentication; Shield SDK PoW; server-side identity binding; Egypt/SMS delivery documented |
 | v6.1 | 2026-08-17 | Session 4 — Real Pilot Validation: 2 critical bugs found and fixed; ML Kit ProGuard fix device-confirmed; enterCampaignWeb DEMO bug fixed and deployed; Akedly OTP external blocker documented |
 | v6.0 | 2026-08-17 | Session 3 — Full analysis sprint: Chat Context Extraction, Decision Reconciliation, Product Version Audit v2, Management Situation Analysis v2, Portfolio Assessment (analysis-only; no product code) |
 | v5.0 | 2026-08-14 | Session 2 — Bilingual AR/EN Flutter consumer app + Arabic Intelligence Report mode committed (9cd1fc2) |
@@ -26,6 +30,94 @@
 | v3.0 | 2026-07-27 | Long-term development governance layer added (9 new files) |
 | v2.0 | 2026-07-27 | Enterprise Knowledge Architect audit + 26 improvements applied |
 | v1.0 | 2026-07-26 | Initial workspace built from 14 inbox source files (14-phase build) |
+
+---
+
+## [v6.5] — 2026-08-19 — Session G: Assessment Preparation (Chat Context Extraction + Decision Reconciliation)
+
+### Session type
+
+Analysis only (no code changes, no deployments, no commits). Two workspace reports produced.
+
+### Files Created
+
+| File | Description |
+|---|---|
+| `workspace/16_Reports/CHAT_CONTEXT_EXTRACTION_2026-08-19.md` | Chat Context Extraction from PROJECT_CHAT_SNAPSHOT_2026-08-18.md (8,070 lines); new content covers Sessions 4, 5, 5b, F, and real-device E2E confirmation |
+| `workspace/16_Reports/ASSESSMENT_PREPARATION_DECISION_RECONCILIATION_2026-08-19.md` | Full Decision Reconciliation: 56 formal decisions checked against repository; 4 conflicts identified; 2 unformalized management changes; 3 material uncommitted deltas |
+
+### Key findings
+
+- **RESOLVED since prior extraction:** OTP delivery confirmed working (real OTP "832719" on OPPO CPH2481); CI #8 passed; APK #8 built
+- **SUPERSEDED:** AKEDLY_TEMPLATE_ID is no longer a required var — must be DELETED from Railway; V1.2 Auth pipeline (`6a8338c061a103e7b2ccc936`) is the current OTP architecture
+- **NEW MANAGEMENT INTENT:** Founder declared product incomplete ("just camera and questions"); next session = Product Completion / V1 Consumer Experience Assessment
+- **4 ACTIVE CONFLICTS:** CONFLICT-A (BD-13 vs. deployed MVP), CONFLICT-B (TD-01 vs. mobile web), CONFLICT-C (DL-046 vs. CI distribution path), CONFLICT-D (CAD-05 vs. QR-First implementation)
+- **3 UNCOMMITTED DELTAS:** Overview.tsx DEMO badge conditional; JoinPage.tsx reward points conditional; Session F closeout contains stale items
+
+### Files Updated
+
+| File | Change |
+|---|---|
+| `workspace/CHANGELOG.md` | This entry (v6.5) |
+
+---
+
+## [v6.4] — 2026-08-18 — Session F: OTP Flow Fix (Akedly Dev Mode / challengeRequired=false)
+
+### Session type
+
+Engineering (authorized — bug fix only). No new features. No deployments. Two-file minimal fix.
+
+### Root cause proven
+
+When the Akedly V1.2 pipeline is in Dev Mode, the challenge endpoint returns `{ challengeRequired: false }` with NO `challenge`, `difficulty`, or `challengeToken` fields. Flutter's `_challengeAndRequest()` unconditionally cast `challengeData['challenge'] as String`, producing a Dart `TypeError` (null-to-String). The `catch (_)` block swallowed the error and showed "Could not reach verification service". `requestOtp()` was never called — hence no POST in Railway logs.
+
+A secondary blocker: backend `requestOtp()` pre-checked `if (!dto.powSolution) throw 400` regardless of `challengeRequired`.
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `apps/consumer/lib/screens/otp_screen.dart` | Read `challengeRequired` before touching PoW fields; branch on true/false; skip PoW and pass `powSolution: null` when false |
+| `apps/api/src/modules/auth/auth.service.ts` | Removed hard `powSolution` pre-check; made `powSolution` conditionally included in Akedly send body; Akedly now enforces PoW when required |
+
+### Files Created
+
+| File | Description |
+|---|---|
+| `workspace/16_Reports/OTP_FLOW_FIX_SESSION_F_2026-08-18.md` | Formal implementation report — root cause, contract analysis, complete flow after fix, validation results, next actions |
+
+### Validation
+
+| Check | Result |
+|---|---|
+| TypeScript compile (`npx tsc --noEmit`) | PASS — zero errors |
+| Flutter analyze | BLOCKED — macOS 13 below Flutter minimum 14; code manually verified |
+| CI (GitHub Actions) | PENDING — commit + push required |
+| OTP end-to-end with real phone | PENDING — pipeline activation required |
+
+### Key decisions logged
+
+| ID | Decision |
+|---|---|
+| ADR-09 | When Akedly `challengeRequired=false`, Flutter skips PoW; backend omits `powSolution`; Akedly is authoritative PoW validator |
+| DL-049 | Tajribti does not pre-validate `powSolution` presence; Akedly pipeline enforces PoW requirement server-to-server |
+
+### Security invariants preserved
+
+- `AKEDLY_API_KEY` server-side only (never in Flutter) ✓
+- PoW enforced by Akedly when pipeline requires it ✓
+- `transactionReqID→phone` server-side binding intact ✓
+- Client-supplied phone never trusted for JWT identity ✓
+- No bypass of production security ✓
+
+### Next human actions
+
+1. `git add -p && git commit && git push` → triggers CI run #8
+2. Install new APK → confirm OTP screen passes challenge phase
+3. Activate Akedly pipeline `6a8338c061a103e7b2ccc936` in Akedly dashboard
+4. Update Railway `AKEDLY_PIPELINE_ID` + delete `AKEDLY_TEMPLATE_ID` / `AKEDLY_OTP_VAR`
+5. Test full OTP with real Egyptian phone
 
 ---
 

@@ -106,7 +106,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
                     Text(displayError, style: const TextStyle(color: kAccent, fontSize: 16), textAlign: TextAlign.center),
                     const SizedBox(height: 24),
                     TextButton(
-                      onPressed: () => context.go('/scanner'),
+                      onPressed: () => context.go('/home'),
                       child: Text(s.scanAnother, style: const TextStyle(color: kPrimary, fontSize: 16)),
                     ),
                   ],
@@ -140,6 +140,10 @@ class _CampaignScreenState extends State<CampaignScreen> {
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => _BrandBanner(brandName: campaign.brandName),
                           ),
+                          Positioned(
+                            top: 12, left: 12,
+                            child: _BackButton(),
+                          ),
                           const Positioned(
                             top: 12, right: 12,
                             child: LangToggle(light: true),
@@ -150,6 +154,10 @@ class _CampaignScreenState extends State<CampaignScreen> {
                       Stack(
                         children: [
                           _BrandBanner(brandName: campaign.brandName),
+                          Positioned(
+                            top: 12, left: 12,
+                            child: _BackButton(),
+                          ),
                           const Positioned(
                             top: 12, right: 12,
                             child: LangToggle(light: true),
@@ -258,6 +266,24 @@ class _CampaignScreenState extends State<CampaignScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _BackButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.canPop() ? context.pop() : context.go('/home'),
+      child: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.35),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
       ),
     );
   }

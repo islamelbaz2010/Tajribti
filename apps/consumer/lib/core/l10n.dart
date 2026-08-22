@@ -137,12 +137,22 @@ class AppStr {
   String get pointsAddedLabel => ar ? 'نقطة أُضيفت لحسابك'        : 'points added to your account';
   String get backHome       => ar ? 'العودة للرئيسية'             : 'Back to Home';
 
-  // ── Home ──────────────────────────────────────────────────────────────────
-  String get homeTitle      => ar ? 'تجربتي'                      : 'Tajribti';
-  String get homeReady      => ar ? 'جاهز لتجربة جديدة؟'         : 'Ready for a new trial?';
-  String get homeSub        => ar ? 'امسح رمز QR على المنتج لتبدأ تجربتك وتشارك رأيك' : 'Scan the QR code on the product to start your trial and share your feedback';
-  String get scanQr         => ar ? 'مسح QR'                      : 'Scan QR';
-  String get logout         => ar ? 'تسجيل الخروج'               : 'Sign Out';
+  // ── Home / Discovery ─────────────────────────────────────────────────────
+  String get homeTitle          => ar ? 'تجربتي'                            : 'Tajribti';
+  String get availableCampaigns => ar ? 'العروض المتاحة'                    : 'Available Campaigns';
+  String get noCampaignsTitle   => ar ? 'لا توجد عروض حالياً'               : 'No campaigns yet';
+  String get noCampaignsSub     => ar ? 'ترقّب عروضاً جديدة قريباً'         : 'New campaigns are coming soon';
+  String get scanQrOrBrowse     => ar ? 'لديك رمز QR؟ امسحه مباشرة'        : 'Have a QR code? Scan it directly';
+  String get scanQr             => ar ? 'مسح QR'                            : 'Scan QR';
+  String get logout             => ar ? 'تسجيل الخروج'                      : 'Sign Out';
+  String get myActivity         => ar ? 'نشاطي السابق'                      : 'My Activity';
+  String get welcomeBack        => ar ? 'مرحباً'                            : 'Hello';
+  String get pointsLabel        => ar ? 'نقطة'                              : 'pts';
+  String get startTrialCard     => ar ? 'جرّب الآن'                         : 'Try Now';
+  String get loadError          => ar ? 'تعذّر تحميل البيانات'               : 'Could not load data';
+  // kept for screens that still reference these
+  String get homeReady          => ar ? 'جاهز لتجربة جديدة؟'               : 'Ready for a new trial?';
+  String get homeSub            => ar ? 'امسح رمز QR على المنتج لتبدأ تجربتك وتشارك رأيك' : 'Scan the QR code on the product to start your trial and share your feedback';
 
   // ── General ───────────────────────────────────────────────────────────────
   String get retry          => ar ? 'إعادة المحاولة'              : 'Try Again';

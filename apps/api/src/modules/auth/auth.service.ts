@@ -265,16 +265,35 @@ export class AuthService {
     return { ...tokens, brandId: brand.id, brandName: brand.name };
   }
 
-  async getMe(consumerId: string): Promise<Consumer> {
+  async getMe(consumerId: string): Promise<Consumer & { totalPoints: number; recentCampaigns: object[] }> {
     const consumer = await this.consumerRepo.findOne({
       where: { id: consumerId },
+      relations: ['redemptions', 'redemptions.campaign'],
     });
 
     if (!consumer) {
       throw new NotFoundException('Consumer not found');
     }
 
-    return consumer;
+    const totalPoints = consumer.redemptions.reduce(
+      (sum, r) => sum + (r.campaign?.rewardPoints ?? 0),
+      0,
+    );
+
+    const recentCampaigns = consumer.redemptions
+      .sort((a, b) => new Date(b.redeemedAt).getTime() - new Date(a.redeemedAt).getTime())
+      .slice(0, 10)
+      .map((r) => ({
+        id: r.id,
+        redeemedAt: r.redeemedAt,
+        campaignId: r.campaignId,
+        productName: r.campaign?.productName ?? null,
+        brandName: r.campaign?.brandName ?? null,
+        rewardPoints: r.campaign?.rewardPoints ?? 0,
+        productImage: r.campaign?.productImage ?? null,
+      }));
+
+    return { ...consumer, totalPoints, recentCampaigns };
   }
 
   private generateTokens(

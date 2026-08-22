@@ -1,7 +1,7 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-08-17 (Session 4 — Real Pilot Validation; 2 bugs fixed; Akedly OTP remains external blocker)
+**Last updated:** 2026-08-23 (Session I — Product Completion V0.5; CONFLICT-D resolved; Discovery-First enabled; real HomeScreen + campaign discovery built)
 
 ---
 
@@ -40,8 +40,9 @@
       Deep links: handled by vercel.json SPA rewrite
 
     Flutter Consumer App (apps/consumer):
-      Status   : PILOT-READY + BILINGUAL (completed 2026-08-14 Session 2)
-      Screens  : Splash → Scanner → Campaign → Phone → OTP → Register → Survey → ThankYou
+      Status   : V0.5 PRODUCT COMPLETE (Discovery-First; real HomeScreen; 2026-08-23)
+      Screens  : Splash → Home(Discovery) → Campaign → Phone → OTP → Register → Survey → ThankYou
+               QR entry: Scanner → Campaign (preserved, unchanged)
       Bilingual: Full AR/EN toggle (LangToggle widget) on every screen
       Font     : Cairo (Google Fonts) applied via MaterialApp theme — proper Arabic typography
       L10n     : AppStr + LangProvider + l10n.dart — complete localization without flutter_localizations
@@ -62,21 +63,41 @@
       PDF name : Stamped with language suffix (-en / -ar) and date
 
     What is NOT yet operational:
-      - Akedly WhatsApp OTP: NOT CONFIGURED (code integrated; AKEDLY_TEMPLATE_ID in review)
-      - Real consumer journey: NOT VERIFIED end-to-end (blocked by Akedly OTP delivery)
+      - Akedly V1.2 OTP production: pipeline 6a8338c061a103e7b2ccc936 NOT ACTIVATED (Dev Mode active)
+      - CI APK for V0.5: PENDING (requires commit + push to GitHub Actions)
+      - First real brand account: NOT CREATED
+      - Real consumer journey (production OTP): NOT VERIFIED (Dev Mode only verified)
 
-    What WAS fixed (2026-08-17 Session 4 — bug fixes only):
-      - enterCampaignWeb: fixed to accept DEMO-status QR codes (was returning 404 for demo campaigns)
-      - ML Kit ProGuard: keep rules added — camera scanner confirmed working on OPPO CPH2481
-      - Demo seed: confirmed running — campaign 9c370244-... ACTIVE, QR tajribti:9c370244-...:demo seeded
+    What WAS verified (2026-08-18):
+      - OTP Dev Mode: REAL-DEVICE CONFIRMED on OPPO CPH2481 (SMS received: 832719)
+      - CI #8: PASSED — APK #8 built and installed on real device
+      - Full QR → OTP → Survey → ThankYou flow: CONFIRMED end-to-end
 
-⚠️  REAL FIELD PILOT — CONDITIONALLY READY (Verdict B)
-    Infrastructure: DEPLOYED + BUG-FIXED (2026-08-17)
-    Akedly WhatsApp OTP: NOT CONFIGURED — single remaining blocker
+    What WAS fixed/migrated:
+      - enterCampaignWeb: fixed to accept DEMO-status QR codes (2026-08-17 Session 4)
+      - ML Kit ProGuard: keep rules added — camera scanner confirmed working on OPPO CPH2481 (2026-08-17 Session 4)
+      - Demo seed: confirmed running — campaign 9c370244-... ACTIVE, QR tajribti:9c370244-...:demo seeded (2026-08-17)
+      - Akedly OTP: MIGRATED from wrong Utilities product to V1.2 REST Authentication (2026-08-17 Session 5)
+        → Backend: challenge proxy, PoW forwarding, server-side transactionReqID→phone binding, Akedly verify
+        → Flutter: Shield SDK PoW in Isolate, transactionReqID in screen state, new challenge/error UI states
+        → Security: API key server-side only, client phone never trusted for JWT identity
+        → Removed: TEMPLATE_ID, OTP_VAR, local OTP generation, local OTP DB comparison
+
+⚠️  REAL FIELD PILOT — CONDITIONALLY READY (Verdict B — updated 2026-08-18 Session F)
+    Infrastructure: DEPLOYED + BUG-FIXED + AKEDLY V1.2 MIGRATED + HARDENING ACCEPTED + OTP FLOW FIXED
+    Akedly V1.2 OTP: CODE COMPLETE + HARDENED + OTP FLOW BUG FIXED — pipeline activation required + commit/push required
+    Hardening pass: DEFECT-01 fixed (DEMO_MODE challenge/transactionReqID path); formal report at 16_Reports/AKEDLY_V1_2_HARDENING_ACCEPTANCE_2026-08-17.md
+    OTP flow fix: Session F (2026-08-18); Flutter crash on challengeRequired=false fixed; formal report at 16_Reports/OTP_FLOW_FIX_SESSION_F_2026-08-18.md
     Demo seed: CONFIRMED RUNNING (campaign 9c370244-..., QR tajribti:9c370244-...:demo)
     ML Kit scanner: DEVICE-CONFIRMED working on OPPO CPH2481
     Real consumer data: ZERO (no field pilot has happened)
-    Next action: Founder sets AKEDLY_TEMPLATE_ID in Railway → pilot is live
+    Next actions (in order):
+      1. Activate V1.2 auth pipeline in Akedly dashboard (pipeline 6a8338c061a103e7b2ccc936)
+      2. Update Railway AKEDLY_PIPELINE_ID to 6a8338c061a103e7b2ccc936
+      3. Remove AKEDLY_TEMPLATE_ID and AKEDLY_OTP_VAR from Railway env vars
+      4. Build and distribute new Flutter APK (includes Shield SDK + V1.2 flow)
+      5. Test with Dev Mode enabled in Akedly pipeline before real pilot
+    Egypt delivery note: WhatsApp requires WABA (not connected); SMS fallback via Smart Routing is active
 ```
 
 ---
@@ -96,12 +117,13 @@
 
 ## Current Phase
 
-**Pilot Activation** — infrastructure deployed, two blockers before first real consumer
+**Product Completion V0.5 + Pilot Activation** — consumer loop built; pipeline activation + brand account required
 
 - Railway API: LIVE at https://api-production-266c.up.railway.app
 - Vercel Dashboard: LIVE at https://dashboard-six-flame-wsaixia9cm.vercel.app
-- PostgreSQL: ONLINE, schema created, no data
-- Remaining: Akedly Template ID (in review) + first real brand account
+- PostgreSQL: ONLINE, schema created, no real data
+- V0.5 product: BUILT (Discovery-First HomeScreen, campaign cards, history, return loop)
+- Remaining: CI APK build + Akedly pipeline activation + first real brand account
 
 ---
 
@@ -109,13 +131,18 @@
 
 Activate the deployed Real Pilot MVP for one real, controlled brand campaign.
 
-**Remaining two actions (in order):**
-1. Set Akedly credentials in Railway env vars → redeploy API → real WhatsApp OTP goes live
-   - AKEDLY_API_KEY: d53379cf4b992b6684fedf9d0d367f194f6b89438710b63774e0e68fc26a715f
-   - AKEDLY_PIPELINE_ID: 6a7db76861a103e7b2a0b7ec
-   - AKEDLY_TEMPLATE_ID: **IN REVIEW** — set when approved
-   - AKEDLY_OTP_VAR: otp (default; set only if Akedly template uses a different variable name)
-2. Create first real brand account (Founder provides: brand name, email, password → Claude inserts via Railway Postgres → brand can log in)
+**Remaining activation actions (in order):**
+1. Akedly dashboard: Activate pipeline 6a8338c061a103e7b2ccc936 (currently INACTIVE)
+2. Railway env vars: Update AKEDLY_PIPELINE_ID to 6a8338c061a103e7b2ccc936
+3. Railway env vars: DELETE AKEDLY_TEMPLATE_ID and AKEDLY_OTP_VAR (no longer used by V1.2)
+4. Railway redeploy: triggers automatically on env var change
+5. Akedly dashboard: Temporarily enable Dev Mode + Bypass PoW for development testing
+6. Build new Flutter APK: `flutter build apk --release --dart-define=API_BASE=...`
+7. Test end-to-end OTP flow with a real Egyptian phone number (Dev Mode)
+8. Akedly dashboard: Disable Dev Mode before real pilot
+9. Create first real brand account (Founder provides: brand name, email, password)
+
+Note: AKEDLY_API_KEY is already set in Railway — do NOT change it.
 
 After both: Brand logs in → creates campaign → generates QR → prints on samples → first real consumers scan → real pilot begins.
 

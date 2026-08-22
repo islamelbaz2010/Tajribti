@@ -27,12 +27,16 @@ export default function JoinPage() {
         {campaign.description && (
           <p style={s.desc}>{campaign.description}</p>
         )}
-        <div style={s.reward}>
-          <span style={s.rewardNum}>{campaign.rewardPoints}</span>
-          <span style={s.rewardLabel}>نقطة مكافأة</span>
-        </div>
+        {campaign.rewardPoints > 0 && (
+          <div style={s.reward}>
+            <span style={s.rewardNum}>{campaign.rewardPoints}</span>
+            <span style={s.rewardLabel}>نقطة مكافأة</span>
+          </div>
+        )}
         <p style={s.steps}>
-          جرّب المنتج → أجب على ٥ أسئلة → واحصل على نقاطك
+          {campaign.rewardPoints > 0
+            ? 'جرّب المنتج → أجب على ٥ أسئلة → واحصل على نقاطك'
+            : 'جرّب المنتج → أجب على ٥ أسئلة → وشاركنا رأيك'}
         </p>
         <button style={s.btn} onClick={() => navigate(`/join/${campaignId}/phone`)}>
           ابدأ التجربة

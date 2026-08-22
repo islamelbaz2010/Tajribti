@@ -10,6 +10,7 @@
 
 | Version | Date | Summary |
 |---|---|---|
+| v6.6 | 2026-08-23 | Session I — Product Completion V0.5: CONFLICT-D resolved (DL-050); BD-13 bounded exception (DL-051); Discovery-First consumer product built; 980 insertions across 17 files; commit 0ae48d1; CI triggered |
 | v6.5 | 2026-08-19 | Session G — Assessment Preparation: Chat Context Extraction (2026-08-18 snapshot) + Decision Reconciliation; 4 conflicts, 2 unformalized management changes, 3 material uncommitted deltas documented; no code changes |
 | v6.4 | 2026-08-18 | Session F — OTP Flow Fix: root cause proven (Flutter null-cast on challengeRequired=false); two-file fix implemented and TypeScript-verified; implementation report produced |
 | v6.3 | 2026-08-17 | Session 5b — Akedly V1.2 Hardening & Acceptance Pass: DEFECT-01 fixed (DEMO_MODE path); formal acceptance report produced; verdict B |
@@ -30,6 +31,53 @@
 | v3.0 | 2026-07-27 | Long-term development governance layer added (9 new files) |
 | v2.0 | 2026-07-27 | Enterprise Knowledge Architect audit + 26 improvements applied |
 | v1.0 | 2026-07-26 | Initial workspace built from 14 inbox source files (14-phase build) |
+
+---
+
+## [v6.6] — 2026-08-23 — Session I: Product Completion V0.5 (Discovery-First Consumer Product)
+
+### Session type
+
+Full engineering sprint (code + governance). CONFLICT-D formally resolved, V0.5 authorization recorded, Discovery-First consumer product implemented. 17 files changed, 980 insertions.
+
+### Governance Decisions
+
+| Decision | Status |
+|---|---|
+| DL-050 — CONFLICT-D RESOLVED: Discovery-First is the target consumer product experience from V0.5 | LOCKED |
+| DL-051 — BD-13 BOUNDED EXCEPTION: V0.5 engineering authorized (pilot completion scope only) | LOCKED |
+
+### Code Changes (commit 0ae48d1)
+
+| Layer | Change |
+|---|---|
+| Backend — `campaign.controller.ts` | `@Public()` on GET /campaigns — consumers browse without auth |
+| Backend — `qr.service.ts` | `enterCampaignWeb()` auto-creates QR for discovery-first entry |
+| Backend — `auth.service.ts` | `getMe()` returns totalPoints + recentCampaigns (computed from redemptions join) |
+| Flutter — `models.dart` | `ConsumerProfile`, `ParticipationRecord` models added |
+| Flutter — `api_client.dart` | `getActiveCampaigns()`, `getConsumerProfile()` methods added |
+| Flutter — `l10n.dart` | 13 new/updated localization keys (AR + EN) for Home/Discovery |
+| Flutter — `home_screen.dart` | Complete real Discovery Home: campaign cards, profile banner, activity history, QR CTA |
+| Flutter — `splash_screen.dart` | Routing → `/home` (Discovery-First, DL-050) |
+| Flutter — `campaign_screen.dart` | Back button added; error state routes to `/home` |
+
+### Validation
+
+| Check | Result |
+|---|---|
+| Backend TypeScript | CLEAN |
+| Dashboard build | CLEAN |
+| Flutter analyze | BLOCKED (macOS 13 / DL-048) |
+| CI APK build | TRIGGERED (push to sprint/pilot-readiness-mvp, commit 0ae48d1) |
+| Real device | PENDING (waiting for CI APK) |
+
+### Governance Files Updated
+
+- `workspace/15_Decisions/DECISION_LOG.md` — Phase 4 (DL-050, DL-051)
+- `workspace/15_Decisions/OPEN_DECISIONS_TRACKER.md` — CONFLICT-D RESOLVED; V0.5 AUTHORIZED
+- `workspace/AI_BOOTSTRAP/02_PROJECT_STATE.md` — Phase updated
+- `workspace/AI_BOOTSTRAP/14_CONTEXT_INDEX.md` — Session I added
+- `workspace/16_Reports/PRODUCT_COMPLETION_V0_5_EXECUTION_REPORT_2026-08-23.md` — This session's final report
 
 ---
 

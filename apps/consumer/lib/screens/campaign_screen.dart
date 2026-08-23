@@ -138,8 +138,6 @@ class _CampaignScreenState extends State<CampaignScreen> {
       );
     }
 
-    final campaign = _campaign!;
-
     if (_alreadyCompleted) {
       return Directionality(
         textDirection: context.dir,
@@ -196,6 +194,8 @@ class _CampaignScreenState extends State<CampaignScreen> {
         ),
       );
     }
+
+    final campaign = _campaign!;
 
     return Directionality(
       textDirection: context.dir,

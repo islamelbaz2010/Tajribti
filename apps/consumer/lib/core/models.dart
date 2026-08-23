@@ -71,7 +71,7 @@ class RedemptionResult {
 
   factory RedemptionResult.fromJson(Map<String, dynamic> json) => RedemptionResult(
         redemptionId: json['redemptionId'] as String? ?? json['id'] as String? ?? '',
-        pointsEarned: json['pointsEarned'] as int? ?? 0,
+        pointsEarned: json['pointsEarned'] as int? ?? json['rewardPoints'] as int? ?? 0,
       );
 }
 

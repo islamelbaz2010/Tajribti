@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
@@ -58,6 +59,12 @@ class _SurveyScreenState extends State<SurveyScreen> {
       if (!mounted) return;
       context.go('/thankyou', extra: widget.pointsEarned);
     } catch (e) {
+      if (e is DioException && e.response?.statusCode == 409) {
+        // Survey already submitted for this redemption — navigate to ThankYou
+        if (!mounted) return;
+        context.go('/thankyou', extra: widget.pointsEarned);
+        return;
+      }
       setState(() {
         _submitting = false;
         _error = '_submitFail';

@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
@@ -62,6 +63,13 @@ class _CampaignScreenState extends State<CampaignScreen> {
       });
     } catch (e) {
       if (!mounted) return;
+      if (e is DioException && e.response?.statusCode == 401) {
+        // JWT expired — clear stored tokens and re-authenticate
+        await AuthService.logout();
+        if (!mounted) return;
+        context.go('/phone');
+        return;
+      }
       setState(() { _entering = false; _error = '_entryFail'; });
     }
   }

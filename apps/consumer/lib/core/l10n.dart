@@ -158,6 +158,29 @@ class AppStr {
   String get homeReady          => ar ? 'جاهز لتجربة جديدة؟'               : 'Ready for a new trial?';
   String get homeSub            => ar ? 'امسح رمز QR على المنتج لتبدأ تجربتك وتشارك رأيك' : 'Scan the QR code on the product to start your trial and share your feedback';
 
+  // ── Profile ───────────────────────────────────────────────────────────────
+  String get profileTitle    => ar ? 'ملفي الشخصي'               : 'My Profile';
+  String get campaignsLabel  => ar ? 'حملة'                       : 'campaigns';
+  String get myActivityFull  => ar ? 'نشاطاتي'                   : 'My Activity';
+  String get seeAll          => ar ? 'عرض الكل'                  : 'See all';
+
+  // ── Settings ─────────────────────────────────────────────────────────────
+  String get settingsTitle   => ar ? 'الإعدادات'                  : 'Settings';
+  String get languageLabel   => ar ? 'اللغة'                      : 'Language';
+  String get arabicLang      => ar ? 'العربية'                    : 'Arabic';
+  String get englishLang     => ar ? 'الإنجليزية'                 : 'English';
+  String get accountLabel    => ar ? 'الحساب'                     : 'Account';
+  String get signOut         => ar ? 'تسجيل الخروج'               : 'Sign Out';
+  String get signOutConfirm  => ar ? 'هل تريد تسجيل الخروج؟'    : 'Sign out of your account?';
+  String get cancel          => ar ? 'إلغاء'                      : 'Cancel';
+
+  // ── Activity ──────────────────────────────────────────────────────────────
+  String get activityTitle   => ar ? 'نشاطاتي'                   : 'My Activity';
+  String get noActivity      => ar ? 'لا يوجد نشاط بعد'          : 'No activity yet';
+  String get noActivitySub   => ar ? 'شارك في حملة لتجد نشاطك هنا' : 'Participate in a campaign to see your activity here';
+  String get loginToSeeActivity => ar ? 'سجّل الدخول لعرض نشاطك' : 'Sign in to view your activity';
+  String get signIn             => ar ? 'تسجيل الدخول'          : 'Sign In';
+
   // ── General ───────────────────────────────────────────────────────────────
   String get retry          => ar ? 'إعادة المحاولة'              : 'Try Again';
   String get loading        => ar ? 'جارٍ التحميل…'              : 'Loading…';

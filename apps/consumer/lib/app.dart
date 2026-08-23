@@ -11,6 +11,9 @@ import 'screens/register_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/survey_screen.dart';
 import 'screens/thank_you_screen.dart';
+import 'screens/profile_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/activity_screen.dart';
 
 final _router = GoRouter(
   initialLocation: '/',
@@ -45,6 +48,9 @@ final _router = GoRouter(
       path: '/thankyou',
       builder: (_, state) => ThankYouScreen(pointsEarned: state.extra as int? ?? 0),
     ),
+    GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
+    GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
+    GoRoute(path: '/activity', builder: (_, __) => const ActivityScreen()),
   ],
 );
 

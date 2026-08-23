@@ -50,17 +50,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _logout(BuildContext context) async {
-    JourneySession.clear();
-    await AuthService.logout();
-    if (!context.mounted) return;
-    setState(() {
-      _loggedIn = false;
-      _profile = null;
-    });
-    _load();
-  }
-
   void _enterCampaign(String campaignId) {
     JourneySession.start(campaignId);
     context.go('/campaign');
@@ -97,9 +86,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             if (_loggedIn)
               IconButton(
-                icon: const Icon(Icons.logout, color: Colors.white70),
-                onPressed: () => _logout(context),
-                tooltip: s.logout,
+                icon: const Icon(Icons.person_rounded, color: Colors.white),
+                onPressed: () => context.push('/profile'),
+                tooltip: s.profileTitle,
               ),
           ],
         ),
@@ -120,7 +109,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   slivers: [
                     // ── Profile banner (logged-in only) ──────────────────
                     if (_loggedIn)
-                      SliverToBoxAdapter(child: _ProfileBanner(profile: _profile, s: s)),
+                      SliverToBoxAdapter(
+                        child: GestureDetector(
+                          onTap: () => context.push('/profile'),
+                          child: _ProfileBanner(profile: _profile, s: s),
+                        ),
+                      ),
 
                     // ── Campaign section header ───────────────────────────
                     SliverToBoxAdapter(
@@ -164,13 +158,35 @@ class _HomeScreenState extends State<HomeScreen> {
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
-                          child: Text(
-                            s.myActivity,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: kPrimary,
-                            ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  s.myActivity,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: kPrimary,
+                                  ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => context.push('/activity'),
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: const Size(0, 0),
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: Text(
+                                  s.seeAll,
+                                  style: const TextStyle(
+                                    color: kAccent,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),

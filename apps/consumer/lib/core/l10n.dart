@@ -73,7 +73,9 @@ class AppStr {
   String get startTrial     => ar ? 'ابدأ التجربة'                 : 'Start the Trial';
   String get campaignError  => ar ? 'تعذر تحميل بيانات الحملة'    : 'Could not load campaign';
   String get campaignNotFound=> ar ? 'لم يتم التعرف على الحملة'   : 'Campaign not recognized';
-  String get entryError     => ar ? 'تعذر الدخول إلى الحملة. حاول مرة أخرى.' : 'Could not enter campaign. Please try again.';
+  String get entryError          => ar ? 'تعذر الدخول إلى الحملة. حاول مرة أخرى.' : 'Could not enter campaign. Please try again.';
+  String get alreadyParticipated => ar ? 'شاركت سابقاً'                            : 'Already Participated';
+  String get alreadyParticipatedSub => ar ? 'شاركت في هذه الحملة من قبل وحصلت على مكافأتك.'  : 'You already participated in this campaign and earned your reward.';
 
   // ── Phone ─────────────────────────────────────────────────────────────────
   String get welcome        => ar ? 'مرحباً بك'                   : 'Welcome';
@@ -126,7 +128,9 @@ class AppStr {
   String get optional       => ar ? '(اختياري)'                   : '(optional)';
   String get writeOpinion   => ar ? 'اكتب رأيك هنا…'             : 'Write your opinion here…';
   String get surveyError    => ar ? 'تعذر تحميل الاستبيان'        : 'Could not load the survey';
-  String get submitError    => ar ? 'تعذر إرسال الإجابات. حاول مرة أخرى.' : 'Could not send answers. Please try again.';
+  String get submitError         => ar ? 'تعذر إرسال الإجابات. حاول مرة أخرى.' : 'Could not send answers. Please try again.';
+  String get alreadySubmitted    => ar ? 'تم إرسال إجابتك مسبقاً'              : 'Already Submitted';
+  String get alreadySubmittedSub => ar ? 'أرسلت إجاباتك على هذه الاستبانة من قبل.' : 'You have already submitted your answers for this survey.';
   String get scaleUnlikely  => ar ? 'غير محتمل'                   : 'Unlikely';
   String get scaleLikely    => ar ? 'محتمل جداً'                  : 'Very likely';
   String surveyProgress(int cur, int total) => '$cur / $total';

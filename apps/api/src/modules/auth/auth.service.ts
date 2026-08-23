@@ -296,6 +296,20 @@ export class AuthService {
     return { ...consumer, totalPoints, recentCampaigns };
   }
 
+  async refresh(refreshToken: string): Promise<TokenPair> {
+    let payload: JwtPayload;
+    try {
+      const refreshSecret = this.configService.getOrThrow<string>('JWT_REFRESH_SECRET');
+      payload = this.jwtService.verify<JwtPayload>(refreshToken, { secret: refreshSecret });
+    } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+    if (payload.type !== 'consumer') throw new UnauthorizedException('Token type not eligible for refresh');
+    const consumer = await this.consumerRepo.findOne({ where: { id: payload.sub } });
+    if (!consumer) throw new UnauthorizedException('Consumer not found');
+    return this.generateTokens(payload.sub, payload.identifier, 'consumer');
+  }
+
   private generateTokens(
     sub: string,
     identifier: string,

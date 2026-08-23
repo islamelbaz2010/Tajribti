@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'auth_service.dart';
 import 'constants.dart';
 import 'models.dart';
 
@@ -27,6 +28,46 @@ class ApiClient {
           response.data = response.data['data'];
         }
         handler.next(response);
+      },
+      onError: (error, handler) async {
+        // On 401, attempt a silent token refresh using the stored refresh token.
+        // The _retry flag prevents infinite loops if the refresh itself returns 401.
+        if (error.response?.statusCode == 401 &&
+            error.requestOptions.extra['_retry'] != true) {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final storedRefresh = prefs.getString(kRefreshTokenKey);
+            if (storedRefresh == null) {
+              handler.next(error);
+              return;
+            }
+            final refreshDio = Dio(BaseOptions(baseUrl: kApiBase));
+            final res = await refreshDio.post(
+              '/auth/refresh',
+              data: {'refreshToken': storedRefresh},
+            );
+            // Unwrap { data: { accessToken, refreshToken } } envelope if present
+            final body = (res.data is Map && res.data['data'] != null)
+                ? res.data['data'] as Map<String, dynamic>
+                : res.data as Map<String, dynamic>;
+            final newAccess = body['accessToken'] as String;
+            final newRefresh = body['refreshToken'] as String;
+            await AuthService.saveTokens(
+              accessToken: newAccess,
+              refreshToken: newRefresh,
+            );
+            // Retry the original request with the new access token
+            final opts = error.requestOptions;
+            opts.headers['Authorization'] = 'Bearer $newAccess';
+            opts.extra['_retry'] = true;
+            final response = await _dio.fetch(opts);
+            handler.resolve(response);
+            return;
+          } catch (_) {
+            // Refresh failed (token expired > 7d or revoked) — pass 401 through to caller
+          }
+        }
+        handler.next(error);
       },
     ));
   }

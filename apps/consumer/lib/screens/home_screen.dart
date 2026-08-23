@@ -103,7 +103,15 @@ class _HomeScreenState extends State<HomeScreen> {
             : RefreshIndicator(
                 onRefresh: _load,
                 color: kPrimary,
-                child: CustomScrollView(
+                child: Builder(
+                  builder: (context) {
+                    final participatedIds = (_loggedIn && _profile != null)
+                        ? _profile!.recentCampaigns.map((r) => r.campaignId).toSet()
+                        : <String>{};
+                    final availableCampaigns = _campaigns
+                        .where((c) => !participatedIds.contains(c.id))
+                        .toList();
+                    return CustomScrollView(
                   slivers: [
                     // ── Profile banner (logged-in only) ──────────────────
                     if (_loggedIn)
@@ -124,10 +132,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
 
-                    // ── Campaign cards ────────────────────────────────────
+                    // ── Campaign cards (exclude already-participated) ──────
                     if (_error != null)
                       SliverFillRemaining(child: _ErrorState(error: s.loadError, onRetry: _load))
-                    else if (_campaigns.isEmpty)
+                    else if (availableCampaigns.isEmpty)
                       SliverToBoxAdapter(child: _EmptyState(s: s))
                     else
                       SliverPadding(
@@ -135,11 +143,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         sliver: SliverList(
                           delegate: SliverChildBuilderDelegate(
                             (_, i) => _CampaignCard(
-                              campaign: _campaigns[i],
+                              campaign: availableCampaigns[i],
                               s: s,
-                              onTap: () => _enterCampaign(_campaigns[i].id),
+                              onTap: () => _enterCampaign(availableCampaigns[i].id),
                             ),
-                            childCount: _campaigns.length,
+                            childCount: availableCampaigns.length,
                           ),
                         ),
                       ),
@@ -183,6 +191,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ],
+                    );
+                  },
                 ),
               ),
       ),

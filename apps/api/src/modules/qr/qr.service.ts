@@ -89,6 +89,7 @@ export class QrService {
     redemptionId: string;
     productName: string;
     rewardPoints: number;
+    alreadyCompleted?: boolean;
   }> {
     const existingQr = await this.qrRepo.findOne({
       where: [
@@ -130,15 +131,16 @@ export class QrService {
 
     const existingRedemption = await this.redemptionRepo.findOne({
       where: { consumerId, campaignId },
+      relations: ['surveyResponse'],
     });
 
     if (existingRedemption) {
-      // Return the existing redemption so the consumer can continue to the survey
       return {
         success: true,
         redemptionId: existingRedemption.id,
         productName: campaign.productName,
         rewardPoints: campaign.rewardPoints,
+        alreadyCompleted: !!existingRedemption.surveyResponse,
       };
     }
 

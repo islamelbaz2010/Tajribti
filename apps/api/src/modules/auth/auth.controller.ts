@@ -85,6 +85,18 @@ export class AuthController {
   }
 
   /**
+   * POST /api/v1/auth/refresh
+   * Exchange a valid refresh token for a new access + refresh token pair.
+   * Does not require a current access token — consumers use this when the 15m access token expires.
+   */
+  @Public()
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  refresh(@Body() body: { refreshToken: string }) {
+    return this.authService.refresh(body.refreshToken);
+  }
+
+  /**
    * GET /api/v1/auth/me
    * Return current consumer profile from JWT.
    */

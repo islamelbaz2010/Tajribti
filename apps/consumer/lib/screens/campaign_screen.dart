@@ -20,6 +20,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
   Campaign? _campaign;
   bool _loading = true;
   bool _entering = false;
+  bool _alreadyCompleted = false;
   String? _error;
 
   @override
@@ -54,8 +55,12 @@ class _CampaignScreenState extends State<CampaignScreen> {
     setState(() => _entering = true);
     try {
       final result = await apiClient.enterCampaign(JourneySession.campaignId!);
-      JourneySession.setRedemption(result.redemptionId, result.pointsEarned);
       if (!mounted) return;
+      if (result.alreadyCompleted) {
+        setState(() { _alreadyCompleted = true; _entering = false; });
+        return;
+      }
+      JourneySession.setRedemption(result.redemptionId, result.pointsEarned);
       context.go('/survey', extra: {
         'redemptionId': result.redemptionId,
         'campaignId': JourneySession.campaignId!,
@@ -64,7 +69,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
     } catch (e) {
       if (!mounted) return;
       if (e is DioException && e.response?.statusCode == 401) {
-        // JWT expired — clear stored tokens and re-authenticate
+        // Refresh token also expired (>7d) — full re-authentication required
         await AuthService.logout();
         if (!mounted) return;
         context.go('/phone');
@@ -127,6 +132,64 @@ class _CampaignScreenState extends State<CampaignScreen> {
     }
 
     final campaign = _campaign!;
+
+    if (_alreadyCompleted) {
+      return Directionality(
+        textDirection: context.dir,
+        child: Scaffold(
+          backgroundColor: kBackground,
+          body: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFf0fdf4),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.check_circle_rounded, color: Color(0xFF15803d), size: 48),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      s.alreadyParticipated,
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: kPrimary),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      s.alreadyParticipatedSub,
+                      style: TextStyle(fontSize: 15, color: Colors.grey.shade600, height: 1.5),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 36),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: () => context.go('/home'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kPrimary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          elevation: 0,
+                        ),
+                        child: Text(s.backHome, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Directionality(
       textDirection: context.dir,
       child: Scaffold(

@@ -1,7 +1,7 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-08-23 (Session I — Product Completion V0.5; CONFLICT-D resolved; Discovery-First enabled; real HomeScreen + campaign discovery built)
+**Last updated:** 2026-08-23 (Product semantics fix committed c734d39; CI Run #11 triggered — awaiting build + device test)
 
 ---
 
@@ -62,11 +62,24 @@
       Arabic   : Complete section titles, labels, narrative, methodology, findings in Arabic
       PDF name : Stamped with language suffix (-en / -ar) and date
 
-    What is NOT yet operational:
-      - Akedly V1.2 OTP production: pipeline 6a8338c061a103e7b2ccc936 NOT ACTIVATED (Dev Mode active)
-      - CI APK for V0.5: PENDING (requires commit + push to GitHub Actions)
+    What is NOT yet confirmed:
+      - V0.5 ThankYou screen reached: PENDING FOUNDER VISUAL CONFIRMATION (device logs show clean flow, no errors, ~8min timeline consistent with full completion)
       - First real brand account: NOT CREATED
-      - Real consumer journey (production OTP): NOT VERIFIED (Dev Mode only verified)
+      - Akedly pipeline 6a8338c061a103e7b2ccc936: ACTIVATED (real OTP SMS confirmed 2026-08-23)
+
+    What WAS confirmed 2026-08-23 (commit 421d7aa → replaced by c734d39):
+      - CI Run #10: PASS on commit 421d7aa2
+      - APK #10 installed on TKINR8IJ5D9DSKQK — real device flow confirmed no crashes
+      - BUT: device testing revealed 4 product-level semantic bugs (see commit c734d39)
+
+    What WAS committed 2026-08-23 (commit c734d39 — CI Run #11 triggered):
+      - Backend: POST /auth/refresh endpoint (JWT_REFRESH_SECRET; stateless; @Public)
+      - Backend: enterCampaignWeb returns alreadyCompleted flag (loads surveyResponse relation)
+      - Flutter: Dio 401 interceptor silently refreshes access token; OTP no longer required on expiry
+      - Flutter: campaign_screen shows "Already Participated" when alreadyCompleted=true
+      - Flutter: survey_screen 409 → "Already Submitted" state (NOT ThankYou false-reward)
+      - Flutter: home_screen filters availableCampaigns to exclude participated campaign IDs
+      - 9 files, CI Run #11 PENDING
 
     What WAS verified (2026-08-18):
       - OTP Dev Mode: REAL-DEVICE CONFIRMED on OPPO CPH2481 (SMS received: 832719)

@@ -10,6 +10,8 @@
 
 | Version | Date | Summary |
 |---|---|---|
+| v6.8 | 2026-08-23 | Product Semantics Fix: JWT refresh endpoint added; alreadyCompleted flag; 409→Already-Submitted; home filters participated; 9 files, commit c734d39 |
+| v6.7 | 2026-08-23 | Auth + Survey fixes: 401 expired-JWT → re-auth; 409 duplicate-survey → ThankYou; rewardPoints mapping fixed; 3 Flutter files, pending commit |
 | v6.6 | 2026-08-23 | Session I — Product Completion V0.5: CONFLICT-D resolved (DL-050); BD-13 bounded exception (DL-051); Discovery-First consumer product built; 980 insertions across 17 files; commit 0ae48d1; CI triggered |
 | v6.5 | 2026-08-19 | Session G — Assessment Preparation: Chat Context Extraction (2026-08-18 snapshot) + Decision Reconciliation; 4 conflicts, 2 unformalized management changes, 3 material uncommitted deltas documented; no code changes |
 | v6.4 | 2026-08-18 | Session F — OTP Flow Fix: root cause proven (Flutter null-cast on challengeRequired=false); two-file fix implemented and TypeScript-verified; implementation report produced |
@@ -31,6 +33,82 @@
 | v3.0 | 2026-07-27 | Long-term development governance layer added (9 new files) |
 | v2.0 | 2026-07-27 | Enterprise Knowledge Architect audit + 26 improvements applied |
 | v1.0 | 2026-07-26 | Initial workspace built from 14 inbox source files (14-phase build) |
+
+---
+
+## [v6.8] — 2026-08-23 — Product Semantics Fix: Reward Lifecycle + Auth Persistence + Campaign State (9 files)
+
+### Session type
+
+Full product-level fix based on Founder device testing. Audit → design → implementation → commit in single session.
+
+### Root Causes Fixed
+
+| # | Root Cause | Fix |
+|---|---|---|
+| RC-1 | No `/auth/refresh` endpoint existed; 15m access token expiry forced OTP re-auth | Added `POST /auth/refresh` (backend); Dio interceptor silently retries with refresh token (Flutter) |
+| RC-2 | `enterCampaignWeb` returned existing redemption without checking `survey_response` existence; no way for frontend to know campaign was already completed | Added `relations: ['surveyResponse']` + `alreadyCompleted` flag to API response |
+| RC-3 | 409 handler in `survey_screen` navigated to ThankYou showing "+50 points" — false reward implication | 409 now shows "Already Submitted" inline state; ThankYou navigation removed from 409 path |
+| RC-4 | Home screen showed ALL active campaigns regardless of consumer participation state | `home_screen` now computes `participatedIds` from `profile.recentCampaigns` and filters `availableCampaigns` |
+
+### Files Changed (9)
+
+**Backend (3):**
+- `apps/api/src/modules/auth/auth.controller.ts` — `POST /auth/refresh` endpoint (@Public)
+- `apps/api/src/modules/auth/auth.service.ts` — `refresh()` method: verifies JWT_REFRESH_SECRET, checks consumer exists, issues new token pair
+- `apps/api/src/modules/qr/qr.service.ts` — `enterCampaignWeb`: loads `surveyResponse` relation; returns `alreadyCompleted: !!existingRedemption.surveyResponse`
+
+**Flutter (6):**
+- `apps/consumer/lib/core/api_client.dart` — `onError` interceptor: 401 → try POST /auth/refresh → retry; if refresh fails pass 401 through
+- `apps/consumer/lib/core/models.dart` — `RedemptionResult.alreadyCompleted: bool` field
+- `apps/consumer/lib/core/l10n.dart` — `alreadyParticipated`, `alreadyParticipatedSub`, `alreadySubmitted`, `alreadySubmittedSub` (AR+EN)
+- `apps/consumer/lib/screens/campaign_screen.dart` — `_alreadyCompleted` state; "Already Participated" UI on `alreadyCompleted: true`; 401 comment updated
+- `apps/consumer/lib/screens/survey_screen.dart` — `_alreadySubmitted` state; "Already Submitted" UI on 409; ThankYou false-reward route removed
+- `apps/consumer/lib/screens/home_screen.dart` — `Builder` wrapper; `participatedIds` filter; `availableCampaigns` excludes participated campaigns
+
+### Commit
+
+`c734d39` — pushed to `sprint/pilot-readiness-mvp` — CI Run #11 triggered
+
+### Test Scenarios Required
+
+| Scenario | Expected |
+|---|---|
+| First participation (new phone or fresh data) | Splash → Home → Campaign → Phone → OTP → Survey → ThankYou(+50) → Home(50pts) |
+| Duplicate participation (same phone, same campaign) | Campaign → Campaign screen → "Already Participated" — NO ThankYou, NO reward implication |
+| Different campaign (second campaign, same phone) | Available on Home (not filtered); can participate; earns own reward |
+| Access token expired (15m after last OTP) | Silent refresh via interceptor; flow continues without OTP prompt |
+
+---
+
+## [v6.7] — 2026-08-23 — Auth + Survey Submission Fixes (3 Flutter files)
+
+### Session type
+
+Bug diagnosis and fix (3 Flutter files, no backend changes). Two confirmed root causes identified and fixed.
+
+### Root Causes
+
+**Bug 1 — "Could not enter campaign"** (`campaign_screen.dart`):
+JWT access token expires after 15m (`JWT_ACCESS_EXPIRY=15m` default). `AuthService.isLoggedIn()` only checks key existence, not expiry. Returning consumer with expired JWT calls `enterCampaign()`, receives 401 from `JwtAuthGuard`, sees "Could not enter campaign." Fix: detect 401 in `_start()`, call `AuthService.logout()`, redirect to `/phone`.
+
+**Bug 2 — "Could not send answers"** (`survey_screen.dart`):
+`_submit()` caught all exceptions generically. HTTP 409 `ConflictException` (survey already submitted) displayed as error. Fix: detect 409 specifically, navigate to ThankYou (409 = already completed = success state).
+
+**Bug 3 — ThankYou shows 0 points** (`models.dart`):
+`RedemptionResult.fromJson` read `json['pointsEarned']` but API returns `rewardPoints`. Fix: fallback chain `pointsEarned ?? rewardPoints ?? 0`.
+
+### Code Changes (pending commit)
+
+| File | Change |
+|------|--------|
+| `apps/consumer/lib/screens/campaign_screen.dart` | `+import 'package:dio/dio.dart'`; `_start()` detects 401 → `AuthService.logout()` → `/phone` |
+| `apps/consumer/lib/screens/survey_screen.dart` | `+import 'package:dio/dio.dart'`; `_submit()` detects 409 → `/thankyou` |
+| `apps/consumer/lib/core/models.dart` | `RedemptionResult.fromJson` reads `pointsEarned ?? rewardPoints ?? 0` |
+
+### Status
+
+PENDING: Founder authorization to commit + push → CI build → device validation.
 
 ---
 

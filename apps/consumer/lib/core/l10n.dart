@@ -181,6 +181,20 @@ class AppStr {
   String get loginToSeeActivity => ar ? 'سجّل الدخول لعرض نشاطك' : 'Sign in to view your activity';
   String get signIn             => ar ? 'تسجيل الدخول'          : 'Sign In';
 
+  // ── Services / About ─────────────────────────────────────────────────────
+  String get servicesTitle     => ar ? 'عن تجربتي'                        : 'About Tajribti';
+  String get servicesTagline   => ar ? 'منصّة تجربة المنتجات ورأيك'      : 'The product-trial and feedback platform';
+  String get servicesIntro     => ar ? 'تجربتي تربطك بعينات مجانية من علامات تجارية حقيقية. تجرّب المنتج، تشارك رأيك الصادق في استبيان قصير، وتحصل على نقاط مقابل وقتك.'
+                                       : 'Tajribti connects you with free samples from real brands. Try the product, share your honest opinion in a short survey, and earn points for your time.';
+  String get servicesHowItWorks    => ar ? 'كيف تعمل تجربتي'              : 'How Tajribti works';
+  String get servicesStepDiscover  => ar ? 'اكتشف عروضاً قريبة منك أو امسح رمز QR في نقطة التفعيل' : 'Discover offers near you, or scan a QR code at an activation point';
+  String get servicesStepTry       => ar ? 'جرّب المنتج مجاناً'            : 'Try the product for free';
+  String get servicesStepShare     => ar ? 'شارك رأيك في استبيان قصير'    : 'Share your opinion in a short survey';
+  String get servicesStepEarn      => ar ? 'اكسب نقاط مكافأة'             : 'Earn reward points';
+  String get servicesCategories    => ar ? 'الفئات المتاحة'               : 'What you can try';
+  String get servicesCategoriesSub => ar ? 'منتجات استهلاكية سريعة، مستحضرات تجميل، ومنتجات صيدلانية بدون وصفة طبية' : 'FMCG, beauty, and pharma-OTC products';
+  String get servicesFooter        => ar ? 'العروض المتاحة تظهر في الصفحة الرئيسية عند إطلاقها من قبل العلامات التجارية الشريكة.' : 'Available offers appear on the Home screen as partner brands launch them.';
+
   // ── General ───────────────────────────────────────────────────────────────
   String get retry          => ar ? 'إعادة المحاولة'              : 'Try Again';
   String get loading        => ar ? 'جارٍ التحميل…'              : 'Loading…';

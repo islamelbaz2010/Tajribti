@@ -52,12 +52,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _enterCampaign(String campaignId) {
     JourneySession.start(campaignId);
-    context.go('/campaign');
+    context.push('/campaign');
   }
 
   void _openCompletedCampaign(String campaignId) {
     JourneySession.start(campaignId);
-    context.go('/campaign', extra: true);
+    context.push('/campaign', extra: true);
   }
 
   @override
@@ -83,6 +83,11 @@ class _HomeScreenState extends State<HomeScreen> {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 4),
               child: Center(child: LangToggle(light: true)),
+            ),
+            IconButton(
+              icon: const Icon(Icons.info_outline_rounded, color: Colors.white),
+              onPressed: () => context.push('/services'),
+              tooltip: s.servicesTitle,
             ),
             if (_loggedIn)
               IconButton(
@@ -563,7 +568,7 @@ class _QrCtaCard extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           ElevatedButton(
-            onPressed: () => context.go('/scanner'),
+            onPressed: () => context.push('/scanner'),
             style: ElevatedButton.styleFrom(
               backgroundColor: kPrimary,
               foregroundColor: Colors.white,

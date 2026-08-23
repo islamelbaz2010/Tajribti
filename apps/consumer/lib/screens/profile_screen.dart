@@ -157,6 +157,12 @@ class _ProfileBody extends StatelessWidget {
                   label: s.settingsTitle,
                   onTap: () => context.push('/settings'),
                 ),
+                const SizedBox(height: 12),
+                _ProfileTile(
+                  icon: Icons.info_outline_rounded,
+                  label: s.servicesTitle,
+                  onTap: () => context.push('/services'),
+                ),
               ],
             ),
           ),

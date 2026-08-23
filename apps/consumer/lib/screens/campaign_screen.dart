@@ -55,7 +55,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
     if (!mounted) return;
 
     if (!loggedIn) {
-      context.go('/phone');
+      context.push('/phone');
       return;
     }
 
@@ -79,7 +79,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
         // Refresh token also expired (>7d) — full re-authentication required
         await AuthService.logout();
         if (!mounted) return;
-        context.go('/phone');
+        context.push('/phone');
         return;
       }
       setState(() { _entering = false; _error = '_entryFail'; });

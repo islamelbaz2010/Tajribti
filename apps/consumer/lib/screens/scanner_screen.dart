@@ -67,7 +67,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
     JourneySession.start(campaignId);
     if (!mounted) return;
-    context.go('/campaign');
+    context.push('/campaign');
   }
 
   @override

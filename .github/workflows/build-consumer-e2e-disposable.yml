@@ -1,0 +1,99 @@
+# ============================================================
+# DISPOSABLE E2E ONLY — DO NOT USE FOR PRODUCTION
+# ============================================================
+# Builds a disposable APK targeting the isolated local API at
+# http://localhost:3010/api/v1 (reached via ADB reverse tunnel).
+#
+# Source SHA: ad71117fe4d7db2fa59bd9a476684cd95607e440
+# Runtime: adb reverse tcp:3010 tcp:3010 must be active before install.
+# Cleanup: Delete this artifact and workflow after E2E validation.
+# ============================================================
+
+name: Consumer Android APK — Disposable E2E
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-e2e-apk:
+    name: Build Disposable E2E APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository at verified SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ad71117fe4d7db2fa59bd9a476684cd95607e440
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter 3.44.8
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+          cache: true
+
+      - name: Verify Flutter version
+        run: flutter --version
+
+      - name: Generate missing Android platform files
+        working-directory: apps/consumer
+        run: |
+          cp android/app/src/main/AndroidManifest.xml /tmp/AndroidManifest_main.xml.bak
+          cp pubspec.yaml /tmp/pubspec.yaml.bak
+          flutter create --org com.tajribti --platforms android --project-name consumer .
+          cp /tmp/AndroidManifest_main.xml.bak android/app/src/main/AndroidManifest.xml
+          cp /tmp/pubspec.yaml.bak pubspec.yaml
+
+      - name: Verify AndroidManifest.xml preserved
+        working-directory: apps/consumer
+        run: |
+          echo "=== AndroidManifest.xml ==="
+          cat android/app/src/main/AndroidManifest.xml
+          grep "CAMERA" android/app/src/main/AndroidManifest.xml && echo "CAMERA: OK"
+          grep "INTERNET" android/app/src/main/AndroidManifest.xml && echo "INTERNET: OK"
+          grep "تجربتي" android/app/src/main/AndroidManifest.xml && echo "App label: OK"
+
+      - name: Install Flutter dependencies
+        working-directory: apps/consumer
+        run: flutter pub get
+
+      - name: Build disposable E2E APK
+        working-directory: apps/consumer
+        run: |
+          flutter build apk --release \
+            --dart-define=API_BASE=http://localhost:3010/api/v1
+
+      - name: Record E2E artifact metadata
+        run: |
+          APK_PATH="apps/consumer/build/app/outputs/flutter-apk/app-release.apk"
+          SHA256=$(sha256sum "$APK_PATH" | awk '{print $1}')
+          echo "Source SHA: ad71117fe4d7db2fa59bd9a476684cd95607e440"
+          echo "API_BASE: http://localhost:3010/api/v1 (isolated — ADB reverse tunnel)"
+          echo "APK SHA-256: $SHA256"
+          echo "Label: DISPOSABLE E2E ONLY"
+          echo "APK_SHA256=$SHA256" >> $GITHUB_ENV
+
+      - name: Verify APK exists
+        run: |
+          APK_PATH="apps/consumer/build/app/outputs/flutter-apk/app-release.apk"
+          if [ -f "$APK_PATH" ]; then
+            echo "APK produced successfully."
+            ls -lh "$APK_PATH"
+          else
+            echo "ERROR: APK not found."
+            exit 1
+          fi
+
+      - name: Upload disposable E2E APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DISPOSABLE-E2E-ONLY-${{ github.run_number }}
+          path: apps/consumer/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 3
+          if-no-files-found: error

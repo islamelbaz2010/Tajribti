@@ -10,7 +10,9 @@ import '../core/session.dart';
 import '../widgets/lang_toggle.dart';
 
 class CampaignScreen extends StatefulWidget {
-  const CampaignScreen({super.key});
+  final bool alreadyCompleted;
+
+  const CampaignScreen({super.key, this.alreadyCompleted = false});
 
   @override
   State<CampaignScreen> createState() => _CampaignScreenState();
@@ -26,6 +28,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
   @override
   void initState() {
     super.initState();
+    _alreadyCompleted = widget.alreadyCompleted;
     _load();
   }
 

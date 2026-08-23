@@ -137,8 +137,12 @@ class _OtpScreenState extends State<OtpScreen> {
       if (JourneySession.hasActiveCampaign) {
         try {
           final entry = await apiClient.enterCampaign(JourneySession.campaignId!);
-          JourneySession.setRedemption(entry.redemptionId, entry.pointsEarned);
           if (!mounted) return;
+          if (entry.alreadyCompleted) {
+            context.go('/campaign', extra: true);
+            return;
+          }
+          JourneySession.setRedemption(entry.redemptionId, entry.pointsEarned);
           context.go('/survey', extra: {
             'redemptionId': entry.redemptionId,
             'campaignId': JourneySession.campaignId!,

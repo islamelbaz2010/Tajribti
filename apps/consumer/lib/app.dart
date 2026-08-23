@@ -17,7 +17,12 @@ final _router = GoRouter(
   routes: [
     GoRoute(path: '/', builder: (_, __) => const SplashScreen()),
     GoRoute(path: '/scanner', builder: (_, __) => const ScannerScreen()),
-    GoRoute(path: '/campaign', builder: (_, __) => const CampaignScreen()),
+    GoRoute(
+      path: '/campaign',
+      builder: (_, state) => CampaignScreen(
+        alreadyCompleted: state.extra as bool? ?? false,
+      ),
+    ),
     GoRoute(path: '/phone', builder: (_, __) => const PhoneScreen()),
     GoRoute(
       path: '/otp',

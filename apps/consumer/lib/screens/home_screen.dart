@@ -66,6 +66,11 @@ class _HomeScreenState extends State<HomeScreen> {
     context.go('/campaign');
   }
 
+  void _openCompletedCampaign(String campaignId) {
+    JourneySession.start(campaignId);
+    context.go('/campaign', extra: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.l10n;
@@ -176,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             (_, i) => _ActivityTile(
                               record: _profile!.recentCampaigns[i],
                               s: s,
-                              onTap: () => _enterCampaign(_profile!.recentCampaigns[i].campaignId),
+                              onTap: () => _openCompletedCampaign(_profile!.recentCampaigns[i].campaignId),
                             ),
                             childCount: _profile!.recentCampaigns.length,
                           ),

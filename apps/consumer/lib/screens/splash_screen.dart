@@ -74,7 +74,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 46),
+                  child: const Icon(Icons.stars_rounded, color: Colors.white, size: 46),
                 ),
                 const SizedBox(height: 24),
                 const Text(

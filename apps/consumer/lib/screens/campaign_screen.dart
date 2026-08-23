@@ -29,7 +29,11 @@ class _CampaignScreenState extends State<CampaignScreen> {
   void initState() {
     super.initState();
     _alreadyCompleted = widget.alreadyCompleted;
-    _load();
+    if (_alreadyCompleted) {
+      _loading = false;
+    } else {
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -123,7 +127,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
                     const SizedBox(height: 24),
                     TextButton(
                       onPressed: () => context.go('/home'),
-                      child: Text(s.scanAnother, style: const TextStyle(color: kPrimary, fontSize: 16)),
+                      child: Text(s.backHome, style: const TextStyle(color: kPrimary, fontSize: 16)),
                     ),
                   ],
                 ),

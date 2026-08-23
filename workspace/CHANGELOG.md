@@ -79,6 +79,16 @@ Full engineering sprint (code + governance). CONFLICT-D formally resolved, V0.5 
 - `workspace/AI_BOOTSTRAP/14_CONTEXT_INDEX.md` — Session I added
 - `workspace/16_Reports/PRODUCT_COMPLETION_V0_5_EXECUTION_REPORT_2026-08-23.md` — This session's final report
 
+### Post-commit patch — Campaign image seed fix (2026-08-23)
+
+Investigation confirmed Android image decode warning was caused by demo campaign `productImage` URL returning `image/svg+xml`. Flutter `Image.network` correctly fires `errorBuilder` on SVG decode failure; the brand gradient fallback renders instead. Flutter image rendering required no change.
+
+| File | Change |
+|------|--------|
+| `apps/api/src/modules/admin/admin.service.ts:115` | Placeholder URL changed from `…/ffffff?text=Product` → `…/ffffff.png?text=Product`; new URL returns `content-type: image/png` (HTTP 200, 5,763 bytes) |
+
+**Live Railway demo campaign unchanged (intentional):** Campaign `9c370244-...` still contains the old SVG URL in PostgreSQL. Production reset/reseed was NOT executed — it would clear 49 seeded consumers, all survey responses, and QR codes. The existing `POST /admin/seed/reset` + `POST /admin/seed` mechanism is available for a future refresh when demo data can be cleared. No approved real Sprite Zero raster image exists in the repository.
+
 ---
 
 ## [v6.5] — 2026-08-19 — Session G: Assessment Preparation (Chat Context Extraction + Decision Reconciliation)

@@ -47,7 +47,7 @@ export default function CampaignDetail() {
     <div>
       <div style={styles.header}>
         <div>
-          <span style={styles.demoBadge}>DEMO CAMPAIGN</span>
+          {campaign.isDemo && <span style={styles.demoBadge}>DEMO CAMPAIGN</span>}
           <h1 style={styles.title}>Turn Trial Into Signal</h1>
           <p style={styles.sub}>Campaign details and QR activation code</p>
         </div>

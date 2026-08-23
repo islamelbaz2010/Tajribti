@@ -112,7 +112,7 @@ export class AdminService {
         brandAccountId: brand.id,
         brandName: brand.name,
         productName: this.configService.get('DEMO_PRODUCT_NAME') ?? 'Almaza Light',
-        productImage: 'https://placehold.co/400x400/1a1a2e/ffffff?text=Product',
+        productImage: 'https://placehold.co/400x400/1a1a2e/ffffff.png?text=Product',
         description: 'Experience the refreshing taste of our latest product. Try it for free and share your thoughts.',
         locationName: this.configService.get('DEMO_LOCATION_NAME') ?? 'City Stars Mall — Ground Floor Atrium',
         locationAddress: 'City Stars Mall, Omar Ibn Al-Khattab St, Nasr City, Cairo',

@@ -10,6 +10,7 @@
 
 | Version | Date | Summary |
 |---|---|---|
+| v6.10 | 2026-08-23 | V0.5 current-state correction: restored My Activity campaign navigation; CI Run #12 passed; device and multi-campaign validation blocked by authenticated APK artifact access and no campaign-creation UI |
 | v6.8 | 2026-08-23 | Product Semantics Fix: JWT refresh endpoint added; alreadyCompleted flag; 409→Already-Submitted; home filters participated; 9 files, commit c734d39 |
 | v6.7 | 2026-08-23 | Auth + Survey fixes: 401 expired-JWT → re-auth; 409 duplicate-survey → ThankYou; rewardPoints mapping fixed; 3 Flutter files, pending commit |
 | v6.6 | 2026-08-23 | Session I — Product Completion V0.5: CONFLICT-D resolved (DL-050); BD-13 bounded exception (DL-051); Discovery-First consumer product built; 980 insertions across 17 files; commit 0ae48d1; CI triggered |

@@ -176,6 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             (_, i) => _ActivityTile(
                               record: _profile!.recentCampaigns[i],
                               s: s,
+                              onTap: () => _enterCampaign(_profile!.recentCampaigns[i].campaignId),
                             ),
                             childCount: _profile!.recentCampaigns.length,
                           ),
@@ -430,25 +431,28 @@ class _CardBanner extends StatelessWidget {
 class _ActivityTile extends StatelessWidget {
   final ParticipationRecord record;
   final AppStr s;
-  const _ActivityTile({required this.record, required this.s});
+  final VoidCallback onTap;
+  const _ActivityTile({required this.record, required this.s, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: kPrimary.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: kPrimary.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
         children: [
           Container(
             width: 44,
@@ -499,6 +503,7 @@ class _ActivityTile extends StatelessWidget {
               ),
             ),
         ],
+        ),
       ),
     );
   }

@@ -171,9 +171,17 @@ export class AnalyticsService {
       q3Values.map((v) => String(v)),
     );
 
+    // Minimum quality gate for client-facing open feedback: reject empty,
+    // very short, or single-token entries (e.g. "test", "vvgv", "ok") that
+    // are not meaningful qualitative signal. This is a defensible minimum
+    // bar, not content rewriting — genuine short feedback with a space
+    // ("too sweet") still passes; single junk tokens do not.
+    const MIN_VERBATIM_LENGTH = 10;
     const verbatims = surveys
       .map((s) => s.answers['q5'])
-      .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+      .filter((v): v is string => typeof v === 'string')
+      .map((v) => v.trim())
+      .filter((v) => v.length >= MIN_VERBATIM_LENGTH && /\s/.test(v))
       .slice(0, 5);
 
     return {

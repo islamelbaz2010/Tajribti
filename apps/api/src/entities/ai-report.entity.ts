@@ -23,6 +23,9 @@ export class AiReport {
   @Column({ type: 'text' })
   narrative: string;
 
+  @Column({ name: 'narrative_ar', type: 'text', nullable: true })
+  narrativeAr: string | null;
+
   @Column({ name: 'response_count_at_generation', type: 'integer' })
   responseCountAtGeneration: number;
 

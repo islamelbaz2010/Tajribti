@@ -26,6 +26,8 @@ const AR = {
   verifiedSurveys: 'استجابة استبيان موثقة · تم الإنشاء',
   audienceIntro: 'أتمّ المستهلكون تجربة فعلية موثقة للمنتج في',
   audienceAuth: 'تحقق جميع المشاركين عبر رمز OTP على واتساب. تعكس البيانات الديموغرافية معلومات مُبلَّغاً عنها ذاتياً مجموعة مباشرة بعد التجربة.',
+  audienceIntroDemo: 'هذا قسم بيانات تجريبية يوضّح شكل ملف الجمهور في حملة حقيقية في',
+  audienceAuthDemo: 'الأرقام أدناه توضيحية وليست من مشاركين حقيقيين. في حملة حقيقية، يتحقق كل مشارك عبر رمز OTP على واتساب وتُجمع البيانات الديموغرافية مباشرة بعد التجربة الفعلية.',
   ageDistribution: 'التوزيع العمري',
   gender: 'الجنس',
   cityDistrict: 'المدينة / المنطقة',
@@ -69,6 +71,7 @@ const AR = {
   footerPlatform: 'تجربتي · منصة ذكاء المستهلك',
   footerNotForDist: 'بيانات تجريبية — غير مخصصة للتوزيع',
   footerGenerated: 'تم الإنشاء',
+  narrativeArMissing: '(الملخص التنفيذي بالعربية غير متاح لهذا التقرير المخزّن مؤقتاً — يُعرض النص الإنجليزي أعلاه.)',
 };
 
 export default function Report() {
@@ -250,14 +253,21 @@ export default function Report() {
           {/* ─── EXECUTIVE SUMMARY ─── */}
           <ReportSection title={t('Executive Summary', AR.s01)} num="01" isAr={isAr}>
             <div style={narrativeStyle}>
-              {report.narrative.split('\n').map((line, i) => {
-                if (!line.trim()) return <br key={i} />;
-                return (
-                  <p key={i} style={pg.narrativeLine}>
-                    {line}
-                  </p>
-                );
-              })}
+              {(isAr && report.narrativeAr ? report.narrativeAr : report.narrative)
+                .split('\n')
+                .map((line, i) => {
+                  if (!line.trim()) return <br key={i} />;
+                  return (
+                    <p key={i} style={pg.narrativeLine}>
+                      {line}
+                    </p>
+                  );
+                })}
+              {isAr && !report.narrativeAr && (
+                <p style={pg.narrativeMeta}>
+                  {AR.narrativeArMissing}
+                </p>
+              )}
             </div>
             <p style={pg.narrativeMeta}>
               {t(
@@ -283,10 +293,15 @@ export default function Report() {
           {/* ─── AUDIENCE PROFILE ─── */}
           <ReportSection title={t('Audience Profile', AR.s02)} num="02" isAr={isAr}>
             <p style={pg.sectionIntro}>
-              {t(
-                `${overview.totalRedemptions} consumers completed a verified physical product trial at ${campaign.locationName}. All participants authenticated via WhatsApp OTP. Demographics reflect self-reported data collected immediately post-trial.`,
-                `${AR.audienceIntro} ${campaign.locationName}. ${AR.audienceAuth}`
-              )}
+              {isDemo
+                ? t(
+                    `This section shows sample data illustrating what an audience profile looks like for a real campaign at ${campaign.locationName}. These figures are illustrative, not from real participants. In a live campaign, every participant authenticates via WhatsApp OTP and demographics are collected immediately post-trial.`,
+                    `${AR.audienceIntroDemo} ${campaign.locationName}. ${AR.audienceAuthDemo}`
+                  )
+                : t(
+                    `${overview.totalRedemptions} consumers completed a verified physical product trial at ${campaign.locationName}. All participants authenticated via WhatsApp OTP. Demographics reflect self-reported data collected immediately post-trial.`,
+                    `${AR.audienceIntro} ${campaign.locationName}. ${AR.audienceAuth}`
+                  )}
             </p>
 
             <div style={pg.demoGrid}>
@@ -440,8 +455,8 @@ export default function Report() {
                   type={t('Primary Segment', AR.primarySegment)}
                   heading={`${topGender.label}، ${topAge.label}`}
                   body={isAr
-                    ? `القطاع المهيمن هو المستجيبون من الفئة ${topGender.label} بأعمار ${topAge.label}، يمثلون ${topGender.percentage}% (الجنس) و${topAge.percentage}% (العمر) من مجموع المشاركين في التجربة.`
-                    : `The dominant consumer segment is ${topGender.label} respondents aged ${topAge.label}, representing ${topGender.percentage}% (gender) and ${topAge.percentage}% (age) of the trial cohort. Retail targeting and media placement should prioritize this demographic for initial launch.`
+                    ? `القطاع الأكبر ضمن هذه العينة هو المستجيبون من الفئة ${topGender.label} بأعمار ${topAge.label}، يمثلون ${topGender.percentage}% (الجنس) و${topAge.percentage}% (العمر) من مجموع المشاركين في التجربة. هذا وصف لتركيبة العينة، وليس دليلاً على أن هذا القطاع يمثل السوق المستهدف.`
+                    : `The largest segment within this sample is ${topGender.label} respondents aged ${topAge.label}, representing ${topGender.percentage}% (gender) and ${topAge.percentage}% (age) of the trial cohort. This describes sample composition — it is not evidence that this segment is the target market.`
                   }
                   positive
                 />
@@ -482,8 +497,8 @@ export default function Report() {
                   type={t('Geographic Concentration', AR.geoConcentration)}
                   heading={`${topCity.label} (${topCity.percentage}%)`}
                   body={isAr
-                    ? `${topCity.percentage}% من المشاركين في التجربة جاؤوا من ${topCity.label}. يوفر هذا التركيز قاعدة قوية لاستراتيجية التوسع بالتجزئة المتمركزة في ${topCity.label}.`
-                    : `${topCity.percentage}% of trial participants came from ${topCity.label}. This concentration provides a strong baseline for ${topCity.label}-focused retail expansion strategy.`
+                    ? `${topCity.percentage}% من المشاركين في التجربة جاؤوا من ${topCity.label}. هذا يعكس مكان إجراء التجربة، وليس بالضرورة دليلاً على أن ${topCity.label} هي أفضل سوق للتوسع بالتجزئة.`
+                    : `${topCity.percentage}% of trial participants came from ${topCity.label}. This reflects where the trial took place, not necessarily evidence that ${topCity.label} is the strongest market for retail expansion.`
                   }
                   positive
                 />
@@ -497,16 +512,16 @@ export default function Report() {
               <RecItem
                 num={1}
                 text={isAr
-                  ? `ركّز التوزيع الأولي للتجزئة على ${topCity?.label ?? campaign.locationName}. بيانات التجربة من هذا الموقع متاحة الآن لدعم قرارات التوزيع.`
-                  : `Focus initial retail distribution on ${topCity?.label ?? campaign.locationName}. Trial data from this location is now available to support placement decisions.`
+                  ? `${topCity?.label ?? campaign.locationName} كانت موقع هذه التجربة وليست بالضرورة أفضل سوق للتوزيع. فكّر في التحقق من الإشارة عبر تجربة إضافية في موقع آخر قبل اتخاذ قرار توزيع كبير بناءً على هذا الموقع وحده.`
+                  : `${topCity?.label ?? campaign.locationName} was this trial's location, not necessarily the strongest retail market — sample concentration here reflects where the trial ran, not proven market demand. Consider validating with an additional trial location before committing distribution decisions to this area alone.`
                 }
               />
               {topAge && topGender && (
                 <RecItem
                   num={2}
                   text={isAr
-                    ? `أعطِ الأولوية لفئة ${topGender.label} بأعمار ${topAge.label} في الميزانية الإعلامية واستراتيجية المؤثرين. هذا القطاع سجّل أعلى نسبة مشاركة في التجربة.`
-                    : `Prioritize ${topGender.label} ${topAge.label} in media and influencer strategy. This segment represents the highest trial participation and likely the highest purchase intent.`
+                    ? `سجّلت فئة ${topGender.label} بعمر ${topAge.label} أعلى نسبة مشاركة ضمن هذه العينة${overview.surveyCompletions < 30 ? ' الصغيرة' : ''}. هذا مؤشر توجيهي، وليس دليلاً على أن هذا القطاع هو السوق المستهدف الأساسي — يُقترح اختباره في حملة لاحقة قبل تخصيص ميزانية إعلامية كبيرة له.`
+                    : `The ${topGender.label} ${topAge.label} segment showed the highest trial participation within this${overview.surveyCompletions < 30 ? ' small' : ''} sample. This is a directional signal, not proof that this segment is the primary target market — consider testing it in a follow-up campaign before committing significant media budget to it.`
                   }
                 />
               )}
@@ -514,19 +529,19 @@ export default function Report() {
                 num={3}
                 text={isAr
                   ? (overview.purchaseIntentPercent >= 60
-                    ? `بنية شراء ${overview.purchaseIntentPercent}%، المنتج مؤهل جيداً للمرحلة التالية من التوزيع. فكّر في توسيع نطاق التجارب الميدانية.`
-                    : `نية الشراء عند ${overview.purchaseIntentPercent}% هي نقطة بداية. فكّر في تعديل تجربة التجربة أو الاستهداف قبل التوسع.`)
+                    ? `نية الشراء عند ${overview.purchaseIntentPercent}% ضمن هذه العينة إشارة إيجابية مبكرة. يُقترح دراسة توسيع نطاق التجارب الميدانية للتحقق من ثبات هذه النتيجة قبل التوسع الكامل.`
+                    : `نية الشراء عند ${overview.purchaseIntentPercent}% نقطة بداية فقط ضمن هذه العينة. يُنصح بمراجعة تجربة المنتج أو الاستهداف قبل التفكير في التوسع.`)
                   : (overview.purchaseIntentPercent >= 60
-                    ? `With ${overview.purchaseIntentPercent}% purchase intent, the product is well-positioned for the next phase of field sampling. Consider scaling the trial footprint.`
-                    : `Purchase intent at ${overview.purchaseIntentPercent}% is a starting point. Consider adjusting the trial experience or targeting before scaling.`)
+                    ? `Purchase intent of ${overview.purchaseIntentPercent}% within this sample is an early positive signal. Consider validating it with an additional trial before scaling distribution based on this result alone.`
+                    : `Purchase intent of ${overview.purchaseIntentPercent}% within this sample is a starting point, not a conclusion. Consider reviewing the trial experience or targeting before considering any scale-up.`)
                 }
               />
               {topDescriptor && (
                 <RecItem
                   num={4}
                   text={isAr
-                    ? `يجب اختبار التوصيف "${topDescriptor}" الذي اختاره المستهلكون كرسالة رئيسية في نصوص الرف التجاري والتواصل على العبوة.`
-                    : `Consumer-chosen descriptor "${topDescriptor}" should be tested as a primary message in retail shelf copy and on-pack communication.`
+                    ? `التوصيف الأكثر اختياراً من المستهلكين كان "${topDescriptor}". يُقترح اختبار هذا التوصيف كرسالة محتملة في نصوص الرف التجاري والتواصل على العبوة، مع التحقق من صحته عبر عينة أكبر.`
+                    : `The most frequently chosen consumer descriptor was "${topDescriptor}". Consider testing this as a candidate message in retail shelf copy and on-pack communication, validating it with a larger sample first.`
                   }
                 />
               )}

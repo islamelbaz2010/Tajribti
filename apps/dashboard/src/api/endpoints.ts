@@ -30,12 +30,23 @@ export const campaignApi = {
   // Campaign-aware resolver: honors ?campaignId= in the URL (used by the
   // Overview "Other Campaigns" links) so every monitoring page can show a
   // specific campaign from history, falling back to the brand's active
-  // campaign when no id is present. Ownership is enforced server-side on
-  // every downstream analytics/report call, so this is safe regardless of
-  // which campaignId is passed.
+  // campaign when no id is present.
+  //
+  // Resolves against getMyCampaigns() (scoped server-side to the
+  // authenticated brand) rather than the public GET /campaigns/:id — that
+  // endpoint is intentionally public for the consumer QR/discovery flow,
+  // so calling it directly here would let a brand see another brand's
+  // campaign name/product/location (not their data — analytics/report
+  // ownership checks already block that — but still an identity leak)
+  // just by editing the URL. An id that isn't actually this brand's falls
+  // back to the active campaign instead of being displayed.
   getSelected: (): Promise<Campaign> => {
     const id = new URLSearchParams(window.location.search).get('campaignId');
-    return id ? client.get(`/campaigns/${id}`) : campaignApi.getMyActiveCampaign();
+    if (!id) return campaignApi.getMyActiveCampaign();
+    return campaignApi.getMyCampaigns().then((list) => {
+      const match = list.find((c) => c.id === id);
+      return match ?? campaignApi.getMyActiveCampaign();
+    });
   },
   getById: (id: string): Promise<Campaign> => client.get(`/campaigns/${id}`),
   create: (body: {

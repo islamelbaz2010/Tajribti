@@ -12,10 +12,12 @@ const AR = {
   confidential: 'سري',
   sampleBanner: 'بيانات تجريبية · لأغراض التقييم فقط',
   respondents: 'مشارك',
+  reportedOn: 'تاريخ التقرير',
   verifiedParticipants: 'المشاركون الموثقون',
   completionRate: 'معدل الإتمام',
   purchaseIntent: 'نية الشراء',
   s01: 'الملخص التنفيذي',
+  s0Objective: 'هدف الدراسة',
   s02: 'ملف الجمهور',
   s03: 'تحليل نية الشراء',
   s04: 'صوت المستهلك',
@@ -152,6 +154,14 @@ export default function Report() {
     day: 'numeric',
   });
 
+  // Campaign period, if both dates are actually set — no fabricated range.
+  const formatShort = (d: string) =>
+    new Date(d).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
+  const campaignPeriod =
+    campaign.startDate && campaign.endDate
+      ? `${formatShort(campaign.startDate)} – ${formatShort(campaign.endDate)}`
+      : null;
+
   const fontFamily = isAr
     ? "'Cairo', 'Segoe UI', Arial, sans-serif"
     : "'Inter', 'Segoe UI', Arial, sans-serif";
@@ -221,7 +231,10 @@ export default function Report() {
                 {campaign.locationName && (
                   <span style={pg.coverMetaChip}>📍 {campaign.locationName}</span>
                 )}
-                <span style={pg.coverMetaChip}>📅 {reportDate}</span>
+                {campaignPeriod && (
+                  <span style={pg.coverMetaChip}>🗓 {campaignPeriod}</span>
+                )}
+                <span style={pg.coverMetaChip}>📅 {t('Reported', AR.reportedOn)} {reportDate}</span>
                 <span style={pg.coverMetaChip}>
                   {overview.surveyCompletions} {t('respondents', AR.respondents)}
                 </span>
@@ -290,8 +303,18 @@ export default function Report() {
             </div>
           </ReportSection>
 
+          {/* ─── RESEARCH OBJECTIVE ─── */}
+          <ReportSection title={t('Research Objective', AR.s0Objective)} num="02" isAr={isAr}>
+            <p style={pg.sectionIntro}>
+              {t(
+                `This study was designed to capture real-time, in-moment consumer response to ${campaign.productName} from ${campaign.brandName} during an actual physical product trial — not a recall survey conducted after the fact. It measures whether consumers who tried the product would purchase it at retail, how they describe the product in their own words, and their demographic profile. This is the standard consumer-intelligence objective for every Tajribti campaign: converting the moment of first experience into structured, decision-ready data.`,
+                `صُممت هذه الدراسة لرصد استجابة المستهلك الفورية والحقيقية تجاه ${campaign.productName} من ${campaign.brandName} أثناء تجربة فعلية للمنتج — وليس عبر استبيان استرجاعي لاحق. تقيس الدراسة ما إذا كان المستهلكون الذين جرّبوا المنتج سيشترونه بسعر التجزئة، وكيف يصفون المنتج بكلماتهم الخاصة، وملفهم الديموغرافي. هذا هو الهدف البحثي المعياري لكل حملة تجربتي: تحويل لحظة التجربة الأولى إلى بيانات منظّمة وجاهزة لاتخاذ القرار.`
+              )}
+            </p>
+          </ReportSection>
+
           {/* ─── AUDIENCE PROFILE ─── */}
-          <ReportSection title={t('Audience Profile', AR.s02)} num="02" isAr={isAr}>
+          <ReportSection title={t('Audience Profile', AR.s02)} num="03" isAr={isAr}>
             <p style={pg.sectionIntro}>
               {isDemo
                 ? t(
@@ -348,7 +371,7 @@ export default function Report() {
           </ReportSection>
 
           {/* ─── PURCHASE INTENT ─── */}
-          <ReportSection title={t('Purchase Intent Analysis', AR.s03)} num="03" isAr={isAr}>
+          <ReportSection title={t('Purchase Intent Analysis', AR.s03)} num="04" isAr={isAr}>
             <div style={pg.intentLayout}>
               <div style={pg.intentScoreBox}>
                 <div style={pg.intentScoreNum}>{survey.purchaseIntentScore}</div>
@@ -396,7 +419,7 @@ export default function Report() {
           </ReportSection>
 
           {/* ─── CONSUMER VOICE ─── */}
-          <ReportSection title={t('Consumer Voice', AR.s04)} num="04" isAr={isAr}>
+          <ReportSection title={t('Consumer Voice', AR.s04)} num="05" isAr={isAr}>
             {survey.questionBreakdown['q3'] && survey.questionBreakdown['q3'].length > 0 && (
               <div style={pg.voiceBlock}>
                 <div style={pg.chartLabel}>{t('Product Descriptor — Most Common Consumer Responses', AR.descriptorsTitle)}</div>
@@ -438,7 +461,7 @@ export default function Report() {
           </ReportSection>
 
           {/* ─── KEY FINDINGS ─── */}
-          <ReportSection title={t('Key Findings', AR.s05)} num="05" isAr={isAr}>
+          <ReportSection title={t('Key Findings', AR.s05)} num="06" isAr={isAr}>
             <div style={pg.findingsGrid}>
               <FindingCard
                 type={t('Strongest Signal', AR.strongestSignal)}
@@ -507,7 +530,7 @@ export default function Report() {
           </ReportSection>
 
           {/* ─── RECOMMENDATIONS ─── */}
-          <ReportSection title={t('Recommended Actions', AR.s06)} num="06" isAr={isAr}>
+          <ReportSection title={t('Recommended Actions', AR.s06)} num="07" isAr={isAr}>
             <div style={pg.recList}>
               <RecItem
                 num={1}
@@ -549,7 +572,7 @@ export default function Report() {
           </ReportSection>
 
           {/* ─── METHODOLOGY ─── */}
-          <ReportSection title={t('Methodology & Data Integrity', AR.s07)} num="07" noBorder isAr={isAr}>
+          <ReportSection title={t('Methodology & Data Integrity', AR.s07)} num="08" noBorder isAr={isAr}>
             <div style={pg.methodTable}>
               <MethodRow
                 label={t('Sample Size', AR.methodSampleSize)}

@@ -89,17 +89,41 @@ export class QrService {
     redemptionId: string;
     productName: string;
     rewardPoints: number;
+    alreadyCompleted?: boolean;
   }> {
-    const qrCode = await this.qrRepo.findOne({
-      where: { campaignId, status: QrCodeStatus.ACTIVE },
+    const existingQr = await this.qrRepo.findOne({
+      where: [
+        { campaignId, status: QrCodeStatus.ACTIVE },
+        { campaignId, status: QrCodeStatus.DEMO },
+      ],
       relations: ['campaign'],
     });
 
-    if (!qrCode) {
-      throw new NotFoundException('Campaign QR not found. Ask the brand to generate the campaign QR first.');
-    }
+    let resolvedQrId: string;
+    let campaign: Campaign;
 
-    const campaign = qrCode.campaign;
+    if (existingQr) {
+      resolvedQrId = existingQr.id;
+      campaign = existingQr.campaign;
+    } else {
+      // Discovery-first entry: auto-create a QR code if the brand hasn't generated one yet.
+      // Mirrors generateQrImage() logic so discovery and QR-scan entries are equivalent.
+      const found = await this.campaignRepo.findOne({ where: { id: campaignId } });
+      if (!found) throw new NotFoundException(`Campaign ${campaignId} not found`);
+      if (found.status !== CampaignStatus.ACTIVE) {
+        throw new BadRequestException('Campaign is not active');
+      }
+      campaign = found;
+      const code = `tajribti:${campaignId}:${Date.now()}`;
+      const newQr = await this.qrRepo.save(
+        this.qrRepo.create({
+          campaignId,
+          code,
+          status: campaign.isDemo ? QrCodeStatus.DEMO : QrCodeStatus.ACTIVE,
+        }),
+      );
+      resolvedQrId = newQr.id;
+    }
 
     if (campaign.status !== CampaignStatus.ACTIVE) {
       throw new BadRequestException('Campaign is not active');
@@ -107,15 +131,16 @@ export class QrService {
 
     const existingRedemption = await this.redemptionRepo.findOne({
       where: { consumerId, campaignId },
+      relations: ['surveyResponse'],
     });
 
     if (existingRedemption) {
-      // Return the existing redemption so the consumer can continue to the survey
       return {
         success: true,
         redemptionId: existingRedemption.id,
         productName: campaign.productName,
         rewardPoints: campaign.rewardPoints,
+        alreadyCompleted: !!existingRedemption.surveyResponse,
       };
     }
 
@@ -123,7 +148,7 @@ export class QrService {
       this.redemptionRepo.create({
         consumerId,
         campaignId,
-        qrCodeId: qrCode.id,
+        qrCodeId: resolvedQrId,
         isDemoSeed: false,
       }),
     );

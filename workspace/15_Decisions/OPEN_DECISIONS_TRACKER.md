@@ -1,7 +1,7 @@
 # Open Decisions Tracker
 
 **Purpose:** Live tracker for all unresolved decisions. Update this file as decisions are made.  
-**Last reviewed:** 2026-07-27  
+**Last reviewed:** 2026-08-17  
 **Owner:** Founder / CEO  
 
 ---
@@ -87,6 +87,54 @@
 | **Impact** | Pricing strategy, financial model, investor narrative |
 | **Notes** | Pending Track 0 pricing discovery. Current figures ($4K–$20K/campaign) are illustrative. |
 | **Status** | ⬜ OPEN — depends on B-01 (Track 0 GO) |
+
+---
+
+---
+
+## PRODUCT COMPLETION V0.5 — Sprint Authorization (2026-08-23)
+
+### CONFLICT-D — QR-First vs Discovery-First Consumer Journey
+
+| Field | Value |
+|---|---|
+| **Decision** | Founder reviewed product state 2026-08-23 and directed: Discovery-First is the target consumer experience. CAD-05 applies from V0.5. QR scanning preserved as secondary entry. |
+| **Authority** | Founder (explicit direction 2026-08-23) |
+| **Decision ID** | DL-050 |
+| **Status** | ✅ RESOLVED — 2026-08-23 |
+
+### V0.5 Sprint Authorization — BD-13 Bounded Exception
+
+| Field | Value |
+|---|---|
+| **Decision** | Engineering authorized for Product Completion V0.5 only: discovery feed, real home, campaign detail, return loop, participation history, reward presentation. BD-13 resumes after V0.5. BD-14 kill criterion unchanged. |
+| **Authority** | Founder (explicit direction 2026-08-23) |
+| **Decision ID** | DL-051 |
+| **Status** | ✅ AUTHORIZED — 2026-08-23 |
+
+---
+
+## COMMERCIAL SPRINT — Must resolve before first brand demo (Track 0)
+
+### CONFLICT-INTERNAL-C — Flutter Demo Path
+
+| Field | Value |
+|---|---|
+| **Decision required** | Resolve the conflict between DL-046 (first client must see Flutter) and the fact that Flutter 3.44.8 cannot be built on macOS 13 (requires macOS 14+). Choose one of three paths: (A) upgrade Founder machine to macOS 14; (B) set up a CI build pipeline; or (C) amend DL-046 to accept mobile web for first meeting |
+| **Owner** | Founder (hardware + product decision) |
+| **Impact** | The first brand discovery meeting cannot demonstrate the Flutter mobile app at full fidelity until this is resolved. Mobile web is deployed on Vercel and functional, but contradicts DL-046. |
+| **What proves it closed** | Flutter app successfully built and distributable (path A or B) OR DL-046 formally amended to accept mobile web with note in FOUNDER_DECISIONS.md (path C) |
+| **Status** | ⬜ OPEN — identified 2026-08-17 |
+
+### D-028 — Intelligence Report Quality
+
+| Field | Value |
+|---|---|
+| **Decision required** | Founder reviews the current Intelligence Report deployed on Vercel (EN and AR modes) and either (a) confirms the current version meets the Samplia benchmark (DL-047) and is ready for commercial demos, or (b) specifies the exact remaining changes needed |
+| **Owner** | Founder |
+| **Impact** | Commercial demo materials are incomplete until Founder confirms the report is ready. Further speculative design work is blocked by MANAGEMENT_SITUATION_ANALYSIS protocol. |
+| **What proves it closed** | Founder message confirming "report is ready" or a specific list of remaining changes |
+| **Status** | ⬜ OPEN — improvements delivered 2026-08-14; sign-off pending |
 
 ---
 

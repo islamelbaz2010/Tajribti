@@ -76,6 +76,7 @@ export interface Campaign {
 
 export interface AiReport {
   narrative: string;
+  narrativeAr: string | null;
   responseCountAtGeneration: number;
   createdAt: string;
 }

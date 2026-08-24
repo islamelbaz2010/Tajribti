@@ -73,7 +73,9 @@ class AppStr {
   String get startTrial     => ar ? 'ابدأ التجربة'                 : 'Start the Trial';
   String get campaignError  => ar ? 'تعذر تحميل بيانات الحملة'    : 'Could not load campaign';
   String get campaignNotFound=> ar ? 'لم يتم التعرف على الحملة'   : 'Campaign not recognized';
-  String get entryError     => ar ? 'تعذر الدخول إلى الحملة. حاول مرة أخرى.' : 'Could not enter campaign. Please try again.';
+  String get entryError          => ar ? 'تعذر الدخول إلى الحملة. حاول مرة أخرى.' : 'Could not enter campaign. Please try again.';
+  String get alreadyParticipated => ar ? 'شاركت سابقاً'                            : 'Already Participated';
+  String get alreadyParticipatedSub => ar ? 'شاركت في هذه الحملة من قبل وحصلت على مكافأتك.'  : 'You already participated in this campaign and earned your reward.';
 
   // ── Phone ─────────────────────────────────────────────────────────────────
   String get welcome        => ar ? 'مرحباً بك'                   : 'Welcome';
@@ -88,7 +90,11 @@ class AppStr {
   // ── OTP ───────────────────────────────────────────────────────────────────
   String get otpTitle       => ar ? 'أدخل رمز التحقق'             : 'Enter Verification Code';
   String get otpSentTo      => ar ? 'تم إرسال رمز مكون من 6 أرقام إلى' : 'A 6-digit code was sent to';
+  String get preparingCode  => ar ? 'جارٍ تجهيز رمز التحقق…'     : 'Preparing verification…';
   String get otpWrong       => ar ? 'رمز غير صحيح. تحقق من الرمز وأعد المحاولة.' : 'Incorrect code. Check and try again.';
+  String get otpExpired     => ar ? 'انتهت صلاحية الرمز. اطلب رمزاً جديداً.' : 'Code expired. Please request a new one.';
+  String get otpTooMany     => ar ? 'محاولات كثيرة. اطلب رمزاً جديداً.' : 'Too many attempts. Please request a new OTP.';
+  String get challengeError => ar ? 'تعذر الاتصال بخدمة التحقق. أعد المحاولة.' : 'Could not reach verification service. Please retry.';
   String get didntReceive   => ar ? 'لم يصلك الرمز؟  '            : "Didn't receive the code?  ";
   String get resend         => ar ? 'إعادة الإرسال'               : 'Resend';
   String resendIn(int n)    => ar ? 'إعادة الإرسال خلال ${n}ث'   : 'Resend in ${n}s';
@@ -122,7 +128,9 @@ class AppStr {
   String get optional       => ar ? '(اختياري)'                   : '(optional)';
   String get writeOpinion   => ar ? 'اكتب رأيك هنا…'             : 'Write your opinion here…';
   String get surveyError    => ar ? 'تعذر تحميل الاستبيان'        : 'Could not load the survey';
-  String get submitError    => ar ? 'تعذر إرسال الإجابات. حاول مرة أخرى.' : 'Could not send answers. Please try again.';
+  String get submitError         => ar ? 'تعذر إرسال الإجابات. حاول مرة أخرى.' : 'Could not send answers. Please try again.';
+  String get alreadySubmitted    => ar ? 'تم إرسال إجابتك مسبقاً'              : 'Already Submitted';
+  String get alreadySubmittedSub => ar ? 'أرسلت إجاباتك على هذه الاستبانة من قبل.' : 'You have already submitted your answers for this survey.';
   String get scaleUnlikely  => ar ? 'غير محتمل'                   : 'Unlikely';
   String get scaleLikely    => ar ? 'محتمل جداً'                  : 'Very likely';
   String surveyProgress(int cur, int total) => '$cur / $total';
@@ -133,12 +141,60 @@ class AppStr {
   String get pointsAddedLabel => ar ? 'نقطة أُضيفت لحسابك'        : 'points added to your account';
   String get backHome       => ar ? 'العودة للرئيسية'             : 'Back to Home';
 
-  // ── Home ──────────────────────────────────────────────────────────────────
-  String get homeTitle      => ar ? 'تجربتي'                      : 'Tajribti';
-  String get homeReady      => ar ? 'جاهز لتجربة جديدة؟'         : 'Ready for a new trial?';
-  String get homeSub        => ar ? 'امسح رمز QR على المنتج لتبدأ تجربتك وتشارك رأيك' : 'Scan the QR code on the product to start your trial and share your feedback';
-  String get scanQr         => ar ? 'مسح QR'                      : 'Scan QR';
-  String get logout         => ar ? 'تسجيل الخروج'               : 'Sign Out';
+  // ── Home / Discovery ─────────────────────────────────────────────────────
+  String get homeTitle          => ar ? 'تجربتي'                            : 'Tajribti';
+  String get availableCampaigns => ar ? 'العروض المتاحة'                    : 'Available Campaigns';
+  String get noCampaignsTitle   => ar ? 'لا توجد عروض حالياً'               : 'No campaigns yet';
+  String get noCampaignsSub     => ar ? 'ترقّب عروضاً جديدة قريباً'         : 'New campaigns are coming soon';
+  String get scanQrOrBrowse     => ar ? 'لديك رمز QR؟ امسحه مباشرة'        : 'Have a QR code? Scan it directly';
+  String get scanQr             => ar ? 'مسح QR'                            : 'Scan QR';
+  String get logout             => ar ? 'تسجيل الخروج'                      : 'Sign Out';
+  String get myActivity         => ar ? 'نشاطي السابق'                      : 'My Activity';
+  String get welcomeBack        => ar ? 'مرحباً'                            : 'Hello';
+  String get pointsLabel        => ar ? 'نقطة'                              : 'pts';
+  String get startTrialCard     => ar ? 'جرّب الآن'                         : 'Try Now';
+  String get loadError          => ar ? 'تعذّر تحميل البيانات'               : 'Could not load data';
+  // kept for screens that still reference these
+  String get homeReady          => ar ? 'جاهز لتجربة جديدة؟'               : 'Ready for a new trial?';
+  String get homeSub            => ar ? 'امسح رمز QR على المنتج لتبدأ تجربتك وتشارك رأيك' : 'Scan the QR code on the product to start your trial and share your feedback';
+
+  // ── Profile ───────────────────────────────────────────────────────────────
+  String get profileTitle    => ar ? 'ملفي الشخصي'               : 'My Profile';
+  String get campaignsLabel  => ar ? 'حملة'                       : 'campaigns';
+  String get myActivityFull  => ar ? 'نشاطاتي'                   : 'My Activity';
+  String get seeAll          => ar ? 'عرض الكل'                  : 'See all';
+
+  // ── Settings ─────────────────────────────────────────────────────────────
+  String get settingsTitle   => ar ? 'الإعدادات'                  : 'Settings';
+  String get languageLabel   => ar ? 'اللغة'                      : 'Language';
+  String get arabicLang      => ar ? 'العربية'                    : 'Arabic';
+  String get englishLang     => ar ? 'الإنجليزية'                 : 'English';
+  String get accountLabel    => ar ? 'الحساب'                     : 'Account';
+  String get signOut         => ar ? 'تسجيل الخروج'               : 'Sign Out';
+  String get signOutConfirm  => ar ? 'هل تريد تسجيل الخروج؟'    : 'Sign out of your account?';
+  String get cancel          => ar ? 'إلغاء'                      : 'Cancel';
+
+  // ── Activity ──────────────────────────────────────────────────────────────
+  String get activityTitle   => ar ? 'نشاطاتي'                   : 'My Activity';
+  String get noActivity      => ar ? 'لا يوجد نشاط بعد'          : 'No activity yet';
+  String get noActivitySub   => ar ? 'شارك في حملة لتجد نشاطك هنا' : 'Participate in a campaign to see your activity here';
+  String get loginToSeeActivity => ar ? 'سجّل الدخول لعرض نشاطك' : 'Sign in to view your activity';
+  String get signIn             => ar ? 'تسجيل الدخول'          : 'Sign In';
+  String get activityCompleted  => ar ? 'مكتمل'                 : 'Completed';
+
+  // ── Services / About ─────────────────────────────────────────────────────
+  String get servicesTitle     => ar ? 'عن تجربتي'                        : 'About Tajribti';
+  String get servicesTagline   => ar ? 'منصّة تجربة المنتجات ورأيك'      : 'The product-trial and feedback platform';
+  String get servicesIntro     => ar ? 'تجربتي تربطك بعينات مجانية من علامات تجارية حقيقية. تجرّب المنتج، تشارك رأيك الصادق في استبيان قصير، وتحصل على نقاط مقابل وقتك.'
+                                       : 'Tajribti connects you with free samples from real brands. Try the product, share your honest opinion in a short survey, and earn points for your time.';
+  String get servicesHowItWorks    => ar ? 'كيف تعمل تجربتي'              : 'How Tajribti works';
+  String get servicesStepDiscover  => ar ? 'اكتشف عروضاً قريبة منك أو امسح رمز QR في نقطة التفعيل' : 'Discover offers near you, or scan a QR code at an activation point';
+  String get servicesStepTry       => ar ? 'جرّب المنتج مجاناً'            : 'Try the product for free';
+  String get servicesStepShare     => ar ? 'شارك رأيك في استبيان قصير'    : 'Share your opinion in a short survey';
+  String get servicesStepEarn      => ar ? 'اكسب نقاط مكافأة'             : 'Earn reward points';
+  String get servicesCategories    => ar ? 'الفئات المتاحة'               : 'What you can try';
+  String get servicesCategoriesSub => ar ? 'منتجات استهلاكية سريعة، مستحضرات تجميل، ومنتجات صيدلانية بدون وصفة طبية' : 'FMCG, beauty, and pharma-OTC products';
+  String get servicesFooter        => ar ? 'العروض المتاحة تظهر في الصفحة الرئيسية عند إطلاقها من قبل العلامات التجارية الشريكة.' : 'Available offers appear on the Home screen as partner brands launch them.';
 
   // ── General ───────────────────────────────────────────────────────────────
   String get retry          => ar ? 'إعادة المحاولة'              : 'Try Again';

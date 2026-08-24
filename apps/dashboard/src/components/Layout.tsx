@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { campaignApi } from '../api/endpoints';
 
@@ -36,12 +36,20 @@ const NAV_SECTIONS = [
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [clientName, setClientName] = useState<string>('');
   const [isDemo, setIsDemo] = useState<boolean>(true);
 
+  // Selected campaign's own id (if ?campaignId= is present) — carried onto
+  // every nav link below so switching between Overview/Trial QR/Insights/etc.
+  // keeps showing the same campaign instead of silently reverting to the
+  // brand's default active one.
+  const selectedCampaignId = new URLSearchParams(location.search).get('campaignId');
+  const navSuffix = selectedCampaignId ? `?campaignId=${selectedCampaignId}` : '';
+
   useEffect(() => {
     if (!isAuthenticated) return;
-    campaignApi.getMyActiveCampaign()
+    campaignApi.getSelected()
       .then((c) => {
         if (c) {
           setClientName(c.brandName);
@@ -49,7 +57,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         }
       })
       .catch(() => {});
-  }, [isAuthenticated]);
+  }, [isAuthenticated, location.search]);
 
   const handleLogout = () => {
     logout();
@@ -80,7 +88,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {items.map(({ to, label }) => (
                 <NavLink
                   key={to}
-                  to={to}
+                  to={`${to}${navSuffix}`}
                   style={({ isActive }) => ({
                     ...styles.navItem,
                     ...(isActive ? styles.navItemActive : {}),

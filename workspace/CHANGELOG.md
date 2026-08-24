@@ -10,6 +10,16 @@
 
 | Version | Date | Summary |
 |---|---|---|
+| v6.10 | 2026-08-23 | V0.5 current-state correction: restored My Activity campaign navigation; CI Run #12 passed; device and multi-campaign validation blocked by authenticated APK artifact access and no campaign-creation UI |
+| v6.8 | 2026-08-23 | Product Semantics Fix: JWT refresh endpoint added; alreadyCompleted flag; 409→Already-Submitted; home filters participated; 9 files, commit c734d39 |
+| v6.7 | 2026-08-23 | Auth + Survey fixes: 401 expired-JWT → re-auth; 409 duplicate-survey → ThankYou; rewardPoints mapping fixed; 3 Flutter files, pending commit |
+| v6.6 | 2026-08-23 | Session I — Product Completion V0.5: CONFLICT-D resolved (DL-050); BD-13 bounded exception (DL-051); Discovery-First consumer product built; 980 insertions across 17 files; commit 0ae48d1; CI triggered |
+| v6.5 | 2026-08-19 | Session G — Assessment Preparation: Chat Context Extraction (2026-08-18 snapshot) + Decision Reconciliation; 4 conflicts, 2 unformalized management changes, 3 material uncommitted deltas documented; no code changes |
+| v6.4 | 2026-08-18 | Session F — OTP Flow Fix: root cause proven (Flutter null-cast on challengeRequired=false); two-file fix implemented and TypeScript-verified; implementation report produced |
+| v6.3 | 2026-08-17 | Session 5b — Akedly V1.2 Hardening & Acceptance Pass: DEFECT-01 fixed (DEMO_MODE path); formal acceptance report produced; verdict B |
+| v6.2 | 2026-08-17 | Session 5 — Akedly V1.2 Migration: wrong Utilities product replaced with V1.2 REST Authentication; Shield SDK PoW; server-side identity binding; Egypt/SMS delivery documented |
+| v6.1 | 2026-08-17 | Session 4 — Real Pilot Validation: 2 critical bugs found and fixed; ML Kit ProGuard fix device-confirmed; enterCampaignWeb DEMO bug fixed and deployed; Akedly OTP external blocker documented |
+| v6.0 | 2026-08-17 | Session 3 — Full analysis sprint: Chat Context Extraction, Decision Reconciliation, Product Version Audit v2, Management Situation Analysis v2, Portfolio Assessment (analysis-only; no product code) |
 | v5.0 | 2026-08-14 | Session 2 — Bilingual AR/EN Flutter consumer app + Arabic Intelligence Report mode committed (9cd1fc2) |
 | v4.9 | 2026-08-14 | Session 1 — Flutter consumer app pilot-complete + client report upgraded committed (b8b461b) |
 | v4.8 | 2026-08-13 | Real Pilot MVP — mobile web consumer journey committed (ed72a20); project state updated to Pilot Deployment phase |
@@ -24,6 +34,319 @@
 | v3.0 | 2026-07-27 | Long-term development governance layer added (9 new files) |
 | v2.0 | 2026-07-27 | Enterprise Knowledge Architect audit + 26 improvements applied |
 | v1.0 | 2026-07-26 | Initial workspace built from 14 inbox source files (14-phase build) |
+
+---
+
+## [v6.8] — 2026-08-23 — Product Semantics Fix: Reward Lifecycle + Auth Persistence + Campaign State (9 files)
+
+### Session type
+
+Full product-level fix based on Founder device testing. Audit → design → implementation → commit in single session.
+
+### Root Causes Fixed
+
+| # | Root Cause | Fix |
+|---|---|---|
+| RC-1 | No `/auth/refresh` endpoint existed; 15m access token expiry forced OTP re-auth | Added `POST /auth/refresh` (backend); Dio interceptor silently retries with refresh token (Flutter) |
+| RC-2 | `enterCampaignWeb` returned existing redemption without checking `survey_response` existence; no way for frontend to know campaign was already completed | Added `relations: ['surveyResponse']` + `alreadyCompleted` flag to API response |
+| RC-3 | 409 handler in `survey_screen` navigated to ThankYou showing "+50 points" — false reward implication | 409 now shows "Already Submitted" inline state; ThankYou navigation removed from 409 path |
+| RC-4 | Home screen showed ALL active campaigns regardless of consumer participation state | `home_screen` now computes `participatedIds` from `profile.recentCampaigns` and filters `availableCampaigns` |
+
+### Files Changed (9)
+
+**Backend (3):**
+- `apps/api/src/modules/auth/auth.controller.ts` — `POST /auth/refresh` endpoint (@Public)
+- `apps/api/src/modules/auth/auth.service.ts` — `refresh()` method: verifies JWT_REFRESH_SECRET, checks consumer exists, issues new token pair
+- `apps/api/src/modules/qr/qr.service.ts` — `enterCampaignWeb`: loads `surveyResponse` relation; returns `alreadyCompleted: !!existingRedemption.surveyResponse`
+
+**Flutter (6):**
+- `apps/consumer/lib/core/api_client.dart` — `onError` interceptor: 401 → try POST /auth/refresh → retry; if refresh fails pass 401 through
+- `apps/consumer/lib/core/models.dart` — `RedemptionResult.alreadyCompleted: bool` field
+- `apps/consumer/lib/core/l10n.dart` — `alreadyParticipated`, `alreadyParticipatedSub`, `alreadySubmitted`, `alreadySubmittedSub` (AR+EN)
+- `apps/consumer/lib/screens/campaign_screen.dart` — `_alreadyCompleted` state; "Already Participated" UI on `alreadyCompleted: true`; 401 comment updated
+- `apps/consumer/lib/screens/survey_screen.dart` — `_alreadySubmitted` state; "Already Submitted" UI on 409; ThankYou false-reward route removed
+- `apps/consumer/lib/screens/home_screen.dart` — `Builder` wrapper; `participatedIds` filter; `availableCampaigns` excludes participated campaigns
+
+### Commit
+
+`c734d39` — pushed to `sprint/pilot-readiness-mvp` — CI Run #11 triggered
+
+### Test Scenarios Required
+
+| Scenario | Expected |
+|---|---|
+| First participation (new phone or fresh data) | Splash → Home → Campaign → Phone → OTP → Survey → ThankYou(+50) → Home(50pts) |
+| Duplicate participation (same phone, same campaign) | Campaign → Campaign screen → "Already Participated" — NO ThankYou, NO reward implication |
+| Different campaign (second campaign, same phone) | Available on Home (not filtered); can participate; earns own reward |
+| Access token expired (15m after last OTP) | Silent refresh via interceptor; flow continues without OTP prompt |
+
+---
+
+## [v6.7] — 2026-08-23 — Auth + Survey Submission Fixes (3 Flutter files)
+
+### Session type
+
+Bug diagnosis and fix (3 Flutter files, no backend changes). Two confirmed root causes identified and fixed.
+
+### Root Causes
+
+**Bug 1 — "Could not enter campaign"** (`campaign_screen.dart`):
+JWT access token expires after 15m (`JWT_ACCESS_EXPIRY=15m` default). `AuthService.isLoggedIn()` only checks key existence, not expiry. Returning consumer with expired JWT calls `enterCampaign()`, receives 401 from `JwtAuthGuard`, sees "Could not enter campaign." Fix: detect 401 in `_start()`, call `AuthService.logout()`, redirect to `/phone`.
+
+**Bug 2 — "Could not send answers"** (`survey_screen.dart`):
+`_submit()` caught all exceptions generically. HTTP 409 `ConflictException` (survey already submitted) displayed as error. Fix: detect 409 specifically, navigate to ThankYou (409 = already completed = success state).
+
+**Bug 3 — ThankYou shows 0 points** (`models.dart`):
+`RedemptionResult.fromJson` read `json['pointsEarned']` but API returns `rewardPoints`. Fix: fallback chain `pointsEarned ?? rewardPoints ?? 0`.
+
+### Code Changes (pending commit)
+
+| File | Change |
+|------|--------|
+| `apps/consumer/lib/screens/campaign_screen.dart` | `+import 'package:dio/dio.dart'`; `_start()` detects 401 → `AuthService.logout()` → `/phone` |
+| `apps/consumer/lib/screens/survey_screen.dart` | `+import 'package:dio/dio.dart'`; `_submit()` detects 409 → `/thankyou` |
+| `apps/consumer/lib/core/models.dart` | `RedemptionResult.fromJson` reads `pointsEarned ?? rewardPoints ?? 0` |
+
+### Status
+
+PENDING: Founder authorization to commit + push → CI build → device validation.
+
+---
+
+## [v6.6] — 2026-08-23 — Session I: Product Completion V0.5 (Discovery-First Consumer Product)
+
+### Session type
+
+Full engineering sprint (code + governance). CONFLICT-D formally resolved, V0.5 authorization recorded, Discovery-First consumer product implemented. 17 files changed, 980 insertions.
+
+### Governance Decisions
+
+| Decision | Status |
+|---|---|
+| DL-050 — CONFLICT-D RESOLVED: Discovery-First is the target consumer product experience from V0.5 | LOCKED |
+| DL-051 — BD-13 BOUNDED EXCEPTION: V0.5 engineering authorized (pilot completion scope only) | LOCKED |
+
+### Code Changes (commit 0ae48d1)
+
+| Layer | Change |
+|---|---|
+| Backend — `campaign.controller.ts` | `@Public()` on GET /campaigns — consumers browse without auth |
+| Backend — `qr.service.ts` | `enterCampaignWeb()` auto-creates QR for discovery-first entry |
+| Backend — `auth.service.ts` | `getMe()` returns totalPoints + recentCampaigns (computed from redemptions join) |
+| Flutter — `models.dart` | `ConsumerProfile`, `ParticipationRecord` models added |
+| Flutter — `api_client.dart` | `getActiveCampaigns()`, `getConsumerProfile()` methods added |
+| Flutter — `l10n.dart` | 13 new/updated localization keys (AR + EN) for Home/Discovery |
+| Flutter — `home_screen.dart` | Complete real Discovery Home: campaign cards, profile banner, activity history, QR CTA |
+| Flutter — `splash_screen.dart` | Routing → `/home` (Discovery-First, DL-050) |
+| Flutter — `campaign_screen.dart` | Back button added; error state routes to `/home` |
+
+### Validation
+
+| Check | Result |
+|---|---|
+| Backend TypeScript | CLEAN |
+| Dashboard build | CLEAN |
+| Flutter analyze | BLOCKED (macOS 13 / DL-048) |
+| CI APK build | TRIGGERED (push to sprint/pilot-readiness-mvp, commit 0ae48d1) |
+| Real device | PENDING (waiting for CI APK) |
+
+### Governance Files Updated
+
+- `workspace/15_Decisions/DECISION_LOG.md` — Phase 4 (DL-050, DL-051)
+- `workspace/15_Decisions/OPEN_DECISIONS_TRACKER.md` — CONFLICT-D RESOLVED; V0.5 AUTHORIZED
+- `workspace/AI_BOOTSTRAP/02_PROJECT_STATE.md` — Phase updated
+- `workspace/AI_BOOTSTRAP/14_CONTEXT_INDEX.md` — Session I added
+- `workspace/16_Reports/PRODUCT_COMPLETION_V0_5_EXECUTION_REPORT_2026-08-23.md` — This session's final report
+
+### Post-commit patch — Campaign image seed fix (2026-08-23)
+
+Investigation confirmed Android image decode warning was caused by demo campaign `productImage` URL returning `image/svg+xml`. Flutter `Image.network` correctly fires `errorBuilder` on SVG decode failure; the brand gradient fallback renders instead. Flutter image rendering required no change.
+
+| File | Change |
+|------|--------|
+| `apps/api/src/modules/admin/admin.service.ts:115` | Placeholder URL changed from `…/ffffff?text=Product` → `…/ffffff.png?text=Product`; new URL returns `content-type: image/png` (HTTP 200, 5,763 bytes) |
+
+**Live Railway demo campaign unchanged (intentional):** Campaign `9c370244-...` still contains the old SVG URL in PostgreSQL. Production reset/reseed was NOT executed — it would clear 49 seeded consumers, all survey responses, and QR codes. The existing `POST /admin/seed/reset` + `POST /admin/seed` mechanism is available for a future refresh when demo data can be cleared. No approved real Sprite Zero raster image exists in the repository.
+
+---
+
+## [v6.5] — 2026-08-19 — Session G: Assessment Preparation (Chat Context Extraction + Decision Reconciliation)
+
+### Session type
+
+Analysis only (no code changes, no deployments, no commits). Two workspace reports produced.
+
+### Files Created
+
+| File | Description |
+|---|---|
+| `workspace/16_Reports/CHAT_CONTEXT_EXTRACTION_2026-08-19.md` | Chat Context Extraction from PROJECT_CHAT_SNAPSHOT_2026-08-18.md (8,070 lines); new content covers Sessions 4, 5, 5b, F, and real-device E2E confirmation |
+| `workspace/16_Reports/ASSESSMENT_PREPARATION_DECISION_RECONCILIATION_2026-08-19.md` | Full Decision Reconciliation: 56 formal decisions checked against repository; 4 conflicts identified; 2 unformalized management changes; 3 material uncommitted deltas |
+
+### Key findings
+
+- **RESOLVED since prior extraction:** OTP delivery confirmed working (real OTP "832719" on OPPO CPH2481); CI #8 passed; APK #8 built
+- **SUPERSEDED:** AKEDLY_TEMPLATE_ID is no longer a required var — must be DELETED from Railway; V1.2 Auth pipeline (`6a8338c061a103e7b2ccc936`) is the current OTP architecture
+- **NEW MANAGEMENT INTENT:** Founder declared product incomplete ("just camera and questions"); next session = Product Completion / V1 Consumer Experience Assessment
+- **4 ACTIVE CONFLICTS:** CONFLICT-A (BD-13 vs. deployed MVP), CONFLICT-B (TD-01 vs. mobile web), CONFLICT-C (DL-046 vs. CI distribution path), CONFLICT-D (CAD-05 vs. QR-First implementation)
+- **3 UNCOMMITTED DELTAS:** Overview.tsx DEMO badge conditional; JoinPage.tsx reward points conditional; Session F closeout contains stale items
+
+### Files Updated
+
+| File | Change |
+|---|---|
+| `workspace/CHANGELOG.md` | This entry (v6.5) |
+
+---
+
+## [v6.4] — 2026-08-18 — Session F: OTP Flow Fix (Akedly Dev Mode / challengeRequired=false)
+
+### Session type
+
+Engineering (authorized — bug fix only). No new features. No deployments. Two-file minimal fix.
+
+### Root cause proven
+
+When the Akedly V1.2 pipeline is in Dev Mode, the challenge endpoint returns `{ challengeRequired: false }` with NO `challenge`, `difficulty`, or `challengeToken` fields. Flutter's `_challengeAndRequest()` unconditionally cast `challengeData['challenge'] as String`, producing a Dart `TypeError` (null-to-String). The `catch (_)` block swallowed the error and showed "Could not reach verification service". `requestOtp()` was never called — hence no POST in Railway logs.
+
+A secondary blocker: backend `requestOtp()` pre-checked `if (!dto.powSolution) throw 400` regardless of `challengeRequired`.
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `apps/consumer/lib/screens/otp_screen.dart` | Read `challengeRequired` before touching PoW fields; branch on true/false; skip PoW and pass `powSolution: null` when false |
+| `apps/api/src/modules/auth/auth.service.ts` | Removed hard `powSolution` pre-check; made `powSolution` conditionally included in Akedly send body; Akedly now enforces PoW when required |
+
+### Files Created
+
+| File | Description |
+|---|---|
+| `workspace/16_Reports/OTP_FLOW_FIX_SESSION_F_2026-08-18.md` | Formal implementation report — root cause, contract analysis, complete flow after fix, validation results, next actions |
+
+### Validation
+
+| Check | Result |
+|---|---|
+| TypeScript compile (`npx tsc --noEmit`) | PASS — zero errors |
+| Flutter analyze | BLOCKED — macOS 13 below Flutter minimum 14; code manually verified |
+| CI (GitHub Actions) | PENDING — commit + push required |
+| OTP end-to-end with real phone | PENDING — pipeline activation required |
+
+### Key decisions logged
+
+| ID | Decision |
+|---|---|
+| ADR-09 | When Akedly `challengeRequired=false`, Flutter skips PoW; backend omits `powSolution`; Akedly is authoritative PoW validator |
+| DL-049 | Tajribti does not pre-validate `powSolution` presence; Akedly pipeline enforces PoW requirement server-to-server |
+
+### Security invariants preserved
+
+- `AKEDLY_API_KEY` server-side only (never in Flutter) ✓
+- PoW enforced by Akedly when pipeline requires it ✓
+- `transactionReqID→phone` server-side binding intact ✓
+- Client-supplied phone never trusted for JWT identity ✓
+- No bypass of production security ✓
+
+### Next human actions
+
+1. `git add -p && git commit && git push` → triggers CI run #8
+2. Install new APK → confirm OTP screen passes challenge phase
+3. Activate Akedly pipeline `6a8338c061a103e7b2ccc936` in Akedly dashboard
+4. Update Railway `AKEDLY_PIPELINE_ID` + delete `AKEDLY_TEMPLATE_ID` / `AKEDLY_OTP_VAR`
+5. Test full OTP with real Egyptian phone
+
+---
+
+## [v6.0] — 2026-08-17 — Analysis Sprint: Decision Reconciliation + Portfolio Assessment
+
+### Session type
+
+Analysis-only. No product code modified. No deployments. All changes are workspace documentation.
+
+### Protocol executed
+
+1. Chat Context Extraction (UNIVERSAL CHAT CONTEXT EXTRACTION v1) — 7,089-line ChatGPT snapshot
+2. Assessment Preparation / Decision Reconciliation — 28 decisions reconciled (D-001 through D-028)
+3. Product Version Audit v2 — updated for commits b8b461b + 9cd1fc2 + 9da53d2
+4. Management Situation Analysis v2 — updated with CONFLICT-INTERNAL-C and D-028
+5. Portfolio Assessment — full independent assessment for portfolio comparison
+
+### Files Created
+
+| File | Description |
+|---|---|
+| `workspace/16_Reports/CHAT_CONTEXT_EXTRACTION_2026-08-17.md` | Full extraction of Founder decisions from 7,089-line historical ChatGPT archive (CHAT-D01 through CHAT-D20) |
+| `workspace/16_Reports/ASSESSMENT_PREPARATION_DECISION_RECONCILIATION_2026-08-17.md` | Reconciliation of all chat decisions against authoritative repository sources — D-001 through D-028; 28 decisions classified |
+| `workspace/16_Reports/PORTFOLIO_ASSESSMENT_2026-08-17.md` | Independent portfolio assessment — 16 sections, 12 scored dimensions; Stage-Gate: VALIDATE |
+
+### Files Updated
+
+| File | Change |
+|---|---|
+| `workspace/13_Audits/PRODUCT_VERSION_AUDIT.md` | Updated from v1 (2026-08-14) to v2 (2026-08-17); added DELTA for commits b8b461b + 9cd1fc2 + 9da53d2; added CONFLICT-INTERNAL-C |
+| `workspace/16_Reports/MANAGEMENT_SITUATION_ANALYSIS.md` | Updated from v1 (2026-08-14) to v2 (2026-08-17); added CONFLICT-INTERNAL-C, D-028; updated DO NOW/WAIT/DO NOT DO NOW |
+| `workspace/15_Decisions/DECISION_LOG.md` | Appended Phase 2 section: DL-046 (Flutter first demo), DL-047 (Report quality Samplia benchmark), DL-048 (CONFLICT-INTERNAL-C) |
+| `workspace/15_Decisions/OPEN_DECISIONS_TRACKER.md` | Added COMMERCIAL SPRINT section: CONFLICT-INTERNAL-C and D-028 open decisions |
+| `workspace/CHANGELOG.md` | This file — v6.0 entry added |
+| `workspace/AI_BOOTSTRAP/14_CONTEXT_INDEX.md` | Added new files from this session to 13_Audits/ and 16_Reports/ sections |
+
+### Key findings this session
+
+| Finding | Type |
+|---------|------|
+| D-009 (first client must see Flutter) — CONFIRMED Founder decision, previously undocumented in workspace | Decision |
+| D-028 (Intelligence Report "very very weak"; Samplia is visual benchmark) — CONFIRMED Founder decision, previously undocumented | Decision |
+| CONFLICT-INTERNAL-C — D-009 cannot be honored on macOS 13; Flutter 3.44.8 requires macOS 14+ | NEW CONFLICT |
+| Stage-Gate decision: VALIDATE — do not build until commercial assumptions are tested | Assessment outcome |
+| Commercial state: zero LOIs, zero revenue, zero consumers, zero brand interviews | Current reality |
+| Kill criterion clock is active: <3 LOIs in 60 days = NO-GO | Active gate |
+
+---
+
+## [v6.1] — 2026-08-17 — Real Pilot Validation: Two Critical Bugs Fixed
+
+### Session type
+
+Engineering (authorized — bug fixes only). Device validation on OPPO CPH2481. No new features.
+
+### Commits
+
+| Commit | Branch | Message |
+|---|---|---|
+| `a17d9f8` | `sprint/pilot-readiness-mvp` | fix(api): allow enterCampaignWeb to find demo-status QR codes |
+| `8acfa8d` | `sprint/pilot-readiness-mvp` | fix(consumer): add ML Kit R8 ProGuard keep rules for scanner |
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `apps/api/src/modules/qr/qr.service.ts` | `enterCampaignWeb` WHERE clause extended to OR-match DEMO status QR codes |
+| `apps/consumer/android/app/build.gradle.kts` | ProGuard rules file wired into release build |
+
+### Files Created
+
+| File | Description |
+|---|---|
+| `apps/consumer/android/app/proguard-rules.pro` | ML Kit ComponentRegistrar keep rules — prevents R8 from stripping reflection-loaded classes |
+| `workspace/16_Reports/PILOT_VALIDATION_REPORT_2026-08-17.md` | Phase-by-phase validation report with final verdict |
+
+### Key findings this session
+
+| Finding | Type |
+|---------|------|
+| ML Kit ProGuard fix confirmed working on OPPO CPH2481 — no `NoSuchMethodException`, camera at 25fps | BUG FIXED (device-confirmed) |
+| `enterCampaignWeb` returned 404 for all demo campaigns — WHERE clause excluded DEMO-status QR codes | BUG FIXED |
+| `AKEDLY_TEMPLATE_ID` not set in Railway — OTP generated but not delivered | EXTERNAL BLOCKER (Founder action required) |
+| Pilot verdict: B — CONDITIONALLY OPERATIONAL (blocked by Akedly only) | Outcome |
+
+### Pilot state after this session
+
+| Component | State |
+|---|---|
+| enterCampaignWeb bug | ✅ FIXED — deployed to Railway |
+| ML Kit ProGuard fix | ✅ DEVICE-CONFIRMED — on sprint branch |
+| Akedly OTP | ❌ External blocker — set AKEDLY_TEMPLATE_ID in Railway to unblock |
 
 ---
 

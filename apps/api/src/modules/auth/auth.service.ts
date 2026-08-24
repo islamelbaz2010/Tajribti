@@ -2,16 +2,18 @@ import {
   Injectable,
   UnauthorizedException,
   NotFoundException,
+  BadRequestException,
+  ServiceUnavailableException,
+  HttpException,
+  HttpStatus,
   Logger,
-  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan } from 'typeorm';
+import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { Consumer } from '../../entities/consumer.entity';
-import { OtpSession } from '../../entities/otp-session.entity';
 import { BrandAccount } from '../../entities/brand-account.entity';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -29,73 +31,189 @@ export interface VerifyOtpResult extends TokenPair {
   consumerId: string;
 }
 
+interface PendingVerification {
+  phone: string;
+  expiresAt: Date;
+}
+
+export interface AkedlyChallengeData {
+  challenge: string;
+  difficulty: number;
+  challengeToken: string;
+  challengeRequired: boolean;
+  turnstile: { required: boolean; siteKey: string };
+}
+
+interface AkedlySendData {
+  transactionReqID: string;
+  expiresAt: string;
+}
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly DEMO_OTP = '0000';
-  private readonly OTP_TTL_MS = 5 * 60 * 1000;
+
+  // Server-side transactionReqID → phone binding.
+  // Pilot runs as a single Railway instance; in-memory is sufficient and avoids DB schema changes.
+  private readonly pendingVerifications = new Map<string, PendingVerification>();
 
   constructor(
     @InjectRepository(Consumer)
     private readonly consumerRepo: Repository<Consumer>,
-    @InjectRepository(OtpSession)
-    private readonly otpRepo: Repository<OtpSession>,
     @InjectRepository(BrandAccount)
     private readonly brandRepo: Repository<BrandAccount>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
 
-  async requestOtp(dto: RequestOtpDto): Promise<{ message: string }> {
+  async getChallenge(): Promise<AkedlyChallengeData> {
+    // DEMO_MODE bypass: return a trivial challenge so Flutter can proceed without calling Akedly.
+    // difficulty=1 is intentional — non-zero so the SDK's PoW loop runs normally (instant on device).
+    if (this.isDemoMode()) {
+      return {
+        challenge: '0'.repeat(64),
+        difficulty: 1,
+        challengeToken: 'DEMO_MODE',
+        challengeRequired: false,
+        turnstile: { required: false, siteKey: '' },
+      };
+    }
+
+    const apiKey = this.configService.getOrThrow<string>('AKEDLY_API_KEY');
+    const pipelineId = this.configService.getOrThrow<string>('AKEDLY_PIPELINE_ID');
+
+    const url = `https://api.akedly.io/api/v1.2/transactions/challenge?APIKey=${encodeURIComponent(apiKey)}&pipelineID=${encodeURIComponent(pipelineId)}`;
+    let res: Response;
+    try {
+      res = await fetch(url);
+    } catch {
+      throw new ServiceUnavailableException('Authentication service temporarily unavailable');
+    }
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      this.logger.error(`Akedly challenge failed (${res.status}): ${text}`);
+      throw new ServiceUnavailableException('Authentication service temporarily unavailable');
+    }
+
+    const body = await res.json() as { status: string; data: AkedlyChallengeData };
+    if (body.status !== 'success') {
+      this.logger.error(`Akedly challenge non-success: ${JSON.stringify(body)}`);
+      throw new ServiceUnavailableException('Authentication service temporarily unavailable');
+    }
+
+    return body.data;
+  }
+
+  async requestOtp(dto: RequestOtpDto): Promise<{ message: string; transactionReqID?: string; expiresAt?: string }> {
     const { phone } = dto;
     const isDemoMode = this.isDemoMode();
 
-    const code = isDemoMode
-      ? this.DEMO_OTP
-      : Math.floor(100000 + Math.random() * 900000).toString();
-
-    await this.otpRepo.delete({ phone });
-
-    const expiresAt = new Date(Date.now() + this.OTP_TTL_MS);
-    await this.otpRepo.save(
-      this.otpRepo.create({ phone, code, expiresAt }),
-    );
-
-    if (!isDemoMode) {
-      await this.sendAkedlyOtp(phone, code);
+    if (isDemoMode) {
+      this.logger.log(`OTP requested for ${phone} — DEMO_MODE active`);
+      // Return a sentinel transactionReqID so Flutter shows the OTP input screen.
+      // verifyOtp() checks isDemoBypass first, so this value is never looked up in pendingVerifications.
+      return { message: 'OTP sent successfully', transactionReqID: 'DEMO_MODE' };
     }
 
-    this.logger.log(
-      `OTP requested for ${phone} — demo mode: ${isDemoMode}`,
-    );
+    this.purgeExpiredVerifications();
 
-    return { message: 'OTP sent successfully' };
+    const apiKey = this.configService.getOrThrow<string>('AKEDLY_API_KEY');
+    const pipelineId = this.configService.getOrThrow<string>('AKEDLY_PIPELINE_ID');
+
+    // powSolution is omitted when challengeRequired=false (Akedly Dev Mode / PoW disabled).
+    // Akedly enforces PoW when its pipeline requires it; we don't pre-check here.
+    const sendBody: Record<string, unknown> = {
+      APIKey: apiKey,
+      pipelineID: pipelineId,
+      verificationAddress: { phoneNumber: phone },
+    };
+    if (dto.powSolution) {
+      sendBody['powSolution'] = {
+        challengeToken: dto.powSolution.challengeToken,
+        nonce: dto.powSolution.nonce,
+      };
+    }
+    if (dto.turnstileToken) {
+      sendBody['turnstileToken'] = dto.turnstileToken;
+    }
+
+    let res: Response;
+    try {
+      res = await fetch('https://api.akedly.io/api/v1.2/transactions/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sendBody),
+      });
+    } catch {
+      throw new ServiceUnavailableException('Could not reach authentication service — please try again');
+    }
+
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({})) as { code?: string };
+      this.logger.error(`Akedly send failed (${res.status}) for ${phone}: ${errBody.code ?? 'unknown'}`);
+      this.mapAkedlySendError(errBody.code, res.status);
+    }
+
+    const responseBody = await res.json() as { status: string; data: AkedlySendData };
+    const { transactionReqID, expiresAt } = responseBody.data;
+
+    // Bind transactionReqID → phone server-side. Client-supplied phone on verify is ignored for JWT identity.
+    this.pendingVerifications.set(transactionReqID, { phone, expiresAt: new Date(expiresAt) });
+
+    this.logger.log(`OTP requested for ${phone} via Akedly V1.2`);
+    return { message: 'OTP sent successfully', transactionReqID, expiresAt };
   }
 
   async verifyOtp(dto: VerifyOtpDto): Promise<VerifyOtpResult> {
-    const { phone, code } = dto;
     const isDemoMode = this.isDemoMode();
-    const isDemoBypass = isDemoMode && code === this.DEMO_OTP;
+    const isDemoBypass = isDemoMode && dto.code === this.DEMO_OTP;
 
-    if (!isDemoBypass) {
-      const otpSession = await this.otpRepo.findOne({
-        where: {
-          phone,
-          used: false,
-          expiresAt: MoreThan(new Date()),
-        },
-        order: { createdAt: 'DESC' },
-      });
+    let phone: string;
 
-      if (!otpSession) {
-        throw new UnauthorizedException('OTP not found or expired');
+    if (isDemoBypass) {
+      // In DEMO_MODE, phone from client is used directly (development only).
+      phone = dto.phone;
+    } else {
+      if (!dto.transactionReqID) {
+        throw new BadRequestException('transactionReqID is required');
       }
 
-      if (otpSession.code !== code) {
-        throw new UnauthorizedException('Invalid OTP code');
+      const pending = this.pendingVerifications.get(dto.transactionReqID);
+      if (!pending) {
+        throw new HttpException('OTP expired — please request a new code', HttpStatus.GONE);
+      }
+      if (pending.expiresAt < new Date()) {
+        this.pendingVerifications.delete(dto.transactionReqID);
+        throw new HttpException('OTP expired — please request a new code', HttpStatus.GONE);
       }
 
-      await this.otpRepo.update(otpSession.id, { used: true });
+      let res: Response;
+      try {
+        res = await fetch('https://api.akedly.io/api/v1.2/transactions/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transactionReqID: dto.transactionReqID, otp: dto.code }),
+        });
+      } catch {
+        throw new ServiceUnavailableException('Could not reach authentication service — please try again');
+      }
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({})) as { code?: string };
+        this.logger.error(`Akedly verify failed (${res.status}): ${errBody.code ?? 'unknown'}`);
+        this.mapAkedlyVerifyError(errBody.code, res.status);
+      }
+
+      const verifyBody = await res.json() as { data: { verified: boolean } };
+      if (!verifyBody.data.verified) {
+        throw new UnauthorizedException('OTP verification failed');
+      }
+
+      // Use server-side bound phone — client-supplied phone is NOT trusted for JWT identity.
+      phone = pending.phone;
+      this.pendingVerifications.delete(dto.transactionReqID);
     }
 
     let consumer = await this.consumerRepo.findOne({ where: { phone } });
@@ -147,16 +265,49 @@ export class AuthService {
     return { ...tokens, brandId: brand.id, brandName: brand.name };
   }
 
-  async getMe(consumerId: string): Promise<Consumer> {
+  async getMe(consumerId: string): Promise<Consumer & { totalPoints: number; recentCampaigns: object[] }> {
     const consumer = await this.consumerRepo.findOne({
       where: { id: consumerId },
+      relations: ['redemptions', 'redemptions.campaign'],
     });
 
     if (!consumer) {
       throw new NotFoundException('Consumer not found');
     }
 
-    return consumer;
+    const totalPoints = consumer.redemptions.reduce(
+      (sum, r) => sum + (r.campaign?.rewardPoints ?? 0),
+      0,
+    );
+
+    const recentCampaigns = consumer.redemptions
+      .sort((a, b) => new Date(b.redeemedAt).getTime() - new Date(a.redeemedAt).getTime())
+      .slice(0, 10)
+      .map((r) => ({
+        id: r.id,
+        redeemedAt: r.redeemedAt,
+        campaignId: r.campaignId,
+        productName: r.campaign?.productName ?? null,
+        brandName: r.campaign?.brandName ?? null,
+        rewardPoints: r.campaign?.rewardPoints ?? 0,
+        productImage: r.campaign?.productImage ?? null,
+      }));
+
+    return { ...consumer, totalPoints, recentCampaigns };
+  }
+
+  async refresh(refreshToken: string): Promise<TokenPair> {
+    let payload: JwtPayload;
+    try {
+      const refreshSecret = this.configService.getOrThrow<string>('JWT_REFRESH_SECRET');
+      payload = this.jwtService.verify<JwtPayload>(refreshToken, { secret: refreshSecret });
+    } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+    if (payload.type !== 'consumer') throw new UnauthorizedException('Token type not eligible for refresh');
+    const consumer = await this.consumerRepo.findOne({ where: { id: payload.sub } });
+    if (!consumer) throw new UnauthorizedException('Consumer not found');
+    return this.generateTokens(payload.sub, payload.identifier, 'consumer');
   }
 
   private generateTokens(
@@ -185,37 +336,33 @@ export class AuthService {
     return this.configService.get<string>('DEMO_MODE') === 'true';
   }
 
-  private async sendAkedlyOtp(phone: string, code: string): Promise<void> {
-    try {
-      const apiKey = this.configService.get<string>('AKEDLY_API_KEY');
-      const pipelineId = this.configService.get<string>('AKEDLY_PIPELINE_ID');
-      const templateId = this.configService.get<string>('AKEDLY_TEMPLATE_ID');
-      const otpVar = this.configService.get<string>('AKEDLY_OTP_VAR') ?? 'otp';
-
-      if (!apiKey || !pipelineId || !templateId) {
-        this.logger.warn('Akedly not configured — OTP not delivered');
-        return;
-      }
-
-      const res = await fetch('https://api.akedly.io/api/v1/utilities/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          APIKey: apiKey,
-          pipelineID: pipelineId,
-          templateId: templateId,
-          variableValues: { [otpVar]: code },
-          phone,
-          customerUserId: phone,
-        }),
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        this.logger.error(`Akedly delivery failed for ${phone}: ${text}`);
-      }
-    } catch (error) {
-      this.logger.error(`Akedly OTP request threw for ${phone}`, error);
+  private purgeExpiredVerifications(): void {
+    const now = new Date();
+    for (const [key, val] of this.pendingVerifications) {
+      if (val.expiresAt < now) this.pendingVerifications.delete(key);
     }
+  }
+
+  private mapAkedlySendError(code: string | undefined, status: number): never {
+    if (status === 429) {
+      throw new HttpException('Too many OTP requests — please wait before retrying', HttpStatus.TOO_MANY_REQUESTS);
+    }
+    if (code === 'POW_INVALID' || code === 'CHALLENGE_EXPIRED') {
+      throw new BadRequestException('Challenge expired — please retry');
+    }
+    throw new ServiceUnavailableException('Could not send OTP — please try again');
+  }
+
+  private mapAkedlyVerifyError(code: string | undefined, status: number): never {
+    if (status === 410 || code === 'TRANSACTION_EXPIRED') {
+      throw new HttpException('OTP expired — please request a new code', HttpStatus.GONE);
+    }
+    if (code === 'MAX_ATTEMPTS_EXCEEDED') {
+      throw new UnauthorizedException('Too many attempts — please request a new OTP');
+    }
+    if (status === 429) {
+      throw new HttpException('Too many requests — please wait', HttpStatus.TOO_MANY_REQUESTS);
+    }
+    throw new UnauthorizedException('Invalid OTP code');
   }
 }

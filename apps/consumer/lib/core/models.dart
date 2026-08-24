@@ -66,11 +66,73 @@ class SurveyQuestion {
 class RedemptionResult {
   final String redemptionId;
   final int pointsEarned;
+  final bool alreadyCompleted;
 
-  const RedemptionResult({required this.redemptionId, required this.pointsEarned});
+  const RedemptionResult({
+    required this.redemptionId,
+    required this.pointsEarned,
+    this.alreadyCompleted = false,
+  });
 
   factory RedemptionResult.fromJson(Map<String, dynamic> json) => RedemptionResult(
         redemptionId: json['redemptionId'] as String? ?? json['id'] as String? ?? '',
-        pointsEarned: json['pointsEarned'] as int? ?? 0,
+        pointsEarned: json['pointsEarned'] as int? ?? json['rewardPoints'] as int? ?? 0,
+        alreadyCompleted: json['alreadyCompleted'] as bool? ?? false,
+      );
+}
+
+class ParticipationRecord {
+  final String id;
+  final String campaignId;
+  final String? productName;
+  final String? brandName;
+  final int rewardPoints;
+  final String? productImage;
+  final DateTime redeemedAt;
+
+  const ParticipationRecord({
+    required this.id,
+    required this.campaignId,
+    this.productName,
+    this.brandName,
+    required this.rewardPoints,
+    this.productImage,
+    required this.redeemedAt,
+  });
+
+  factory ParticipationRecord.fromJson(Map<String, dynamic> json) => ParticipationRecord(
+        id: json['id'] as String,
+        campaignId: json['campaignId'] as String,
+        productName: json['productName'] as String?,
+        brandName: json['brandName'] as String?,
+        rewardPoints: json['rewardPoints'] as int? ?? 0,
+        productImage: json['productImage'] as String?,
+        redeemedAt: DateTime.parse(json['redeemedAt'] as String),
+      );
+}
+
+class ConsumerProfile {
+  final String id;
+  final String phone;
+  final String? name;
+  final int totalPoints;
+  final List<ParticipationRecord> recentCampaigns;
+
+  const ConsumerProfile({
+    required this.id,
+    required this.phone,
+    this.name,
+    required this.totalPoints,
+    required this.recentCampaigns,
+  });
+
+  factory ConsumerProfile.fromJson(Map<String, dynamic> json) => ConsumerProfile(
+        id: json['id'] as String,
+        phone: json['phone'] as String,
+        name: json['name'] as String?,
+        totalPoints: json['totalPoints'] as int? ?? 0,
+        recentCampaigns: (json['recentCampaigns'] as List<dynamic>? ?? [])
+            .map((r) => ParticipationRecord.fromJson(r as Map<String, dynamic>))
+            .toList(),
       );
 }

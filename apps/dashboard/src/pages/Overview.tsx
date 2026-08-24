@@ -1,6 +1,58 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { analyticsApi, campaignApi } from '../api/endpoints';
 import type { OverviewData, Campaign, LiveFeedEntry } from '../api/types';
+
+function OtherCampaigns({ campaigns }: { campaigns: Campaign[] }) {
+  if (campaigns.length === 0) return null;
+  return (
+    <div style={historyStyles.section}>
+      <div style={historyStyles.header}>
+        <h2 style={historyStyles.title}>Other Campaigns</h2>
+        <p style={historyStyles.sub}>Previous and other campaigns on this account — click to view</p>
+      </div>
+      {campaigns.map((c) => (
+        <Link key={c.id} to={`/overview?campaignId=${c.id}`} style={historyStyles.rowLink}>
+          <div style={historyStyles.row}>
+            <div style={historyStyles.rowMain}>
+              <span style={historyStyles.rowProduct}>{c.productName}</span>
+              <span style={historyStyles.rowBrand}>{c.brandName}</span>
+            </div>
+            <span style={historyStyles.rowStatus}>{c.status.toUpperCase()}</span>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+const historyStyles: Record<string, React.CSSProperties> = {
+  section: {
+    background: '#0a1120',
+    border: '1px solid #111d35',
+    borderRadius: 16,
+    padding: 24,
+    marginTop: 20,
+  },
+  header: { marginBottom: 14 },
+  title: { fontSize: 14, fontWeight: 700, color: '#edf0ff', margin: '0 0 2px', letterSpacing: 0.3 },
+  sub: { fontSize: 11, color: '#2e3d5e', margin: 0 },
+  rowLink: { textDecoration: 'none', display: 'block' },
+  row: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '10px 12px',
+    borderRadius: 6,
+    border: '1px solid #0e1a2e',
+    marginBottom: 4,
+    background: '#070c1a',
+  },
+  rowMain: { display: 'flex', flexDirection: 'column', gap: 2 },
+  rowProduct: { fontSize: 13, color: '#edf0ff', fontWeight: 600 },
+  rowBrand: { fontSize: 11, color: '#2e3d5e' },
+  rowStatus: { fontSize: 10, color: '#6b7fa8', fontWeight: 700, letterSpacing: 0.5 },
+};
 
 const POLL_INTERVAL = 3000;
 
@@ -276,14 +328,28 @@ const feedStyles: Record<string, React.CSSProperties> = {
 };
 
 export default function Overview() {
+  const location = useLocation();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [otherCampaigns, setOtherCampaigns] = useState<Campaign[]>([]);
   const [data, setData] = useState<OverviewData | null>(null);
   const [pulse, setPulse] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    campaignApi.getMyActiveCampaign().then(setCampaign).catch(console.error);
-  }, []);
+    // Re-resolves whenever ?campaignId= changes (e.g. clicking an "Other
+    // Campaigns" link) — the route itself doesn't remount on a query-string
+    // change alone, so this effect must depend on location.search directly.
+    setData(null);
+    campaignApi.getSelected().then(setCampaign).catch(console.error);
+  }, [location.search]);
+
+  useEffect(() => {
+    if (!campaign) return;
+    campaignApi
+      .getMyCampaigns()
+      .then((list) => setOtherCampaigns(list.filter((c) => c.id !== campaign.id)))
+      .catch(() => {});
+  }, [campaign]);
 
   useEffect(() => {
     if (!campaign) return;
@@ -319,7 +385,7 @@ export default function Overview() {
       {/* Campaign Identity */}
       <div style={styles.campaignHeader}>
         <div style={styles.headerLeft}>
-          <span style={styles.demoBadge}>DEMO CAMPAIGN</span>
+          {campaign.isDemo && <span style={styles.demoBadge}>DEMO CAMPAIGN</span>}
           <h1 style={styles.brandName}>{campaign.brandName}</h1>
           <p style={styles.campaignSub}>
             {campaign.productName}
@@ -360,6 +426,9 @@ export default function Overview() {
           data.liveFeed.map((entry) => <FeedRow key={entry.id} entry={entry} />)
         )}
       </div>
+
+      {/* Campaign History — other campaigns on this account, informational only */}
+      <OtherCampaigns campaigns={otherCampaigns} />
     </div>
   );
 }

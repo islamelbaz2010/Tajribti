@@ -203,6 +203,7 @@ Source: `_navigator/DOCUMENT_INDEX.md`, `MASTER_INDEX.md`, direct workspace know
 | File | One-Line Description |
 |---|---|
 | `REMEDIATION_REAUDIT.md` | CURRENT STATE — IERB 67/100, NOT AUTHORIZED, 4 blocking items, remediation actions |
+| `PRODUCT_VERSION_AUDIT.md` | Product Version Audit v2 (2026-08-17) — capability inventory, delta since last audit, CONFLICT-INTERNAL-C, stage-gate |
 
 ---
 
@@ -219,7 +220,7 @@ Source: `_navigator/DOCUMENT_INDEX.md`, `MASTER_INDEX.md`, direct workspace know
 | File | One-Line Description |
 |---|---|
 | `ASSUMPTION_REGISTER.md` | 40 assumptions across 5 categories with validation status and criticality |
-| `DECISION_LOG.md` | Chronological append-only decision log — 51 decisions logged |
+| `DECISION_LOG.md` | Chronological append-only decision log — 56 decisions logged (DL-050–DL-051 added 2026-08-23: CONFLICT-D resolved; BD-13 bounded exception) |
 | `FOUNDER_DECISIONS.md` | CONSTITUTIONAL — all founder decisions, FDD authority chain |
 | `OPEN_DECISIONS_TRACKER.md` | 4 blocking items + 5 non-blocking open decisions with closure criteria |
 
@@ -236,6 +237,13 @@ Source: `_navigator/DOCUMENT_INDEX.md`, `MASTER_INDEX.md`, direct workspace know
 | `QUALITY_REPORT.md` | Workspace quality assessment — overall 84/100 |
 | `STATISTICS_REPORT.md` | Word count, file count, coverage statistics |
 | `WORKSPACE_REPORT.md` | Source files processed, workspace files generated, processing summary |
+| `CHAT_CONTEXT_EXTRACTION_2026-08-17.md` | Extraction of Founder decisions from 7,089-line ChatGPT archive (CHAT-D01 through CHAT-D20); D-009 and D-028 confirmed |
+| `ASSESSMENT_PREPARATION_DECISION_RECONCILIATION_2026-08-17.md` | Reconciliation of all chat decisions vs. repository; D-001 through D-028 classified; CONFLICT-INTERNAL-C identified |
+| `MANAGEMENT_SITUATION_ANALYSIS.md` | Management Situation Analysis v2 (2026-08-17) — current situation, DO NOW/WAIT/DO NOT DO NOW, critical path |
+| `PORTFOLIO_ASSESSMENT_2026-08-17.md` | Independent portfolio assessment; 16 sections; 12 scored dimensions; Stage-Gate: VALIDATE |
+| `AKEDLY_V1_2_HARDENING_ACCEPTANCE_2026-08-17.md` | 12-step hardening & acceptance report; DEFECT-01 fixed; verdict B — ACCEPTED WITH KNOWN LIMITATIONS |
+| `OTP_FLOW_FIX_SESSION_F_2026-08-18.md` | Root cause analysis + fix report for OTP "Could not reach verification service" bug; Flutter null-cast + backend pre-check; verdict PASS |
+| `PRODUCT_COMPLETION_V0_5_EXECUTION_REPORT_2026-08-23.md` | Session I — V0.5 Product Completion: CONFLICT-D resolved, Discovery-First implemented, 17 files changed, CI triggered, device validation pending |
 
 ---
 
@@ -297,5 +305,5 @@ Source: `_navigator/DOCUMENT_INDEX.md`, `MASTER_INDEX.md`, direct workspace know
 | File | One-Line Description |
 |---|---|
 | `MASTER_INDEX.md` | Master navigation index — start here for humans; 120+ files indexed |
-| `CHANGELOG.md` | Workspace version history — v1.0 through v4.2 |
+| `CHANGELOG.md` | Workspace version history — v1.0 through v6.0 |
 | `CONTRIBUTING.md` | How to work in this workspace — file types, naming, procedures |

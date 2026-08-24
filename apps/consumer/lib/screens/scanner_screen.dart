@@ -67,7 +67,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
     JourneySession.start(campaignId);
     if (!mounted) return;
-    context.go('/campaign');
+    context.push('/campaign');
   }
 
   @override
@@ -84,12 +84,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
             s.scanTitle,
             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
           ),
-          leading: context.canPop()
-              ? IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => context.pop(),
-                )
-              : null,
+          leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+              onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
+            ),
           actions: const [
             Padding(
               padding: EdgeInsets.only(right: 12),

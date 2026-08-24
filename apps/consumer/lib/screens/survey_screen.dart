@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
@@ -28,6 +29,7 @@ class _SurveyScreenState extends State<SurveyScreen> {
   Campaign? _campaign;
   bool _loadingCampaign = true;
   bool _submitting = false;
+  bool _alreadySubmitted = false;
   String? _error;
 
   int _currentStep = 0;
@@ -58,6 +60,12 @@ class _SurveyScreenState extends State<SurveyScreen> {
       if (!mounted) return;
       context.go('/thankyou', extra: widget.pointsEarned);
     } catch (e) {
+      if (e is DioException && e.response?.statusCode == 409) {
+        // Survey already submitted — show "Already Submitted" state, do NOT imply a new reward
+        if (!mounted) return;
+        setState(() { _submitting = false; _alreadySubmitted = true; });
+        return;
+      }
       setState(() {
         _submitting = false;
         _error = '_submitFail';
@@ -113,6 +121,63 @@ class _SurveyScreenState extends State<SurveyScreen> {
                     child: Text(s.retry, style: const TextStyle(color: kPrimary, fontSize: 16)),
                   ),
                 ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_alreadySubmitted) {
+      return Directionality(
+        textDirection: context.dir,
+        child: Scaffold(
+          backgroundColor: kBackground,
+          body: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFf0fdf4),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.check_circle_rounded, color: Color(0xFF15803d), size: 48),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      s.alreadySubmitted,
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: kPrimary),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      s.alreadySubmittedSub,
+                      style: TextStyle(fontSize: 15, color: Colors.grey.shade600, height: 1.5),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 36),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: () => context.go('/home'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kPrimary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          elevation: 0,
+                        ),
+                        child: Text(s.backHome, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

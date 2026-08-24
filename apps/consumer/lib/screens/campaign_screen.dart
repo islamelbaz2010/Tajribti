@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
@@ -9,7 +10,9 @@ import '../core/session.dart';
 import '../widgets/lang_toggle.dart';
 
 class CampaignScreen extends StatefulWidget {
-  const CampaignScreen({super.key});
+  final bool alreadyCompleted;
+
+  const CampaignScreen({super.key, this.alreadyCompleted = false});
 
   @override
   State<CampaignScreen> createState() => _CampaignScreenState();
@@ -19,12 +22,18 @@ class _CampaignScreenState extends State<CampaignScreen> {
   Campaign? _campaign;
   bool _loading = true;
   bool _entering = false;
+  bool _alreadyCompleted = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _alreadyCompleted = widget.alreadyCompleted;
+    if (_alreadyCompleted) {
+      _loading = false;
+    } else {
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -46,15 +55,19 @@ class _CampaignScreenState extends State<CampaignScreen> {
     if (!mounted) return;
 
     if (!loggedIn) {
-      context.go('/phone');
+      context.push('/phone');
       return;
     }
 
     setState(() => _entering = true);
     try {
       final result = await apiClient.enterCampaign(JourneySession.campaignId!);
-      JourneySession.setRedemption(result.redemptionId, result.pointsEarned);
       if (!mounted) return;
+      if (result.alreadyCompleted) {
+        setState(() { _alreadyCompleted = true; _entering = false; });
+        return;
+      }
+      JourneySession.setRedemption(result.redemptionId, result.pointsEarned);
       context.go('/survey', extra: {
         'redemptionId': result.redemptionId,
         'campaignId': JourneySession.campaignId!,
@@ -62,6 +75,13 @@ class _CampaignScreenState extends State<CampaignScreen> {
       });
     } catch (e) {
       if (!mounted) return;
+      if (e is DioException && e.response?.statusCode == 401) {
+        // Refresh token also expired (>7d) — full re-authentication required
+        await AuthService.logout();
+        if (!mounted) return;
+        context.push('/phone');
+        return;
+      }
       setState(() { _entering = false; _error = '_entryFail'; });
     }
   }
@@ -73,6 +93,14 @@ class _CampaignScreenState extends State<CampaignScreen> {
     if (_loading) {
       return Scaffold(
         backgroundColor: kBackground,
+        appBar: AppBar(
+          backgroundColor: kBackground,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: kPrimary),
+            onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
+          ),
+        ),
         body: const Center(child: CircularProgressIndicator(color: kPrimary)),
       );
     }
@@ -106,8 +134,76 @@ class _CampaignScreenState extends State<CampaignScreen> {
                     Text(displayError, style: const TextStyle(color: kAccent, fontSize: 16), textAlign: TextAlign.center),
                     const SizedBox(height: 24),
                     TextButton(
-                      onPressed: () => context.go('/scanner'),
-                      child: Text(s.scanAnother, style: const TextStyle(color: kPrimary, fontSize: 16)),
+                      onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
+                      child: Text(s.backHome, style: const TextStyle(color: kPrimary, fontSize: 16)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_alreadyCompleted) {
+      return Directionality(
+        textDirection: context.dir,
+        child: Scaffold(
+          backgroundColor: kBackground,
+          appBar: AppBar(
+            backgroundColor: kBackground,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: kPrimary),
+              onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
+            ),
+            actions: const [
+              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle())),
+            ],
+          ),
+          body: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFf0fdf4),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.check_circle_rounded, color: Color(0xFF15803d), size: 48),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      s.alreadyParticipated,
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: kPrimary),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      s.alreadyParticipatedSub,
+                      style: TextStyle(fontSize: 15, color: Colors.grey.shade600, height: 1.5),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 36),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: () => context.go('/home'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kPrimary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          elevation: 0,
+                        ),
+                        child: Text(s.backHome, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                      ),
                     ),
                   ],
                 ),
@@ -119,6 +215,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
     }
 
     final campaign = _campaign!;
+
     return Directionality(
       textDirection: context.dir,
       child: Scaffold(
@@ -140,6 +237,10 @@ class _CampaignScreenState extends State<CampaignScreen> {
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => _BrandBanner(brandName: campaign.brandName),
                           ),
+                          Positioned(
+                            top: 12, left: 12,
+                            child: _BackButton(),
+                          ),
                           const Positioned(
                             top: 12, right: 12,
                             child: LangToggle(light: true),
@@ -150,6 +251,10 @@ class _CampaignScreenState extends State<CampaignScreen> {
                       Stack(
                         children: [
                           _BrandBanner(brandName: campaign.brandName),
+                          Positioned(
+                            top: 12, left: 12,
+                            child: _BackButton(),
+                          ),
                           const Positioned(
                             top: 12, right: 12,
                             child: LangToggle(light: true),
@@ -258,6 +363,24 @@ class _CampaignScreenState extends State<CampaignScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _BackButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.canPop() ? context.pop() : context.go('/home'),
+      child: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.35),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
       ),
     );
   }

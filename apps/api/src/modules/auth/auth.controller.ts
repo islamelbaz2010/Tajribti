@@ -29,20 +29,32 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   /**
+   * GET /api/v1/auth/akedly/challenge
+   * Proxy to Akedly V1.2 challenge endpoint. Returns challenge data for client-side PoW.
+   * API key never leaves the backend.
+   */
+  @Public()
+  @Get('akedly/challenge')
+  getChallenge() {
+    return this.authService.getChallenge();
+  }
+
+  /**
    * POST /api/v1/auth/otp/request
-   * Send OTP to phone number. In DEMO_MODE, always sends "0000".
+   * Production: forward phone + powSolution to Akedly V1.2; returns transactionReqID.
+   * Demo mode: returns immediately without Akedly call.
    */
   @Public()
   @Post('otp/request')
   @HttpCode(HttpStatus.OK)
-  requestOtp(@Body() dto: RequestOtpDto): Promise<{ message: string }> {
+  requestOtp(@Body() dto: RequestOtpDto) {
     return this.authService.requestOtp(dto);
   }
 
   /**
    * POST /api/v1/auth/otp/verify
-   * Verify OTP. Returns JWT pair + isNewUser flag.
-   * In DEMO_MODE, code "0000" always succeeds.
+   * Production: verifies transactionReqID + code with Akedly V1.2; issues JWT.
+   * Demo mode: code '0000' always succeeds.
    */
   @Public()
   @Post('otp/verify')
@@ -70,6 +82,18 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   brandLogin(@Body() dto: BrandLoginDto) {
     return this.authService.brandLogin(dto);
+  }
+
+  /**
+   * POST /api/v1/auth/refresh
+   * Exchange a valid refresh token for a new access + refresh token pair.
+   * Does not require a current access token — consumers use this when the 15m access token expires.
+   */
+  @Public()
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  refresh(@Body() body: { refreshToken: string }) {
+    return this.authService.refresh(body.refreshToken);
   }
 
   /**

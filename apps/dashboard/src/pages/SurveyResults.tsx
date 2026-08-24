@@ -26,7 +26,7 @@ export default function SurveyResults() {
 
   useEffect(() => {
     campaignApi
-      .getMyActiveCampaign()
+      .getSelected()
       .then((c) => analyticsApi.getSurvey(c.id))
       .then(setData)
       .catch(() => setError('Failed to load survey data.'));

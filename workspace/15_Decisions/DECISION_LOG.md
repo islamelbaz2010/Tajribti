@@ -2,8 +2,8 @@
 
 **Format:** Append-only. Never delete or amend past entries. If a decision is reversed, add a new entry marked REVERSED/AMENDED.  
 **Authority:** Binding decisions are in `15_Decisions/FOUNDER_DECISIONS.md`. This log provides audit trail and rationale.  
-**Last updated:** 2026-07-27  
-**Decision count:** 51 logged (27+ locked, 5 open, 4 blocking, 8 ADRs)
+**Last updated:** 2026-08-18  
+**Decision count:** 56 logged (31+ locked, 6 open, 4 blocking, 9 ADRs)
 
 ---
 
@@ -84,6 +84,7 @@
 | ADR-06 | 2026-07 | ADR | LOCKED | SQS for cross-module events | Keeps QR redemption path fast; decouples analytics growth from core transaction loop | Founder (Architecture) |
 | ADR-07 | 2026-07 | ADR | LOCKED | Multi-provider LLM | No single-vendor lock-in (FDD requirement); provider outages don't disable insight layer | Founder (FDD) |
 | ADR-08 | 2026-07 | ADR | LOCKED | Versioned prompt templates — not inline in code | Supports testing; typed JSON output; not entangled with application code | Founder (AI Strategy) |
+| ADR-09 | 2026-08-18 | ADR | LOCKED | When Akedly `challengeRequired=false`, Flutter skips PoW and omits `powSolution`; backend does not pre-validate `powSolution` presence; Akedly is the authoritative PoW enforcer server-to-server | When Akedly Dev Mode is active, no `challengeToken` exists to build a valid `powSolution`; Akedly rejects the send request when PoW is required but absent — removing the Tajribti pre-check delegates enforcement to the correct authority without weakening security | Claude Code (Session F) / Founder (authorized) |
 
 ### UX Decisions
 
@@ -144,6 +145,46 @@
 | B-02 | 2026-07 | LEGAL | BLOCKED | Egyptian LLC incorporation unconfirmed | Founder | LLC confirmed incorporated |
 | B-03 | 2026-07 | LEGAL | BLOCKED | PDPL legal sign-off not obtained | Legal counsel | Egyptian data-privacy lawyer provides written scope opinion |
 | B-04 | 2026-07 | TECH | BLOCKED | QR concurrency load test not executed | CTO (not yet hired) | Load test executed and results documented |
+
+---
+
+## Phase 2 — Commercial Validation Sprint (Track 0) — Reconciled from Chat
+
+*These decisions were extracted from the historical ChatGPT session archive (PROJECT_CHAT_SNAPSHOT_2026-08-17.md) and reconciled against the repository by the ASSESSMENT PREPARATION / DECISION RECONCILIATION protocol on 2026-08-17. Evidence citations reference the CHAT_CONTEXT_EXTRACTION_2026-08-17.md canonical extraction.*
+
+### Product Decisions
+
+| ID | Date | Category | Status | Decision | Rationale | Authority |
+|---|---|---|---|---|---|---|
+| DL-046 | 2026-08-14 | PROD | LOCKED | First brand client must see the Flutter mobile app — not mobile web — for the first demonstration | Founder quote: "لا انا قلت كمان أول عميل يرى موبيل ابلكيشن"; the Flutter native app represents the product as designed; mobile web is an internal bridge only | Founder (Chat — confirmed by CHAT-D04 extraction) |
+| DL-047 | 2026-08-14 | PROD | LOCKED | Intelligence Report quality declared insufficient before Samplia standard is reached; Samplia.com is the explicit visual and structural benchmark | Founder quote: "جدا جدا ضعييييف" (very very weak); Samplia reference set as the design target — not an internal preference but an explicit founder direction | Founder (Chat — confirmed by CHAT-D11 extraction) |
+
+### Open / Conflict Decisions
+
+| ID | Date | Category | Status | Decision Required | Owner | Notes |
+|---|---|---|---|---|---|---|
+| DL-048 | 2026-08-17 | TECH | OPEN | CONFLICT-INTERNAL-C: DL-046 (first client must see Flutter) vs. macOS 13 hardware which cannot build Flutter 3.44.8 (requires macOS 14+). Founder must choose: upgrade to macOS 14; set up CI build pipeline; or amend DL-046 to accept mobile web for first demo | Founder | Identified during DECISION_RECONCILIATION_2026-08-17; not previously logged in any workspace document. Blocks first brand discovery meeting at full demo fidelity. |
+
+---
+
+## Phase 3 — Pilot Hardening & Bug Fix Sprint (2026-08-17 to 2026-08-18)
+
+### Engineering Decisions
+
+| ID | Date | Category | Status | Decision | Rationale | Authority |
+|---|---|---|---|---|---|---|
+| DL-049 | 2026-08-18 | TECH | LOCKED | OTP screen branches on `challengeRequired` field before reading PoW fields; skips PoW entirely when false | Akedly Dev Mode returns no `challenge`/`difficulty`/`challengeToken`; unconditional cast to `String` caused Dart `TypeError` and silent failure; fix makes the code correct for both Dev Mode and production PoW-on states | Claude Code (Session F) / Founder (authorized) |
+
+---
+
+## Phase 4 — Product Completion Sprint V0.5 (2026-08-23)
+
+### Governance Decisions
+
+| ID | Date | Category | Status | Decision | Rationale | Authority |
+|---|---|---|---|---|---|---|
+| DL-050 | 2026-08-23 | PROD | LOCKED | CONFLICT-D RESOLVED: Discovery-First is the target consumer product experience. CAD-05 (Consumer journey: Discover → Scan → Survey → Reward) applies from Product Completion V0.5 onward. QR scanning remains a valid campaign-entry mechanism alongside discovery. | Founder review of product state concluded the current QR-only experience is insufficient — no retention loop, no reason to return. Product must have discovery, campaign browsing, meaningful navigation, and participation history. Samplia-level product depth is the benchmark. CONFLICT-D is closed. | Founder (explicit direction 2026-08-23) |
+| DL-051 | 2026-08-23 | PROD | LOCKED | BD-13 BOUNDED EXCEPTION: Engineering is authorized for Product Completion V0.5 scope only. Authorized scope: consumer discovery feed, real home screen with campaigns + profile, campaign detail (extend existing), discovery-first entry, return-to-home after completion, participation history, reward presentation. All items outside this scope remain governed by BD-13. BD-14 kill criterion unchanged. | Founder direction: transform technical pilot into coherent consumer product. No LOI gate applies to this bounded sprint because it corrects a product incompleteness that predates the commercial validation sprint, not a Track 1 expansion. | Founder (explicit direction 2026-08-23) |
 
 ---
 

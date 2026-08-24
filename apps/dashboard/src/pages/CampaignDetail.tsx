@@ -10,7 +10,7 @@ export default function CampaignDetail() {
 
   useEffect(() => {
     campaignApi
-      .getMyActiveCampaign()
+      .getSelected()
       .then(async (c) => {
         setCampaign(c);
         const blob = await qrApi.getQrImage(c.id);
@@ -32,7 +32,7 @@ export default function CampaignDetail() {
       <h2>${campaign.brandName} — ${campaign.productName}</h2>
       <p>${campaign.locationName ?? ''}</p>
       <img src="${qrUrl}" alt="QR Code" style="margin:20px 0;" />
-      <p style="font-size:11px;color:#999;">Scan to participate · DEMO</p>
+      <p style="font-size:11px;color:#999;">Scan to participate${campaign.isDemo ? ' · DEMO' : ''}</p>
       </body></html>
     `);
     win.document.close();
@@ -47,7 +47,7 @@ export default function CampaignDetail() {
     <div>
       <div style={styles.header}>
         <div>
-          <span style={styles.demoBadge}>DEMO CAMPAIGN</span>
+          {campaign.isDemo && <span style={styles.demoBadge}>DEMO CAMPAIGN</span>}
           <h1 style={styles.title}>Turn Trial Into Signal</h1>
           <p style={styles.sub}>Campaign details and QR activation code</p>
         </div>
@@ -60,7 +60,11 @@ export default function CampaignDetail() {
           <InfoRow label="Product" value={campaign.productName} />
           <InfoRow label="Location" value={campaign.locationName} />
           <InfoRow label="Address" value={campaign.locationAddress} />
-          <InfoRow label="Status" value={campaign.status.toUpperCase() + ' · DEMO'} highlight />
+          <InfoRow
+            label="Status"
+            value={campaign.status.toUpperCase() + (campaign.isDemo ? ' · DEMO' : '')}
+            highlight={campaign.isDemo}
+          />
           <InfoRow label="Target" value={`${campaign.targetCount} participants`} />
           <InfoRow label="Reward" value={`${campaign.rewardPoints} points`} />
           <InfoRow label="Period" value={`${campaign.startDate} → ${campaign.endDate}`} />

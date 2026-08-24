@@ -24,6 +24,9 @@ export const campaignApi = {
       if (!list || list.length === 0) throw new Error('No campaign found for this account');
       return list[0];
     }),
+  // Full campaign history for the authenticated brand — same endpoint as
+  // getMyActiveCampaign, without discarding everything but the first result.
+  getMyCampaigns: (): Promise<Campaign[]> => client.get('/campaigns/my'),
   getById: (id: string): Promise<Campaign> => client.get(`/campaigns/${id}`),
   create: (body: {
     brandName: string;

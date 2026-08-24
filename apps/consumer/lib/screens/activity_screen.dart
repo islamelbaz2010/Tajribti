@@ -215,7 +215,21 @@ class _ActivityCard extends StatelessWidget {
                       color: const Color(0xFFf0fdf4),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Icon(Icons.check_rounded, size: 12, color: Color(0xFF15803d)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.check_rounded, size: 12, color: Color(0xFF15803d)),
+                        const SizedBox(width: 3),
+                        Text(
+                          s.activityCompleted,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF15803d),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

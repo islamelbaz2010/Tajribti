@@ -93,6 +93,14 @@ class _CampaignScreenState extends State<CampaignScreen> {
     if (_loading) {
       return Scaffold(
         backgroundColor: kBackground,
+        appBar: AppBar(
+          backgroundColor: kBackground,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: kPrimary),
+            onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
+          ),
+        ),
         body: const Center(child: CircularProgressIndicator(color: kPrimary)),
       );
     }
@@ -126,7 +134,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
                     Text(displayError, style: const TextStyle(color: kAccent, fontSize: 16), textAlign: TextAlign.center),
                     const SizedBox(height: 24),
                     TextButton(
-                      onPressed: () => context.go('/home'),
+                      onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
                       child: Text(s.backHome, style: const TextStyle(color: kPrimary, fontSize: 16)),
                     ),
                   ],
@@ -143,6 +151,17 @@ class _CampaignScreenState extends State<CampaignScreen> {
         textDirection: context.dir,
         child: Scaffold(
           backgroundColor: kBackground,
+          appBar: AppBar(
+            backgroundColor: kBackground,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: kPrimary),
+              onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
+            ),
+            actions: const [
+              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle())),
+            ],
+          ),
           body: SafeArea(
             child: Center(
               child: Padding(

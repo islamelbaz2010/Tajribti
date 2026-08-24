@@ -180,6 +180,7 @@ class AppStr {
   String get noActivitySub   => ar ? 'شارك في حملة لتجد نشاطك هنا' : 'Participate in a campaign to see your activity here';
   String get loginToSeeActivity => ar ? 'سجّل الدخول لعرض نشاطك' : 'Sign in to view your activity';
   String get signIn             => ar ? 'تسجيل الدخول'          : 'Sign In';
+  String get activityCompleted  => ar ? 'مكتمل'                 : 'Completed';
 
   // ── Services / About ─────────────────────────────────────────────────────
   String get servicesTitle     => ar ? 'عن تجربتي'                        : 'About Tajribti';

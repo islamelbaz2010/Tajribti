@@ -10,7 +10,7 @@ export default function CampaignDetail() {
 
   useEffect(() => {
     campaignApi
-      .getMyActiveCampaign()
+      .getSelected()
       .then(async (c) => {
         setCampaign(c);
         const blob = await qrApi.getQrImage(c.id);

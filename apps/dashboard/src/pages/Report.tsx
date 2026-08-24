@@ -84,7 +84,7 @@ export default function Report() {
 
   useEffect(() => {
     campaignApi
-      .getMyActiveCampaign()
+      .getSelected()
       .then((c) => reportApi.getPdfData(c.id))
       .then(setData)
       .catch(() => setError('Failed to load report data.'))

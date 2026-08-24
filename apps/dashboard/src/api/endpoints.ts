@@ -27,6 +27,16 @@ export const campaignApi = {
   // Full campaign history for the authenticated brand — same endpoint as
   // getMyActiveCampaign, without discarding everything but the first result.
   getMyCampaigns: (): Promise<Campaign[]> => client.get('/campaigns/my'),
+  // Campaign-aware resolver: honors ?campaignId= in the URL (used by the
+  // Overview "Other Campaigns" links) so every monitoring page can show a
+  // specific campaign from history, falling back to the brand's active
+  // campaign when no id is present. Ownership is enforced server-side on
+  // every downstream analytics/report call, so this is safe regardless of
+  // which campaignId is passed.
+  getSelected: (): Promise<Campaign> => {
+    const id = new URLSearchParams(window.location.search).get('campaignId');
+    return id ? client.get(`/campaigns/${id}`) : campaignApi.getMyActiveCampaign();
+  },
   getById: (id: string): Promise<Campaign> => client.get(`/campaigns/${id}`),
   create: (body: {
     brandName: string;

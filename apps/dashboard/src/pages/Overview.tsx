@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { analyticsApi, campaignApi } from '../api/endpoints';
 import type { OverviewData, Campaign, LiveFeedEntry } from '../api/types';
 
@@ -8,16 +9,18 @@ function OtherCampaigns({ campaigns }: { campaigns: Campaign[] }) {
     <div style={historyStyles.section}>
       <div style={historyStyles.header}>
         <h2 style={historyStyles.title}>Other Campaigns</h2>
-        <p style={historyStyles.sub}>Previous and other campaigns on this account</p>
+        <p style={historyStyles.sub}>Previous and other campaigns on this account — click to view</p>
       </div>
       {campaigns.map((c) => (
-        <div key={c.id} style={historyStyles.row}>
-          <div style={historyStyles.rowMain}>
-            <span style={historyStyles.rowProduct}>{c.productName}</span>
-            <span style={historyStyles.rowBrand}>{c.brandName}</span>
+        <Link key={c.id} to={`/overview?campaignId=${c.id}`} style={historyStyles.rowLink}>
+          <div style={historyStyles.row}>
+            <div style={historyStyles.rowMain}>
+              <span style={historyStyles.rowProduct}>{c.productName}</span>
+              <span style={historyStyles.rowBrand}>{c.brandName}</span>
+            </div>
+            <span style={historyStyles.rowStatus}>{c.status.toUpperCase()}</span>
           </div>
-          <span style={historyStyles.rowStatus}>{c.status.toUpperCase()}</span>
-        </div>
+        </Link>
       ))}
     </div>
   );
@@ -34,6 +37,7 @@ const historyStyles: Record<string, React.CSSProperties> = {
   header: { marginBottom: 14 },
   title: { fontSize: 14, fontWeight: 700, color: '#edf0ff', margin: '0 0 2px', letterSpacing: 0.3 },
   sub: { fontSize: 11, color: '#2e3d5e', margin: 0 },
+  rowLink: { textDecoration: 'none', display: 'block' },
   row: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -324,6 +328,7 @@ const feedStyles: Record<string, React.CSSProperties> = {
 };
 
 export default function Overview() {
+  const location = useLocation();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [otherCampaigns, setOtherCampaigns] = useState<Campaign[]>([]);
   const [data, setData] = useState<OverviewData | null>(null);
@@ -331,8 +336,12 @@ export default function Overview() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    campaignApi.getMyActiveCampaign().then(setCampaign).catch(console.error);
-  }, []);
+    // Re-resolves whenever ?campaignId= changes (e.g. clicking an "Other
+    // Campaigns" link) — the route itself doesn't remount on a query-string
+    // change alone, so this effect must depend on location.search directly.
+    setData(null);
+    campaignApi.getSelected().then(setCampaign).catch(console.error);
+  }, [location.search]);
 
   useEffect(() => {
     if (!campaign) return;

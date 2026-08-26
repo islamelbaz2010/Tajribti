@@ -1,16 +1,70 @@
 import React, { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { campaignApi } from '../api/endpoints';
+import type { SurveyQuestion } from '../api/types';
 
 // Minimal campaign-creation form for Tajribti's own team to operate more
 // than one campaign per brand account. Reuses the existing POST /campaigns
-// contract exactly as-is (CreateCampaignDto) — no new fields, no new
-// backend logic. Survey questions, status, and demo flag are set
-// server-side by the existing campaign.service.ts (standard 5-question
-// survey, status=active, isDemo=false) and are intentionally not exposed
-// here — this is not a Survey/Campaign Builder.
+// contract (CreateCampaignDto) — status/demo flag are still set
+// server-side. The one optional addition is `surveyQuestions`: the same
+// fixed 5-question shape the backend has always used, editable here so
+// Tajribti's team can adapt wording/options to a campaign's product or
+// sector (e.g. the default q3 word bank is beverage-specific) — not a
+// Survey Builder; question count/order/types stay fixed.
+const DEFAULT_QUESTIONS: SurveyQuestion[] = [
+  {
+    id: 'q1',
+    text: 'What was your first impression of this product?',
+    textAr: 'ما هو انطباعك الأول عن هذا المنتج؟',
+    type: 'stars',
+    required: true,
+  },
+  {
+    id: 'q2',
+    text: 'How likely are you to buy this product at a store?',
+    textAr: 'ما مدى احتمالية شراؤك لهذا المنتج من المتجر؟',
+    type: 'scale',
+    required: true,
+  },
+  {
+    id: 'q3',
+    text: 'Which word best describes this product?',
+    textAr: 'أي كلمة تصف هذا المنتج بشكل أفضل؟',
+    type: 'multiple_choice',
+    options: ['Fresh', 'Light', 'Refreshing', 'Balanced', 'Natural'],
+    optionsAr: ['منعش', 'خفيف', 'مرطب', 'متوازن', 'طبيعي'],
+    required: true,
+  },
+  {
+    id: 'q4',
+    text: 'Compared to similar products, this is:',
+    textAr: 'مقارنة بالمنتجات المماثلة، هذا المنتج:',
+    type: 'multiple_choice',
+    options: ['Much Better', 'Better', 'About the Same', 'Worse'],
+    optionsAr: ['أفضل بكثير', 'أفضل', 'مماثل', 'أسوأ'],
+    required: true,
+  },
+  {
+    id: 'q5',
+    text: 'Any other comments? (optional)',
+    textAr: 'أي تعليقات إضافية؟ (اختياري)',
+    type: 'text',
+    required: false,
+  },
+];
+
 export default function CreateCampaign() {
   const navigate = useNavigate();
+  const [customizeSurvey, setCustomizeSurvey] = useState(false);
+  const [questions, setQuestions] = useState<SurveyQuestion[]>(DEFAULT_QUESTIONS);
+
+  const updateQuestion = (index: number, patch: Partial<SurveyQuestion>) => {
+    setQuestions((prev) => prev.map((q, i) => (i === index ? { ...q, ...patch } : q)));
+  };
+
+  const updateOptionList = (index: number, field: 'options' | 'optionsAr', raw: string) => {
+    updateQuestion(index, { [field]: raw.split(',').map((s) => s.trim()).filter(Boolean) });
+  };
 
   const [brandName, setBrandName] = useState('');
   const [productName, setProductName] = useState('');
@@ -43,6 +97,7 @@ export default function CreateCampaign() {
         targetCount,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
+        surveyQuestions: customizeSurvey ? questions : undefined,
       });
       navigate(`/overview?campaignId=${campaign.id}`);
     } catch (err) {
@@ -146,6 +201,59 @@ export default function CreateCampaign() {
           />
         </Field>
 
+        <div style={styles.surveyToggle}>
+          <label style={styles.checkboxLabel}>
+            <input
+              type="checkbox"
+              checked={customizeSurvey}
+              onChange={(e) => setCustomizeSurvey(e.target.checked)}
+            />
+            Customize research survey for this campaign (optional — standard survey used otherwise)
+          </label>
+        </div>
+
+        {customizeSurvey && (
+          <div style={styles.surveySection}>
+            <p style={styles.surveyHint}>
+              Same 5-question trial survey structure — edit wording/options only. Question order and
+              types stay fixed.
+            </p>
+            {questions.map((q, i) => (
+              <div key={q.id} style={styles.questionCard}>
+                <span style={styles.questionLabel}>Q{i + 1} · {q.type}</span>
+                <input
+                  style={styles.input}
+                  value={q.text}
+                  onChange={(e) => updateQuestion(i, { text: e.target.value })}
+                  placeholder="Question (English)"
+                />
+                <input
+                  style={{ ...styles.input, textAlign: 'right', direction: 'rtl' }}
+                  value={q.textAr}
+                  onChange={(e) => updateQuestion(i, { textAr: e.target.value })}
+                  placeholder="السؤال (عربي)"
+                />
+                {q.type === 'multiple_choice' && (
+                  <>
+                    <input
+                      style={styles.input}
+                      value={(q.options ?? []).join(', ')}
+                      onChange={(e) => updateOptionList(i, 'options', e.target.value)}
+                      placeholder="Options, comma-separated (English)"
+                    />
+                    <input
+                      style={{ ...styles.input, textAlign: 'right', direction: 'rtl' }}
+                      value={(q.optionsAr ?? []).join(', ')}
+                      onChange={(e) => updateOptionList(i, 'optionsAr', e.target.value)}
+                      placeholder="الخيارات، مفصولة بفاصلة (عربي)"
+                    />
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {error && <p style={styles.error}>{error}</p>}
 
         <div style={styles.actions}>
@@ -223,6 +331,36 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '8px 12px',
     margin: 0,
   },
+  surveyToggle: { borderTop: '1px solid #111d35', paddingTop: 16 },
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    fontSize: 12,
+    color: '#6b7fa8',
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  surveySection: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 14,
+    background: '#070c1a',
+    border: '1px solid #111d35',
+    borderRadius: 12,
+    padding: 18,
+  },
+  surveyHint: { fontSize: 12, color: '#6b7fa8', margin: 0, lineHeight: 1.5 },
+  questionCard: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 8,
+    background: '#0a1120',
+    border: '1px solid #111d35',
+    borderRadius: 10,
+    padding: 14,
+  },
+  questionLabel: { fontSize: 10, fontWeight: 800, color: '#b2f24d', letterSpacing: 0.5, textTransform: 'uppercase' as const },
   actions: { display: 'flex', justifyContent: 'flex-end' },
   btn: {
     background: '#b2f24d',

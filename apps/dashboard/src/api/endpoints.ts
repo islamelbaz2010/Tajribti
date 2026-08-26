@@ -5,6 +5,8 @@ import type {
   SurveyData,
   ParticipantsResponse,
   Campaign,
+  CampaignMedia,
+  SurveyQuestion,
   AiReport,
   PdfData,
 } from './types';
@@ -60,7 +62,19 @@ export const campaignApi = {
     targetCount: number;
     startDate?: string;
     endDate?: string;
+    surveyQuestions?: SurveyQuestion[];
   }): Promise<Campaign> => client.post('/campaigns', body),
+};
+
+export const mediaApi = {
+  list: (campaignId: string): Promise<CampaignMedia[]> =>
+    client.get(`/campaigns/${campaignId}/media`),
+  create: (
+    campaignId: string,
+    body: { type: 'photo' | 'video'; url: string; caption?: string },
+  ): Promise<CampaignMedia> => client.post(`/campaigns/${campaignId}/media`, body),
+  remove: (campaignId: string, mediaId: string): Promise<void> =>
+    client.delete(`/campaigns/${campaignId}/media/${mediaId}`),
 };
 
 export const analyticsApi = {

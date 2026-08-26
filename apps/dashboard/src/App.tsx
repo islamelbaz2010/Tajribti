@@ -10,6 +10,7 @@ import Insights from './pages/Insights';
 import SurveyResults from './pages/SurveyResults';
 import AiSummary from './pages/AiSummary';
 import Participants from './pages/Participants';
+import Gallery from './pages/Gallery';
 import Report from './pages/Report';
 import JoinLayout from './pages/consumer/JoinLayout';
 import JoinPage from './pages/consumer/JoinPage';
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/survey" element={<ProtectedRoute><SurveyResults /></ProtectedRoute>} />
           <Route path="/summary" element={<ProtectedRoute><AiSummary /></ProtectedRoute>} />
           <Route path="/participants" element={<ProtectedRoute><Participants /></ProtectedRoute>} />
+          <Route path="/gallery" element={<ProtectedRoute><Gallery /></ProtectedRoute>} />
           <Route path="/report" element={<ProtectedRoute><Report /></ProtectedRoute>} />
 
           {/* Consumer web journey — no brand auth required */}

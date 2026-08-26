@@ -1,3 +1,12 @@
+export interface CampaignMedia {
+  id: string;
+  campaignId: string;
+  type: 'photo' | 'video';
+  url: string;
+  caption: string | null;
+  createdAt: string;
+}
+
 export interface LiveFeedEntry {
   id: string;
   gender: string | null;

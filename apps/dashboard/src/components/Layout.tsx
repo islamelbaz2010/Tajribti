@@ -20,6 +20,12 @@ const NAV_SECTIONS = [
     ],
   },
   {
+    group: 'CAMPAIGN OPS',
+    items: [
+      { to: '/gallery', label: 'Media / Gallery' },
+    ],
+  },
+  {
     group: 'INTELLIGENCE',
     items: [
       { to: '/summary', label: 'What Did We Learn?' },

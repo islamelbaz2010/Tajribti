@@ -110,10 +110,15 @@ class _ActivityCard extends StatelessWidget {
   const _ActivityCard({required this.record, required this.s, required this.onTap});
 
   String _formatDate(DateTime d) {
-    final months = [
+    const monthsEn = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
+    const monthsAr = [
+      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+    ];
+    final months = s.isRtl ? monthsAr : monthsEn;
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
 

@@ -333,6 +333,7 @@ export default function Overview() {
   const [otherCampaigns, setOtherCampaigns] = useState<Campaign[]>([]);
   const [data, setData] = useState<OverviewData | null>(null);
   const [pulse, setPulse] = useState(false);
+  const [noCampaigns, setNoCampaigns] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -340,7 +341,22 @@ export default function Overview() {
     // Campaigns" link) — the route itself doesn't remount on a query-string
     // change alone, so this effect must depend on location.search directly.
     setData(null);
-    campaignApi.getSelected().then(setCampaign).catch(console.error);
+    setNoCampaigns(false);
+
+    // Check for the zero-campaigns case explicitly first — getSelected()
+    // (via getMyActiveCampaign) throws when the brand has no campaigns yet,
+    // which would otherwise leave this page stuck on the loading state
+    // forever with no path forward for a brand-new account.
+    campaignApi
+      .getMyCampaigns()
+      .then((list) => {
+        if (list.length === 0) {
+          setNoCampaigns(true);
+          return;
+        }
+        campaignApi.getSelected().then(setCampaign).catch(console.error);
+      })
+      .catch(console.error);
   }, [location.search]);
 
   useEffect(() => {
@@ -375,6 +391,21 @@ export default function Overview() {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [campaign]);
+
+  if (noCampaigns) {
+    return (
+      <div style={styles.emptyState}>
+        <h1 style={styles.emptyTitle}>No campaigns yet</h1>
+        <p style={styles.emptySub}>
+          This account has no campaigns yet. Create the first one to start collecting trial
+          signals.
+        </p>
+        <Link to="/campaigns/new" style={styles.emptyBtn}>
+          + New Campaign
+        </Link>
+      </div>
+    );
+  }
 
   if (!data || !campaign) {
     return <div style={styles.loading}>Connecting to signal stream…</div>;
@@ -435,6 +466,29 @@ export default function Overview() {
 
 const styles: Record<string, React.CSSProperties> = {
   loading: { color: '#2e3d5e', fontSize: 16, marginTop: 40 },
+  emptyState: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    textAlign: 'center' as const,
+    background: '#0a1120',
+    border: '1px solid #111d35',
+    borderRadius: 16,
+    padding: '64px 32px',
+    marginTop: 40,
+  },
+  emptyTitle: { fontSize: 20, fontWeight: 800, color: '#edf0ff', margin: '0 0 8px' },
+  emptySub: { fontSize: 13, color: '#6b7fa8', margin: '0 0 24px', maxWidth: 420, lineHeight: 1.5 },
+  emptyBtn: {
+    background: '#b2f24d',
+    color: '#040812',
+    textDecoration: 'none',
+    borderRadius: 8,
+    padding: '12px 24px',
+    fontSize: 13,
+    fontWeight: 800,
+    letterSpacing: 0.3,
+  },
   campaignHeader: {
     display: 'flex',
     justifyContent: 'space-between',

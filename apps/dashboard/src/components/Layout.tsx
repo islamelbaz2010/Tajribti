@@ -82,6 +82,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav style={styles.nav}>
+          <NavLink
+            to="/campaigns/new"
+            style={({ isActive }) => ({
+              ...styles.newCampaignBtn,
+              ...(isActive ? styles.newCampaignBtnActive : {}),
+            })}
+          >
+            + New Campaign
+          </NavLink>
+
           {NAV_SECTIONS.map(({ group, items }) => (
             <div key={group} style={styles.navSection}>
               <div style={styles.navGroupLabel}>{group}</div>
@@ -210,6 +220,24 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'rgba(178, 242, 77, 0.07)',
     color: '#b2f24d',
     borderLeft: '2px solid #b2f24d',
+  },
+  newCampaignBtn: {
+    display: 'block',
+    textAlign: 'center' as const,
+    background: 'rgba(178, 242, 77, 0.08)',
+    border: '1px solid rgba(178, 242, 77, 0.25)',
+    color: '#b2f24d',
+    textDecoration: 'none',
+    borderRadius: 8,
+    padding: '10px 12px',
+    fontSize: 12,
+    fontWeight: 800,
+    letterSpacing: 0.3,
+    margin: '4px 8px 8px',
+  },
+  newCampaignBtnActive: {
+    background: '#b2f24d',
+    color: '#040812',
   },
   main: {
     flex: 1,

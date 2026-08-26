@@ -1,7 +1,7 @@
 # Open Decisions Tracker
 
 **Purpose:** Live tracker for all unresolved decisions. Update this file as decisions are made.  
-**Last reviewed:** 2026-08-17  
+**Last reviewed:** 2026-08-26
 **Owner:** Founder / CEO  
 
 ---
@@ -124,17 +124,71 @@
 | **Owner** | Founder (hardware + product decision) |
 | **Impact** | The first brand discovery meeting cannot demonstrate the Flutter mobile app at full fidelity until this is resolved. Mobile web is deployed on Vercel and functional, but contradicts DL-046. |
 | **What proves it closed** | Flutter app successfully built and distributable (path A or B) OR DL-046 formally amended to accept mobile web with note in FOUNDER_DECISIONS.md (path C) |
-| **Status** | ⬜ OPEN — identified 2026-08-17 |
+| **Status** | ✅ OPTION B FULLY VALIDATED 2026-08-23 — PATH C isolated E2E: 16/16 steps PASS. Real Akedly OTP (+201118000472). Full participation + completed-campaign protection ("شاركت سابقاً") confirmed on TKINR8IJ5D9DSKQK. Production unchanged. |
 
 ### D-028 — Intelligence Report Quality
 
 | Field | Value |
 |---|---|
-| **Decision required** | Founder reviews the current Intelligence Report deployed on Vercel (EN and AR modes) and either (a) confirms the current version meets the Samplia benchmark (DL-047) and is ready for commercial demos, or (b) specifies the exact remaining changes needed |
+| **Decision required** | ~~Founder reviews the current Intelligence Report deployed on Vercel (EN and AR modes)~~ — superseded by direct Founder instruction 2026-08-26 to close this loop based on an evidence-based R1–R9 review (see below) rather than a further live-review round |
 | **Owner** | Founder |
-| **Impact** | Commercial demo materials are incomplete until Founder confirms the report is ready. Further speculative design work is blocked by MANAGEMENT_SITUATION_ANALYSIS protocol. |
-| **What proves it closed** | Founder message confirming "report is ready" or a specific list of remaining changes |
-| **Status** | ⬜ OPEN — improvements delivered 2026-08-14; sign-off pending |
+| **Status** | ✅ **CLOSED — 2026-08-26 — ACCEPTED WITH ONE DOCUMENTED NON-BLOCKING DEFERMENT** |
+| **Closure basis** | Full R1–R9 review against current `Report.tsx`/`report.service.ts`/`analytics.service.ts` source (not assumed from prior reports). R1 (data integrity), R2 (findings integrity), R3 (consumer-voice quality gate — `MIN_VERBATIM_LENGTH=10` filter confirmed in `analytics.service.ts`), R4 (Executive Summary), R5 (Arabic localization of all report-generated content), R7 (methodology/limitations disclosure), R9 (evidence-proportionate recommendation language) — all **RESOLVED**, confirmed directly in source this session. R6 (pagination) — a genuine, previously-unfixed defect was found and fixed this session: the PDF page-slicing loop could dedicate an entire near-blank trailing page to a small content sliver (numerically reproduces the originally reported "page 4 is almost entirely blank" symptom); fixed in `Report.tsx` by dropping a dedicated trailing page below a 20mm-content threshold and ending the true last page's crop at the content's bottom instead. Verified via clean `tsc --noEmit` and a successful `npm run build` on `apps/dashboard`; **exact visual confirmation on a live-rendered PDF with real campaign data was not performed this session** (no live data/browser-render check available) — flagged as the one residual unverified item, not a known defect. R8 (per-study/sector adaptability) is **PARTIALLY SUPPORTED**: the report works correctly for the current standard 5-question survey layout, but `q2`/`q3`/`q5` semantic-role positions are hardcoded (already documented elsewhere as a deferred schema dependency, not built) — this is an explicit **non-blocking deferment**, not a defect, consistent with the project's standing decision not to build a generalized Survey/Report Builder. |
+| **What was NOT done** | No report redesign. No new Survey/Report Builder. No new backend aggregation (Segment Insights, Reach, Purchase-Intent-by-Segment remain deferred, untouched). No website work — the report lives in `apps/dashboard`, not a website. |
+| **Authority** | Founder (explicit direction 2026-08-26: "review what D-028 still needs and close it so it does not keep appearing") |
+
+---
+
+## COMMERCIAL REPORT + PRODUCT COMPLETION — Bounded Exception (2026-08-24)
+
+### DL-052 — BD-13 Bounded Engineering Exception
+
+| Field | Value |
+|---|---|
+| **Decision** | Engineering authorized for: consumer app completion/polish, new Executive Consumer Intelligence Report (extend existing), limited client/brand monitoring, small directly-blocking real-pilot fixes only. Full detail in `FOUNDER_DECISIONS.md` and `DECISION_LOG.md` Phase 5. |
+| **Authority** | Founder (explicit direction 2026-08-24) |
+| **Status** | ✅ AUTHORIZED — 2026-08-24 |
+
+### DL-053 — Report remediation under DL-052
+
+| Field | Value |
+|---|---|
+| **Decision** | Implemented the three confirmed D-028 issues (see D-028 row above) plus evidence-proportionate recommendation language, as an extension of the existing report implementation. |
+| **Status** | ✅ IMPLEMENTED — 2026-08-24; typecheck + build verified on both `apps/api` and `apps/dashboard`; not yet Founder-reviewed |
+
+---
+
+## V1 COMMERCIAL PRODUCT BUILD — Bounded Increment (2026-08-24)
+
+### DL-054 — BD-13 Bounded Engineering Exception
+
+| Field | Value |
+|---|---|
+| **Decision** | Bounded V1 increment: consumer polish (real gaps only), client campaign-history navigation, report improvement within existing architecture, survey configuration audit. Full detail in `FOUNDER_DECISIONS.md` and `DECISION_LOG.md` Phase 6. |
+| **Authority** | Founder (explicit direction 2026-08-24) |
+| **Status** | ✅ AUTHORIZED — 2026-08-24 |
+
+### DL-054 outcome
+
+| Field | Value |
+|---|---|
+| **Implemented** | Client: `?campaignId=` navigation across all 7 dashboard pages, "Other Campaigns" list now clickable (`endpoints.ts`, `Overview.tsx`, `Layout.tsx`, 6 other pages). |
+| **Audited, not built** | Consumer — no further gap found beyond prior increments. Report — no further safely-buildable gap beyond DL-053. Survey — rendering confirmed already fully campaign-configurable; analytics q2/q3/q5 role-mapping documented as a deferred schema dependency, not built. |
+| **Status** | ✅ PARTIAL IMPLEMENTATION — 2026-08-24; typecheck + build verified on `apps/dashboard` |
+
+---
+
+## PRODUCT COMPLETION — Campaign Operations + Media/Gallery Bounded Exception (2026-08-26)
+
+### DL-055 — BD-13 Bounded Engineering Exception
+
+| Field | Value |
+|---|---|
+| **Decision** | Engineering authorized for exactly two Tajribti-internal workstreams: (1) Internal Campaign Operations (bounded internal-operations surface, not brand self-service, using only existing campaign domain/API), (2) Campaign-oriented Media/Gallery (Gallery → Campaign → Photos/Videos). Full detail in `FOUNDER_DECISIONS.md` and `DECISION_LOG.md` Phase 7. |
+| **Authority** | Founder (explicit direction 2026-08-26) |
+| **Status** | ✅ AUTHORIZED — 2026-08-26. **Not yet implemented** — this entry records authorization only; no engineering has started under DL-055. |
+| **Explicitly excluded** | Generic Admin/CRM, self-service Survey/Campaign/Report Builder, billing/payments, enterprise RBAC, social feed/marketplace features, website (any form), rewards economics, broad V1 |
+| **Not affected by this decision** | D-028 (unchanged, still OPEN — Founder acceptance not assumed), B-01/B-02/B-03/B-04 (unchanged, all OPEN), commercial outreach authorization (unchanged, still NOT AUTHORIZED), MEOS (unchanged, still FROZEN) |
 
 ---
 

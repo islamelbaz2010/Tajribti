@@ -2,8 +2,8 @@
 
 **Format:** Append-only. Never delete or amend past entries. If a decision is reversed, add a new entry marked REVERSED/AMENDED.  
 **Authority:** Binding decisions are in `15_Decisions/FOUNDER_DECISIONS.md`. This log provides audit trail and rationale.  
-**Last updated:** 2026-08-18  
-**Decision count:** 56 logged (31+ locked, 6 open, 4 blocking, 9 ADRs)
+**Last updated:** 2026-08-26
+**Decision count:** 60 logged (35+ locked, 6 open, 4 blocking, 9 ADRs)
 
 ---
 
@@ -165,6 +165,10 @@
 |---|---|---|---|---|---|---|
 | DL-048 | 2026-08-17 | TECH | OPEN | CONFLICT-INTERNAL-C: DL-046 (first client must see Flutter) vs. macOS 13 hardware which cannot build Flutter 3.44.8 (requires macOS 14+). Founder must choose: upgrade to macOS 14; set up CI build pipeline; or amend DL-046 to accept mobile web for first demo | Founder | Identified during DECISION_RECONCILIATION_2026-08-17; not previously logged in any workspace document. Blocks first brand discovery meeting at full demo fidelity. |
 
+**DL-048 resolution — 2026-08-23:** Founder selected Option B — use the CI-based Flutter Android build/distribution path; DL-046 remains unchanged. CI artifact production and client-ready validation remain execution evidence.
+
+**DL-048 closure — 2026-08-23:** PATH C isolated E2E completed 16/16 PASS. Disposable APK (SHA-256 `d32abec…`) built from source SHA `ad71117` with `API_BASE=http://localhost:3010/api/v1`; real Akedly V1.2 OTP authenticated +201118000472; full participation journey confirmed; already-participated protection ("شاركت سابقاً") confirmed; production Railway campaign unchanged; isolated runtime cleanly destroyed post-validation. DL-048 is CLOSED. Post-cleanup home-screen error classified EXPECTED DISPOSABLE RUNTIME FAILURE — not a product defect. Client-ready gate: MET.
+
 ---
 
 ## Phase 3 — Pilot Hardening & Bug Fix Sprint (2026-08-17 to 2026-08-18)
@@ -185,6 +189,49 @@
 |---|---|---|---|---|---|---|
 | DL-050 | 2026-08-23 | PROD | LOCKED | CONFLICT-D RESOLVED: Discovery-First is the target consumer product experience. CAD-05 (Consumer journey: Discover → Scan → Survey → Reward) applies from Product Completion V0.5 onward. QR scanning remains a valid campaign-entry mechanism alongside discovery. | Founder review of product state concluded the current QR-only experience is insufficient — no retention loop, no reason to return. Product must have discovery, campaign browsing, meaningful navigation, and participation history. Samplia-level product depth is the benchmark. CONFLICT-D is closed. | Founder (explicit direction 2026-08-23) |
 | DL-051 | 2026-08-23 | PROD | LOCKED | BD-13 BOUNDED EXCEPTION: Engineering is authorized for Product Completion V0.5 scope only. Authorized scope: consumer discovery feed, real home screen with campaigns + profile, campaign detail (extend existing), discovery-first entry, return-to-home after completion, participation history, reward presentation. All items outside this scope remain governed by BD-13. BD-14 kill criterion unchanged. | Founder direction: transform technical pilot into coherent consumer product. No LOI gate applies to this bounded sprint because it corrects a product incompleteness that predates the commercial validation sprint, not a Track 1 expansion. | Founder (explicit direction 2026-08-23) |
+
+---
+
+## Phase 5 — Commercial Report + Client/Consumer Completion Exception (2026-08-24)
+
+### Governance Decisions
+
+| ID | Date | Category | Status | Decision | Rationale | Authority |
+|---|---|---|---|---|---|---|
+| DL-052 | 2026-08-24 | PROD | LOCKED | BD-13 BOUNDED EXCEPTION: Engineering authorized for exactly four items — (1) consumer app completion/UX polish, (2) the new Executive Consumer Intelligence Report (extending, not replacing, the existing report implementation), (3) limited client/brand-account monitoring capability, (4) small directly-blocking real-pilot fixes only where safe within existing architecture. Explicitly excludes: website, self-service campaign/survey/report builder, rewards economics, media/gallery backend, generic admin/CRM, V2+ expansion, architecture rewrite. BD-13 resumes for everything outside this scope once this exception's work concludes. | Founder issued this bounded exception directly, in the same DL-051 pattern, to move from the closed V0.5 foundation toward commercial report/report-quality readiness without reopening broad Track 1 engineering. | Founder (explicit direction 2026-08-24) |
+| DL-053 | 2026-08-24 | TECH | LOCKED | Under DL-052 scope item 2: extended `AiReport` with a nullable `narrativeAr` column and generate bilingual (EN+AR) narratives per campaign; softened Recommendations/Key-Findings language in `Report.tsx` to hedge on sample size and stop presenting sample composition as market proof; added a minimum-quality gate to the `q5` verbatims filter in `analytics.service.ts`; conditioned the Audience Profile intro in `Report.tsx` on `campaign.isDemo` so it no longer unconditionally claims verified/OTP-authenticated participation for demo data. These four fixes correspond exactly to the three confirmed D-028 issues (audience-claim contradiction, English-only Arabic Executive Summary, unfiltered verbatims) plus evidence-proportionate recommendation language, implemented by extending the existing report rather than building a parallel system. | D-028's confirmed issues were the most concrete, already-diagnosed, smallest-safe-change item within DL-052's report scope; extending the existing implementation avoided a second reporting architecture. | Claude Code (session, DL-052 authorized) |
+
+---
+
+## Phase 6 — V1 Commercial Product Build, Bounded Increment (2026-08-24)
+
+### Governance Decisions
+
+| ID | Date | Category | Status | Decision | Rationale | Authority |
+|---|---|---|---|---|---|---|
+| DL-054 | 2026-08-24 | PROD | LOCKED — BOUNDED EXCEPTION | BD-13 exception, following the DL-052 pattern, for exactly four coordinated workstreams: (1) consumer product experience polish where a real gap exists (no blanket redesign), (2) client account/monitoring evolution using only existing API/data — specifically campaign-history navigation via a `?campaignId=` query param across the existing dashboard pages, ownership-enforced server-side, no new routes/entities, (3) commercial report improvement within the existing report architecture only — no new backend aggregation for previously-deferred unsupported metrics (Reach, segment cross-tabs), (4) campaign-level survey configuration using the existing per-campaign `surveyQuestions` jsonb column only — no Survey Builder UI. Explicitly excludes website, self-service campaign/survey/report builders, rewards economics, media/gallery backend, generic admin/CRM, V2+. Each workstream that would require new backend architecture beyond existing data/API is to be documented as a deferred dependency, not built. BD-13 resumes for everything else once this scope's work concludes. | Founder issued this bounded exception directly (same real-time mechanism as DL-051/DL-052) to continue commercial product work incrementally without reopening broad Track 1 engineering. | Founder (explicit direction 2026-08-24) |
+
+---
+
+## Phase 7 — Product Completion: Campaign Operations + Media/Gallery (2026-08-26)
+
+*Governance-only formalization. No product code was changed when this decision was recorded — see `ASSESSMENT_PREPARATION_DECISION_RECONCILIATION_2026-08-26.md` §7, which classified these two items as TACIT / UNFORMALIZED MANAGEMENT CHANGE (not permanently rejected, not previously authorized) after DL-052/DL-054 explicitly excluded them by name.*
+
+### Governance Decisions
+
+| ID | Date | Category | Status | Decision | Rationale | Authority |
+|---|---|---|---|---|---|---|
+| DL-055 | 2026-08-26 | PROD | LOCKED — BOUNDED EXCEPTION | BD-13 exception, following the DL-051/052/054 pattern, for exactly two coordinated Tajribti-internal product-completion workstreams: (1) **Internal Tajribti Campaign Operations** — a bounded internal-operations surface (not brand self-service) for Tajribti's own team, using only the existing campaign domain/API foundations: campaign list, campaign detail, campaign creation via the existing `POST /campaigns` endpoint and `Campaign` entity, campaign status/lifecycle, campaign dates, brand/client association, QR/access operations, participation/operational visibility, and existing report access. (2) **Campaign-oriented Media/Gallery** — Gallery → Campaign → Photos/Videos, presenting/storing campaign/event media organized by campaign; reuse existing infrastructure if present, otherwise implement only the smallest architecture required for this bounded scope. Explicitly excludes: generic Admin/CRM framework, arbitrary user administration, self-service Survey Builder, self-service Campaign Builder as a commercial SaaS model, self-service Report Builder, advanced workflow automation, CRM integrations, billing, payments, enterprise RBAC expansion, social feed/likes/comments/followers/public user-generated content/creator or media marketplace/complex social graph, website (any form), rewards economics, and any other broad V1 or unrelated expansion. This is NOT broad V1 authorization — broad V1 remains governed by the existing Track 0 gates (B-01–B-04). BD-13 resumes for everything outside this two-item scope once this exception's work concludes. | The Discovery-First consumer foundation (DL-050/051) and reporting surfaces (DL-052/053/054) are now complete. Internal campaign operations and campaign-oriented media/gallery were the two remaining Founder-identified product-completion gaps, previously excluded by name from DL-052/054's bounded scope as a scoping boundary for those specific increments, not a permanent rejection. This decision formalizes Founder authorization for exactly these two remaining items as a new bounded increment, without authorizing broad V1 or self-service SaaS functionality. | Founder (explicit direction 2026-08-26, DL-051/052/054 pattern) |
+
+---
+
+## Phase 8 — D-028 Final Closure (2026-08-26)
+
+### Governance Decisions
+
+| ID | Date | Category | Status | Decision | Rationale | Authority |
+|---|---|---|---|---|---|---|
+| DL-056 | 2026-08-26 | TECH | LOCKED | D-028 CLOSURE: full R1–R9 review of the current report source (`Report.tsx`, `report.service.ts`, `analytics.service.ts`) found R1/R2/R3/R4/R5/R7/R9 already RESOLVED in code (notably the R3 consumer-voice quality gate: `MIN_VERBATIM_LENGTH=10` + whitespace check in `analytics.service.ts`, rejecting single-token junk like "test"/"vvgv"). R6 (pagination) was found still genuinely broken — the PDF page-slicing loop could dedicate an entire near-blank trailing page to a small leftover content sliver, reproducing the originally reported "page 4 is almost entirely blank" defect (traced numerically: content at ~3.05×pageHeight height triggers a wasted 4th page for a 0.05×pageHeight sliver) — and was fixed by dropping a dedicated trailing page below a 20mm threshold and ending the true last page's image crop at the content's bottom instead, causing a small deliberate overlap rather than a blank page. Verified via clean `tsc --noEmit -p tsconfig.json` and successful `CI=true npm run build` on `apps/dashboard` (bundle +52B). R8 (per-study adaptability) confirmed PARTIALLY SUPPORTED — works for the current standard survey layout; the `q2`/`q3`/`q5` hardcoded semantic roles remain an explicit non-blocking deferred schema dependency, not fixed, consistent with the standing decision against a generalized Survey/Report Builder. D-028 recorded CLOSED — ACCEPTED WITH ONE DOCUMENTED NON-BLOCKING DEFERMENT (R8); full detail in `OPEN_DECISIONS_TRACKER.md`. | Founder explicitly instructed closing this loop via evidence-based review rather than a further live-review round; the only remaining gap (R6) was small, bounded, and directly traceable to the original complaint, so it was fixed and verified rather than left open for a cosmetic-adjacent reason. | Founder (explicit direction 2026-08-26) / Claude Code (session, this direction authorized) |
 
 ---
 

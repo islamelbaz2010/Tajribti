@@ -116,14 +116,26 @@ export default function Report() {
       const pageHeight = pdf.internal.pageSize.getHeight();
       const imgHeightMm = (canvas.height * pageWidth) / canvas.width;
 
-      let remaining = imgHeightMm;
-      let yOffset = 0;
+      // Page count from raw division can leave a near-empty trailing page
+      // (e.g. content at 3.05 pages tall still gets a dedicated 4th page
+      // that shows only a sliver of content — D-028 R6). Below this
+      // threshold, drop the dedicated trailing page and instead let the
+      // true last page's crop end exactly at the content's bottom, which
+      // causes a small deliberate overlap with the previous page instead
+      // of an almost-blank one.
+      const MIN_TRAILING_PAGE_MM = 20;
+      const rawPageCount = Math.max(1, Math.ceil(imgHeightMm / pageHeight));
+      const lastPageContentMm = imgHeightMm - (rawPageCount - 1) * pageHeight;
+      const pageCount =
+        rawPageCount > 1 && lastPageContentMm < MIN_TRAILING_PAGE_MM
+          ? rawPageCount - 1
+          : rawPageCount;
 
-      while (remaining > 0) {
+      for (let page = 0; page < pageCount; page++) {
+        const isLast = page === pageCount - 1;
+        const yOffset = isLast ? imgHeightMm - pageHeight : page * pageHeight;
         pdf.addImage(imgData, 'PNG', 0, -yOffset, pageWidth, imgHeightMm);
-        remaining -= pageHeight;
-        yOffset += pageHeight;
-        if (remaining > 0) pdf.addPage();
+        if (!isLast) pdf.addPage();
       }
 
       const lang = isAr ? 'ar' : 'en';

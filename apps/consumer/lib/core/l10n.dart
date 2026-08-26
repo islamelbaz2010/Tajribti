@@ -143,6 +143,13 @@ class AppStr {
 
   // ── Home / Discovery ─────────────────────────────────────────────────────
   String get homeTitle          => ar ? 'تجربتي'                            : 'Tajribti';
+  String get heroTagline        => ar ? 'جرّب منتجات حقيقية. مجاناً.'        : 'Try real products. For free.';
+  String get heroSub            => ar ? 'اكتشف عروضاً قريبة منك، جرّب المنتج، شارك رأيك، واكسب نقاطاً.'
+                                       : 'Discover offers near you, try the product, share your opinion, and earn points.';
+  String get heroStepDiscover    => ar ? 'اكتشف' : 'Discover';
+  String get heroStepTry         => ar ? 'جرّب'   : 'Try';
+  String get heroStepShare       => ar ? 'شارك'   : 'Share';
+  String get heroStepEarn        => ar ? 'اكسب'   : 'Earn';
   String get availableCampaigns => ar ? 'العروض المتاحة'                    : 'Available Campaigns';
   String get noCampaignsTitle   => ar ? 'لا توجد عروض حالياً'               : 'No campaigns yet';
   String get noCampaignsSub     => ar ? 'ترقّب عروضاً جديدة قريباً'         : 'New campaigns are coming soon';

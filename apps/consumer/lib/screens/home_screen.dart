@@ -119,7 +119,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           onTap: () => context.push('/profile'),
                           child: _ProfileBanner(profile: _profile, s: s),
                         ),
-                      ),
+                      )
+                    // ── Discovery hero (first-time / logged-out only) ────
+                    // Home previously jumped straight from the AppBar into
+                    // the campaign list with no explanation of what
+                    // Tajribti is or why to participate. Shown only when
+                    // logged out — a returning user already knows the app,
+                    // and the profile banner above already personalizes
+                    // their experience instead.
+                    else
+                      const SliverToBoxAdapter(child: _HeroBanner()),
 
                     // ── Campaign section header ───────────────────────────
                     SliverToBoxAdapter(
@@ -280,6 +289,96 @@ class _ProfileBanner extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Discovery hero — introduces the product before showing the campaign list
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _HeroBanner extends StatelessWidget {
+  const _HeroBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.l10n;
+    final steps = [
+      (Icons.explore_rounded, s.heroStepDiscover),
+      (Icons.inventory_2_rounded, s.heroStepTry),
+      (Icons.rate_review_rounded, s.heroStepShare),
+      (Icons.stars_rounded, s.heroStepEarn),
+    ];
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+      padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [kPrimary, Color(0xFF2e3d5e)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            s.heroTagline,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 21,
+              fontWeight: FontWeight.w900,
+              height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            s.heroSub,
+            style: TextStyle(color: Colors.white.withOpacity(0.72), fontSize: 13, height: 1.5),
+          ),
+          const SizedBox(height: 22),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (int i = 0; i < steps.length; i++) ...[
+                _HeroStep(icon: steps[i].$1, label: steps[i].$2),
+                if (i < steps.length - 1)
+                  Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.white.withOpacity(0.3)),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroStep extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _HeroStep({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: const Color(0xFFfbbf24), size: 18),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+        ),
+      ],
     );
   }
 }

@@ -272,7 +272,7 @@ Source: `_navigator/DOCUMENT_INDEX.md`, `MASTER_INDEX.md`, direct workspace know
 
 ## Sales_Execution_Pack/ (Track 0 Commercial Toolkit — APPROVED)
 
-**PAR status: APPROVED — 97/100. P-01 and P-02 verified applied 2026-07-27. Ready for client use.**
+**PAR status: APPROVED — 97/100. P-01 and P-02 verified applied 2026-07-27. Commercial materials are approved for preparation; the formal client-ready demonstration gate (Flutter-first path, safe runtime, required report-quality acceptance, identifiable artifact, known limitations documented) is now 5/5 MET as of 2026-08-27 — see `16_Reports/SAFE_RUNTIME_DRY_RUN_2026-08-27.md`. Customer outreach is authorized; not yet sent.**
 
 | File | One-Line Description |
 |---|---|

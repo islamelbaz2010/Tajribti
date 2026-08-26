@@ -8,6 +8,7 @@ import { SurveyModule } from './modules/survey/survey.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ReportModule } from './modules/report/report.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { MediaModule } from './modules/media/media.module';
 import { Consumer } from './entities/consumer.entity';
 import { OtpSession } from './entities/otp-session.entity';
 import { Campaign } from './entities/campaign.entity';
@@ -16,6 +17,7 @@ import { RedemptionEvent } from './entities/redemption-event.entity';
 import { SurveyResponse } from './entities/survey-response.entity';
 import { BrandAccount } from './entities/brand-account.entity';
 import { AiReport } from './entities/ai-report.entity';
+import { CampaignMedia } from './entities/campaign-media.entity';
 
 @Module({
   imports: [
@@ -37,6 +39,7 @@ import { AiReport } from './entities/ai-report.entity';
           SurveyResponse,
           BrandAccount,
           AiReport,
+          CampaignMedia,
         ],
         synchronize: configService.get('NODE_ENV') !== 'production',
         ssl: configService.get('DATABASE_URL', '').includes('localhost') ? false : { rejectUnauthorized: false },
@@ -51,6 +54,7 @@ import { AiReport } from './entities/ai-report.entity';
     AnalyticsModule,
     ReportModule,
     AdminModule,
+    MediaModule,
   ],
 })
 export class AppModule {}

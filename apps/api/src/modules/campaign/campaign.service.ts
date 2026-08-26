@@ -69,7 +69,11 @@ export class CampaignService {
       targetCount: dto.targetCount,
       startDate: dto.startDate ?? null,
       endDate: dto.endDate ?? null,
-      surveyQuestions: DEFAULT_SURVEY_QUESTIONS,
+      // Internal per-campaign research configuration (DL-057 scope): use
+      // the provided question set if Tajribti's team prepared one for
+      // this campaign's sector/product, otherwise the existing standard
+      // 5-question trial survey — same shape either way, no builder.
+      surveyQuestions: dto.surveyQuestions ?? DEFAULT_SURVEY_QUESTIONS,
       status: CampaignStatus.ACTIVE,
       isDemo: false,
     });

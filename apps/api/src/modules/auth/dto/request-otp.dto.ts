@@ -1,4 +1,4 @@
-import { IsString, Matches, IsOptional, IsNumber, ValidateNested } from 'class-validator';
+import { IsString, Matches, IsOptional, IsNumber, ValidateNested, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class PowSolutionDto {
@@ -10,6 +10,12 @@ export class PowSolutionDto {
 }
 
 export class RequestOtpDto {
+  // This OTP is Campaign participation verification, not account login -
+  // every request is bound to exactly one Campaign (see
+  // AuthController.requestOtp, now authenticated + campaign-scoped).
+  @IsUUID()
+  campaignId: string;
+
   @IsString()
   @Matches(/^\+?[1-9]\d{6,14}$/, {
     message: 'phone must be a valid international phone number',

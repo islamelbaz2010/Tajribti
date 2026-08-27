@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -10,6 +11,7 @@ import * as QRCode from 'qrcode';
 import { QrCode, QrCodeStatus } from '../../entities/qr-code.entity';
 import { RedemptionEvent } from '../../entities/redemption-event.entity';
 import { Campaign, CampaignStatus } from '../../entities/campaign.entity';
+import { CampaignVerification } from '../../entities/campaign-verification.entity';
 
 interface RedeemQrDto {
   qrCode: string;
@@ -26,8 +28,26 @@ export class QrService {
     private readonly redemptionRepo: Repository<RedemptionEvent>,
     @InjectRepository(Campaign)
     private readonly campaignRepo: Repository<Campaign>,
+    @InjectRepository(CampaignVerification)
+    private readonly campaignVerificationRepo: Repository<CampaignVerification>,
     private readonly configService: ConfigService,
   ) {}
+
+  // A valid account JWT (i.e. reaching this service at all) proves Consumer
+  // identity - it does NOT by itself prove fresh Campaign-specific
+  // participation verification. Every NEW redemption requires a matching
+  // CampaignVerification row (created by AuthService.verifyOtp for this
+  // exact consumer+campaign). Pre-existing redemptions are unaffected:
+  // callers check for those first and return "already completed" before
+  // this gate is ever reached, so no backfill is required for legacy data.
+  private async assertCampaignVerified(consumerId: string, campaignId: string): Promise<void> {
+    const verified = await this.campaignVerificationRepo.findOne({
+      where: { consumerId, campaignId },
+    });
+    if (!verified) {
+      throw new ForbiddenException('Campaign verification required before participation');
+    }
+  }
 
   async redeemQr(dto: RedeemQrDto): Promise<{
     success: boolean;
@@ -64,6 +84,10 @@ export class QrService {
       if (existingRedemption) {
         throw new BadRequestException('You have already redeemed this campaign');
       }
+    }
+
+    if (!isDemo) {
+      await this.assertCampaignVerified(dto.consumerId, dto.campaignId);
     }
 
     const redemption = await this.redemptionRepo.save(
@@ -142,6 +166,10 @@ export class QrService {
         rewardPoints: campaign.rewardPoints,
         alreadyCompleted: !!existingRedemption.surveyResponse,
       };
+    }
+
+    if (!campaign.isDemo) {
+      await this.assertCampaignVerified(consumerId, campaignId);
     }
 
     const redemption = await this.redemptionRepo.save(

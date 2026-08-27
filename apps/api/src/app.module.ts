@@ -18,6 +18,8 @@ import { SurveyResponse } from './entities/survey-response.entity';
 import { BrandAccount } from './entities/brand-account.entity';
 import { AiReport } from './entities/ai-report.entity';
 import { CampaignMedia } from './entities/campaign-media.entity';
+import { EmailVerificationToken } from './entities/email-verification-token.entity';
+import { CampaignVerification } from './entities/campaign-verification.entity';
 
 @Module({
   imports: [
@@ -40,6 +42,8 @@ import { CampaignMedia } from './entities/campaign-media.entity';
           BrandAccount,
           AiReport,
           CampaignMedia,
+          EmailVerificationToken,
+          CampaignVerification,
         ],
         synchronize: configService.get('NODE_ENV') !== 'production',
         ssl: configService.get('DATABASE_URL', '').includes('localhost') ? false : { rejectUnauthorized: false },

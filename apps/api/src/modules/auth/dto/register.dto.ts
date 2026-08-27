@@ -1,8 +1,8 @@
 import { IsString, IsIn, Length, IsOptional } from 'class-validator';
 
-const AGE_RANGES = ['18-24', '25-34', '35-44', '45-54', '55+'] as const;
-const GENDERS = ['male', 'female', 'prefer_not_to_say'] as const;
-const CITIES = ['Cairo', 'Giza', 'Alexandria', 'Other'] as const;
+export const AGE_RANGES = ['18-24', '25-34', '35-44', '45-54', '55+'] as const;
+export const GENDERS = ['male', 'female', 'prefer_not_to_say'] as const;
+export const CITIES = ['Cairo', 'Giza', 'Alexandria', 'Other'] as const;
 const INTERESTS = [
   'food_beverages',
   'beauty_personal_care',

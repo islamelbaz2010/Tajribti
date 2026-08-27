@@ -9,6 +9,9 @@ import { RedemptionEvent } from '../entities/redemption-event.entity';
 import { SurveyResponse } from '../entities/survey-response.entity';
 import { BrandAccount } from '../entities/brand-account.entity';
 import { AiReport } from '../entities/ai-report.entity';
+import { CampaignMedia } from '../entities/campaign-media.entity';
+import { EmailVerificationToken } from '../entities/email-verification-token.entity';
+import { CampaignVerification } from '../entities/campaign-verification.entity';
 
 config({ path: '.env' });
 
@@ -28,11 +31,12 @@ export const AppDataSource = new DataSource({
     SurveyResponse,
     BrandAccount,
     AiReport,
+    CampaignMedia,
+    EmailVerificationToken,
+    CampaignVerification,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false },
   logging: false,
 });

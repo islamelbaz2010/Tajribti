@@ -1,6 +1,12 @@
-import { IsString, Matches, Length, IsOptional } from 'class-validator';
+import { IsString, Matches, Length, IsOptional, IsUUID } from 'class-validator';
 
 export class VerifyOtpDto {
+  // Must match the campaignId the OTP was requested for (see
+  // AuthService.verifyOtp - the pending transaction's own bound
+  // campaignId is checked against this, not just trusted from the client).
+  @IsUUID()
+  campaignId: string;
+
   // Required in DEMO_MODE (used for Consumer lookup); sent by client always for backward compat.
   // In production: server-side binding determines the authoritative phone; this field is ignored for JWT identity.
   @IsString()

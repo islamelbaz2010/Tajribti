@@ -4,11 +4,12 @@ import { QrCode } from '../../entities/qr-code.entity';
 import { RedemptionEvent } from '../../entities/redemption-event.entity';
 import { Campaign } from '../../entities/campaign.entity';
 import { Consumer } from '../../entities/consumer.entity';
+import { CampaignVerification } from '../../entities/campaign-verification.entity';
 import { QrController } from './qr.controller';
 import { QrService } from './qr.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([QrCode, RedemptionEvent, Campaign, Consumer])],
+  imports: [TypeOrmModule.forFeature([QrCode, RedemptionEvent, Campaign, Consumer, CampaignVerification])],
   controllers: [QrController],
   providers: [QrService],
   exports: [QrService],

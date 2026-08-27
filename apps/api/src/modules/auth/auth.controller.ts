@@ -13,6 +13,9 @@ import { AuthService } from './auth.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { RegisterDto } from './dto/register.dto';
+import { SignupDto } from './dto/signup.dto';
+import { LoginDto } from './dto/login.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 import { BrandLoginDto } from './dto/brand-login.dto';
 import { JwtAuthGuard, IS_PUBLIC_KEY } from './guards/jwt.guard';
 import { AuthenticatedUser } from './strategies/jwt.strategy';
@@ -28,6 +31,47 @@ interface RequestWithUser extends Request {
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  // ── Account authentication (email + password) — independent of Campaigns ──
+
+  /**
+   * POST /api/v1/auth/signup
+   * Create a Consumer account with email + password. No Campaign context
+   * required. Issues an account JWT pair immediately (emailVerified=false).
+   */
+  @Public()
+  @Post('signup')
+  @HttpCode(HttpStatus.CREATED)
+  signup(@Body() dto: SignupDto) {
+    return this.authService.signup(dto);
+  }
+
+  /**
+   * POST /api/v1/auth/login
+   * Normal account login: email + password. No Campaign context required.
+   */
+  @Public()
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  login(@Body() dto: LoginDto) {
+    return this.authService.login(dto);
+  }
+
+  /**
+   * POST /api/v1/auth/verify-email
+   * Consume a single-use email verification token.
+   */
+  @Public()
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmailToken(dto);
+  }
+
+  // ── Campaign participation verification (phone + OTP) ───────────────────
+  // Requires an authenticated account (no longer @Public()) — this is
+  // Campaign-specific verification, not account login. Every call is bound
+  // to a campaignId in the DTO.
+
   /**
    * GET /api/v1/auth/akedly/challenge
    * Proxy to Akedly V1.2 challenge endpoint. Returns challenge data for client-side PoW.
@@ -41,31 +85,33 @@ export class AuthController {
 
   /**
    * POST /api/v1/auth/otp/request
-   * Production: forward phone + powSolution to Akedly V1.2; returns transactionReqID.
-   * Demo mode: returns immediately without Akedly call.
+   * Campaign-specific participation verification OTP - requires an
+   * authenticated Consumer and a campaignId. Production: forwards phone +
+   * powSolution to Akedly V1.2; returns transactionReqID. Demo mode:
+   * returns immediately without an Akedly call.
    */
-  @Public()
   @Post('otp/request')
   @HttpCode(HttpStatus.OK)
-  requestOtp(@Body() dto: RequestOtpDto) {
-    return this.authService.requestOtp(dto);
+  requestOtp(@Request() req: RequestWithUser, @Body() dto: RequestOtpDto) {
+    return this.authService.requestOtp(dto, req.user.id);
   }
 
   /**
    * POST /api/v1/auth/otp/verify
-   * Production: verifies transactionReqID + code with Akedly V1.2; issues JWT.
-   * Demo mode: code '0000' always succeeds.
+   * Verifies transactionReqID + code with Akedly V1.2 (or DEMO_MODE bypass),
+   * then records a CampaignVerification for (this consumer, dto.campaignId).
+   * Does not issue new tokens - the caller already holds a valid account JWT.
    */
-  @Public()
   @Post('otp/verify')
   @HttpCode(HttpStatus.OK)
-  verifyOtp(@Body() dto: VerifyOtpDto) {
-    return this.authService.verifyOtp(dto);
+  verifyOtp(@Request() req: RequestWithUser, @Body() dto: VerifyOtpDto) {
+    return this.authService.verifyOtp(dto, req.user.id);
   }
 
   /**
    * POST /api/v1/auth/register
-   * Complete consumer profile. Requires valid JWT from /otp/verify.
+   * Legacy: complete consumer profile after phone-OTP identity (pre-account
+   * model). Kept for backward compatibility; unused by the current signup flow.
    */
   @Post('register')
   @HttpCode(HttpStatus.OK)
@@ -98,7 +144,7 @@ export class AuthController {
 
   /**
    * GET /api/v1/auth/me
-   * Return current consumer profile from JWT.
+   * Return current consumer profile from JWT. Never includes passwordHash.
    */
   @Get('me')
   getMe(@Request() req: RequestWithUser) {

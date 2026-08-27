@@ -26,6 +26,23 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _load();
+    // GoRouter's go('/home') doesn't reliably remount this screen when
+    // '/home' is already the base of the stack (e.g. Logout from Settings
+    // navigates back via go('/home')), so initState() alone can miss an
+    // auth change. Listening here means Home always reflects the current
+    // logged-in/out state instead of showing stale personalization until a
+    // manual pull-to-refresh.
+    AuthService.authEpoch.addListener(_onAuthChanged);
+  }
+
+  void _onAuthChanged() {
+    if (mounted) _load();
+  }
+
+  @override
+  void dispose() {
+    AuthService.authEpoch.removeListener(_onAuthChanged);
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -42,6 +59,8 @@ class _HomeScreenState extends State<HomeScreen> {
         } catch (_) {
           // non-fatal — show campaigns without profile
         }
+      } else {
+        _profile = null;
       }
     } catch (_) {
       _error = 'load_fail';

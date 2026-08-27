@@ -32,10 +32,16 @@ final _router = GoRouter(
       ),
     ),
     GoRoute(path: '/auth-choice', builder: (_, __) => const AuthChoiceScreen()),
-    GoRoute(path: '/phone', builder: (_, __) => const PhoneScreen()),
+    GoRoute(
+      path: '/phone',
+      builder: (_, state) => PhoneScreen(intent: state.extra as String?),
+    ),
     GoRoute(
       path: '/otp',
-      builder: (_, state) => OtpScreen(phone: state.extra as String),
+      builder: (_, state) {
+        final args = state.extra as Map<String, dynamic>;
+        return OtpScreen(phone: args['phone'] as String, intent: args['intent'] as String?);
+      },
     ),
     GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
     GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),

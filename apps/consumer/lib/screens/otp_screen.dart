@@ -12,7 +12,12 @@ import '../widgets/lang_toggle.dart';
 
 class OtpScreen extends StatefulWidget {
   final String phone;
-  const OtpScreen({super.key, required this.phone});
+  // 'login' or 'create', from AuthChoiceScreen via PhoneScreen. Used only
+  // to tell the user honestly when their choice didn't match the backend's
+  // own isNewUser truth (e.g. they tapped Log In for a number with no
+  // account yet) - see _verify(). Never changes which backend call runs.
+  final String? intent;
+  const OtpScreen({super.key, required this.phone, this.intent});
 
   @override
   State<OtpScreen> createState() => _OtpScreenState();
@@ -129,9 +134,28 @@ class _OtpScreenState extends State<OtpScreen> {
       );
       if (!mounted) return;
 
+      // Whether this phone actually has an account is decided by the
+      // backend (isNewUser), not by which button the user tapped on
+      // AuthChoiceScreen. When the two disagree, say so honestly instead
+      // of silently doing whichever one the backend says - this is what
+      // makes Log In / Create Account a real distinction rather than two
+      // labels for the same flow.
       if (isNewUser) {
+        if (widget.intent == 'login' && mounted) {
+          final s = context.l10n;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(s.accountNotFoundInfo), backgroundColor: kPrimary, behavior: SnackBarBehavior.floating),
+          );
+        }
         context.go('/register');
         return;
+      }
+
+      if (widget.intent == 'create' && mounted) {
+        final s = context.l10n;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(s.accountExistsInfo), backgroundColor: kPrimary, behavior: SnackBarBehavior.floating),
+        );
       }
 
       if (JourneySession.hasActiveCampaign) {

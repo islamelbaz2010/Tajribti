@@ -85,7 +85,7 @@ class AuthChoiceScreen extends StatelessWidget {
                   width: double.infinity,
                   height: 58,
                   child: ElevatedButton(
-                    onPressed: () => context.push('/phone'),
+                    onPressed: () => context.push('/phone', extra: 'login'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kPrimary,
                       foregroundColor: Colors.white,
@@ -100,7 +100,7 @@ class AuthChoiceScreen extends StatelessWidget {
                   width: double.infinity,
                   height: 58,
                   child: OutlinedButton(
-                    onPressed: () => context.push('/phone'),
+                    onPressed: () => context.push('/phone', extra: 'create'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: kPrimary,
                       side: const BorderSide(color: kPrimary, width: 1.5),

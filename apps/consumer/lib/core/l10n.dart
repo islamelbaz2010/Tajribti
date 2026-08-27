@@ -83,6 +83,10 @@ class AppStr {
   String get authChoiceSubtitle => ar ? 'سجّل الدخول إلى حسابك الحالي، أو أنشئ حساباً جديداً للمتابعة.'
                                        : 'Sign in to your existing account, or create a new one to continue.';
   String get createAccount  => ar ? 'إنشاء حساب'                   : 'Sign Up / Create Account';
+  String get accountNotFoundInfo => ar ? 'لا يوجد حساب بهذا الرقم. سننشئ لك حساباً جديداً.'
+                                        : "No account found for this number — let's create one for you.";
+  String get accountExistsInfo   => ar ? 'يوجد حساب بهذا الرقم بالفعل. جارٍ تسجيل الدخول.'
+                                        : 'An account already exists for this number — signing you in.';
   String get phoneSubtitle  => ar ? 'أدخل رقم هاتفك لتلقّي رمز التحقق' : 'Enter your phone number to receive a verification code';
   String get phoneCampaignBanner => ar ? 'سجّل برقم هاتفك لإتمام تجربتك' : 'Register with your phone to complete your trial';
   String get phoneLabel     => ar ? 'رقم الهاتف'                  : 'Phone Number';

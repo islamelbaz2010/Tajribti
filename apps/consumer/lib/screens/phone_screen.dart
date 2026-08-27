@@ -7,7 +7,13 @@ import '../core/session.dart';
 import '../widgets/lang_toggle.dart';
 
 class PhoneScreen extends StatefulWidget {
-  const PhoneScreen({super.key});
+  // 'login' or 'create', set by AuthChoiceScreen — carried through to
+  // OtpScreen so it can tell a genuine account-creation attempt apart
+  // from a sign-in attempt once the backend's own isNewUser truth comes
+  // back from OTP verification (see OtpScreen._verify()). Null for any
+  // legacy/direct entry — behaves exactly as before this distinction existed.
+  final String? intent;
+  const PhoneScreen({super.key, this.intent});
 
   @override
   State<PhoneScreen> createState() => _PhoneScreenState();
@@ -54,7 +60,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
       return;
     }
     // Challenge → PoW → OTP request happens inside OtpScreen on init.
-    context.push('/otp', extra: phone);
+    context.push('/otp', extra: {'phone': phone, 'intent': widget.intent});
   }
 
   @override

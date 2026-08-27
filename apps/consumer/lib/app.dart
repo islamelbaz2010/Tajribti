@@ -20,7 +20,10 @@ final _router = GoRouter(
   initialLocation: '/',
   routes: [
     GoRoute(path: '/', builder: (_, __) => const SplashScreen()),
-    GoRoute(path: '/scanner', builder: (_, __) => const ScannerScreen()),
+    GoRoute(
+      path: '/scanner',
+      builder: (_, state) => ScannerScreen(verifyCampaignId: state.extra as String?),
+    ),
     GoRoute(
       path: '/campaign',
       builder: (_, state) => CampaignScreen(

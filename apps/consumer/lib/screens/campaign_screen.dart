@@ -51,6 +51,15 @@ class _CampaignScreenState extends State<CampaignScreen> {
   }
 
   Future<void> _start() async {
+    // Campaign participation requires scanning this campaign's activation
+    // QR first (reuses the existing ScannerScreen in verify mode - see
+    // ScannerScreen.verifyCampaignId). This is separate from, and happens
+    // before, participation verification (OTP): QR confirms the consumer
+    // is physically at the campaign's activation point; OTP (below) only
+    // runs when the consumer doesn't already hold a verified identity/session.
+    final scanned = await context.push<bool>('/scanner', extra: JourneySession.campaignId);
+    if (scanned != true || !mounted) return;
+
     final loggedIn = await AuthService.isLoggedIn();
     if (!mounted) return;
 

@@ -7,7 +7,15 @@ import '../core/session.dart';
 import '../widgets/lang_toggle.dart';
 
 class ScannerScreen extends StatefulWidget {
-  const ScannerScreen({super.key});
+  // When set, the scanner is being used as the Campaign-participation
+  // verification step (Campaign Detail -> Start Trial -> Scan Campaign QR):
+  // a scanned code is only accepted if it resolves to this exact campaign,
+  // and a match pops back `true` to the caller instead of navigating to
+  // Campaign Detail. When null, the scanner keeps its original
+  // discovery-shortcut behavior (scan any campaign's QR to jump straight
+  // to its Campaign Detail page).
+  final String? verifyCampaignId;
+  const ScannerScreen({super.key, this.verifyCampaignId});
 
   @override
   State<ScannerScreen> createState() => _ScannerScreenState();
@@ -62,6 +70,26 @@ class _ScannerScreenState extends State<ScannerScreen> {
       );
       setState(() => _processing = false);
       await _controller.start();
+      return;
+    }
+
+    if (widget.verifyCampaignId != null) {
+      if (campaignId != widget.verifyCampaignId) {
+        if (!mounted) return;
+        final s = context.l10n;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(s.scanCampaignMismatch),
+            backgroundColor: kAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        setState(() => _processing = false);
+        await _controller.start();
+        return;
+      }
+      if (!mounted) return;
+      context.pop(true);
       return;
     }
 

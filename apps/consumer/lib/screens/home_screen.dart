@@ -94,6 +94,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: const Icon(Icons.person_rounded, color: Colors.white),
                 onPressed: () => context.push('/profile'),
                 tooltip: s.profileTitle,
+              )
+            else
+              // Account Login, independently reachable from Home — the user
+              // must not have to enter a Campaign to find it. Pushes to the
+              // same phone/OTP screen used for Campaign participation, but
+              // with no active JourneySession campaign, so it reads (and
+              // behaves) as plain account sign-in rather than participation
+              // verification.
+              TextButton(
+                onPressed: () => context.push('/phone'),
+                child: Text(
+                  s.signIn,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                ),
               ),
           ],
         ),
@@ -219,13 +233,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
 
-                    // ── QR scan CTA ───────────────────────────────────────
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 24, 16, 40),
-                        child: _QrCtaCard(s: s),
-                      ),
-                    ),
+                    // Standalone Scan QR entry removed from Home: QR now
+                    // belongs inside Campaign participation (Campaign
+                    // Detail → Start Trial → Scan Campaign QR), not as a
+                    // Home-level discovery shortcut. The scanner itself is
+                    // unchanged and reused there — see ScannerScreen.
+                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
                   ],
                     );
                   },
@@ -629,59 +642,6 @@ class _ActivityTile extends StatelessWidget {
             ),
         ],
         ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// QR scan CTA card
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _QrCtaCard extends StatelessWidget {
-  final AppStr s;
-  const _QrCtaCard({required this.s});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: kPrimary.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kPrimary.withOpacity(0.1)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.qr_code_scanner_rounded, color: kPrimary, size: 32),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              s.scanQrOrBrowse,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade700,
-                height: 1.4,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          ElevatedButton(
-            onPressed: () => context.push('/scanner'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kPrimary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 0,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Text(
-              s.scanQr,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
       ),
     );
   }

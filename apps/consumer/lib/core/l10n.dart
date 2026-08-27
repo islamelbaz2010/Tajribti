@@ -62,6 +62,7 @@ class AppStr {
   String get scanSub        => ar ? 'سيتم التعرف عليه تلقائياً' : 'It will be detected automatically';
   String get scanError      => ar ? 'رمز غير معروف. تأكد من مسح الرمز الصحيح.' : 'Unknown QR code. Make sure to scan the correct code.';
   String get scanAnother    => ar ? 'مسح رمز آخر'          : 'Scan another code';
+  String get scanCampaignMismatch => ar ? 'هذا الرمز يخص حملة أخرى. امسح رمز هذه الحملة.' : 'This code belongs to a different campaign. Scan this campaign\'s QR code.';
 
   // ── Campaign ──────────────────────────────────────────────────────────────
   String get howItWorks     => ar ? 'كيف يعمل؟'                   : 'How it works';
@@ -153,8 +154,6 @@ class AppStr {
   String get availableCampaigns => ar ? 'العروض المتاحة'                    : 'Available Campaigns';
   String get noCampaignsTitle   => ar ? 'لا توجد عروض حالياً'               : 'No campaigns yet';
   String get noCampaignsSub     => ar ? 'ترقّب عروضاً جديدة قريباً'         : 'New campaigns are coming soon';
-  String get scanQrOrBrowse     => ar ? 'لديك رمز QR؟ امسحه مباشرة'        : 'Have a QR code? Scan it directly';
-  String get scanQr             => ar ? 'مسح QR'                            : 'Scan QR';
   String get logout             => ar ? 'تسجيل الخروج'                      : 'Sign Out';
   String get myActivity         => ar ? 'نشاطي السابق'                      : 'My Activity';
   String get welcomeBack        => ar ? 'مرحباً'                            : 'Hello';

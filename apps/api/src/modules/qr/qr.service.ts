@@ -86,6 +86,12 @@ export class QrService {
       }
     }
 
+    // Mirrors the pre-existing duplicate-check exemption immediately above:
+    // this function already treats demo QR codes as exempt from
+    // participation limits (for live walkthrough/demo scanning), so
+    // Campaign verification follows the same exemption rather than
+    // introducing an inconsistent partial gate. Unused by the Consumer app
+    // today (enterCampaignWeb below is the active entry path).
     if (!isDemo) {
       await this.assertCampaignVerified(dto.consumerId, dto.campaignId);
     }
@@ -168,9 +174,11 @@ export class QrService {
       };
     }
 
-    if (!campaign.isDemo) {
-      await this.assertCampaignVerified(consumerId, campaignId);
-    }
+    // Unconditional, unlike redeemQr() below: this function's pre-existing
+    // duplicate-redemption check above never exempted demo campaigns
+    // either, so Campaign verification doesn't either - no bypass was
+    // ever part of this entry path's design.
+    await this.assertCampaignVerified(consumerId, campaignId);
 
     const redemption = await this.redemptionRepo.save(
       this.redemptionRepo.create({

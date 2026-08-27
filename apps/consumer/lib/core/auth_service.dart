@@ -39,11 +39,11 @@ class AuthService {
     await prefs.remove(kAccessTokenKey);
   }
 
-  // "Forget this device": the explicit, separate action that actually
-  // discards the stored refresh token, so the next sign-in requires a
-  // full phone + OTP verification again. Distinct from logout() above —
-  // see Settings.
-  static Future<void> forgetDevice() async {
+  // Internal cleanup only - not a user-facing action. Discards every
+  // stored credential, including the refresh token. Used solely by
+  // tryRestoreSession() below when the stored refresh token turns out to
+  // be dead, so we don't keep retrying a known-invalid credential.
+  static Future<void> _clearTokens() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(kAccessTokenKey);
     await prefs.remove(kRefreshTokenKey);
@@ -78,7 +78,7 @@ class AuthService {
     } catch (_) {
       // Stored refresh token is dead (expired/revoked/consumer gone) -
       // clear it so we don't keep retrying a known-invalid credential.
-      await forgetDevice();
+      await _clearTokens();
       return false;
     }
   }

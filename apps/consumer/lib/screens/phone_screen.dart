@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../core/auth_service.dart';
+import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../core/l10n.dart';
 import '../core/session.dart';
 import '../widgets/lang_toggle.dart';
 
+// Campaign participation verification ONLY - not account login/creation
+// (see login_screen.dart / signup_screen.dart for that). Always reached
+// from within an active Campaign flow (Campaign Detail -> Start Trial ->
+// QR match -> here), by an already-authenticated consumer. Prefills the
+// phone field from the consumer's own account profile when available.
 class PhoneScreen extends StatefulWidget {
-  // 'login' or 'create', set by AuthChoiceScreen — carried through to
-  // OtpScreen so it can tell a genuine account-creation attempt apart
-  // from a sign-in attempt once the backend's own isNewUser truth comes
-  // back from OTP verification (see OtpScreen._verify()). Null for any
-  // legacy/direct entry — behaves exactly as before this distinction existed.
-  final String? intent;
-  const PhoneScreen({super.key, this.intent});
+  const PhoneScreen({super.key});
 
   @override
   State<PhoneScreen> createState() => _PhoneScreenState();
@@ -22,28 +21,22 @@ class PhoneScreen extends StatefulWidget {
 class _PhoneScreenState extends State<PhoneScreen> {
   final _controller = TextEditingController(text: '+20');
   String? _error;
-  // True while silently checking for a still-valid returning-user session
-  // (a stored refresh token from before an earlier Sign Out - see
-  // AuthService.logout()/tryRestoreSession()). If one is found, the user
-  // is signed back in immediately and this screen is skipped entirely -
-  // no phone entry, no OTP. Starts true so the phone form never flashes
-  // before the check completes.
-  bool _checkingSession = true;
 
   @override
   void initState() {
     super.initState();
-    _restoreIfPossible();
+    _prefillFromProfile();
   }
 
-  Future<void> _restoreIfPossible() async {
-    final restored = await AuthService.tryRestoreSession();
-    if (!mounted) return;
-    if (restored) {
-      context.go('/home');
-      return;
+  Future<void> _prefillFromProfile() async {
+    try {
+      final profile = await apiClient.getConsumerProfile();
+      if (mounted && profile.phone.isNotEmpty) {
+        setState(() => _controller.text = profile.phone);
+      }
+    } catch (_) {
+      // Non-fatal — the field just keeps its default "+20" prefix.
     }
-    setState(() => _checkingSession = false);
   }
 
   @override
@@ -60,21 +53,12 @@ class _PhoneScreenState extends State<PhoneScreen> {
       return;
     }
     // Challenge → PoW → OTP request happens inside OtpScreen on init.
-    context.push('/otp', extra: {'phone': phone, 'intent': widget.intent});
+    context.push('/otp', extra: phone);
   }
 
   @override
   Widget build(BuildContext context) {
     final s = context.l10n;
-    if (_checkingSession) {
-      return Directionality(
-        textDirection: context.dir,
-        child: const Scaffold(
-          backgroundColor: kBackground,
-          body: Center(child: CircularProgressIndicator(color: kPrimary)),
-        ),
-      );
-    }
     return Directionality(
       textDirection: context.dir,
       child: Scaffold(
@@ -122,7 +106,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
                     ),
                   ),
                 Text(
-                  s.welcome,
+                  s.verifyPhoneTitle,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w900,
                     color: kPrimary,

@@ -53,10 +53,11 @@ class _CampaignScreenState extends State<CampaignScreen> {
   Future<void> _start() async {
     // Campaign participation requires scanning this campaign's activation
     // QR first (reuses the existing ScannerScreen in verify mode - see
-    // ScannerScreen.verifyCampaignId). This is separate from, and happens
-    // before, participation verification (OTP): QR confirms the consumer
-    // is physically at the campaign's activation point; OTP (below) only
-    // runs when the consumer doesn't already hold a verified identity/session.
+    // ScannerScreen.verifyCampaignId): confirms the consumer is physically
+    // at the campaign's activation point. Account identity (checked below)
+    // and Campaign-specific phone-OTP verification (triggered by a 403 from
+    // enterCampaign further down) are two separate, later gates - one
+    // verified account session does not carry over between Campaigns.
     final scanned = await context.push<bool>('/scanner', extra: JourneySession.campaignId);
     if (scanned != true || !mounted) return;
 
@@ -65,10 +66,11 @@ class _CampaignScreenState extends State<CampaignScreen> {
 
     if (!loggedIn) {
       // Unauthenticated consumer trying to participate: present the
-      // explicit Sign Up / Log In choice rather than dropping straight
-      // into a bare phone field. JourneySession.campaignId is untouched,
-      // so completing either path returns to this exact Campaign (see
-      // otp_screen.dart / register_screen.dart's hasActiveCampaign branch).
+      // explicit Log In / Create Account choice rather than dropping
+      // straight into a bare credential field. JourneySession.campaignId
+      // is untouched, so completing either path returns to this exact
+      // Campaign (see login_screen.dart / signup_screen.dart) and then
+      // continues into Campaign-specific participation verification below.
       context.push('/auth-choice');
       return;
     }
@@ -89,6 +91,15 @@ class _CampaignScreenState extends State<CampaignScreen> {
       });
     } catch (e) {
       if (!mounted) return;
+      if (e is DioException && e.response?.statusCode == 403) {
+        // Account identity alone isn't enough — this specific Campaign has
+        // never been phone-OTP-verified for this consumer. Continue into
+        // Campaign participation verification; that flow calls
+        // enterCampaign() itself on success and proceeds straight to Survey.
+        setState(() => _entering = false);
+        context.push('/phone');
+        return;
+      }
       if (e is DioException && e.response?.statusCode == 401) {
         // Refresh token also expired (>7d) — full re-authentication required
         await AuthService.logout();

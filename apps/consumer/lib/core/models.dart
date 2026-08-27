@@ -114,6 +114,8 @@ class ParticipationRecord {
 class ConsumerProfile {
   final String id;
   final String phone;
+  final String? email;
+  final bool emailVerified;
   final String? name;
   final int totalPoints;
   final List<ParticipationRecord> recentCampaigns;
@@ -121,6 +123,8 @@ class ConsumerProfile {
   const ConsumerProfile({
     required this.id,
     required this.phone,
+    this.email,
+    this.emailVerified = false,
     this.name,
     required this.totalPoints,
     required this.recentCampaigns,
@@ -129,6 +133,8 @@ class ConsumerProfile {
   factory ConsumerProfile.fromJson(Map<String, dynamic> json) => ConsumerProfile(
         id: json['id'] as String,
         phone: json['phone'] as String,
+        email: json['email'] as String?,
+        emailVerified: json['emailVerified'] as bool? ?? false,
         name: json['name'] as String?,
         totalPoints: json['totalPoints'] as int? ?? 0,
         recentCampaigns: (json['recentCampaigns'] as List<dynamic>? ?? [])

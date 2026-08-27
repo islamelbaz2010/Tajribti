@@ -4,20 +4,20 @@ import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:akedly_shield/akedly_shield.dart';
 import '../core/api_client.dart';
-import '../core/auth_service.dart';
 import '../core/constants.dart';
 import '../core/l10n.dart';
 import '../core/session.dart';
 import '../widgets/lang_toggle.dart';
 
+// Campaign participation verification ONLY - not account login/creation.
+// Always reached with an active JourneySession.campaignId (see
+// phone_screen.dart), by an already-authenticated consumer. On success,
+// records server-side Campaign-specific verification (not new tokens -
+// the caller already holds a valid account session) and immediately
+// continues into the Campaign entry the way Start Trial already would.
 class OtpScreen extends StatefulWidget {
   final String phone;
-  // 'login' or 'create', from AuthChoiceScreen via PhoneScreen. Used only
-  // to tell the user honestly when their choice didn't match the backend's
-  // own isNewUser truth (e.g. they tapped Log In for a number with no
-  // account yet) - see _verify(). Never changes which backend call runs.
-  final String? intent;
-  const OtpScreen({super.key, required this.phone, this.intent});
+  const OtpScreen({super.key, required this.phone});
 
   @override
   State<OtpScreen> createState() => _OtpScreenState();
@@ -36,6 +36,7 @@ class _OtpScreenState extends State<OtpScreen> {
   String? _transactionReqID;
 
   String get _otp => _controllers.map((c) => c.text).join();
+  String get _campaignId => JourneySession.campaignId!;
 
   @override
   void initState() {
@@ -65,8 +66,9 @@ class _OtpScreenState extends State<OtpScreen> {
         powSolution = {'challengeToken': challengeToken, 'nonce': nonce};
       }
 
-      final result = await apiClient.requestOtp(
-        widget.phone,
+      final result = await apiClient.requestCampaignOtp(
+        campaignId: _campaignId,
+        phone: widget.phone,
         powSolution: powSolution,
       );
 
@@ -116,68 +118,32 @@ class _OtpScreenState extends State<OtpScreen> {
 
     setState(() { _loading = true; _error = null; });
     try {
-      final result = await apiClient.verifyOtp(
+      await apiClient.verifyCampaignOtp(
+        campaignId: _campaignId,
         transactionReqID: _transactionReqID!,
         code: _otp,
         phone: widget.phone,
       );
-
-      final accessToken = result['accessToken'] as String;
-      final refreshToken = result['refreshToken'] as String;
-      final consumerId = result['consumerId'] as String?;
-      final isNewUser = result['isNewUser'] as bool? ?? false;
-
-      await AuthService.saveTokens(
-        accessToken: accessToken,
-        refreshToken: refreshToken,
-        consumerId: consumerId,
-      );
       if (!mounted) return;
 
-      // Whether this phone actually has an account is decided by the
-      // backend (isNewUser), not by which button the user tapped on
-      // AuthChoiceScreen. When the two disagree, say so honestly instead
-      // of silently doing whichever one the backend says - this is what
-      // makes Log In / Create Account a real distinction rather than two
-      // labels for the same flow.
-      if (isNewUser) {
-        if (widget.intent == 'login' && mounted) {
-          final s = context.l10n;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(s.accountNotFoundInfo), backgroundColor: kPrimary, behavior: SnackBarBehavior.floating),
-          );
+      // Verification recorded server-side - now actually enter the Campaign,
+      // exactly as Start Trial already would for an already-verified consumer.
+      try {
+        final entry = await apiClient.enterCampaign(_campaignId);
+        if (!mounted) return;
+        if (entry.alreadyCompleted) {
+          context.go('/campaign', extra: true);
+          return;
         }
-        context.go('/register');
-        return;
-      }
-
-      if (widget.intent == 'create' && mounted) {
-        final s = context.l10n;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(s.accountExistsInfo), backgroundColor: kPrimary, behavior: SnackBarBehavior.floating),
-        );
-      }
-
-      if (JourneySession.hasActiveCampaign) {
-        try {
-          final entry = await apiClient.enterCampaign(JourneySession.campaignId!);
-          if (!mounted) return;
-          if (entry.alreadyCompleted) {
-            context.go('/campaign', extra: true);
-            return;
-          }
-          JourneySession.setRedemption(entry.redemptionId, entry.pointsEarned);
-          context.go('/survey', extra: {
-            'redemptionId': entry.redemptionId,
-            'campaignId': JourneySession.campaignId!,
-            'pointsEarned': entry.pointsEarned,
-          });
-        } catch (_) {
-          if (!mounted) return;
-          context.go('/home');
-        }
-      } else {
-        context.go('/home');
+        JourneySession.setRedemption(entry.redemptionId, entry.pointsEarned);
+        context.go('/survey', extra: {
+          'redemptionId': entry.redemptionId,
+          'campaignId': _campaignId,
+          'pointsEarned': entry.pointsEarned,
+        });
+      } catch (_) {
+        if (!mounted) return;
+        context.go('/campaign');
       }
     } catch (e) {
       final statusCode = (e is DioException) ? e.response?.statusCode : null;

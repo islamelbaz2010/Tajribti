@@ -112,14 +112,34 @@ class _ProfileBody extends StatelessWidget {
                     ),
                   ),
                 const SizedBox(height: 4),
+                if (profile.email != null && profile.email!.isNotEmpty)
+                  Text(
+                    profile.email!,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.6),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 Text(
                   profile.phone,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
-                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.45),
+                    fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
+                if (profile.email != null && !profile.emailVerified) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    s.emailNotVerifiedNote,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.5),
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

@@ -6,9 +6,10 @@ import 'screens/splash_screen.dart';
 import 'screens/scanner_screen.dart';
 import 'screens/campaign_screen.dart';
 import 'screens/auth_choice_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/signup_screen.dart';
 import 'screens/phone_screen.dart';
 import 'screens/otp_screen.dart';
-import 'screens/register_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/survey_screen.dart';
 import 'screens/thank_you_screen.dart';
@@ -32,18 +33,13 @@ final _router = GoRouter(
       ),
     ),
     GoRoute(path: '/auth-choice', builder: (_, __) => const AuthChoiceScreen()),
-    GoRoute(
-      path: '/phone',
-      builder: (_, state) => PhoneScreen(intent: state.extra as String?),
-    ),
+    GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+    GoRoute(path: '/signup', builder: (_, __) => const SignupScreen()),
+    GoRoute(path: '/phone', builder: (_, __) => const PhoneScreen()),
     GoRoute(
       path: '/otp',
-      builder: (_, state) {
-        final args = state.extra as Map<String, dynamic>;
-        return OtpScreen(phone: args['phone'] as String, intent: args['intent'] as String?);
-      },
+      builder: (_, state) => OtpScreen(phone: state.extra as String),
     ),
-    GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
     GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
     GoRoute(
       path: '/survey',

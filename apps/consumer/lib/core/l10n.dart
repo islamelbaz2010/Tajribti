@@ -66,8 +66,8 @@ class AppStr {
 
   // ── Campaign ──────────────────────────────────────────────────────────────
   String get howItWorks     => ar ? 'كيف يعمل؟'                   : 'How it works';
-  String get step1          => ar ? 'سجّل برقم هاتفك'              : 'Register with your phone';
-  String get step2          => ar ? 'أجب على أسئلة قصيرة'         : 'Answer a few short questions';
+  String get step1          => ar ? 'امسح رمز QR'                  : 'Scan the QR code';
+  String get step2          => ar ? 'تحقق برقم هاتفك'              : 'Verify with your phone';
   String get step3          => ar ? 'واحصل على نقاطك'             : 'Earn your reward points';
   String rewardPoints(int n)=> ar ? '$n نقطة مكافأة'              : '$n reward points';
   String get rewardDetail   => ar ? 'عند إتمام التجربة'           : 'on completing the trial';
@@ -78,17 +78,35 @@ class AppStr {
   String get alreadyParticipated => ar ? 'شاركت سابقاً'                            : 'Already Participated';
   String get alreadyParticipatedSub => ar ? 'شاركت في هذه الحملة من قبل وحصلت على مكافأتك.'  : 'You already participated in this campaign and earned your reward.';
 
-  // ── Phone ─────────────────────────────────────────────────────────────────
+  // ── Account authentication (email + password) ───────────────────────────
   String get welcome        => ar ? 'مرحباً بك'                   : 'Welcome';
   String get authChoiceSubtitle => ar ? 'سجّل الدخول إلى حسابك الحالي، أو أنشئ حساباً جديداً للمتابعة.'
                                        : 'Sign in to your existing account, or create a new one to continue.';
+  String get authChoiceCampaignBanner => ar ? 'سجّل الدخول أو أنشئ حساباً لإتمام تجربتك'
+                                             : 'Log in or create an account to continue your trial';
   String get createAccount  => ar ? 'إنشاء حساب'                   : 'Sign Up / Create Account';
-  String get accountNotFoundInfo => ar ? 'لا يوجد حساب بهذا الرقم. سننشئ لك حساباً جديداً.'
-                                        : "No account found for this number — let's create one for you.";
-  String get accountExistsInfo   => ar ? 'يوجد حساب بهذا الرقم بالفعل. جارٍ تسجيل الدخول.'
-                                        : 'An account already exists for this number — signing you in.';
+  String get loginTitle        => ar ? 'تسجيل الدخول'                     : 'Log In';
+  String get loginSubtitle     => ar ? 'سجّل الدخول إلى حسابك في تجربتي'  : 'Log in to your Tajribti account';
+  String get emailLabel        => ar ? 'البريد الإلكتروني'                : 'Email';
+  String get emailHint         => 'example@email.com';
+  String get passwordLabel     => ar ? 'كلمة المرور'                     : 'Password';
+  String get confirmPasswordLabel => ar ? 'تأكيد كلمة المرور'            : 'Confirm Password';
+  String get invalidEmail      => ar ? 'أدخل بريداً إلكترونياً صحيحاً'    : 'Enter a valid email address';
+  String get passwordRequirements => ar ? '8 أحرف على الأقل، تتضمن حرفاً ورقماً'
+                                         : 'At least 8 characters, including a letter and a number';
+  String get passwordMismatch  => ar ? 'كلمتا المرور غير متطابقتين'      : 'Passwords do not match';
+  String get loginError        => ar ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'Invalid email or password';
+  String get signupError       => ar ? 'تعذر إنشاء الحساب. حاول مرة أخرى.' : 'Could not create account. Please try again.';
+  String get emailAlreadyExists => ar ? 'يوجد حساب بهذا البريد الإلكتروني بالفعل' : 'An account with this email already exists';
+  String get phoneAlreadyExists => ar ? 'يوجد حساب بهذا الرقم بالفعل'    : 'An account with this phone number already exists';
+  String get dontHaveAccount   => ar ? 'ليس لديك حساب؟'                  : "Don't have an account?";
+  String get alreadyHaveAccount => ar ? 'لديك حساب بالفعل؟'              : 'Already have an account?';
+  String get emailNotVerifiedNote => ar ? 'لم يتم تأكيد بريدك الإلكتروني بعد.' : "Your email hasn't been verified yet.";
+
+  // ── Campaign phone verification (NOT account login) ─────────────────────
+  String get verifyPhoneTitle => ar ? 'تحقق من رقم هاتفك'          : 'Verify Your Phone';
   String get phoneSubtitle  => ar ? 'أدخل رقم هاتفك لتلقّي رمز التحقق' : 'Enter your phone number to receive a verification code';
-  String get phoneCampaignBanner => ar ? 'سجّل برقم هاتفك لإتمام تجربتك' : 'Register with your phone to complete your trial';
+  String get phoneCampaignBanner => ar ? 'تحقق برقم هاتفك لإتمام تجربتك' : 'Verify your phone to complete your trial';
   String get phoneLabel     => ar ? 'رقم الهاتف'                  : 'Phone Number';
   String get phoneExample   => ar ? 'مثال: +201012345678'         : 'Example: +201012345678';
   String get sendCode       => ar ? 'إرسال الرمز'                 : 'Send Code';
@@ -185,8 +203,6 @@ class AppStr {
   String get accountLabel    => ar ? 'الحساب'                     : 'Account';
   String get signOut         => ar ? 'تسجيل الخروج'               : 'Sign Out';
   String get signOutConfirm  => ar ? 'هل تريد تسجيل الخروج؟'    : 'Sign out of your account?';
-  String get signOutHint     => ar ? 'يمكنك تسجيل الدخول مرة أخرى على هذا الجهاز دون الحاجة لرمز تحقق جديد.'
-                                    : 'You can sign back in on this device without needing a new verification code.';
   String get cancel          => ar ? 'إلغاء'                      : 'Cancel';
 
   // ── Activity ──────────────────────────────────────────────────────────────

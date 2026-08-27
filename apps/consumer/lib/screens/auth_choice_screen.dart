@@ -5,17 +5,14 @@ import '../core/l10n.dart';
 import '../core/session.dart';
 import '../widgets/lang_toggle.dart';
 
-// Account authentication is one concept with two entry intents: a
-// returning consumer signing back in, or a brand-new consumer creating
-// an account. Both intents lead to the exact same secure phone+OTP
-// mechanism (the backend itself decides new-vs-existing only after OTP
-// verification - see AuthService/otp_screen.dart's isNewUser branch),
-// so this screen doesn't fork any logic - it exists purely so the
-// choice is explicit and honest instead of silently dropping the user
-// into a bare phone field. Reached either independently from Home, or
-// from a Campaign's Start Trial when no session exists yet - in the
-// latter case JourneySession already carries the active campaignId
-// through phone -> OTP -> (register) -> survey untouched.
+// The account-authentication choice: Log In (existing account, email +
+// password) or Create Account (email + password + profile). Reached
+// either independently from Home, or from a Campaign's Start Trial when
+// no session exists yet - in the latter case JourneySession's
+// campaignId is left untouched, so LoginScreen/SignupScreen return to
+// that exact Campaign on success instead of Home. Account auth is
+// entirely separate from Campaign participation verification (QR +
+// phone OTP), which only happens later, inside the Campaign flow.
 class AuthChoiceScreen extends StatelessWidget {
   const AuthChoiceScreen({super.key});
 
@@ -61,7 +58,7 @@ class AuthChoiceScreen extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            s.phoneCampaignBanner,
+                            s.authChoiceCampaignBanner,
                             style: const TextStyle(fontSize: 13, color: kPrimary, fontWeight: FontWeight.w600),
                           ),
                         ),
@@ -85,7 +82,7 @@ class AuthChoiceScreen extends StatelessWidget {
                   width: double.infinity,
                   height: 58,
                   child: ElevatedButton(
-                    onPressed: () => context.push('/phone', extra: 'login'),
+                    onPressed: () => context.push('/login'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kPrimary,
                       foregroundColor: Colors.white,
@@ -100,7 +97,7 @@ class AuthChoiceScreen extends StatelessWidget {
                   width: double.infinity,
                   height: 58,
                   child: OutlinedButton(
-                    onPressed: () => context.push('/phone', extra: 'create'),
+                    onPressed: () => context.push('/signup'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: kPrimary,
                       side: const BorderSide(color: kPrimary, width: 1.5),

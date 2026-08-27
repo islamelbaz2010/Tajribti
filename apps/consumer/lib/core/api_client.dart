@@ -72,6 +72,42 @@ class ApiClient {
     ));
   }
 
+  // ── Account authentication (email + password) — independent of Campaigns ──
+
+  Future<Map<String, dynamic>> signup({
+    required String email,
+    required String password,
+    required String name,
+    required String ageRange,
+    required String gender,
+    required String city,
+    required String phone,
+  }) async {
+    final res = await _dio.post('/auth/signup', data: {
+      'email': email,
+      'password': password,
+      'name': name,
+      'ageRange': ageRange,
+      'gender': gender,
+      'city': city,
+      'phone': phone,
+    });
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+  }) async {
+    final res = await _dio.post('/auth/login', data: {'email': email, 'password': password});
+    return res.data as Map<String, dynamic>;
+  }
+
+  // ── Campaign participation verification (phone + OTP) — NOT account login ──
+  // Requires an already-authenticated consumer (the access token is attached
+  // automatically by the interceptor above) and is always bound to one
+  // specific campaignId.
+
   // Returns Akedly V1.2 challenge data (challenge, difficulty, challengeToken, turnstile.required, ...).
   // API key never leaves the backend — this calls the Tajribti proxy endpoint.
   Future<Map<String, dynamic>> getChallenge() async {
@@ -81,44 +117,34 @@ class ApiClient {
 
   // powSolution is required in production (DEMO_MODE=false).
   // Returns transactionReqID and expiresAt in production; just message in demo mode.
-  Future<Map<String, dynamic>> requestOtp(
-    String phone, {
+  Future<Map<String, dynamic>> requestCampaignOtp({
+    required String campaignId,
+    required String phone,
     Map<String, dynamic>? powSolution,
     String? turnstileToken,
   }) async {
-    final data = <String, dynamic>{'phone': phone};
+    final data = <String, dynamic>{'campaignId': campaignId, 'phone': phone};
     if (powSolution != null) data['powSolution'] = powSolution;
     if (turnstileToken != null) data['turnstileToken'] = turnstileToken;
     final res = await _dio.post('/auth/otp/request', data: data);
     return res.data as Map<String, dynamic>;
   }
 
-  // transactionReqID comes from the requestOtp response (server-side bound to phone).
-  // phone is still sent for backward compat / demo mode; ignored by backend for JWT identity in production.
-  Future<Map<String, dynamic>> verifyOtp({
+  // transactionReqID comes from requestCampaignOtp's response (server-side
+  // bound to phone + campaignId + the calling consumer). On success, records
+  // Campaign-specific verification server-side — does not return new tokens,
+  // the caller already holds a valid account session.
+  Future<Map<String, dynamic>> verifyCampaignOtp({
+    required String campaignId,
     required String transactionReqID,
     required String code,
     required String phone,
   }) async {
     final res = await _dio.post('/auth/otp/verify', data: {
+      'campaignId': campaignId,
       'transactionReqID': transactionReqID,
       'code': code,
       'phone': phone,
-    });
-    return res.data as Map<String, dynamic>;
-  }
-
-  Future<Map<String, dynamic>> register({
-    required String name,
-    required String ageRange,
-    required String gender,
-    required String city,
-  }) async {
-    final res = await _dio.post('/auth/register', data: {
-      'name': name,
-      'ageRange': ageRange,
-      'gender': gender,
-      'city': city,
     });
     return res.data as Map<String, dynamic>;
   }

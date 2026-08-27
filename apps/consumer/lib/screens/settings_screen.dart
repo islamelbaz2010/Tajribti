@@ -81,13 +81,6 @@ class SettingsScreen extends StatelessWidget {
               iconColor: kAccent,
               onTap: () => _confirmSignOut(context),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
-              child: Text(
-                s.signOutHint,
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade500, height: 1.4),
-              ),
-            ),
           ],
         ),
       ),

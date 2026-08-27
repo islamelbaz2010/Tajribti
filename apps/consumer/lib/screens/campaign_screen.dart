@@ -64,7 +64,12 @@ class _CampaignScreenState extends State<CampaignScreen> {
     if (!mounted) return;
 
     if (!loggedIn) {
-      context.push('/phone');
+      // Unauthenticated consumer trying to participate: present the
+      // explicit Sign Up / Log In choice rather than dropping straight
+      // into a bare phone field. JourneySession.campaignId is untouched,
+      // so completing either path returns to this exact Campaign (see
+      // otp_screen.dart / register_screen.dart's hasActiveCampaign branch).
+      context.push('/auth-choice');
       return;
     }
 
@@ -88,7 +93,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
         // Refresh token also expired (>7d) — full re-authentication required
         await AuthService.logout();
         if (!mounted) return;
-        context.push('/phone');
+        context.push('/auth-choice');
         return;
       }
       setState(() { _entering = false; _error = '_entryFail'; });

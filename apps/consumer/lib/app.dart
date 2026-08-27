@@ -5,6 +5,7 @@ import 'core/l10n.dart';
 import 'screens/splash_screen.dart';
 import 'screens/scanner_screen.dart';
 import 'screens/campaign_screen.dart';
+import 'screens/auth_choice_screen.dart';
 import 'screens/phone_screen.dart';
 import 'screens/otp_screen.dart';
 import 'screens/register_screen.dart';
@@ -30,6 +31,7 @@ final _router = GoRouter(
         alreadyCompleted: state.extra as bool? ?? false,
       ),
     ),
+    GoRoute(path: '/auth-choice', builder: (_, __) => const AuthChoiceScreen()),
     GoRoute(path: '/phone', builder: (_, __) => const PhoneScreen()),
     GoRoute(
       path: '/otp',

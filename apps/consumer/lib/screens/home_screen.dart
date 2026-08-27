@@ -115,14 +115,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 tooltip: s.profileTitle,
               )
             else
-              // Account Login, independently reachable from Home — the user
-              // must not have to enter a Campaign to find it. Pushes to the
-              // same phone/OTP screen used for Campaign participation, but
-              // with no active JourneySession campaign, so it reads (and
-              // behaves) as plain account sign-in rather than participation
-              // verification.
+              // Account authentication, independently reachable from Home —
+              // the user must not have to enter a Campaign to find it.
+              // Pushes to the same choice screen Campaign participation
+              // uses, but with no active JourneySession campaign, so it
+              // reads (and behaves) as plain account sign-in rather than
+              // participation verification.
               TextButton(
-                onPressed: () => context.push('/phone'),
+                onPressed: () => context.push('/auth-choice'),
                 child: Text(
                   s.signIn,
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),

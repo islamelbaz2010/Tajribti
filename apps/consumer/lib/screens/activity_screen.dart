@@ -299,7 +299,7 @@ class _NotLoggedIn extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () => context.push('/phone'),
+              onPressed: () => context.push('/auth-choice'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: kPrimary,
                 foregroundColor: Colors.white,

@@ -51,13 +51,6 @@ class _CampaignScreenState extends State<CampaignScreen> {
   }
 
   Future<void> _start() async {
-    // Campaign participation requires scanning this campaign's activation
-    // QR first (reuses the existing ScannerScreen in verify mode - see
-    // ScannerScreen.verifyCampaignId): confirms the consumer is physically
-    // at the campaign's activation point. Account identity (checked below)
-    // and Campaign-specific phone-OTP verification (triggered by a 403 from
-    // enterCampaign further down) are two separate, later gates - one
-    // verified account session does not carry over between Campaigns.
     final scanned = await context.push<bool>('/scanner', extra: JourneySession.campaignId);
     if (scanned != true || !mounted) return;
 
@@ -65,12 +58,6 @@ class _CampaignScreenState extends State<CampaignScreen> {
     if (!mounted) return;
 
     if (!loggedIn) {
-      // Unauthenticated consumer trying to participate: present the
-      // explicit Log In / Create Account choice rather than dropping
-      // straight into a bare credential field. JourneySession.campaignId
-      // is untouched, so completing either path returns to this exact
-      // Campaign (see login_screen.dart / signup_screen.dart) and then
-      // continues into Campaign-specific participation verification below.
       context.push('/auth-choice');
       return;
     }
@@ -92,16 +79,11 @@ class _CampaignScreenState extends State<CampaignScreen> {
     } catch (e) {
       if (!mounted) return;
       if (e is DioException && e.response?.statusCode == 403) {
-        // Account identity alone isn't enough — this specific Campaign has
-        // never been phone-OTP-verified for this consumer. Continue into
-        // Campaign participation verification; that flow calls
-        // enterCampaign() itself on success and proceeds straight to Survey.
         setState(() => _entering = false);
         context.push('/phone');
         return;
       }
       if (e is DioException && e.response?.statusCode == 401) {
-        // Refresh token also expired (>7d) — full re-authentication required
         await AuthService.logout();
         if (!mounted) return;
         context.push('/auth-choice');
@@ -119,10 +101,10 @@ class _CampaignScreenState extends State<CampaignScreen> {
       return Scaffold(
         backgroundColor: kBackground,
         appBar: AppBar(
-          backgroundColor: kBackground,
+          backgroundColor: kPrimary,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: kPrimary),
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
             onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
           ),
         ),
@@ -141,10 +123,14 @@ class _CampaignScreenState extends State<CampaignScreen> {
         child: Scaffold(
           backgroundColor: kBackground,
           appBar: AppBar(
-            backgroundColor: kBackground,
+            backgroundColor: kPrimary,
             elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+              onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
+            ),
             actions: const [
-              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle())),
+              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle(light: true))),
             ],
           ),
           body: SafeArea(
@@ -177,14 +163,14 @@ class _CampaignScreenState extends State<CampaignScreen> {
         child: Scaffold(
           backgroundColor: kBackground,
           appBar: AppBar(
-            backgroundColor: kBackground,
+            backgroundColor: kPrimary,
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded, color: kPrimary),
+              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
               onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
             ),
             actions: const [
-              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle())),
+              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle(light: true))),
             ],
           ),
           body: SafeArea(
@@ -195,18 +181,18 @@ class _CampaignScreenState extends State<CampaignScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 80,
-                      height: 80,
+                      width: 90,
+                      height: 90,
                       decoration: const BoxDecoration(
-                        color: Color(0xFFf0fdf4),
+                        color: Color(0xFFD1FAE5),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.check_circle_rounded, color: Color(0xFF15803d), size: 48),
+                      child: const Icon(Icons.check_circle_rounded, color: kSuccess, size: 52),
                     ),
                     const SizedBox(height: 24),
                     Text(
                       s.alreadyParticipated,
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: kPrimary),
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: kPrimary),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 12),
@@ -218,7 +204,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
                     const SizedBox(height: 36),
                     SizedBox(
                       width: double.infinity,
-                      height: 54,
+                      height: 56,
                       child: ElevatedButton(
                         onPressed: () => context.go('/home'),
                         style: ElevatedButton.styleFrom(
@@ -246,148 +232,204 @@ class _CampaignScreenState extends State<CampaignScreen> {
       child: Scaffold(
         backgroundColor: kBackground,
         body: SafeArea(
-          child: Stack(
-            children: [
-              SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Hero Image ────────────────────────────────────────────
+                Stack(
                   children: [
                     if (campaign.productImage.isNotEmpty)
-                      Stack(
-                        children: [
-                          Image.network(
-                            campaign.productImage,
-                            width: double.infinity,
-                            height: 240,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _BrandBanner(brandName: campaign.brandName),
-                          ),
-                          Positioned(
-                            top: 12, left: 12,
-                            child: _BackButton(),
-                          ),
-                          const Positioned(
-                            top: 12, right: 12,
-                            child: LangToggle(light: true),
-                          ),
-                        ],
+                      Image.network(
+                        campaign.productImage,
+                        width: double.infinity,
+                        height: 280,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _BrandBanner(brandName: campaign.brandName),
                       )
                     else
-                      Stack(
-                        children: [
-                          _BrandBanner(brandName: campaign.brandName),
-                          Positioned(
-                            top: 12, left: 12,
-                            child: _BackButton(),
-                          ),
-                          const Positioned(
-                            top: 12, right: 12,
-                            child: LangToggle(light: true),
-                          ),
-                        ],
-                      ),
-
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            campaign.brandName,
-                            style: TextStyle(fontSize: 14, color: Colors.grey.shade500, fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            campaign.productName,
-                            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: kPrimary, height: 1.2),
-                          ),
-                          if (campaign.locationName.isNotEmpty) ...[
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                const Icon(Icons.location_on_outlined, size: 16, color: kAccent),
-                                const SizedBox(width: 4),
-                                Text(
-                                  campaign.locationName,
-                                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-                                ),
-                              ],
-                            ),
-                          ],
-                          if (campaign.description.isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            Text(
-                              campaign.description,
-                              style: TextStyle(fontSize: 14, color: Colors.grey.shade700, height: 1.6),
-                            ),
-                          ],
-                          if (campaign.rewardPoints > 0) ...[
-                            const SizedBox(height: 20),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFf0fdf4),
-                                border: Border.all(color: const Color(0xFFbbf7d0)),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.stars_rounded, color: Color(0xFF15803d), size: 26),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '${campaign.rewardPoints}',
-                                    style: const TextStyle(
-                                      fontSize: 26, fontWeight: FontWeight.w900,
-                                      color: Color(0xFF15803d),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    s.rewardDetail,
-                                    style: const TextStyle(fontSize: 14, color: Color(0xFF15803d)),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 24),
-                          _StepsRow(s: s),
-                          const SizedBox(height: 32),
-                          if (_error == '_entryFail')
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: Text(s.entryError, style: const TextStyle(color: kAccent, fontSize: 14)),
-                            ),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 58,
-                            child: ElevatedButton(
-                              onPressed: _entering ? null : _start,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: kPrimary,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                elevation: 0,
-                              ),
-                              child: _entering
-                                  ? const SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                    )
-                                  : Text(
-                                      s.startTrial,
-                                      style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
-                                    ),
-                            ),
-                          ),
-                        ],
-                      ),
+                      _BrandBanner(brandName: campaign.brandName),
+                    Positioned(
+                      top: 12,
+                      left: 12,
+                      child: _BackButton(),
+                    ),
+                    const Positioned(
+                      top: 12,
+                      right: 12,
+                      child: LangToggle(light: true),
                     ),
                   ],
                 ),
-              ),
-            ],
+
+                // ── Content ───────────────────────────────────────────────
+                Container(
+                  transform: Matrix4.translationValues(0, -20, 0),
+                  decoration: BoxDecoration(
+                    color: kBackground,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── Brand & Title ─────────────────────────────────
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: kPrimary.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            campaign.brandName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: kPrimary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          campaign.productName,
+                          style: const TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w900,
+                            color: kPrimary,
+                            height: 1.2,
+                          ),
+                        ),
+                        if (campaign.locationName.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Icon(Icons.location_on_outlined, size: 18, color: Colors.grey.shade400),
+                              const SizedBox(width: 6),
+                              Text(
+                                campaign.locationName,
+                                style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+                              ),
+                            ],
+                          ),
+                        ],
+                        if (campaign.description.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Text(
+                            campaign.description,
+                            style: TextStyle(fontSize: 14, color: Colors.grey.shade700, height: 1.7),
+                          ),
+                        ],
+
+                        // ── Reward Card ───────────────────────────────────
+                        if (campaign.rewardPoints > 0) ...[
+                          const SizedBox(height: 20),
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFFEF3C7), Color(0xFFFEF9C3)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFFDE68A)),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: const BoxDecoration(
+                                    color: kGold,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.stars_rounded, color: Colors.white, size: 26),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${campaign.rewardPoints} ${s.pointsLabel}',
+                                        style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w900,
+                                          color: Color(0xFF92400E),
+                                        ),
+                                      ),
+                                      Text(
+                                        s.rewardDetail,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          color: Color(0xFFB45309),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        // ── How it Works ──────────────────────────────────
+                        const SizedBox(height: 24),
+                        _StepsRow(s: s),
+
+                        // ── Error Message ─────────────────────────────────
+                        if (_error == '_entryFail') ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: kAccent.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.error_outline, color: kAccent, size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(s.entryError, style: const TextStyle(color: kAccent, fontSize: 13)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        // ── CTA Button ────────────────────────────────────
+                        const SizedBox(height: 28),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 60,
+                          child: ElevatedButton(
+                            onPressed: _entering ? null : _start,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: kPrimary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              elevation: 0,
+                            ),
+                            child: _entering
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  )
+                                : Text(
+                                    s.startTrial,
+                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -401,10 +443,10 @@ class _BackButton extends StatelessWidget {
     return GestureDetector(
       onTap: () => context.canPop() ? context.pop() : context.go('/home'),
       child: Container(
-        width: 38,
-        height: 38,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.35),
+          color: Colors.black.withOpacity(0.3),
           shape: BoxShape.circle,
         ),
         child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
@@ -421,10 +463,10 @@ class _BrandBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      height: 200,
+      height: 280,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [kPrimary, Color(0xFF2e3d5e)],
+          colors: [kPrimary, Color(0xFF2d3a5c)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -444,9 +486,6 @@ class _BrandBanner extends StatelessWidget {
   }
 }
 
-// Same circular-badge step treatment as the Home discovery hero
-// (HeroStep) - so "how it works" reads as one consistent visual language
-// across Home and Campaign Detail rather than two different step styles.
 class _StepsRow extends StatelessWidget {
   final AppStr s;
   const _StepsRow({required this.s});
@@ -461,20 +500,30 @@ class _StepsRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: kPrimary.withOpacity(0.04),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kPrimary.withOpacity(0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: kCardShadow,
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(s.howItWorks, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: kPrimary, letterSpacing: 0.4)),
+          Text(
+            s.howItWorks,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: kPrimary),
+          ),
           const SizedBox(height: 16),
           Row(
             children: [
               for (int i = 0; i < steps.length; i++) ...[
-                Expanded(child: _Step(icon: steps[i].$1, text: steps[i].$2)),
-                if (i < steps.length - 1) Icon(Icons.arrow_forward_rounded, size: 14, color: kPrimary.withOpacity(0.2)),
+                Expanded(child: _Step(icon: steps[i].$1, text: steps[i].$2, index: i + 1)),
+                if (i < steps.length - 1)
+                  Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.grey.shade300),
               ],
             ],
           ),
@@ -487,21 +536,45 @@ class _StepsRow extends StatelessWidget {
 class _Step extends StatelessWidget {
   final IconData icon;
   final String text;
-  const _Step({required this.icon, required this.text});
+  final int index;
+  const _Step({required this.icon, required this.text, required this.index});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: kPrimary.withOpacity(0.08),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, size: 18, color: kAccent),
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: kPrimary.withOpacity(0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 18, color: kAccent),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              child: Container(
+                width: 18,
+                height: 18,
+                decoration: const BoxDecoration(
+                  color: kPrimary,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    '$index',
+                    style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         Text(
@@ -509,7 +582,7 @@ class _Step extends StatelessWidget {
           textAlign: TextAlign.center,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 11, color: kPrimary, fontWeight: FontWeight.w600, height: 1.3),
+          style: const TextStyle(fontSize: 10, color: kPrimary, fontWeight: FontWeight.w600, height: 1.3),
         ),
       ],
     );

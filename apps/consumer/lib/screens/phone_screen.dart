@@ -6,11 +6,6 @@ import '../core/l10n.dart';
 import '../core/session.dart';
 import '../widgets/lang_toggle.dart';
 
-// Campaign participation verification ONLY - not account login/creation
-// (see login_screen.dart / signup_screen.dart for that). Always reached
-// from within an active Campaign flow (Campaign Detail -> Start Trial ->
-// QR match -> here), by an already-authenticated consumer. Prefills the
-// phone field from the consumer's own account profile when available.
 class PhoneScreen extends StatefulWidget {
   const PhoneScreen({super.key});
 
@@ -34,9 +29,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
       if (mounted && profile.phone.isNotEmpty) {
         setState(() => _controller.text = profile.phone);
       }
-    } catch (_) {
-      // Non-fatal — the field just keeps its default "+20" prefix.
-    }
+    } catch (_) {}
   }
 
   @override
@@ -52,7 +45,6 @@ class _PhoneScreenState extends State<PhoneScreen> {
       setState(() => _error = s.phoneError);
       return;
     }
-    // Challenge → PoW → OTP request happens inside OtpScreen on init.
     context.push('/otp', extra: phone);
   }
 
@@ -86,16 +78,23 @@ class _PhoneScreenState extends State<PhoneScreen> {
                 if (JourneySession.hasActiveCampaign)
                   Container(
                     margin: const EdgeInsets.only(bottom: 20),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
-                      color: kPrimary.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: kPrimary.withOpacity(0.1)),
+                      color: kPrimary.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.check_circle_outline, size: 18, color: kPrimary),
-                        const SizedBox(width: 8),
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: kPrimary.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.phone_rounded, size: 16, color: kPrimary),
+                        ),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             s.phoneCampaignBanner,
@@ -110,12 +109,13 @@ class _PhoneScreenState extends State<PhoneScreen> {
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w900,
                     color: kPrimary,
+                    fontSize: 28,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Text(
                   s.phoneSubtitle,
-                  style: TextStyle(fontSize: 16, color: Colors.grey.shade600, height: 1.5),
+                  style: TextStyle(fontSize: 15, color: Colors.grey.shade500, height: 1.5),
                 ),
                 const SizedBox(height: 40),
                 TextField(
@@ -125,6 +125,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
                   style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: 1),
                   decoration: InputDecoration(
                     labelText: s.phoneLabel,
+                    labelStyle: TextStyle(color: Colors.grey.shade400),
                     filled: true,
                     fillColor: Colors.white,
                     border: OutlineInputBorder(
@@ -147,7 +148,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
                 const Spacer(),
                 SizedBox(
                   width: double.infinity,
-                  height: 58,
+                  height: 56,
                   child: ElevatedButton(
                     onPressed: _requestOtp,
                     style: ElevatedButton.styleFrom(
@@ -158,7 +159,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
                     ),
                     child: Text(
                       s.sendCode,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),

@@ -9,12 +9,6 @@ import '../core/l10n.dart';
 import '../core/session.dart';
 import '../widgets/lang_toggle.dart';
 
-// Campaign participation verification ONLY - not account login/creation.
-// Always reached with an active JourneySession.campaignId (see
-// phone_screen.dart), by an already-authenticated consumer. On success,
-// records server-side Campaign-specific verification (not new tokens -
-// the caller already holds a valid account session) and immediately
-// continues into the Campaign entry the way Start Trial already would.
 class OtpScreen extends StatefulWidget {
   final String phone;
   const OtpScreen({super.key, required this.phone});
@@ -53,8 +47,6 @@ class _OtpScreenState extends State<OtpScreen> {
     try {
       final challengeData = await apiClient.getChallenge();
 
-      // When challengeRequired=false (Akedly Dev Mode or PoW disabled in pipeline),
-      // the response omits challenge/difficulty/challengeToken — skip PoW entirely.
       final challengeRequired = challengeData['challengeRequired'] as bool? ?? true;
 
       Map<String, dynamic>? powSolution;
@@ -126,8 +118,6 @@ class _OtpScreenState extends State<OtpScreen> {
       );
       if (!mounted) return;
 
-      // Verification recorded server-side - now actually enter the Campaign,
-      // exactly as Start Trial already would for an already-verified consumer.
       try {
         final entry = await apiClient.enterCampaign(_campaignId);
         if (!mounted) return;
@@ -193,43 +183,63 @@ class _OtpScreenState extends State<OtpScreen> {
           child: Padding(
             padding: const EdgeInsets.all(28),
             child: _challengeLoading
-                ? _buildChallengeLoadingState(s)
+                ? _buildLoadingState(s)
                 : (_transactionReqID == null
-                    ? _buildChallengeErrorState(s)
-                    : _buildOtpInputState(s)),
+                    ? _buildErrorState(s)
+                    : _buildOtpState(s)),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildChallengeLoadingState(AppStr s) {
+  Widget _buildLoadingState(AppStr s) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const CircularProgressIndicator(color: kPrimary),
-          const SizedBox(height: 16),
-          Text(s.preparingCode, style: const TextStyle(color: kPrimary, fontSize: 15)),
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: kPrimary.withOpacity(0.06),
+              shape: BoxShape.circle,
+            ),
+            child: const CircularProgressIndicator(color: kPrimary, strokeWidth: 2),
+          ),
+          const SizedBox(height: 20),
+          Text(s.preparingCode, style: const TextStyle(color: kPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
         ],
       ),
     );
   }
 
-  Widget _buildChallengeErrorState(AppStr s) {
+  Widget _buildErrorState(AppStr s) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(s.otpTitle, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, color: kPrimary)),
+        Text(
+          s.otpTitle,
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.w900,
+            color: kPrimary,
+            fontSize: 28,
+          ),
+        ),
         const SizedBox(height: 40),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(color: kAccent.withOpacity(0.08), borderRadius: BorderRadius.circular(10)),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: kAccent.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Row(
             children: [
               const Icon(Icons.error_outline, size: 18, color: kAccent),
-              const SizedBox(width: 8),
-              Expanded(child: Text(_error ?? s.challengeError, style: const TextStyle(color: kAccent, fontSize: 14))),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(_error ?? s.challengeError, style: const TextStyle(color: kAccent, fontSize: 13)),
+              ),
             ],
           ),
         ),
@@ -237,39 +247,60 @@ class _OtpScreenState extends State<OtpScreen> {
         Center(
           child: GestureDetector(
             onTap: _challengeAndRequest,
-            child: Text(s.retry, style: const TextStyle(fontSize: 15, color: kPrimary, fontWeight: FontWeight.w700, decoration: TextDecoration.underline)),
+            child: Text(s.retry, style: const TextStyle(fontSize: 15, color: kPrimary, fontWeight: FontWeight.w700)),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildOtpInputState(AppStr s) {
+  Widget _buildOtpState(AppStr s) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(s.otpTitle, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, color: kPrimary)),
-        const SizedBox(height: 8),
-        Text(s.otpSentTo, style: TextStyle(fontSize: 15, color: Colors.grey.shade600)),
-        Text(widget.phone, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: kPrimary, letterSpacing: 1), textDirection: TextDirection.ltr),
+        Text(
+          s.otpTitle,
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.w900,
+            color: kPrimary,
+            fontSize: 28,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(s.otpSentTo, style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+        const SizedBox(height: 4),
+        Text(
+          widget.phone,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: kPrimary),
+          textDirection: TextDirection.ltr,
+        ),
         const SizedBox(height: 40),
         Directionality(
           textDirection: TextDirection.ltr,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(6, (i) => _DigitBox(controller: _controllers[i], focusNode: _focusNodes[i], onChanged: (v) => _onDigitChanged(i, v))),
+            children: List.generate(6, (i) => _DigitBox(
+              controller: _controllers[i],
+              focusNode: _focusNodes[i],
+              onChanged: (v) => _onDigitChanged(i, v),
+            )),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         if (_error != null)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(color: kAccent.withOpacity(0.08), borderRadius: BorderRadius.circular(10)),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: kAccent.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Row(
               children: [
                 const Icon(Icons.error_outline, size: 18, color: kAccent),
                 const SizedBox(width: 8),
-                Expanded(child: Text(_error!, style: const TextStyle(color: kAccent, fontSize: 14))),
+                Expanded(
+                  child: Text(_error!, style: const TextStyle(color: kAccent, fontSize: 13)),
+                ),
               ],
             ),
           ),
@@ -277,14 +308,14 @@ class _OtpScreenState extends State<OtpScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(s.didntReceive, style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+            Text(s.didntReceive, style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
             if (_canResend)
               GestureDetector(
                 onTap: _resend,
-                child: Text(s.resend, style: const TextStyle(fontSize: 14, color: kPrimary, fontWeight: FontWeight.w700, decoration: TextDecoration.underline)),
+                child: Text(s.resend, style: const TextStyle(fontSize: 13, color: kPrimary, fontWeight: FontWeight.w700)),
               )
             else
-              Text(s.resendIn(_countdown), style: TextStyle(fontSize: 14, color: Colors.grey.shade400)),
+              Text(s.resendIn(_countdown), style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
           ],
         ),
         const Spacer(),
@@ -292,9 +323,9 @@ class _OtpScreenState extends State<OtpScreen> {
           Center(
             child: Column(
               children: [
-                const CircularProgressIndicator(color: kPrimary),
+                const CircularProgressIndicator(color: kPrimary, strokeWidth: 2),
                 const SizedBox(height: 12),
-                Text(s.verifying, style: const TextStyle(color: kPrimary, fontSize: 14)),
+                Text(s.verifying, style: const TextStyle(color: kPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
               ],
             ),
           ),
@@ -314,8 +345,8 @@ class _DigitBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 46,
-      height: 58,
+      width: 48,
+      height: 60,
       child: TextField(
         controller: controller,
         focusNode: focusNode,
@@ -329,7 +360,10 @@ class _DigitBox extends StatelessWidget {
           filled: true,
           fillColor: Colors.white,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kPrimary, width: 2)),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: kPrimary, width: 2),
+          ),
         ),
         onChanged: onChanged,
       ),

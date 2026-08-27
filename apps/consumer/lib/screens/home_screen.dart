@@ -26,12 +26,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _load();
-    // GoRouter's go('/home') doesn't reliably remount this screen when
-    // '/home' is already the base of the stack (e.g. Logout from Settings
-    // navigates back via go('/home')), so initState() alone can miss an
-    // auth change. Listening here means Home always reflects the current
-    // logged-in/out state instead of showing stale personalization until a
-    // manual pull-to-refresh.
     AuthService.authEpoch.addListener(_onAuthChanged);
   }
 
@@ -56,9 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (_loggedIn) {
         try {
           _profile = await apiClient.getConsumerProfile();
-        } catch (_) {
-          // non-fatal — show campaigns without profile
-        }
+        } catch (_) {}
       } else {
         _profile = null;
       }
@@ -86,66 +78,55 @@ class _HomeScreenState extends State<HomeScreen> {
       textDirection: context.dir,
       child: Scaffold(
         backgroundColor: kBackground,
-        appBar: AppBar(
-          backgroundColor: kPrimary,
-          elevation: 0,
-          title: Text(
-            s.homeTitle,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
-              fontSize: 20,
-            ),
-          ),
-          automaticallyImplyLeading: false,
-          actions: [
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4),
-              child: Center(child: LangToggle(light: true)),
-            ),
-            IconButton(
-              icon: const Icon(Icons.info_outline_rounded, color: Colors.white),
-              onPressed: () => context.push('/services'),
-              tooltip: s.servicesTitle,
-            ),
-            if (_loggedIn)
-              IconButton(
-                icon: const Icon(Icons.person_rounded, color: Colors.white),
-                onPressed: () => context.push('/profile'),
-                tooltip: s.profileTitle,
-              )
-            else
-              // Account authentication, independently reachable from Home —
-              // the user must not have to enter a Campaign to find it.
-              // Pushes to the same choice screen Campaign participation
-              // uses, but with no active JourneySession campaign, so it
-              // reads (and behaves) as plain account sign-in rather than
-              // participation verification.
-              TextButton(
-                onPressed: () => context.push('/auth-choice'),
-                child: Text(
-                  s.signIn,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-                ),
-              ),
-          ],
-        ),
         body: _loading
             ? const Center(child: CircularProgressIndicator(color: kPrimary))
             : RefreshIndicator(
                 onRefresh: _load,
                 color: kPrimary,
-                child: Builder(
-                  builder: (context) {
-                    final participatedIds = (_loggedIn && _profile != null)
-                        ? _profile!.recentCampaigns.map((r) => r.campaignId).toSet()
-                        : <String>{};
-                    final availableCampaigns = _campaigns
-                        .where((c) => !participatedIds.contains(c.id))
-                        .toList();
-                    return CustomScrollView(
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
-                    // ── Profile banner (logged-in only) ──────────────────
+                    // ── App Bar ──────────────────────────────────────────────
+                    SliverAppBar(
+                      floating: true,
+                      pinned: true,
+                      backgroundColor: kPrimary,
+                      elevation: 0,
+                      title: Text(
+                        s.homeTitle,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 20,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      actions: [
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Center(child: LangToggle(light: true)),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.info_outline_rounded, color: Colors.white),
+                          onPressed: () => context.push('/services'),
+                        ),
+                        if (_loggedIn)
+                          IconButton(
+                            icon: const Icon(Icons.person_rounded, color: Colors.white),
+                            onPressed: () => context.push('/profile'),
+                          )
+                        else
+                          TextButton(
+                            onPressed: () => context.push('/auth-choice'),
+                            child: Text(
+                              s.signIn,
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                      ],
+                    ),
+
+                    // ── Profile Banner (logged-in) or Hero (logged-out) ─────
                     if (_loggedIn)
                       SliverToBoxAdapter(
                         child: GestureDetector(
@@ -153,35 +134,41 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: _ProfileBanner(profile: _profile, s: s),
                         ),
                       )
-                    // ── Discovery hero (first-time / logged-out only) ────
-                    // Home previously jumped straight from the AppBar into
-                    // the campaign list with no explanation of what
-                    // Tajribti is or why to participate. Shown only when
-                    // logged out — a returning user already knows the app,
-                    // and the profile banner above already personalizes
-                    // their experience instead.
                     else
-                      const SliverToBoxAdapter(child: _HeroBanner()),
+                      SliverToBoxAdapter(child: _HeroBanner(s: s)),
 
-                    // ── Campaign section header ───────────────────────────
+                    // ── Campaign Section Header ──────────────────────────────
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-                        child: Text(
-                          s.availableCampaigns,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: kPrimary,
-                          ),
+                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 4,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: kAccent,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              s.availableCampaigns,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: kPrimary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
 
-                    // ── Campaign cards (exclude already-participated) ──────
+                    // ── Campaign Cards ───────────────────────────────────────
                     if (_error != null)
                       SliverFillRemaining(child: _ErrorState(error: s.loadError, onRetry: _load))
-                    else if (availableCampaigns.isEmpty)
+                    else if (_campaigns.isEmpty)
                       SliverToBoxAdapter(child: _EmptyState(s: s))
                     else
                       SliverPadding(
@@ -189,24 +176,35 @@ class _HomeScreenState extends State<HomeScreen> {
                         sliver: SliverList(
                           delegate: SliverChildBuilderDelegate(
                             (_, i) => _CampaignCard(
-                              campaign: availableCampaigns[i],
+                              campaign: _campaigns[i],
                               s: s,
-                              onTap: () => _enterCampaign(availableCampaigns[i].id),
+                              alreadyParticipated: _loggedIn && _profile != null &&
+                                  _profile!.recentCampaigns.any((r) => r.campaignId == _campaigns[i].id),
+                              onTap: () => _enterCampaign(_campaigns[i].id),
                             ),
-                            childCount: availableCampaigns.length,
+                            childCount: _campaigns.length,
                           ),
                         ),
                       ),
 
-                    // ── Activity history (logged-in, non-empty) ───────────
+                    // ── Activity Preview (logged-in) ─────────────────────────
                     if (_loggedIn &&
                         _profile != null &&
                         _profile!.recentCampaigns.isNotEmpty) ...[
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
+                          padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
                           child: Row(
                             children: [
+                              Container(
+                                width: 4,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: kSuccess,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
                                   s.myActivity,
@@ -252,15 +250,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
 
-                    // Standalone Scan QR entry removed from Home: QR now
-                    // belongs inside Campaign participation (Campaign
-                    // Detail → Start Trial → Scan Campaign QR), not as a
-                    // Home-level discovery shortcut. The scanner itself is
-                    // unchanged and reused there — see ScannerScreen.
                     const SliverToBoxAdapter(child: SizedBox(height: 24)),
                   ],
-                    );
-                  },
                 ),
               ),
       ),
@@ -269,7 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Profile banner
+// Profile Banner (logged-in)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ProfileBanner extends StatelessWidget {
@@ -280,20 +271,28 @@ class _ProfileBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: kPrimary,
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [kPrimary, Color(0xFF2d3a5c)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.12),
+              color: Colors.white.withOpacity(0.15),
               shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withOpacity(0.25), width: 2),
             ),
-            child: const Icon(Icons.person_rounded, color: Colors.white70, size: 26),
+            child: const Icon(Icons.person_rounded, color: Colors.white, size: 26),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,19 +303,38 @@ class _ProfileBanner extends StatelessWidget {
                       : s.welcomeBack,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
+                    fontSize: 17,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                if (profile != null)
-                  Text(
-                    '${profile!.totalPoints} ${s.pointsLabel}',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.65),
-                      fontSize: 13,
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.stars_rounded, color: kGold, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${profile?.totalPoints ?? 0} ${s.pointsLabel}',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
+                  ],
+                ),
               ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Icon(
+              Icons.chevron_right_rounded,
+              color: Colors.white.withOpacity(0.7),
+              size: 20,
             ),
           ),
         ],
@@ -326,15 +344,15 @@ class _ProfileBanner extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Discovery hero — introduces the product before showing the campaign list
+// Hero Banner (logged-out)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _HeroBanner extends StatelessWidget {
-  const _HeroBanner();
+  final AppStr s;
+  const _HeroBanner({required this.s});
 
   @override
   Widget build(BuildContext context) {
-    final s = context.l10n;
     final steps = [
       (Icons.explore_rounded, s.heroStepDiscover),
       (Icons.inventory_2_rounded, s.heroStepTry),
@@ -342,41 +360,65 @@ class _HeroBanner extends StatelessWidget {
       (Icons.stars_rounded, s.heroStepEarn),
     ];
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-      padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [kPrimary, Color(0xFF2e3d5e)],
+          colors: [kPrimary, Color(0xFF2d3a5c)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: kPrimary.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.auto_awesome_rounded, color: kGold, size: 18),
+          ),
+          const SizedBox(height: 16),
           Text(
             s.heroTagline,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 21,
+              fontSize: 22,
               fontWeight: FontWeight.w900,
-              height: 1.25,
+              height: 1.3,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             s.heroSub,
-            style: TextStyle(color: Colors.white.withOpacity(0.72), fontSize: 13, height: 1.5),
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.7),
+              fontSize: 13,
+              height: 1.6,
+            ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 24),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               for (int i = 0; i < steps.length; i++) ...[
                 _HeroStep(icon: steps[i].$1, label: steps[i].$2),
                 if (i < steps.length - 1)
-                  Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.white.withOpacity(0.3)),
+                  Expanded(
+                    child: Container(
+                      height: 1,
+                      color: Colors.white.withOpacity(0.2),
+                    ),
+                  ),
               ],
             ],
           ),
@@ -397,18 +439,22 @@ class _HeroStep extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 38,
-          height: 38,
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.12),
+            color: Colors.white.withOpacity(0.15),
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: const Color(0xFFfbbf24), size: 18),
+          child: Icon(icon, color: kGold, size: 18),
         ),
         const SizedBox(height: 6),
         Text(
           label,
-          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     );
@@ -416,14 +462,20 @@ class _HeroStep extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Campaign card
+// Campaign Card
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _CampaignCard extends StatelessWidget {
   final Campaign campaign;
   final AppStr s;
+  final bool alreadyParticipated;
   final VoidCallback onTap;
-  const _CampaignCard({required this.campaign, required this.s, required this.onTap});
+  const _CampaignCard({
+    required this.campaign,
+    required this.s,
+    this.alreadyParticipated = false,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -431,10 +483,10 @@ class _CampaignCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: kPrimary.withOpacity(0.07),
+            color: kCardShadow,
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -445,77 +497,118 @@ class _CampaignCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Image or brand gradient ────────────────────────────────────
-          if (campaign.productImage.isNotEmpty)
-            Image.network(
-              campaign.productImage,
-              height: 160,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _CardBanner(brandName: campaign.brandName),
-            )
-          else
-            _CardBanner(brandName: campaign.brandName),
+          Stack(
+            children: [
+              if (campaign.productImage.isNotEmpty)
+                Image.network(
+                  campaign.productImage,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _CardBanner(brandName: campaign.brandName),
+                )
+              else
+                _CardBanner(brandName: campaign.brandName),
+              if (alreadyParticipated)
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: kSuccess,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.check_rounded, color: Colors.white, size: 14),
+                        const SizedBox(width: 4),
+                        Text(
+                          s.activityCompleted,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
 
-          // ── Info row ──────────────────────────────────────────────────
+          // ── Info section ──────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  campaign.brandName,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade500,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  campaign.productName,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: kPrimary,
-                    height: 1.2,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            campaign.brandName,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade500,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            campaign.productName,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: kPrimary,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 if (campaign.locationName.isNotEmpty) ...[
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(Icons.location_on_outlined, size: 14, color: kAccent),
-                      const SizedBox(width: 3),
+                      Icon(Icons.location_on_outlined, size: 14, color: Colors.grey.shade400),
+                      const SizedBox(width: 4),
                       Text(
                         campaign.locationName,
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                       ),
                     ],
                   ),
                 ],
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     if (campaign.rewardPoints > 0) ...[
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFf0fdf4),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFFbbf7d0)),
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.stars_rounded, size: 14, color: Color(0xFF15803d)),
+                            const Icon(Icons.stars_rounded, size: 14, color: kGold),
                             const SizedBox(width: 4),
                             Text(
                               '${campaign.rewardPoints} ${s.pointsLabel}',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFF15803d),
+                                color: Color(0xFFB45309),
                               ),
                             ),
                           ],
@@ -524,19 +617,22 @@ class _CampaignCard extends StatelessWidget {
                       const Spacer(),
                     ] else
                       const Spacer(),
-                    ElevatedButton(
-                      onPressed: onTap,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kPrimary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 0,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: Text(
-                        s.startTrialCard,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                    GestureDetector(
+                      onTap: onTap,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: kPrimary,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          s.startTrialCard,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -557,11 +653,11 @@ class _CardBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 120,
+      height: 140,
       width: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [kPrimary, Color(0xFF2e3d5e)],
+          colors: [kPrimary, Color(0xFF2d3a5c)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -570,7 +666,7 @@ class _CardBanner extends StatelessWidget {
         child: Text(
           brandName,
           style: const TextStyle(
-            fontSize: 28,
+            fontSize: 24,
             fontWeight: FontWeight.w900,
             color: Colors.white,
             letterSpacing: -0.5,
@@ -582,7 +678,7 @@ class _CardBanner extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Activity tile
+// Activity Tile
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ActivityTile extends StatelessWidget {
@@ -597,69 +693,76 @@ class _ActivityTile extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: kPrimary.withOpacity(0.05),
-              blurRadius: 8,
+              color: kCardShadow,
+              blurRadius: 10,
               offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: kPrimary.withOpacity(0.07),
-              borderRadius: BorderRadius.circular(10),
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: record.productImage != null && record.productImage!.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        record.productImage!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Icon(Icons.inventory_2_outlined, color: kGold, size: 22),
+                      ),
+                    )
+                  : const Icon(Icons.inventory_2_outlined, color: kGold, size: 22),
             ),
-            child: record.productImage != null && record.productImage!.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.network(
-                      record.productImage!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.inventory_2_outlined, color: kPrimary, size: 22),
-                    ),
-                  )
-                : const Icon(Icons.inventory_2_outlined, color: kPrimary, size: 22),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  record.productName ?? record.campaignId,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: kPrimary,
-                  ),
-                ),
-                if (record.brandName != null)
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    record.brandName!,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                    record.productName ?? record.campaignId,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: kPrimary,
+                    ),
                   ),
-              ],
-            ),
-          ),
-          if (record.rewardPoints > 0)
-            Text(
-              '+${record.rewardPoints}',
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF15803d),
+                  if (record.brandName != null)
+                    Text(
+                      record.brandName!,
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                    ),
+                ],
               ),
             ),
-        ],
+            if (record.rewardPoints > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD1FAE5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '+${record.rewardPoints}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: kSuccess,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -667,7 +770,7 @@ class _ActivityTile extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Empty and error states
+// Empty and Error States
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _EmptyState extends StatelessWidget {
@@ -677,11 +780,19 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
       child: Column(
         children: [
-          Icon(Icons.campaign_outlined, size: 56, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: kPrimary.withOpacity(0.06),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.campaign_outlined, size: 40, color: Colors.grey.shade300),
+          ),
+          const SizedBox(height: 20),
           Text(
             s.noCampaignsTitle,
             style: const TextStyle(

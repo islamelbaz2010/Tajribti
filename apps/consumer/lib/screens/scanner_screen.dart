@@ -134,6 +134,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
                 decoration: BoxDecoration(
                   border: Border.all(color: kAccent, width: 3),
                   borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kAccent.withOpacity(0.3),
+                      blurRadius: 24,
+                      spreadRadius: -4,
+                    ),
+                  ],
                 ),
                 child: const _CornerDecorations(),
               ),
@@ -143,20 +150,28 @@ class _ScannerScreenState extends State<ScannerScreen> {
               bottom: 72,
               left: 0,
               right: 0,
-              child: Column(
-                children: [
-                  Text(
-                    s.scanHint,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    s.scanSub,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 13),
-                  ),
-                ],
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 32),
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      s.scanHint,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      s.scanSub,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white.withOpacity(0.65), fontSize: 13, height: 1.4),
+                    ),
+                  ],
+                ),
               ),
             ),
 

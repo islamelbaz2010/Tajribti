@@ -8,12 +8,6 @@ import '../core/l10n.dart';
 import '../core/session.dart';
 import '../widgets/lang_toggle.dart';
 
-// Normal account login: email + password. Independent of Campaigns - no
-// campaignId, no QR, no Campaign OTP anywhere in this screen. If reached
-// while a Campaign is active (Campaign Detail -> Start Trial -> Auth
-// Choice -> Log In), JourneySession.campaignId is left untouched, so
-// success returns to that exact Campaign (see _onLoginSuccess below) -
-// otherwise it returns to Home.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -73,8 +67,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _onLoginSuccess() {
-    // Preserve Campaign context: if Login was reached from a Campaign's
-    // Start Trial, return to that exact Campaign instead of Home.
     if (JourneySession.hasActiveCampaign) {
       context.go('/campaign');
     } else {
@@ -113,25 +105,26 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w900,
                     color: kPrimary,
+                    fontSize: 28,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Text(
                   s.loginSubtitle,
-                  style: TextStyle(fontSize: 16, color: Colors.grey.shade600, height: 1.5),
+                  style: TextStyle(fontSize: 15, color: Colors.grey.shade500, height: 1.5),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 36),
                 _Label(s.emailLabel),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   textDirection: TextDirection.ltr,
                   decoration: _inputDeco(s.emailHint),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 22),
                 _Label(s.passwordLabel),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 TextField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -147,18 +140,26 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (_error != null) ...[
                   const SizedBox(height: 16),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
-                      color: kAccent.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(10),
+                      color: kAccent.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(_error!, style: const TextStyle(color: kAccent, fontSize: 14)),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: kAccent, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(_error!, style: const TextStyle(color: kAccent, fontSize: 13)),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
                 const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,
-                  height: 58,
+                  height: 56,
                   child: ElevatedButton(
                     onPressed: _loading ? null : _submit,
                     style: ElevatedButton.styleFrom(
@@ -173,10 +174,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             height: 24,
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                           )
-                        : Text(s.loginTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                        : Text(s.loginTitle, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 Center(
                   child: GestureDetector(
                     onTap: () => context.pushReplacement('/signup'),
@@ -185,11 +186,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         children: [
                           TextSpan(
                             text: '${s.dontHaveAccount} ',
-                            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                            style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
                           ),
                           TextSpan(
                             text: s.createAccount,
-                            style: const TextStyle(color: kPrimary, fontSize: 14, fontWeight: FontWeight.w700, decoration: TextDecoration.underline),
+                            style: const TextStyle(color: kPrimary, fontSize: 14, fontWeight: FontWeight.w700),
                           ),
                         ],
                       ),
@@ -206,6 +207,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   InputDecoration _inputDeco(String hint) => InputDecoration(
     hintText: hint,
+    hintStyle: TextStyle(color: Colors.grey.shade400),
     filled: true,
     fillColor: Colors.white,
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
@@ -224,6 +226,6 @@ class _Label extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     text,
-    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: kPrimary),
+    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: kPrimary),
   );
 }

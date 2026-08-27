@@ -5,14 +5,6 @@ import '../core/l10n.dart';
 import '../core/session.dart';
 import '../widgets/lang_toggle.dart';
 
-// The account-authentication choice: Log In (existing account, email +
-// password) or Create Account (email + password + profile). Reached
-// either independently from Home, or from a Campaign's Start Trial when
-// no session exists yet - in the latter case JourneySession's
-// campaignId is left untouched, so LoginScreen/SignupScreen return to
-// that exact Campaign on success instead of Home. Account auth is
-// entirely separate from Campaign participation verification (QR +
-// phone OTP), which only happens later, inside the Campaign flow.
 class AuthChoiceScreen extends StatelessWidget {
   const AuthChoiceScreen({super.key});
 
@@ -46,16 +38,23 @@ class AuthChoiceScreen extends StatelessWidget {
                 if (JourneySession.hasActiveCampaign)
                   Container(
                     margin: const EdgeInsets.only(bottom: 20),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
-                      color: kPrimary.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: kPrimary.withOpacity(0.1)),
+                      color: kPrimary.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.check_circle_outline, size: 18, color: kPrimary),
-                        const SizedBox(width: 8),
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: kPrimary.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.check_circle_outline, size: 16, color: kPrimary),
+                        ),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             s.authChoiceCampaignBanner,
@@ -70,17 +69,18 @@ class AuthChoiceScreen extends StatelessWidget {
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w900,
                     color: kPrimary,
+                    fontSize: 28,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Text(
                   s.authChoiceSubtitle,
-                  style: TextStyle(fontSize: 16, color: Colors.grey.shade600, height: 1.5),
+                  style: TextStyle(fontSize: 15, color: Colors.grey.shade500, height: 1.6),
                 ),
                 const Spacer(),
                 SizedBox(
                   width: double.infinity,
-                  height: 58,
+                  height: 56,
                   child: ElevatedButton(
                     onPressed: () => context.push('/login'),
                     style: ElevatedButton.styleFrom(
@@ -89,21 +89,21 @@ class AuthChoiceScreen extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       elevation: 0,
                     ),
-                    child: Text(s.signIn, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                    child: Text(s.signIn, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
                   ),
                 ),
                 const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
-                  height: 58,
+                  height: 56,
                   child: OutlinedButton(
                     onPressed: () => context.push('/signup'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: kPrimary,
-                      side: const BorderSide(color: kPrimary, width: 1.5),
+                      side: BorderSide(color: kPrimary.withOpacity(0.3), width: 1.5),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
-                    child: Text(s.createAccount, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                    child: Text(s.createAccount, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
                   ),
                 ),
                 const SizedBox(height: 20),

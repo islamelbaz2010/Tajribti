@@ -97,7 +97,7 @@ class _ActivityList extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
       itemCount: records.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (_, i) => _ActivityCard(record: records[i], s: s, onTap: onTap),
     );
   }
@@ -127,8 +127,8 @@ class _ActivityCard extends StatelessWidget {
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
+      shadowColor: kCardShadow,
       elevation: 2,
-      shadowColor: kPrimary.withOpacity(0.07),
       child: InkWell(
         onTap: () => onTap(record.campaignId),
         borderRadius: BorderRadius.circular(16),
@@ -137,23 +137,23 @@ class _ActivityCard extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 52,
-                height: 52,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
-                  color: kPrimary.withOpacity(0.07),
-                  borderRadius: BorderRadius.circular(12),
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: record.productImage != null && record.productImage!.isNotEmpty
                     ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                         child: Image.network(
                           record.productImage!,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) =>
-                              const Icon(Icons.inventory_2_rounded, color: kPrimary, size: 26),
+                              const Icon(Icons.inventory_2_rounded, color: kGold, size: 26),
                         ),
                       )
-                    : const Icon(Icons.inventory_2_rounded, color: kPrimary, size: 26),
+                    : const Icon(Icons.inventory_2_rounded, color: kGold, size: 26),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -177,7 +177,7 @@ class _ActivityCard extends StatelessWidget {
                         style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                       ),
                     ],
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
                       _formatDate(record.redeemedAt),
                       style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
@@ -193,44 +193,43 @@ class _ActivityCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFf0fdf4),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFbbf7d0)),
+                        color: const Color(0xFFD1FAE5),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.stars_rounded, size: 12, color: Color(0xFF15803d)),
+                          const Icon(Icons.stars_rounded, size: 12, color: kSuccess),
                           const SizedBox(width: 3),
                           Text(
                             '+${record.rewardPoints}',
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF15803d),
+                              color: kSuccess,
                             ),
                           ),
                         ],
                       ),
                     ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFf0fdf4),
-                      borderRadius: BorderRadius.circular(6),
+                      color: kPrimary.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.check_rounded, size: 12, color: Color(0xFF15803d)),
+                        const Icon(Icons.check_rounded, size: 12, color: kPrimary),
                         const SizedBox(width: 3),
                         Text(
                           s.activityCompleted,
                           style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF15803d),
+                            color: kPrimary,
                           ),
                         ),
                       ],
@@ -258,7 +257,15 @@ class _ActivityEmpty extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.history_rounded, size: 60, color: Colors.grey.shade300),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: kPrimary.withOpacity(0.06),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.history_rounded, size: 40, color: Colors.grey.shade300),
+            ),
             const SizedBox(height: 20),
             Text(
               s.noActivity,
@@ -290,7 +297,15 @@ class _NotLoggedIn extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.person_outline_rounded, size: 60, color: Colors.grey.shade300),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: kPrimary.withOpacity(0.06),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.person_outline_rounded, size: 40, color: Colors.grey.shade300),
+            ),
             const SizedBox(height: 20),
             Text(
               s.loginToSeeActivity,

@@ -86,22 +86,30 @@ class _ProfileBody extends StatelessWidget {
     return SingleChildScrollView(
       child: Column(
         children: [
+          // ── Profile Header ──────────────────────────────────────────────
           Container(
             width: double.infinity,
-            color: kPrimary,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [kPrimary, Color(0xFF2d3a5c)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
             padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
             child: Column(
               children: [
                 Container(
-                  width: 80,
-                  height: 80,
+                  width: 88,
+                  height: 88,
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.15),
                     shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white.withOpacity(0.25), width: 2),
                   ),
-                  child: const Icon(Icons.person_rounded, color: Colors.white, size: 42),
+                  child: const Icon(Icons.person_rounded, color: Colors.white, size: 44),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
                 if (profile.name != null && profile.name!.isNotEmpty)
                   Text(
                     profile.name!,
@@ -111,12 +119,12 @@ class _ProfileBody extends StatelessWidget {
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 if (profile.email != null && profile.email!.isNotEmpty)
                   Text(
                     profile.email!,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withOpacity(0.7),
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
@@ -124,19 +132,26 @@ class _ProfileBody extends StatelessWidget {
                 Text(
                   profile.phone,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.45),
-                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.5),
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 if (profile.email != null && !profile.emailVerified) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    s.emailNotVerifiedNote,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.5),
-                      fontSize: 11,
-                      fontStyle: FontStyle.italic,
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      s.emailNotVerifiedNote,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
@@ -147,21 +162,23 @@ class _ProfileBody extends StatelessWidget {
                     _StatBadge(
                       icon: Icons.stars_rounded,
                       value: '${profile.totalPoints}',
-                      label: profile.totalPoints == 1 ? s.pointsLabel : s.pointsLabel,
-                      iconColor: const Color(0xFFfbbf24),
+                      label: s.pointsLabel,
+                      iconColor: kGold,
                     ),
                     const SizedBox(width: 16),
                     _StatBadge(
                       icon: Icons.check_circle_rounded,
                       value: '${profile.recentCampaigns.length}',
                       label: s.campaignsLabel,
-                      iconColor: const Color(0xFF34d399),
+                      iconColor: kSuccess,
                     ),
                   ],
                 ),
               ],
             ),
           ),
+
+          // ── Menu Tiles ──────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -207,21 +224,20 @@ class _StatBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.18)),
       ),
       child: Column(
         children: [
           Icon(icon, color: iconColor, size: 22),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             value,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 22,
+              fontSize: 24,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -249,17 +265,25 @@ class _ProfileTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      shadowColor: kPrimary.withOpacity(0.07),
+      borderRadius: BorderRadius.circular(16),
+      shadowColor: kCardShadow,
       elevation: 2,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           child: Row(
             children: [
-              Icon(icon, color: kPrimary, size: 22),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: kPrimary.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: kPrimary, size: 20),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
@@ -273,7 +297,7 @@ class _ProfileTile extends StatelessWidget {
               ),
               Icon(
                 Icons.chevron_right_rounded,
-                color: Colors.grey.shade400,
+                color: Colors.grey.shade300,
                 size: 22,
               ),
             ],

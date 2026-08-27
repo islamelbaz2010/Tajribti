@@ -9,11 +9,6 @@ import '../core/session.dart';
 import '../widgets/choice_chip_group.dart';
 import '../widgets/lang_toggle.dart';
 
-// Real account creation: email + password + required profile fields
-// (including phone, needed later for Campaign participation verification -
-// see CampaignVerification on the backend). Independent of Campaigns - no
-// campaignId, no QR, no Campaign OTP anywhere in this screen. This is NOT
-// the old phone-OTP "isNewUser" flow; it calls POST /auth/signup directly.
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
@@ -97,8 +92,6 @@ class _SignupScreenState extends State<SignupScreen> {
         consumerId: result['consumerId'] as String?,
       );
       if (!mounted) return;
-      // Preserve Campaign context: if Signup was reached from a Campaign's
-      // Start Trial, return to that exact Campaign instead of Home.
       if (JourneySession.hasActiveCampaign) {
         context.go('/campaign');
       } else {
@@ -155,21 +148,22 @@ class _SignupScreenState extends State<SignupScreen> {
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w900,
                     color: kPrimary,
+                    fontSize: 28,
                   ),
                 ),
-                Text(s.forBetterExp, style: TextStyle(color: Colors.grey.shade500)),
-                const SizedBox(height: 28),
+                Text(s.forBetterExp, style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+                const SizedBox(height: 32),
                 _Label(s.emailLabel),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   textDirection: TextDirection.ltr,
                   decoration: _inputDeco(s.emailHint),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 22),
                 _Label(s.passwordLabel),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 TextField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -183,33 +177,33 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(s.passwordRequirements, style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
-                const SizedBox(height: 20),
+                const SizedBox(height: 22),
                 _Label(s.confirmPasswordLabel),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 TextField(
                   controller: _confirmPasswordController,
                   obscureText: _obscurePassword,
                   textDirection: TextDirection.ltr,
                   decoration: _inputDeco('••••••••'),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 22),
                 _Label(s.nameLabel),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 TextField(
                   controller: _nameController,
                   textCapitalization: TextCapitalization.words,
                   decoration: _inputDeco(s.nameHint),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 22),
                 _Label(s.phoneLabel),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 TextField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
                   textDirection: TextDirection.ltr,
                   decoration: _inputDeco(s.phoneExample),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 26),
                 _Label(s.ageLabel),
                 const SizedBox(height: 12),
                 ChoiceChipGroup(
@@ -217,7 +211,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   selected: _ageRange,
                   onSelected: (v) => setState(() => _ageRange = v),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 26),
                 _Label(s.genderLabel),
                 const SizedBox(height: 12),
                 ChoiceChipGroup(
@@ -225,7 +219,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   selected: _genderLabel,
                   onSelected: (v) => setState(() => _genderLabel = v),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 26),
                 _Label(s.cityLabel),
                 const SizedBox(height: 12),
                 ChoiceChipGroup(
@@ -236,18 +230,26 @@ class _SignupScreenState extends State<SignupScreen> {
                 if (_error != null) ...[
                   const SizedBox(height: 16),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
-                      color: kAccent.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(10),
+                      color: kAccent.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(_error!, style: const TextStyle(color: kAccent, fontSize: 14)),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: kAccent, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(_error!, style: const TextStyle(color: kAccent, fontSize: 13)),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
                 const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,
-                  height: 58,
+                  height: 56,
                   child: ElevatedButton(
                     onPressed: _loading ? null : _submit,
                     style: ElevatedButton.styleFrom(
@@ -262,10 +264,10 @@ class _SignupScreenState extends State<SignupScreen> {
                             height: 24,
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                           )
-                        : Text(s.createAccount, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                        : Text(s.createAccount, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 Center(
                   child: GestureDetector(
                     onTap: () => context.pushReplacement('/login'),
@@ -274,11 +276,11 @@ class _SignupScreenState extends State<SignupScreen> {
                         children: [
                           TextSpan(
                             text: '${s.alreadyHaveAccount} ',
-                            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                            style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
                           ),
                           TextSpan(
                             text: s.signIn,
-                            style: const TextStyle(color: kPrimary, fontSize: 14, fontWeight: FontWeight.w700, decoration: TextDecoration.underline),
+                            style: const TextStyle(color: kPrimary, fontSize: 14, fontWeight: FontWeight.w700),
                           ),
                         ],
                       ),
@@ -295,6 +297,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   InputDecoration _inputDeco(String hint) => InputDecoration(
     hintText: hint,
+    hintStyle: TextStyle(color: Colors.grey.shade400),
     filled: true,
     fillColor: Colors.white,
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
@@ -313,6 +316,6 @@ class _Label extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     text,
-    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: kPrimary),
+    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: kPrimary),
   );
 }

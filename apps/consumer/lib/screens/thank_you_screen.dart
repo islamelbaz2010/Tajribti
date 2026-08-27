@@ -19,7 +19,7 @@ class _ThankYouScreenState extends State<ThankYouScreen> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
     _scaleAnim = CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut);
     _fadeAnim = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
     _ctrl.forward();
@@ -50,39 +50,38 @@ class _ThankYouScreenState extends State<ThankYouScreen> with SingleTickerProvid
                     ScaleTransition(
                       scale: _scaleAnim,
                       child: Container(
-                        width: 100,
-                        height: 100,
+                        width: 110,
+                        height: 110,
                         decoration: const BoxDecoration(
-                          color: kAccent,
+                          color: kSuccess,
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.check_rounded, color: Colors.white, size: 60),
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 36),
                     Text(
                       s.thankYou,
                       style: const TextStyle(
-                        fontSize: 40,
+                        fontSize: 36,
                         fontWeight: FontWeight.w900,
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     Text(
                       s.feedbackSent,
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 16,
                         color: Colors.white.withOpacity(0.7),
                       ),
                     ),
                     const SizedBox(height: 40),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+                      padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 24),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withOpacity(0.2)),
+                        borderRadius: BorderRadius.circular(24),
                       ),
                       child: Column(
                         children: [
@@ -91,13 +90,13 @@ class _ThankYouScreenState extends State<ThankYouScreen> with SingleTickerProvid
                             style: const TextStyle(
                               fontSize: 48,
                               fontWeight: FontWeight.w900,
-                              color: Colors.white,
+                              color: kGold,
                             ),
                           ),
                           Text(
                             s.pointsAddedLabel,
                             style: TextStyle(
-                              fontSize: 15,
+                              fontSize: 14,
                               color: Colors.white.withOpacity(0.7),
                             ),
                           ),
@@ -118,7 +117,7 @@ class _ThankYouScreenState extends State<ThankYouScreen> with SingleTickerProvid
                         ),
                         child: Text(
                           s.backHome,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ),

@@ -56,8 +56,9 @@ class SettingsScreen extends StatelessWidget {
         body: ListView(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
           children: [
+            // ── Language Section ──────────────────────────────────────────
             _SectionLabel(label: s.languageLabel),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             _LanguageTile(
               label: s.arabicLang,
               subtitle: 'العربية',
@@ -71,9 +72,11 @@ class SettingsScreen extends StatelessWidget {
               selected: !isAr,
               onTap: () => langNotifier.setArabic(false),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 32),
+
+            // ── Account Section ───────────────────────────────────────────
             _SectionLabel(label: s.accountLabel),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             _SettingsTile(
               icon: Icons.logout_rounded,
               label: s.signOut,
@@ -101,7 +104,7 @@ class _SectionLabel extends StatelessWidget {
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
-          color: Colors.grey.shade500,
+          color: Colors.grey.shade400,
           letterSpacing: 1.2,
         ),
       ),
@@ -124,15 +127,15 @@ class _LanguageTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? kPrimary.withOpacity(0.06) : Colors.white,
-      borderRadius: BorderRadius.circular(14),
+      color: selected ? kPrimary.withOpacity(0.04) : Colors.white,
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: selected ? kPrimary.withOpacity(0.3) : Colors.grey.shade200,
               width: selected ? 1.5 : 1,
@@ -140,10 +143,18 @@ class _LanguageTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.language_rounded,
-                color: selected ? kPrimary : Colors.grey.shade400,
-                size: 20,
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: selected ? kPrimary.withOpacity(0.1) : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.language_rounded,
+                  color: selected ? kPrimary : Colors.grey.shade400,
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -198,15 +209,23 @@ class _SettingsTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           child: Row(
             children: [
-              Icon(icon, color: iconColor ?? kPrimary, size: 22),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: (iconColor ?? kPrimary).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: iconColor ?? kPrimary, size: 18),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Text(

@@ -141,13 +141,13 @@ class _SurveyScreenState extends State<SurveyScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 80,
-                      height: 80,
+                      width: 90,
+                      height: 90,
                       decoration: const BoxDecoration(
-                        color: Color(0xFFf0fdf4),
+                        color: Color(0xFFD1FAE5),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.check_circle_rounded, color: Color(0xFF15803d), size: 48),
+                      child: const Icon(Icons.check_circle_rounded, color: kSuccess, size: 52),
                     ),
                     const SizedBox(height: 24),
                     Text(

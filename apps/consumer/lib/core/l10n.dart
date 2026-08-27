@@ -179,6 +179,11 @@ class AppStr {
   String get accountLabel    => ar ? 'الحساب'                     : 'Account';
   String get signOut         => ar ? 'تسجيل الخروج'               : 'Sign Out';
   String get signOutConfirm  => ar ? 'هل تريد تسجيل الخروج؟'    : 'Sign out of your account?';
+  String get signOutHint     => ar ? 'يمكنك تسجيل الدخول مرة أخرى على هذا الجهاز دون الحاجة لرمز تحقق جديد.'
+                                    : 'You can sign back in on this device without needing a new verification code.';
+  String get forgetDevice        => ar ? 'نسيان هذا الجهاز'          : 'Forget This Device';
+  String get forgetDeviceConfirm => ar ? 'سيتطلب تسجيل الدخول التالي رمز تحقق جديد على هذا الجهاز. هل تريد المتابعة؟'
+                                        : 'The next sign-in on this device will require a new verification code. Continue?';
   String get cancel          => ar ? 'إلغاء'                      : 'Cancel';
 
   // ── Activity ──────────────────────────────────────────────────────────────

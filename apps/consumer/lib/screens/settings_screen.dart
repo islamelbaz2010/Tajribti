@@ -33,6 +33,31 @@ class SettingsScreen extends StatelessWidget {
     if (context.mounted) context.go('/home');
   }
 
+  Future<void> _confirmForgetDevice(BuildContext context) async {
+    final s = context.l10n;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(s.forgetDevice),
+        content: Text(s.forgetDeviceConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(s.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(s.forgetDevice, style: const TextStyle(color: kAccent)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    JourneySession.clear();
+    await AuthService.forgetDevice();
+    if (context.mounted) context.go('/home');
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.l10n;
@@ -80,6 +105,19 @@ class SettingsScreen extends StatelessWidget {
               labelColor: kAccent,
               iconColor: kAccent,
               onTap: () => _confirmSignOut(context),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+              child: Text(
+                s.signOutHint,
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade500, height: 1.4),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _SettingsTile(
+              icon: Icons.no_accounts_rounded,
+              label: s.forgetDevice,
+              onTap: () => _confirmForgetDevice(context),
             ),
           ],
         ),

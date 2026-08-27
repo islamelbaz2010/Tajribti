@@ -307,6 +307,8 @@ class _CampaignScreenState extends State<CampaignScreen> {
                               ),
                               child: Row(
                                 children: [
+                                  const Icon(Icons.stars_rounded, color: Color(0xFF15803d), size: 26),
+                                  const SizedBox(width: 8),
                                   Text(
                                     '${campaign.rewardPoints}',
                                     style: const TextStyle(
@@ -417,29 +419,40 @@ class _BrandBanner extends StatelessWidget {
   }
 }
 
+// Same circular-badge step treatment as the Home discovery hero
+// (HeroStep) - so "how it works" reads as one consistent visual language
+// across Home and Campaign Detail rather than two different step styles.
 class _StepsRow extends StatelessWidget {
   final AppStr s;
   const _StepsRow({required this.s});
 
   @override
   Widget build(BuildContext context) {
+    final steps = [
+      (Icons.phone_iphone_rounded, s.step1),
+      (Icons.quiz_rounded, s.step2),
+      (Icons.stars_rounded, s.step3),
+    ];
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: kPrimary.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: kPrimary.withOpacity(0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(s.howItWorks, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kPrimary)),
-          const SizedBox(height: 10),
-          _Step(icon: Icons.phone_iphone_rounded, text: s.step1),
-          const SizedBox(height: 6),
-          _Step(icon: Icons.quiz_rounded, text: s.step2),
-          const SizedBox(height: 6),
-          _Step(icon: Icons.stars_rounded, text: s.step3),
+          Text(s.howItWorks, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: kPrimary, letterSpacing: 0.4)),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              for (int i = 0; i < steps.length; i++) ...[
+                Expanded(child: _Step(icon: steps[i].$1, text: steps[i].$2)),
+                if (i < steps.length - 1) Icon(Icons.arrow_forward_rounded, size: 14, color: kPrimary.withOpacity(0.2)),
+              ],
+            ],
+          ),
         ],
       ),
     );
@@ -453,11 +466,26 @@ class _Step extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 18, color: kAccent),
-        const SizedBox(width: 8),
-        Text(text, style: const TextStyle(fontSize: 13, color: kPrimary, fontWeight: FontWeight.w500)),
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: kPrimary.withOpacity(0.08),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 18, color: kAccent),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          text,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 11, color: kPrimary, fontWeight: FontWeight.w600, height: 1.3),
+        ),
       ],
     );
   }

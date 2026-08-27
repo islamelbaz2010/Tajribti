@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../core/auth_service.dart';
 import '../core/constants.dart';
 import '../core/l10n.dart';
 import '../core/session.dart';
@@ -15,6 +16,29 @@ class PhoneScreen extends StatefulWidget {
 class _PhoneScreenState extends State<PhoneScreen> {
   final _controller = TextEditingController(text: '+20');
   String? _error;
+  // True while silently checking for a still-valid returning-user session
+  // (a stored refresh token from before an earlier Sign Out - see
+  // AuthService.logout()/tryRestoreSession()). If one is found, the user
+  // is signed back in immediately and this screen is skipped entirely -
+  // no phone entry, no OTP. Starts true so the phone form never flashes
+  // before the check completes.
+  bool _checkingSession = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreIfPossible();
+  }
+
+  Future<void> _restoreIfPossible() async {
+    final restored = await AuthService.tryRestoreSession();
+    if (!mounted) return;
+    if (restored) {
+      context.go('/home');
+      return;
+    }
+    setState(() => _checkingSession = false);
+  }
 
   @override
   void dispose() {
@@ -36,6 +60,15 @@ class _PhoneScreenState extends State<PhoneScreen> {
   @override
   Widget build(BuildContext context) {
     final s = context.l10n;
+    if (_checkingSession) {
+      return Directionality(
+        textDirection: context.dir,
+        child: const Scaffold(
+          backgroundColor: kBackground,
+          body: Center(child: CircularProgressIndicator(color: kPrimary)),
+        ),
+      );
+    }
     return Directionality(
       textDirection: context.dir,
       child: Scaffold(

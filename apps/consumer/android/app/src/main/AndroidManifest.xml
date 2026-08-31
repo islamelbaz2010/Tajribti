@@ -26,5 +26,14 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Diagnostic: real-device testing (OPPO CPH2481) found the entire Home
+             CustomScrollView body (campaign card, Try Now CTA, scroll) completely
+             unresponsive to touch while the pinned SliverAppBar remained responsive.
+             Reproduced from a cold start; ruled out app-level overlays and gating
+             logic. Testing whether Impeller (default-on for Android) has a
+             touch-hit-test/viewport-transform issue with this device's GPU driver. -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
     </application>
 </manifest>

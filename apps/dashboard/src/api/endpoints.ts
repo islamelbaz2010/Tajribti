@@ -64,6 +64,23 @@ export const campaignApi = {
     endDate?: string;
     surveyQuestions?: SurveyQuestion[];
   }): Promise<Campaign> => client.post('/campaigns', body),
+  // Internal Tajribti Campaign Operations (DL-055 item 1): edit + status
+  // lifecycle. Ownership-enforced server-side (a brand may only update its
+  // own campaigns) — same pattern as getSelected() above.
+  update: (
+    id: string,
+    body: Partial<{
+      productName: string;
+      productImage: string;
+      description: string;
+      locationName: string;
+      locationAddress: string;
+      rewardPoints: number;
+      targetCount: number;
+      endDate: string;
+      status: string;
+    }>,
+  ): Promise<Campaign> => client.patch(`/campaigns/${id}`, body),
 };
 
 export const mediaApi = {

@@ -2,23 +2,85 @@ import React, { useEffect, useState } from 'react';
 import { campaignApi, qrApi } from '../api/endpoints';
 import type { Campaign } from '../api/types';
 
+const STATUS_OPTIONS = ['draft', 'active', 'paused', 'completed'];
+
 export default function CampaignDetail() {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Internal Tajribti Campaign Operations (DL-055 item 1) — edit + status
+  // lifecycle for the loaded campaign. Local form state mirrors `campaign`
+  // once it loads and is only sent to the server on explicit Save.
+  const [editStatus, setEditStatus] = useState('active');
+  const [editRewardPoints, setEditRewardPoints] = useState('');
+  const [editTargetCount, setEditTargetCount] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const loadFromCampaign = (c: Campaign) => {
+    setCampaign(c);
+    setEditStatus(c.status);
+    setEditRewardPoints(String(c.rewardPoints));
+    setEditTargetCount(String(c.targetCount));
+    setEditEndDate(c.endDate ?? '');
+    setEditDescription(c.description ?? '');
+  };
+
   useEffect(() => {
     campaignApi
       .getSelected()
       .then(async (c) => {
-        setCampaign(c);
+        loadFromCampaign(c);
         const blob = await qrApi.getQrImage(c.id);
         setQrUrl(URL.createObjectURL(blob));
       })
       .catch(() => setError('Failed to load campaign. Is the backend running and seeded?'))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleSave = () => {
+    if (!campaign) return;
+    setSaving(true);
+    setSaveError('');
+    setSaveSuccess(false);
+    const rewardPoints = Number(editRewardPoints);
+    const targetCount = Number(editTargetCount);
+    if (!Number.isFinite(rewardPoints) || rewardPoints < 0) {
+      setSaveError('Reward points must be 0 or greater.');
+      setSaving(false);
+      return;
+    }
+    if (!Number.isFinite(targetCount) || targetCount < 1) {
+      setSaveError('Target must be at least 1.');
+      setSaving(false);
+      return;
+    }
+    campaignApi
+      .update(campaign.id, {
+        status: editStatus,
+        rewardPoints,
+        targetCount,
+        endDate: editEndDate || undefined,
+        description: editDescription,
+      })
+      .then((updated) => {
+        loadFromCampaign(updated);
+        setSaveSuccess(true);
+      })
+      .catch((err) => {
+        setSaveError(
+          err?.response?.data?.message
+            ? String(err.response.data.message)
+            : 'Failed to save changes.',
+        );
+      })
+      .finally(() => setSaving(false));
+  };
 
   const handlePrint = () => {
     if (!qrUrl || !campaign) return;
@@ -114,6 +176,71 @@ export default function CampaignDetail() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div style={styles.manageCard}>
+        <div style={styles.cardTitle}>Manage Campaign</div>
+        <div style={styles.manageGrid}>
+          <label style={styles.fieldLabel}>
+            Status
+            <select
+              style={styles.select}
+              value={editStatus}
+              onChange={(e) => setEditStatus(e.target.value)}
+            >
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>
+                  {s.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label style={styles.fieldLabel}>
+            Reward Points
+            <input
+              style={styles.input}
+              type="number"
+              min={0}
+              value={editRewardPoints}
+              onChange={(e) => setEditRewardPoints(e.target.value)}
+            />
+          </label>
+          <label style={styles.fieldLabel}>
+            Target Participants
+            <input
+              style={styles.input}
+              type="number"
+              min={1}
+              value={editTargetCount}
+              onChange={(e) => setEditTargetCount(e.target.value)}
+            />
+          </label>
+          <label style={styles.fieldLabel}>
+            End Date
+            <input
+              style={styles.input}
+              type="date"
+              value={editEndDate}
+              onChange={(e) => setEditEndDate(e.target.value)}
+            />
+          </label>
+        </div>
+        <label style={styles.fieldLabel}>
+          Description
+          <textarea
+            style={styles.textarea}
+            value={editDescription}
+            onChange={(e) => setEditDescription(e.target.value)}
+            rows={3}
+          />
+        </label>
+        <div style={styles.manageActions}>
+          <button style={styles.saveBtn} onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : 'Save Changes'}
+          </button>
+          {saveSuccess && <span style={styles.saveSuccess}>Saved</span>}
+          {saveError && <span style={styles.saveErr}>{saveError}</span>}
         </div>
       </div>
     </div>
@@ -296,4 +423,72 @@ const styles: Record<string, React.CSSProperties> = {
     flexShrink: 0,
   },
   instructionText: { fontSize: 12, color: '#4a5a7e', lineHeight: 1.5 },
+  manageCard: {
+    background: '#0a1120',
+    border: '1px solid #111d35',
+    borderRadius: 16,
+    padding: 28,
+    marginTop: 20,
+  },
+  manageGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: 16,
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 6,
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#2e3d5e',
+    letterSpacing: 0.5,
+    marginBottom: 16,
+  },
+  input: {
+    background: '#040812',
+    border: '1px solid #1a2540',
+    borderRadius: 8,
+    padding: '9px 12px',
+    color: '#edf0ff',
+    fontSize: 13,
+    fontFamily: 'inherit',
+  },
+  select: {
+    background: '#040812',
+    border: '1px solid #1a2540',
+    borderRadius: 8,
+    padding: '9px 12px',
+    color: '#edf0ff',
+    fontSize: 13,
+    fontFamily: 'inherit',
+  },
+  textarea: {
+    background: '#040812',
+    border: '1px solid #1a2540',
+    borderRadius: 8,
+    padding: '9px 12px',
+    color: '#edf0ff',
+    fontSize: 13,
+    fontFamily: 'inherit',
+    resize: 'vertical' as const,
+  },
+  manageActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 14,
+  },
+  saveBtn: {
+    background: '#b2f24d',
+    border: 'none',
+    color: '#040812',
+    borderRadius: 8,
+    padding: '10px 22px',
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  saveSuccess: { fontSize: 12, color: '#b2f24d', fontWeight: 600 },
+  saveErr: { fontSize: 12, color: '#fb7185', fontWeight: 600 },
 };

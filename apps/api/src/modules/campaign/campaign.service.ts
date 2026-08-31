@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Campaign, CampaignStatus, SurveyQuestion } from '../../entities/campaign.entity';
 import { QrCode } from '../../entities/qr-code.entity';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
+import { UpdateCampaignDto } from './dto/update-campaign.dto';
 
 const DEFAULT_SURVEY_QUESTIONS: SurveyQuestion[] = [
   {
@@ -116,5 +117,36 @@ export class CampaignService {
 
   async findAll(): Promise<Campaign[]> {
     return this.campaignRepo.find({ order: { createdAt: 'DESC' } });
+  }
+
+  // Internal Tajribti Campaign Operations (DL-055 item 1): campaign
+  // status/lifecycle and field edits. Same ownership pattern already used
+  // in analytics.service.ts — a brand may only update its own campaigns.
+  // isDemo, brandAccountId, and surveyQuestions are intentionally not
+  // editable here (no Survey Builder; demo/ownership are not reassignable).
+  async updateCampaign(
+    brandAccountId: string,
+    id: string,
+    dto: UpdateCampaignDto,
+  ): Promise<Campaign> {
+    const campaign = await this.campaignRepo.findOne({ where: { id } });
+    if (!campaign) {
+      throw new NotFoundException(`Campaign ${id} not found`);
+    }
+    if (campaign.brandAccountId !== brandAccountId) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    if (dto.productName !== undefined) campaign.productName = dto.productName;
+    if (dto.productImage !== undefined) campaign.productImage = dto.productImage;
+    if (dto.description !== undefined) campaign.description = dto.description;
+    if (dto.locationName !== undefined) campaign.locationName = dto.locationName;
+    if (dto.locationAddress !== undefined) campaign.locationAddress = dto.locationAddress;
+    if (dto.rewardPoints !== undefined) campaign.rewardPoints = dto.rewardPoints;
+    if (dto.targetCount !== undefined) campaign.targetCount = dto.targetCount;
+    if (dto.endDate !== undefined) campaign.endDate = dto.endDate;
+    if (dto.status !== undefined) campaign.status = dto.status;
+
+    return this.campaignRepo.save(campaign);
   }
 }

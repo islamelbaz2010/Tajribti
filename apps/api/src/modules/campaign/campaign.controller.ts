@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   Request,
@@ -11,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { CampaignService } from './campaign.service';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
+import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { JwtAuthGuard, IS_PUBLIC_KEY } from '../auth/guards/jwt.guard';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 
@@ -35,6 +37,18 @@ export class CampaignController {
   findMy(@Request() req: RequestWithUser) {
     if (req.user.type !== 'brand') throw new ForbiddenException('Brand account required');
     return this.campaignService.findByBrand(req.user.id);
+  }
+
+  // Internal Tajribti Campaign Operations (DL-055 item 1): edit + status
+  // lifecycle for a campaign the authenticated brand owns.
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Request() req: RequestWithUser,
+    @Body() dto: UpdateCampaignDto,
+  ) {
+    if (req.user.type !== 'brand') throw new ForbiddenException('Brand account required');
+    return this.campaignService.updateCampaign(req.user.id, id, dto);
   }
 
   @Public()

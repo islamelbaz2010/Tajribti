@@ -683,7 +683,11 @@ class _CardBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 140,
+      height: 180, // must match Image.network's declared height above -
+      // Image wraps the errorBuilder's replacement in a box sized by its
+      // own explicit height/width, so a shorter banner here paints inside
+      // a taller reserved box, leaving a blank strip below it that is
+      // still part of the Stack's layout footprint for hit-testing.
       width: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(

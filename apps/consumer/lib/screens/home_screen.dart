@@ -175,13 +175,21 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         sliver: SliverList(
                           delegate: SliverChildBuilderDelegate(
-                            (_, i) => _CampaignCard(
-                              campaign: _campaigns[i],
-                              s: s,
-                              alreadyParticipated: _loggedIn && _profile != null &&
-                                  _profile!.recentCampaigns.any((r) => r.campaignId == _campaigns[i].id),
-                              onTap: () => _enterCampaign(_campaigns[i].id),
-                            ),
+                            (_, i) {
+                              final alreadyParticipated = _loggedIn && _profile != null &&
+                                  _profile!.recentCampaigns.any((r) => r.campaignId == _campaigns[i].id);
+                              return _CampaignCard(
+                                campaign: _campaigns[i],
+                                s: s,
+                                alreadyParticipated: alreadyParticipated,
+                                // Must match the badge above: a campaign already shown as
+                                // "Completed" has to open the same completed state as
+                                // My Activity, not re-enter the QR/OTP/Survey flow.
+                                onTap: alreadyParticipated
+                                    ? () => _openCompletedCampaign(_campaigns[i].id)
+                                    : () => _enterCampaign(_campaigns[i].id),
+                              );
+                            },
                             childCount: _campaigns.length,
                           ),
                         ),

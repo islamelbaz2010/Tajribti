@@ -44,7 +44,25 @@ class _CampaignScreenState extends State<CampaignScreen> {
     }
     try {
       final campaign = await apiClient.getCampaignById(id);
-      setState(() { _campaign = campaign; _loading = false; });
+      // Defense in depth for Rule C (every entry point into a Campaign must
+      // agree on participation truth): whoever pushed this route may not have
+      // known this campaign was already completed (e.g. a direct QR scan, or
+      // any future caller that forgets to pass alreadyCompleted). If the
+      // signed-in consumer already has a redemption for this campaign, treat
+      // it as completed here too, using the same profile data Home already
+      // fetches — no new backend call/endpoint.
+      var alreadyCompleted = false;
+      if (await AuthService.isLoggedIn()) {
+        try {
+          final profile = await apiClient.getConsumerProfile();
+          alreadyCompleted = profile.recentCampaigns.any((r) => r.campaignId == id);
+        } catch (_) {}
+      }
+      setState(() {
+        _campaign = campaign;
+        _alreadyCompleted = alreadyCompleted;
+        _loading = false;
+      });
     } catch (_) {
       setState(() { _error = '_loadFail'; _loading = false; });
     }

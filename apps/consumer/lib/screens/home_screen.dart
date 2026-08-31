@@ -76,15 +76,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final s = context.l10n;
     final mq = MediaQuery.of(context);
-    print('P0_TRACE:mediaquery size=${mq.size} dpr=${mq.devicePixelRatio} '
-        'textScale=${mq.textScaler} viewInsets=${mq.viewInsets} '
-        'viewPadding=${mq.viewPadding} padding=${mq.padding}');
+    print('P0_TRACE:mediaquery w=${mq.size.width} h=${mq.size.height} '
+        'dpr=${mq.devicePixelRatio} padTop=${mq.padding.top} '
+        'padBottom=${mq.padding.bottom}');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final box = _buttonKey.currentContext?.findRenderObject() as RenderBox?;
       if (box != null && box.hasSize) {
         final topLeft = box.localToGlobal(Offset.zero);
-        print('P0_TRACE:button-realbox topLeft=$topLeft size=${box.size} '
-            'bottomRight=${box.localToGlobal(box.size.bottomRight(Offset.zero))}');
+        final br = box.localToGlobal(box.size.bottomRight(Offset.zero));
+        print('P0_TRACE:button-realbox left=${topLeft.dx} top=${topLeft.dy} '
+            'w=${box.size.width} h=${box.size.height} '
+            'right=${br.dx} bottom=${br.dy}');
       } else {
         print('P0_TRACE:button-realbox NOT FOUND');
       }

@@ -80,7 +80,10 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: kBackground,
         body: _loading
             ? const Center(child: CircularProgressIndicator(color: kPrimary))
-            : RefreshIndicator(
+            : Listener(
+                behavior: HitTestBehavior.translucent,
+                onPointerDown: (e) => print('P0_TRACE:body-root ${e.position}'),
+                child: RefreshIndicator(
                 onRefresh: _load,
                 color: kPrimary,
                 child: CustomScrollView(
@@ -178,7 +181,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             (_, i) {
                               final alreadyParticipated = _loggedIn && _profile != null &&
                                   _profile!.recentCampaigns.any((r) => r.campaignId == _campaigns[i].id);
-                              return _CampaignCard(
+                              return Listener(
+                                behavior: HitTestBehavior.translucent,
+                                onPointerDown: (e) => print('P0_TRACE:card ${e.position}'),
+                                child: _CampaignCard(
                                 campaign: _campaigns[i],
                                 s: s,
                                 alreadyParticipated: alreadyParticipated,
@@ -188,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 onTap: alreadyParticipated
                                     ? () => _openCompletedCampaign(_campaigns[i].id)
                                     : () => _enterCampaign(_campaigns[i].id),
-                              );
+                              ));
                             },
                             childCount: _campaigns.length,
                           ),
@@ -261,6 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SliverToBoxAdapter(child: SizedBox(height: 24)),
                   ],
                 ),
+              ),
               ),
       ),
     );
@@ -625,8 +632,14 @@ class _CampaignCard extends StatelessWidget {
                       const Spacer(),
                     ] else
                       const Spacer(),
-                    GestureDetector(
-                      onTap: onTap,
+                    Listener(
+                      behavior: HitTestBehavior.translucent,
+                      onPointerDown: (e) => print('P0_TRACE:button-listener ${e.position}'),
+                      child: GestureDetector(
+                      onTap: () {
+                        print('P0_TRACE:button-onTap-fired');
+                        onTap();
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                         decoration: BoxDecoration(
@@ -642,6 +655,7 @@ class _CampaignCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                    ),
                     ),
                   ],
                 ),

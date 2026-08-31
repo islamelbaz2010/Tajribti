@@ -555,7 +555,10 @@ class _CampaignCard extends StatelessWidget {
           ),
 
           // ── Info section ──────────────────────────────────────────────
-          Padding(
+          Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (e) => print('P0_TRACE:info-padding ${e.position}'),
+            child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -604,7 +607,10 @@ class _CampaignCard extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 12),
-                Row(
+                Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerDown: (e) => print('P0_TRACE:reward-row ${e.position}'),
+                  child: Row(
                   children: [
                     if (campaign.rewardPoints > 0) ...[
                       Container(
@@ -659,8 +665,10 @@ class _CampaignCard extends StatelessWidget {
                     ),
                   ],
                 ),
+                ),
               ],
             ),
+          ),
           ),
         ],
       ),

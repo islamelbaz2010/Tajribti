@@ -7,6 +7,12 @@ class Campaign {
   final String productImage;
   final int rewardPoints;
   final List<SurveyQuestion> surveyQuestions;
+  // Campaign lifecycle (draft/active/paused/completed). Discovery (GET
+  // /campaigns) and entry (enterCampaignWeb) already enforce this
+  // server-side; this field lets Campaign Detail itself show a clear
+  // unavailable state instead of a misleading Start Trial for a
+  // non-active campaign reached directly (stale QR, bookmarked link).
+  final String status;
 
   const Campaign({
     required this.id,
@@ -17,6 +23,7 @@ class Campaign {
     required this.productImage,
     required this.rewardPoints,
     required this.surveyQuestions,
+    this.status = 'active',
   });
 
   factory Campaign.fromJson(Map<String, dynamic> json) => Campaign(
@@ -30,6 +37,7 @@ class Campaign {
         surveyQuestions: (json['surveyQuestions'] as List<dynamic>? ?? [])
             .map((q) => SurveyQuestion.fromJson(q as Map<String, dynamic>))
             .toList(),
+        status: json['status'] as String? ?? 'active',
       );
 }
 

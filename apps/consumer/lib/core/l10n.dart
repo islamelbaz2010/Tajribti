@@ -77,6 +77,8 @@ class AppStr {
   String get entryError          => ar ? 'تعذر الدخول إلى الحملة. حاول مرة أخرى.' : 'Could not enter campaign. Please try again.';
   String get alreadyParticipated => ar ? 'شاركت سابقاً'                            : 'Already Participated';
   String get alreadyParticipatedSub => ar ? 'شاركت في هذه الحملة من قبل وحصلت على مكافأتك.'  : 'You already participated in this campaign and earned your reward.';
+  String get campaignNotActive    => ar ? 'هذه الحملة غير متاحة حالياً' : 'This Campaign Isn\'t Available';
+  String get campaignNotActiveSub => ar ? 'لم تعد هذه الحملة تقبل مشاركات جديدة في الوقت الحالي.' : 'This campaign is not currently accepting new participation.';
 
   // ── Account authentication (email + password) ───────────────────────────
   String get welcome        => ar ? 'مرحباً بك'                   : 'Welcome';

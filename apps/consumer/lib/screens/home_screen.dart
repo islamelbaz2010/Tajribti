@@ -21,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   bool _loggedIn = false;
   String? _error;
+  final _buttonKey = GlobalKey();
 
   @override
   void initState() {
@@ -74,6 +75,20 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final s = context.l10n;
+    final mq = MediaQuery.of(context);
+    print('P0_TRACE:mediaquery size=${mq.size} dpr=${mq.devicePixelRatio} '
+        'textScale=${mq.textScaler} viewInsets=${mq.viewInsets} '
+        'viewPadding=${mq.viewPadding} padding=${mq.padding}');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final box = _buttonKey.currentContext?.findRenderObject() as RenderBox?;
+      if (box != null && box.hasSize) {
+        final topLeft = box.localToGlobal(Offset.zero);
+        print('P0_TRACE:button-realbox topLeft=$topLeft size=${box.size} '
+            'bottomRight=${box.localToGlobal(box.size.bottomRight(Offset.zero))}');
+      } else {
+        print('P0_TRACE:button-realbox NOT FOUND');
+      }
+    });
     return Directionality(
       textDirection: context.dir,
       child: Scaffold(
@@ -185,6 +200,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 behavior: HitTestBehavior.translucent,
                                 onPointerDown: (e) => print('P0_TRACE:card ${e.position}'),
                                 child: _CampaignCard(
+                                buttonKey: i == 0 ? _buttonKey : null,
                                 campaign: _campaigns[i],
                                 s: s,
                                 alreadyParticipated: alreadyParticipated,
@@ -485,11 +501,13 @@ class _CampaignCard extends StatelessWidget {
   final AppStr s;
   final bool alreadyParticipated;
   final VoidCallback onTap;
+  final Key? buttonKey;
   const _CampaignCard({
     required this.campaign,
     required this.s,
     this.alreadyParticipated = false,
     required this.onTap,
+    this.buttonKey,
   });
 
   @override
@@ -647,6 +665,7 @@ class _CampaignCard extends StatelessWidget {
                         onTap();
                       },
                       child: Container(
+                        key: buttonKey,
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                         decoration: BoxDecoration(
                           color: kPrimary,

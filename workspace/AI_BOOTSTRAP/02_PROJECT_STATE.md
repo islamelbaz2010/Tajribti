@@ -1,7 +1,24 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-09-01 (DL-068 Campaign Details identity + campaign scheduling + Coming Soon, on top of DL-067 Survey Builder ordering fix, DL-066 Survey Builder V2 + Report cover polish, DL-065 End-to-End Pilot Loop, DL-064 Product Coherence Audit, DL-063 Visual/UX Maturation phase 2, DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+**Last updated:** 2026-09-01 (DL-069 Company Foundation, on top of DL-068 Campaign Details identity + campaign scheduling + Coming Soon, DL-067 Survey Builder ordering fix, DL-066 Survey Builder V2 + Report cover polish, DL-065 End-to-End Pilot Loop, DL-064 Product Coherence Audit, DL-063 Visual/UX Maturation phase 2, DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+
+---
+
+## CURRENT SESSION DELTA — 2026-09-01, twelfth pass (Company Foundation / DL-069)
+
+Extended the product from "one Brand with campaigns" toward real Companies:
+
+- **Company = `BrandAccount`** — confirmed the existing entity already the right shape (no new identity entity). Added nullable `sector` (`fmcg`/`beauty_personal_care`/`pharma_otc`, from locked DL-003/DL-007 only) and a new `brand_contacts` table (record, not an account — no login) via additive migration `1788100000000-AddCompanyFoundation` — **not yet run against production**, same open Founder/deploy action as the still-outstanding `1788000000000-AddArchivedCampaignStatus`.
+- `Campaign` gained an ownership-validated, nullable `contactId` (`ON DELETE SET NULL` — deleting a contact never touches campaign history).
+- **Admin** (`x-admin-secret`): brand listing/edit (`GET`/`PATCH /admin/brands*`) + full contact CRUD (`/admin/brands/:id/contacts*`).
+- **Self-service** (new `CompanyModule`, brand-JWT-scoped): `GET /company/me`, contact CRUD, `GET /company/sector-framework` (2 product-authored recommended questions per sector, namespaced ids that can't collide with core `q1`-`q5`).
+- **Dashboard**: `CreateCampaign.tsx` gained a Campaign Contact selector + an opt-in "Recommended for your industry" panel feeding the existing `SurveyEditor`; `CampaignDetail.tsx` gained the same Contact selector; new `CompanyProfile.tsx` page (`/company`) for identity + self-service contacts; `Report.tsx` cover gained the Company's logo + sector (graceful fallback, no pagination/data logic touched).
+- **Confirmed already satisfied, not reworked**: date pickers (already native `<input type="date">`), Campaign Gallery (already auto-associated per-campaign, no manual object).
+- **No Consumer Mobile changes** — none of this data is consumer-facing; no device build/install needed this pass.
+- Runtime-verified end-to-end locally, including full cross-Company isolation (a second test Company can't see/attach the first Company's contacts, gets its own sector's framework). `tsc`/`nest build`/`CI=true npm run build` all clean.
+
+Full detail: `DECISION_LOG.md` DL-069.
 
 ---
 

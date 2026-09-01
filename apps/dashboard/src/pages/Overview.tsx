@@ -3,25 +3,24 @@ import { Link, useLocation } from 'react-router-dom';
 import { analyticsApi, campaignApi } from '../api/endpoints';
 import type { OverviewData, Campaign, LiveFeedEntry } from '../api/types';
 
-function OtherCampaigns({ campaigns }: { campaigns: Campaign[] }) {
-  if (campaigns.length === 0) return null;
+// Product Transformation (2026-09-01): Campaign Management (`/campaigns`)
+// is now the canonical place to see/switch between every campaign on the
+// account, with status, image, and manage actions — so this section no
+// longer duplicates that list, it just points to it. `otherCampaigns` is
+// still fetched to decide whether the link is worth showing at all.
+function OtherCampaignsLink({ count }: { count: number }) {
+  if (count === 0) return null;
   return (
     <div style={historyStyles.section}>
-      <div style={historyStyles.header}>
-        <h2 style={historyStyles.title}>Other Campaigns</h2>
-        <p style={historyStyles.sub}>Previous and other campaigns on this account — click to view</p>
+      <div>
+        <div style={historyStyles.title}>
+          {count} other campaign{count === 1 ? '' : 's'} on this account
+        </div>
+        <p style={historyStyles.sub}>Switch campaigns, or manage all of them, from Campaigns</p>
       </div>
-      {campaigns.map((c) => (
-        <Link key={c.id} to={`/overview?campaignId=${c.id}`} style={historyStyles.rowLink}>
-          <div style={historyStyles.row}>
-            <div style={historyStyles.rowMain}>
-              <span style={historyStyles.rowProduct}>{c.productName}</span>
-              <span style={historyStyles.rowBrand}>{c.brandName}</span>
-            </div>
-            <span style={historyStyles.rowStatus}>{c.status.toUpperCase()}</span>
-          </div>
-        </Link>
-      ))}
+      <Link to="/campaigns" style={historyStyles.link}>
+        View all campaigns →
+      </Link>
     </div>
   );
 }
@@ -31,27 +30,23 @@ const historyStyles: Record<string, React.CSSProperties> = {
     background: '#0a1120',
     border: '1px solid #111d35',
     borderRadius: 16,
-    padding: 24,
+    padding: '18px 24px',
     marginTop: 20,
-  },
-  header: { marginBottom: 14 },
-  title: { fontSize: 14, fontWeight: 700, color: '#edf0ff', margin: '0 0 2px', letterSpacing: 0.3 },
-  sub: { fontSize: 11, color: '#2e3d5e', margin: 0 },
-  rowLink: { textDecoration: 'none', display: 'block' },
-  row: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '10px 12px',
-    borderRadius: 6,
-    border: '1px solid #0e1a2e',
-    marginBottom: 4,
-    background: '#070c1a',
+    gap: 16,
+    flexWrap: 'wrap' as const,
   },
-  rowMain: { display: 'flex', flexDirection: 'column', gap: 2 },
-  rowProduct: { fontSize: 13, color: '#edf0ff', fontWeight: 600 },
-  rowBrand: { fontSize: 11, color: '#2e3d5e' },
-  rowStatus: { fontSize: 10, color: '#6b7fa8', fontWeight: 700, letterSpacing: 0.5 },
+  title: { fontSize: 13, fontWeight: 700, color: '#edf0ff', margin: '0 0 2px', letterSpacing: 0.3 },
+  sub: { fontSize: 11, color: '#2e3d5e', margin: 0 },
+  link: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#b2f24d',
+    textDecoration: 'none',
+    flexShrink: 0,
+  },
 };
 
 const POLL_INTERVAL = 3000;
@@ -443,23 +438,22 @@ export default function Overview() {
         <MetricCard label="Purchase Intent" value={`${data.purchaseIntentPercent}%`} accent />
       </div>
 
-      {/* Signal Stream */}
+      {/* Recent Activity */}
       <div style={styles.feedSection}>
         <div style={styles.feedHeader}>
-          <h2 style={styles.feedTitle}>Signal Stream</h2>
-          <p style={styles.feedSub}>Last 10 consumer signals · updates every 3 seconds</p>
+          <h2 style={styles.feedTitle}>Recent Activity</h2>
+          <p style={styles.feedSub}>Latest consumers who tried this campaign</p>
         </div>
         {data.liveFeed.length === 0 ? (
           <p style={styles.empty}>
-            No signals yet. Scan the Trial QR to generate your first consumer signal.
+            No activity yet. Share this campaign&rsquo;s QR code to get your first participant.
           </p>
         ) : (
           data.liveFeed.map((entry) => <FeedRow key={entry.id} entry={entry} />)
         )}
       </div>
 
-      {/* Campaign History — other campaigns on this account, informational only */}
-      <OtherCampaigns campaigns={otherCampaigns} />
+      <OtherCampaignsLink count={otherCampaigns.length} />
     </div>
   );
 }

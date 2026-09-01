@@ -19,10 +19,10 @@ export default function AiSummary() {
   return (
     <div>
       <div style={styles.header}>
-        <span style={styles.demoBadge}>INTELLIGENCE</span>
-        <h1 style={styles.title}>What Did We Learn?</h1>
+        <span style={styles.demoBadge}>CONSUMER INSIGHTS</span>
+        <h1 style={styles.title}>AI Insights</h1>
         <p style={styles.sub}>
-          Structured consumer intelligence generated from trial survey data
+          What we learned — structured findings generated from consumer survey data
         </p>
       </div>
 

@@ -51,10 +51,10 @@ export default function Insights() {
   return (
     <div>
       <div style={styles.header}>
-        <span style={styles.demoBadge}>CONSUMERS</span>
-        <h1 style={styles.title}>Who Tried It?</h1>
+        <span style={styles.demoBadge}>CONSUMER INSIGHTS</span>
+        <h1 style={styles.title}>Demographics</h1>
         <p style={styles.sub}>
-          Demographic profile of {totalParticipants} consumers who participated in this trial
+          Who tried this campaign — demographic profile of {totalParticipants} consumers
         </p>
       </div>
 

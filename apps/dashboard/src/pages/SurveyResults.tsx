@@ -41,9 +41,9 @@ export default function SurveyResults() {
   return (
     <div>
       <div style={styles.header}>
-        <span style={styles.demoBadge}>SURVEY SIGNALS</span>
-        <h1 style={styles.title}>What Did They Say?</h1>
-        <p style={styles.sub}>Purchase intent, product perception, and open feedback</p>
+        <span style={styles.demoBadge}>CONSUMER INSIGHTS</span>
+        <h1 style={styles.title}>Survey Results</h1>
+        <p style={styles.sub}>What consumers said — purchase intent, product perception, and open feedback</p>
       </div>
 
       <div style={styles.scoreRow}>

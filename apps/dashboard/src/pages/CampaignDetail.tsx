@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { campaignApi, qrApi } from '../api/endpoints';
-import type { Campaign } from '../api/types';
+import type { Campaign, SurveyQuestion } from '../api/types';
 
 const STATUS_OPTIONS = ['draft', 'active', 'paused', 'completed', 'archived'];
 // Statuses that end a campaign's active life — confirmed before saving so a
@@ -27,6 +27,11 @@ export default function CampaignDetail() {
   const [editProductImage, setEditProductImage] = useState('');
   const [editLocationName, setEditLocationName] = useState('');
   const [editLocationAddress, setEditLocationAddress] = useState('');
+  // Campaign-Specific Survey Configuration (Company Console Product
+  // Transformation, 2026-09-01): wording/options only — question id, type,
+  // and order stay exactly as created (enforced server-side too, since
+  // analytics/AI Insights/Report read answers by fixed question key).
+  const [editSurveyQuestions, setEditSurveyQuestions] = useState<SurveyQuestion[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -41,6 +46,21 @@ export default function CampaignDetail() {
     setEditProductImage(c.productImage ?? '');
     setEditLocationName(c.locationName ?? '');
     setEditLocationAddress(c.locationAddress ?? '');
+    setEditSurveyQuestions(c.surveyQuestions ?? []);
+  };
+
+  const updateSurveyQuestion = (index: number, patch: Partial<SurveyQuestion>) => {
+    setEditSurveyQuestions((prev) => prev.map((q, i) => (i === index ? { ...q, ...patch } : q)));
+  };
+
+  const updateSurveyOptionList = (
+    index: number,
+    field: 'options' | 'optionsAr',
+    raw: string,
+  ) => {
+    updateSurveyQuestion(index, {
+      [field]: raw.split(',').map((s) => s.trim()).filter(Boolean),
+    });
   };
 
   useEffect(() => {
@@ -92,6 +112,7 @@ export default function CampaignDetail() {
         productImage: editProductImage || undefined,
         locationName: editLocationName || undefined,
         locationAddress: editLocationAddress || undefined,
+        surveyQuestions: editSurveyQuestions,
       })
       .then((updated) => {
         loadFromCampaign(updated);
@@ -135,8 +156,8 @@ export default function CampaignDetail() {
       <div style={styles.header}>
         <div>
           {campaign.isDemo && <span style={styles.demoBadge}>DEMO CAMPAIGN</span>}
-          <h1 style={styles.title}>Turn Trial Into Signal</h1>
-          <p style={styles.sub}>Campaign details and QR activation code</p>
+          <h1 style={styles.title}>Campaign Details</h1>
+          <p style={styles.sub}>{campaign.productName} — details, survey configuration, and QR code</p>
         </div>
       </div>
 
@@ -161,7 +182,7 @@ export default function CampaignDetail() {
 
           <div style={styles.divider} />
 
-          <div style={styles.cardTitle}>How It Works</div>
+          <div style={styles.cardTitle}>How This Campaign Works</div>
           {[
             ['TRIAL', 'Consumer receives product at activation point'],
             ['SIGNAL', 'Consumer scans QR → completes 5-question survey'],
@@ -176,24 +197,28 @@ export default function CampaignDetail() {
         </div>
 
         <div style={styles.qrCard}>
-          <div style={styles.cardTitle}>Trial QR Code</div>
+          <div style={styles.cardTitle}>Campaign QR Code</div>
           <div style={styles.qrWrap}>
             {qrUrl ? (
-              <img src={qrUrl} alt="Demo QR Code" style={styles.qrImg} />
+              <img src={qrUrl} alt="Campaign QR Code" style={styles.qrImg} />
             ) : (
               <div style={styles.qrPlaceholder}>Generating…</div>
             )}
           </div>
-          <p style={styles.qrHint}>Demo QR resets after each scan — reusable in meetings</p>
+          <p style={styles.qrHint}>
+            {campaign.isDemo
+              ? 'Demo QR resets after each scan — reusable in meetings'
+              : 'Scan to enter this campaign in the Tajribti app'}
+          </p>
           <button style={styles.printBtn} onClick={handlePrint} disabled={!qrUrl}>
-            Print QR for Meeting
+            Print QR
           </button>
           <div style={styles.qrInstructions}>
             {[
-              'Open consumer app on demo phone',
+              'Open the Tajribti consumer app',
               'Tap "Scan QR" and point at this code',
-              'Complete 5-question survey (60 seconds)',
-              'Watch Overview counter increment live',
+              'Consumer completes the survey below',
+              'Watch Overview update in real time',
             ].map((text, i) => (
               <div key={i} style={styles.instructionRow}>
                 <span style={styles.instructionNum}>{i + 1}</span>
@@ -205,7 +230,7 @@ export default function CampaignDetail() {
       </div>
 
       <div style={styles.manageCard}>
-        <div style={styles.cardTitle}>Manage Campaign</div>
+        <div style={styles.cardTitle}>Edit Campaign</div>
         <div style={styles.manageGrid}>
           <label style={styles.fieldLabel}>
             Status
@@ -285,6 +310,51 @@ export default function CampaignDetail() {
             rows={3}
           />
         </label>
+
+        <div style={styles.divider} />
+
+        <div style={styles.cardTitle}>Survey</div>
+        <p style={styles.surveyHint}>
+          What consumers are asked after they try this product. You can reword questions and
+          answer options — the number of questions, their order, and their type stay fixed so
+          Survey Results, AI Insights, and Report keep reading them correctly.
+        </p>
+        <div style={styles.surveyList}>
+          {editSurveyQuestions.map((q, i) => (
+            <div key={q.id} style={styles.questionCard}>
+              <span style={styles.questionLabel}>Q{i + 1} · {q.type}</span>
+              <input
+                style={styles.input}
+                value={q.text}
+                onChange={(e) => updateSurveyQuestion(i, { text: e.target.value })}
+                placeholder="Question (English)"
+              />
+              <input
+                style={{ ...styles.input, textAlign: 'right', direction: 'rtl' }}
+                value={q.textAr}
+                onChange={(e) => updateSurveyQuestion(i, { textAr: e.target.value })}
+                placeholder="السؤال (عربي)"
+              />
+              {q.type === 'multiple_choice' && (
+                <>
+                  <input
+                    style={styles.input}
+                    value={(q.options ?? []).join(', ')}
+                    onChange={(e) => updateSurveyOptionList(i, 'options', e.target.value)}
+                    placeholder="Options, comma-separated (English)"
+                  />
+                  <input
+                    style={{ ...styles.input, textAlign: 'right', direction: 'rtl' }}
+                    value={(q.optionsAr ?? []).join(', ')}
+                    onChange={(e) => updateSurveyOptionList(i, 'optionsAr', e.target.value)}
+                    placeholder="الخيارات، مفصولة بفاصلة (عربي)"
+                  />
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+
         <div style={styles.manageActions}>
           <button style={styles.saveBtn} onClick={handleSave} disabled={saving}>
             {saving ? 'Saving…' : 'Save Changes'}
@@ -523,6 +593,29 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontFamily: 'inherit',
     resize: 'vertical' as const,
+  },
+  surveyHint: { fontSize: 12, color: '#6b7fa8', margin: '0 0 14px', lineHeight: 1.5 },
+  surveyList: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 12,
+    marginBottom: 20,
+  },
+  questionCard: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 8,
+    background: '#070c1a',
+    border: '1px solid #111d35',
+    borderRadius: 10,
+    padding: 14,
+  },
+  questionLabel: {
+    fontSize: 10,
+    fontWeight: 800,
+    color: '#b2f24d',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase' as const,
   },
   manageActions: {
     display: 'flex',

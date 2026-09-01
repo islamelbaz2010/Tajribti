@@ -79,6 +79,7 @@ export const campaignApi = {
       targetCount: number;
       endDate: string;
       status: string;
+      surveyQuestions: SurveyQuestion[];
     }>,
   ): Promise<Campaign> => client.patch(`/campaigns/${id}`, body),
 };

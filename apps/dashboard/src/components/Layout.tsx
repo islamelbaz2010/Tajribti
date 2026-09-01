@@ -2,40 +2,38 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { campaignApi } from '../api/endpoints';
+import type { Campaign } from '../api/types';
 
+const STATUS_LABEL_COLOR: Record<string, string> = {
+  active: '#b2f24d',
+  draft: '#6b7fa8',
+  paused: '#f5c451',
+  completed: '#5b8cff',
+  archived: '#4a5a7e',
+};
+
+// Company Console IA (Product Transformation, 2026-09-01): two groups —
+// operate campaigns vs. understand consumers — replacing the previous five
+// flat MEOS-demo-inherited groups. Routes are unchanged (URL stability);
+// only grouping and labels changed. See DL-062.
 const NAV_SECTIONS = [
   {
     group: 'CAMPAIGN',
     items: [
-      { to: '/campaigns', label: 'Campaign Management' },
+      { to: '/campaigns', label: 'Campaigns' },
+      { to: '/campaign', label: 'Details & QR' },
+      { to: '/gallery', label: 'Media' },
+    ],
+  },
+  {
+    group: 'CONSUMER INSIGHTS',
+    items: [
       { to: '/overview', label: 'Overview' },
-      { to: '/campaign', label: 'Trial QR' },
-    ],
-  },
-  {
-    group: 'CONSUMERS',
-    items: [
-      { to: '/insights', label: 'Who Tried It?' },
-      { to: '/survey', label: 'What Did They Say?' },
       { to: '/participants', label: 'Participants' },
-    ],
-  },
-  {
-    group: 'CAMPAIGN OPS',
-    items: [
-      { to: '/gallery', label: 'Media / Gallery' },
-    ],
-  },
-  {
-    group: 'INTELLIGENCE',
-    items: [
-      { to: '/summary', label: 'What Did We Learn?' },
-    ],
-  },
-  {
-    group: 'REPORT',
-    items: [
-      { to: '/report', label: 'Campaign Report' },
+      { to: '/insights', label: 'Demographics' },
+      { to: '/survey', label: 'Survey Results' },
+      { to: '/summary', label: 'AI Insights' },
+      { to: '/report', label: 'Report' },
     ],
   },
 ];
@@ -46,6 +44,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [clientName, setClientName] = useState<string>('');
   const [isDemo, setIsDemo] = useState<boolean>(true);
+  // Campaign-as-organizing-entity (Product Transformation, 2026-09-01):
+  // the sidebar always shows which campaign the Company is currently
+  // working in — product name + status — so switching between Campaign
+  // and Consumer Insights pages still feels like one continuous workspace,
+  // not five unrelated screens. Reuses the existing getSelected() call
+  // Layout already made; just keeps the full campaign instead of two
+  // fields off it.
+  const [activeCampaign, setActiveCampaign] = useState<Campaign | null>(null);
 
   // Selected campaign's own id (if ?campaignId= is present) — carried onto
   // every nav link below so switching between Overview/Trial QR/Insights/etc.
@@ -61,9 +67,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         if (c) {
           setClientName(c.brandName);
           setIsDemo(c.isDemo);
+          setActiveCampaign(c);
         }
       })
-      .catch(() => {});
+      .catch(() => setActiveCampaign(null));
   }, [isAuthenticated, location.search]);
 
   const handleLogout = () => {
@@ -77,16 +84,32 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div style={styles.logoArea}>
           <div style={styles.logoRow}>
             <span style={styles.logoText}>TAJRIBTI</span>
-            {isDemo && <span style={styles.demoBadge}>DEMO</span>}
           </div>
-          {clientName && (
-            <div style={styles.clientName}>{clientName}</div>
-          )}
-          <div style={styles.liveRow}>
-            <div style={styles.liveDot} />
-            <span style={styles.liveLabel}>Consumer Intelligence · Active</span>
-          </div>
+          <div style={styles.consoleLabel}>Company Console</div>
+          {clientName && <div style={styles.clientName}>{clientName}</div>}
         </div>
+
+        {/* Campaign-as-organizing-entity: which campaign every page below is
+            currently scoped to, so Campaign and Consumer Insights pages read
+            as one workspace, not disconnected screens. */}
+        {activeCampaign && (
+          <div style={styles.campaignContext}>
+            <div style={styles.campaignContextLabel}>Working on</div>
+            <div style={styles.campaignContextProduct}>{activeCampaign.productName}</div>
+            <div style={styles.campaignContextMeta}>
+              <span
+                style={{
+                  ...styles.statusPill,
+                  color: STATUS_LABEL_COLOR[activeCampaign.status] ?? '#6b7fa8',
+                  borderColor: `${STATUS_LABEL_COLOR[activeCampaign.status] ?? '#6b7fa8'}55`,
+                }}
+              >
+                {activeCampaign.status.toUpperCase()}
+              </span>
+              {isDemo && <span style={styles.demoBadge}>DEMO</span>}
+            </div>
+          </div>
+        )}
 
         <nav style={styles.nav}>
           <NavLink
@@ -168,31 +191,52 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '2px 7px',
     letterSpacing: 1.5,
   },
+  consoleLabel: {
+    fontSize: 10,
+    color: '#2e3d5e',
+    fontWeight: 600,
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
   clientName: {
     fontSize: 13,
     fontWeight: 600,
     color: '#b2f24d',
-    marginBottom: 8,
     lineHeight: 1.3,
   },
-  liveRow: {
+  campaignContext: {
+    padding: '14px 20px',
+    borderBottom: '1px solid #111d35',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 4,
+  },
+  campaignContextLabel: {
+    fontSize: 9,
+    color: '#2e3d5e',
+    fontWeight: 700,
+    letterSpacing: 1,
+    textTransform: 'uppercase' as const,
+  },
+  campaignContextProduct: {
+    fontSize: 13,
+    color: '#edf0ff',
+    fontWeight: 700,
+    lineHeight: 1.3,
+  },
+  campaignContextMeta: {
     display: 'flex',
     alignItems: 'center',
     gap: 6,
+    marginTop: 2,
   },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: '50%',
-    background: '#b2f24d',
-    animation: 'pulse 1.8s infinite',
-    flexShrink: 0,
-  },
-  liveLabel: {
-    fontSize: 10,
-    color: '#2e3d5e',
-    fontWeight: 500,
-    letterSpacing: 0.3,
+  statusPill: {
+    fontSize: 9,
+    fontWeight: 800,
+    border: '1px solid',
+    borderRadius: 3,
+    padding: '2px 7px',
+    letterSpacing: 1,
   },
   nav: {
     display: 'flex',

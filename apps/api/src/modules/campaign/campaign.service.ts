@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Campaign, CampaignStatus, SurveyQuestion } from '../../entities/campaign.entity';
@@ -122,8 +127,9 @@ export class CampaignService {
   // Internal Tajribti Campaign Operations (DL-055 item 1): campaign
   // status/lifecycle and field edits. Same ownership pattern already used
   // in analytics.service.ts — a brand may only update its own campaigns.
-  // isDemo, brandAccountId, and surveyQuestions are intentionally not
-  // editable here (no Survey Builder; demo/ownership are not reassignable).
+  // isDemo and brandAccountId are intentionally not editable here
+  // (ownership is not reassignable). surveyQuestions may be updated, but
+  // only wording (see validateSurveyQuestionEdit below) — no Survey Builder.
   async updateCampaign(
     brandAccountId: string,
     id: string,
@@ -146,7 +152,39 @@ export class CampaignService {
     if (dto.targetCount !== undefined) campaign.targetCount = dto.targetCount;
     if (dto.endDate !== undefined) campaign.endDate = dto.endDate;
     if (dto.status !== undefined) campaign.status = dto.status;
+    if (dto.surveyQuestions !== undefined) {
+      this.validateSurveyQuestionEdit(campaign.surveyQuestions, dto.surveyQuestions);
+      campaign.surveyQuestions = dto.surveyQuestions;
+    }
 
     return this.campaignRepo.save(campaign);
+  }
+
+  // Campaign-Specific Survey Configuration (Company Console Product
+  // Transformation, 2026-09-01): a Company may reword its own campaign's
+  // survey questions/options, but must not change which questions exist,
+  // their order, or their type — analytics.service.ts reads survey answers
+  // by fixed key (q2 = purchase intent scale, q3 = descriptor choice,
+  // q5 = free text). Changing a question's id/type/order after real
+  // consumers may have answered it would silently corrupt Demographics/
+  // Survey Results/AI Insights/Report for this campaign. This is the same
+  // "wording/options only, count/order/types fixed" rule CreateCampaignDto
+  // already documents for creation time — just enforced here for edits too.
+  private validateSurveyQuestionEdit(
+    current: SurveyQuestion[],
+    proposed: SurveyQuestion[],
+  ): void {
+    if (proposed.length !== current.length) {
+      throw new BadRequestException(
+        'Cannot add or remove survey questions — only question/option wording may be edited.',
+      );
+    }
+    for (let i = 0; i < current.length; i++) {
+      if (proposed[i].id !== current[i].id || proposed[i].type !== current[i].type) {
+        throw new BadRequestException(
+          `Question ${i + 1} (${current[i].id}) must keep its existing id and type — only its wording/options may change.`,
+        );
+      }
+    }
   }
 }

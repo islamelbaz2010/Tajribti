@@ -1,7 +1,23 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-09-01 (DL-062 Company Console Product Transformation, on top of DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+**Last updated:** 2026-09-01 (DL-063 Company Console Visual/UX Maturation phase 2, on top of DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+
+---
+
+## CURRENT SESSION DELTA — 2026-09-01, sixth pass (Company Console Visual/UX Maturation phase 2 / DL-063)
+
+No API/data-contract changes this pass — frontend-only, per the task's own "prefer no API changes" instruction:
+
+- Audited each Consumer Insights page against a Founder-supplied production-screenshot baseline. The concrete cause of the "admin-dashboard, not commercial product" feeling was zero-data handling, not the visual system: several pages rendered genuinely empty containers (a participants table with only headers, three blank chart cards on Demographics, a 0/100 score card on Survey Results) instead of a purposeful empty state.
+- Added a compact, specific empty state to `Participants.tsx`, `Insights.tsx` (Demographics), `SurveyResults.tsx`, and `AiSummary.tsx` (AI Insights) for the zero-data case on each.
+- Fixed `SurveyResults.tsx`'s verbatims empty-state copy, previously hardcoded to say "in this demo scenario" even when viewing a real (non-demo) campaign.
+- `Overview.tsx`: replaced the hardcoded "LIVE" status badge (shown regardless of the campaign's actual status — a paused/draft/completed/archived campaign still said LIVE) with a real status pill. Added a "Go Deeper" section (Survey Results / AI Insights / Report) at the page bottom, using `purchaseIntentPercent` (already fetched by Overview, no new API call) as a teaser — completes the Trial→Participation→Feedback→Insight story with actual navigation into the value layer instead of ending at a metrics grid.
+- `Report.tsx` reviewed, not touched — already a mature 7-section bilingual PDF report from DL-052/053/056; no source-proven deficiency found that would justify changing it.
+- No Consumer Mobile changes, no new Vercel project.
+- `tsc --noEmit` + `CI=true npm run build` clean. Deployed via `vercel --prod` to the existing `tajribti` project (aliased to the existing production URL); all 10 dashboard routes verified reachable (200) with a fresh build hash post-deploy.
+
+Full detail: `DECISION_LOG.md` DL-063.
 
 ---
 

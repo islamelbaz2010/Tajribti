@@ -128,8 +128,8 @@ export class CampaignService {
   // status/lifecycle and field edits. Same ownership pattern already used
   // in analytics.service.ts — a brand may only update its own campaigns.
   // isDemo and brandAccountId are intentionally not editable here
-  // (ownership is not reassignable). surveyQuestions may be updated, but
-  // only wording (see validateSurveyQuestionEdit below) — no Survey Builder.
+  // (ownership is not reassignable). surveyQuestions may be updated within
+  // the Survey Builder V2 bounds — see validateSurveyQuestionEdit below.
   async updateCampaign(
     brandAccountId: string,
     id: string,
@@ -160,31 +160,44 @@ export class CampaignService {
     return this.campaignRepo.save(campaign);
   }
 
-  // Campaign-Specific Survey Configuration (Company Console Product
-  // Transformation, 2026-09-01): a Company may reword its own campaign's
-  // survey questions/options, but must not change which questions exist,
-  // their order, or their type — analytics.service.ts reads survey answers
-  // by fixed key (q2 = purchase intent scale, q3 = descriptor choice,
-  // q5 = free text). Changing a question's id/type/order after real
-  // consumers may have answered it would silently corrupt Demographics/
-  // Survey Results/AI Insights/Report for this campaign. This is the same
-  // "wording/options only, count/order/types fixed" rule CreateCampaignDto
-  // already documents for creation time — just enforced here for edits too.
+  // Survey Builder V2 (Company Console Product Maturation, 2026-09-01):
+  // the first CORE_QUESTION_COUNT questions of every campaign are the
+  // "core" set — analytics.service.ts reads their answers by fixed key
+  // (q2 = purchase intent scale, q3 = descriptor choice, q5 = free text),
+  // and AI Insights/Report depend on those same three. Changing a core
+  // question's id/type/order after real consumers may have answered it
+  // would silently corrupt those sections for this campaign, so the core
+  // set's id/type/order is immutable once a campaign exists (wording and
+  // options may still change freely — unchanged from the original DL-062
+  // rule). Anything a Company adds beyond the core set is a "custom"
+  // question: free to add, remove, reorder, or retype, because nothing in
+  // analytics/report hardcodes its key — analytics.service.ts picks up
+  // custom questions generically instead (see getSurveyBreakdown).
+  private static readonly CORE_QUESTION_COUNT = 5;
+
   private validateSurveyQuestionEdit(
     current: SurveyQuestion[],
     proposed: SurveyQuestion[],
   ): void {
-    if (proposed.length !== current.length) {
+    const coreCount = Math.min(CampaignService.CORE_QUESTION_COUNT, current.length);
+
+    if (proposed.length < coreCount) {
       throw new BadRequestException(
-        'Cannot add or remove survey questions — only question/option wording may be edited.',
+        `Cannot remove a core survey question — the first ${coreCount} question(s) must remain.`,
       );
     }
-    for (let i = 0; i < current.length; i++) {
+
+    for (let i = 0; i < coreCount; i++) {
       if (proposed[i].id !== current[i].id || proposed[i].type !== current[i].type) {
         throw new BadRequestException(
-          `Question ${i + 1} (${current[i].id}) must keep its existing id and type — only its wording/options may change.`,
+          `Question ${i + 1} (${current[i].id}) is a core question and must keep its existing id and type — only its wording/options may change. Add a new question instead if you need something different.`,
         );
       }
+    }
+
+    const ids = proposed.map((q) => q.id);
+    if (new Set(ids).size !== ids.length) {
+      throw new BadRequestException('Survey questions must have unique ids.');
     }
   }
 }

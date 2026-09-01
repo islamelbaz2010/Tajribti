@@ -34,11 +34,27 @@ export interface DemographicsData {
   cityDistribution: DistributionItem[];
 }
 
+// Survey Builder V2 (2026-09-01): generic result for any question beyond
+// the core 5 (see campaign.service.ts CORE_QUESTION_COUNT) — computed by
+// type rather than by a hardcoded id, since custom questions have no fixed
+// key the way q2/q3/q5 do.
+export interface CustomQuestionResult {
+  id: string;
+  text: string;
+  textAr: string;
+  type: 'stars' | 'scale' | 'multiple_choice' | 'text';
+  responseCount: number;
+  breakdown?: { label: string; count: number }[]; // multiple_choice
+  average?: number; // stars/scale
+  verbatims?: string[]; // text
+}
+
 export interface SurveyData {
   purchaseIntentScore: number;
   purchaseIntentDistribution: DistributionItem[];
   questionBreakdown: Record<string, { label: string; count: number }[]>;
   verbatims: string[];
+  customQuestions: CustomQuestionResult[];
 }
 
 export interface Participant {
@@ -125,8 +141,14 @@ export class AnalyticsService {
     };
   }
 
+  // Survey Builder V2 (2026-09-01): questions beyond the campaign's core 5
+  // (campaign.service.ts CORE_QUESTION_COUNT) — a Company's own
+  // campaign/product-specific additions.
+  private static readonly CORE_QUESTION_COUNT = 5;
+
   async getSurveyBreakdown(campaignId: string): Promise<SurveyData> {
     const surveys = await this.surveyRepo.find({ where: { campaignId } });
+    const campaign = await this.campaignRepo.findOne({ where: { id: campaignId } });
 
     const purchaseIntentValues = surveys
       .map((s) => {
@@ -171,18 +193,38 @@ export class AnalyticsService {
       q3Values.map((v) => String(v)),
     );
 
-    // Minimum quality gate for client-facing open feedback: reject empty,
-    // very short, or single-token entries (e.g. "test", "vvgv", "ok") that
-    // are not meaningful qualitative signal. This is a defensible minimum
-    // bar, not content rewriting — genuine short feedback with a space
-    // ("too sweet") still passes; single junk tokens do not.
-    const MIN_VERBATIM_LENGTH = 10;
-    const verbatims = surveys
-      .map((s) => s.answers['q5'])
-      .filter((v): v is string => typeof v === 'string')
-      .map((v) => v.trim())
-      .filter((v) => v.length >= MIN_VERBATIM_LENGTH && /\s/.test(v))
-      .slice(0, 5);
+    const verbatims = this.extractVerbatims(surveys, 'q5');
+
+    // Survey Builder V2: generic result for every question beyond the core
+    // 5, computed by type — no hardcoded id the way q2/q3/q5 are, because
+    // a Company's custom questions have no fixed key.
+    const customQuestions: CustomQuestionResult[] = (
+      campaign?.surveyQuestions.slice(AnalyticsService.CORE_QUESTION_COUNT) ?? []
+    ).map((q) => {
+      const answered = surveys
+        .map((s) => s.answers[q.id])
+        .filter((v) => v !== undefined && v !== null && v !== '');
+      const base = {
+        id: q.id,
+        text: q.text,
+        textAr: q.textAr,
+        type: q.type,
+        responseCount: answered.length,
+      };
+      if (q.type === 'multiple_choice') {
+        return { ...base, breakdown: this.buildStringDistribution(answered.map(String)) };
+      }
+      if (q.type === 'stars' || q.type === 'scale') {
+        const numeric = answered.filter((v): v is number => typeof v === 'number');
+        return {
+          ...base,
+          average: numeric.length > 0
+            ? Math.round((numeric.reduce((a, b) => a + b, 0) / numeric.length) * 10) / 10
+            : 0,
+        };
+      }
+      return { ...base, verbatims: this.extractVerbatims(surveys, q.id) };
+    });
 
     return {
       purchaseIntentScore,
@@ -191,7 +233,23 @@ export class AnalyticsService {
         q3: q3Dist,
       },
       verbatims,
+      customQuestions,
     };
+  }
+
+  // Shared quality gate for any free-text question (q5 or a custom text
+  // question): reject empty, very short, or single-token entries (e.g.
+  // "test", "vvgv", "ok") that are not meaningful qualitative signal. A
+  // defensible minimum bar, not content rewriting — genuine short feedback
+  // with a space ("too sweet") still passes; single junk tokens do not.
+  private extractVerbatims(surveys: SurveyResponse[], questionId: string): string[] {
+    const MIN_VERBATIM_LENGTH = 10;
+    return surveys
+      .map((s) => s.answers[questionId])
+      .filter((v): v is string => typeof v === 'string')
+      .map((v) => v.trim())
+      .filter((v) => v.length >= MIN_VERBATIM_LENGTH && /\s/.test(v))
+      .slice(0, 5);
   }
 
   async getParticipants(

@@ -59,15 +59,19 @@ export class CreateCampaignDto {
   @IsString()
   endDate?: string;
 
-  // Optional per-campaign research configuration, prepared internally by
-  // Tajribti's team when the standard 5-question trial survey needs
-  // sector/product-specific wording (e.g. the default q3 word bank is
-  // beverage-oriented). Omitted -> the existing standard survey is used
-  // unchanged, exactly as before this field existed.
+  // Campaign-specific research configuration (Survey Builder V2,
+  // 2026-09-01). Omitted -> the existing standard 5-question survey is
+  // used unchanged. The first 5 questions are the "core" set wording
+  // analytics/AI Insights/Report depend on by fixed id (see
+  // campaign.service.ts CORE_QUESTION_COUNT); questions beyond that are
+  // "custom" — a Company's own campaign/product/industry-specific
+  // additions, generically surfaced in Survey Results without any
+  // hardcoded analytics dependency. Capped at 10 total (5 core + up to 5
+  // custom) to keep the consumer survey short enough to complete.
   @IsOptional()
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayMaxSize(5)
+  @ArrayMaxSize(10)
   @ValidateNested({ each: true })
   @Type(() => SurveyQuestionDto)
   surveyQuestions?: SurveyQuestionDto[];

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { campaignApi, qrApi } from '../api/endpoints';
 import type { Campaign, SurveyQuestion } from '../api/types';
+import SurveyEditor from '../components/SurveyEditor';
 
 const STATUS_OPTIONS = ['draft', 'active', 'paused', 'completed', 'archived'];
 // Statuses that end a campaign's active life — confirmed before saving so a
@@ -27,10 +28,11 @@ export default function CampaignDetail() {
   const [editProductImage, setEditProductImage] = useState('');
   const [editLocationName, setEditLocationName] = useState('');
   const [editLocationAddress, setEditLocationAddress] = useState('');
-  // Campaign-Specific Survey Configuration (Company Console Product
-  // Transformation, 2026-09-01): wording/options only — question id, type,
-  // and order stay exactly as created (enforced server-side too, since
-  // analytics/AI Insights/Report read answers by fixed question key).
+  // Survey Builder V2 (Company Console Product Maturation, 2026-09-01):
+  // the core 5 questions' id/type/order stay fixed (enforced server-side
+  // too, since analytics/AI Insights/Report read their answers by fixed
+  // key) — SurveyEditor only allows wording/options edits on those.
+  // Anything beyond the core 5 is free to add/remove/reorder/retype.
   const [editSurveyQuestions, setEditSurveyQuestions] = useState<SurveyQuestion[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -47,20 +49,6 @@ export default function CampaignDetail() {
     setEditLocationName(c.locationName ?? '');
     setEditLocationAddress(c.locationAddress ?? '');
     setEditSurveyQuestions(c.surveyQuestions ?? []);
-  };
-
-  const updateSurveyQuestion = (index: number, patch: Partial<SurveyQuestion>) => {
-    setEditSurveyQuestions((prev) => prev.map((q, i) => (i === index ? { ...q, ...patch } : q)));
-  };
-
-  const updateSurveyOptionList = (
-    index: number,
-    field: 'options' | 'optionsAr',
-    raw: string,
-  ) => {
-    updateSurveyQuestion(index, {
-      [field]: raw.split(',').map((s) => s.trim()).filter(Boolean),
-    });
   };
 
   useEffect(() => {
@@ -315,45 +303,11 @@ export default function CampaignDetail() {
 
         <div style={styles.cardTitle}>Survey</div>
         <p style={styles.surveyHint}>
-          What consumers are asked after they try this product. You can reword questions and
-          answer options — the number of questions, their order, and their type stay fixed so
-          Survey Results, AI Insights, and Report keep reading them correctly.
+          What consumers are asked after they try this product. The 5 core questions can be
+          reworded but keep their order/type (Survey Results, AI Insights, and Report depend on
+          them). Add your own questions below for anything specific to this campaign.
         </p>
-        <div style={styles.surveyList}>
-          {editSurveyQuestions.map((q, i) => (
-            <div key={q.id} style={styles.questionCard}>
-              <span style={styles.questionLabel}>Q{i + 1} · {q.type}</span>
-              <input
-                style={styles.input}
-                value={q.text}
-                onChange={(e) => updateSurveyQuestion(i, { text: e.target.value })}
-                placeholder="Question (English)"
-              />
-              <input
-                style={{ ...styles.input, textAlign: 'right', direction: 'rtl' }}
-                value={q.textAr}
-                onChange={(e) => updateSurveyQuestion(i, { textAr: e.target.value })}
-                placeholder="السؤال (عربي)"
-              />
-              {q.type === 'multiple_choice' && (
-                <>
-                  <input
-                    style={styles.input}
-                    value={(q.options ?? []).join(', ')}
-                    onChange={(e) => updateSurveyOptionList(i, 'options', e.target.value)}
-                    placeholder="Options, comma-separated (English)"
-                  />
-                  <input
-                    style={{ ...styles.input, textAlign: 'right', direction: 'rtl' }}
-                    value={(q.optionsAr ?? []).join(', ')}
-                    onChange={(e) => updateSurveyOptionList(i, 'optionsAr', e.target.value)}
-                    placeholder="الخيارات، مفصولة بفاصلة (عربي)"
-                  />
-                </>
-              )}
-            </div>
-          ))}
-        </div>
+        <SurveyEditor questions={editSurveyQuestions} onChange={setEditSurveyQuestions} />
 
         <div style={styles.manageActions}>
           <button style={styles.saveBtn} onClick={handleSave} disabled={saving}>

@@ -35,11 +35,25 @@ export interface DemographicsData {
   cityDistribution: DistributionItem[];
 }
 
+// Survey Builder V2: generic result for any question beyond the campaign's
+// core 5 — computed by type, since custom questions have no fixed key.
+export interface CustomQuestionResult {
+  id: string;
+  text: string;
+  textAr: string;
+  type: 'stars' | 'scale' | 'multiple_choice' | 'text';
+  responseCount: number;
+  breakdown?: { label: string; count: number }[];
+  average?: number;
+  verbatims?: string[];
+}
+
 export interface SurveyData {
   purchaseIntentScore: number;
   purchaseIntentDistribution: DistributionItem[];
   questionBreakdown: Record<string, { label: string; count: number }[]>;
   verbatims: string[];
+  customQuestions: CustomQuestionResult[];
 }
 
 export interface Participant {

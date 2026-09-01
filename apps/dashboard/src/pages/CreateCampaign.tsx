@@ -2,15 +2,14 @@ import React, { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { campaignApi } from '../api/endpoints';
 import type { SurveyQuestion } from '../api/types';
+import SurveyEditor from '../components/SurveyEditor';
 
-// Minimal campaign-creation form for Tajribti's own team to operate more
-// than one campaign per brand account. Reuses the existing POST /campaigns
-// contract (CreateCampaignDto) — status/demo flag are still set
-// server-side. The one optional addition is `surveyQuestions`: the same
-// fixed 5-question shape the backend has always used, editable here so
-// Tajribti's team can adapt wording/options to a campaign's product or
-// sector (e.g. the default q3 word bank is beverage-specific) — not a
-// Survey Builder; question count/order/types stay fixed.
+// Campaign-creation form. Reuses the existing POST /campaigns contract
+// (CreateCampaignDto) — status/demo flag are still set server-side. The
+// optional `surveyQuestions` field starts as the standard 5-question core
+// set; SurveyEditor (Survey Builder V2) lets the Company reword/reoption
+// those and append its own campaign/product-specific custom questions
+// before the campaign is even created.
 const DEFAULT_QUESTIONS: SurveyQuestion[] = [
   {
     id: 'q1',
@@ -57,14 +56,6 @@ export default function CreateCampaign() {
   const navigate = useNavigate();
   const [customizeSurvey, setCustomizeSurvey] = useState(false);
   const [questions, setQuestions] = useState<SurveyQuestion[]>(DEFAULT_QUESTIONS);
-
-  const updateQuestion = (index: number, patch: Partial<SurveyQuestion>) => {
-    setQuestions((prev) => prev.map((q, i) => (i === index ? { ...q, ...patch } : q)));
-  };
-
-  const updateOptionList = (index: number, field: 'options' | 'optionsAr', raw: string) => {
-    updateQuestion(index, { [field]: raw.split(',').map((s) => s.trim()).filter(Boolean) });
-  };
 
   const [brandName, setBrandName] = useState('');
   const [productName, setProductName] = useState('');
@@ -218,49 +209,20 @@ export default function CreateCampaign() {
               checked={customizeSurvey}
               onChange={(e) => setCustomizeSurvey(e.target.checked)}
             />
-            Customize research survey for this campaign (optional — standard survey used otherwise)
+            Configure the research survey for this campaign (optional — standard survey used
+            otherwise)
           </label>
         </div>
 
         {customizeSurvey && (
           <div style={styles.surveySection}>
             <p style={styles.surveyHint}>
-              Same 5-question trial survey structure — edit wording/options only. Question order and
-              types stay fixed.
+              The 5 core questions cover the standard trial research (impression, purchase
+              intent, descriptor, comparison, open feedback) — reword them for this
+              product/category if useful. Add your own questions below for anything specific
+              to this campaign, product, or industry.
             </p>
-            {questions.map((q, i) => (
-              <div key={q.id} style={styles.questionCard}>
-                <span style={styles.questionLabel}>Q{i + 1} · {q.type}</span>
-                <input
-                  style={styles.input}
-                  value={q.text}
-                  onChange={(e) => updateQuestion(i, { text: e.target.value })}
-                  placeholder="Question (English)"
-                />
-                <input
-                  style={{ ...styles.input, textAlign: 'right', direction: 'rtl' }}
-                  value={q.textAr}
-                  onChange={(e) => updateQuestion(i, { textAr: e.target.value })}
-                  placeholder="السؤال (عربي)"
-                />
-                {q.type === 'multiple_choice' && (
-                  <>
-                    <input
-                      style={styles.input}
-                      value={(q.options ?? []).join(', ')}
-                      onChange={(e) => updateOptionList(i, 'options', e.target.value)}
-                      placeholder="Options, comma-separated (English)"
-                    />
-                    <input
-                      style={{ ...styles.input, textAlign: 'right', direction: 'rtl' }}
-                      value={(q.optionsAr ?? []).join(', ')}
-                      onChange={(e) => updateOptionList(i, 'optionsAr', e.target.value)}
-                      placeholder="الخيارات، مفصولة بفاصلة (عربي)"
-                    />
-                  </>
-                )}
-              </div>
-            ))}
+            <SurveyEditor questions={questions} onChange={setQuestions} />
           </div>
         )}
 

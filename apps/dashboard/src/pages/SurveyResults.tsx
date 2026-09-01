@@ -138,6 +138,56 @@ export default function SurveyResults() {
           )}
         </div>
       </div>
+
+      {data.customQuestions.length > 0 && (
+        <div style={styles.customSection}>
+          <div style={styles.customSectionLabel}>Campaign-Specific Questions</div>
+          <div style={styles.grid}>
+            {data.customQuestions.map((q) => (
+              <div key={q.id} style={styles.card}>
+                <div style={styles.cardTitle}>{q.text}</div>
+                {q.responseCount === 0 ? (
+                  <p style={styles.empty}>No responses to this question yet.</p>
+                ) : q.type === 'multiple_choice' && q.breakdown ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={q.breakdown} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fontSize: 11, fill: '#3d4a6a' }}
+                        axisLine={{ stroke: '#1a2540' }}
+                        tickLine={false}
+                      />
+                      <YAxis tick={{ fontSize: 11, fill: '#3d4a6a' }} axisLine={false} tickLine={false} />
+                      <Tooltip {...CHART_TOOLTIP} />
+                      <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                        {q.breakdown.map((_, i) => (
+                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : q.average !== undefined ? (
+                  <div style={styles.scoreCard}>
+                    <div style={styles.scoreValue}>{q.average}</div>
+                    <div style={styles.scoreMax}>/ 5 average · {q.responseCount} responses</div>
+                  </div>
+                ) : q.verbatims && q.verbatims.length > 0 ? (
+                  <div style={styles.verbatims}>
+                    {q.verbatims.map((v, i) => (
+                      <div key={i} style={styles.verbatim}>
+                        <span style={styles.quoteChar}>"</span>
+                        {v}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={styles.empty}>No open-ended responses meet the display threshold yet.</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       </>
       )}
     </div>
@@ -239,6 +289,15 @@ const styles: Record<string, React.CSSProperties> = {
   barFill: { height: '100%', borderRadius: 4, transition: 'width 0.6s ease' },
   intentPct: { width: 40, fontSize: 12, fontWeight: 700, textAlign: 'right' as const },
   grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
+  customSection: { marginTop: 20 },
+  customSectionLabel: {
+    fontSize: 10,
+    fontWeight: 700,
+    color: '#2e3d5e',
+    letterSpacing: 1.5,
+    marginBottom: 12,
+    textTransform: 'uppercase' as const,
+  },
   card: {
     background: '#0a1120',
     border: '1px solid #111d35',

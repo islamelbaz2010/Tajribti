@@ -241,12 +241,24 @@ export default function Report() {
               <p style={pg.coverBrand}>{campaign.brandName}</p>
               <div style={pg.coverMetaRow}>
                 {campaign.locationName && (
-                  <span style={pg.coverMetaChip}>📍 {campaign.locationName}</span>
+                  <span style={pg.coverMetaChip}>
+                    <span style={pg.coverMetaLabel}>{t('Location', 'الموقع')}</span>
+                    {' · '}
+                    {campaign.locationName}
+                  </span>
                 )}
                 {campaignPeriod && (
-                  <span style={pg.coverMetaChip}>🗓 {campaignPeriod}</span>
+                  <span style={pg.coverMetaChip}>
+                    <span style={pg.coverMetaLabel}>{t('Period', 'الفترة')}</span>
+                    {' · '}
+                    {campaignPeriod}
+                  </span>
                 )}
-                <span style={pg.coverMetaChip}>📅 {t('Reported', AR.reportedOn)} {reportDate}</span>
+                <span style={pg.coverMetaChip}>
+                  <span style={pg.coverMetaLabel}>{t('Reported', AR.reportedOn)}</span>
+                  {' · '}
+                  {reportDate}
+                </span>
                 <span style={pg.coverMetaChip}>
                   {overview.surveyCompletions} {t('respondents', AR.respondents)}
                 </span>
@@ -962,6 +974,13 @@ const pg: Record<string, React.CSSProperties> = {
     fontSize: 11,
     color: 'rgba(255,255,255,0.8)',
     fontWeight: 500,
+  },
+  coverMetaLabel: {
+    color: 'rgba(255,255,255,0.45)',
+    fontWeight: 700,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase' as const,
+    fontSize: 9,
   },
   coverKpis: {
     display: 'flex',

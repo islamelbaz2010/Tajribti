@@ -10,7 +10,11 @@ import { ConfigService } from '@nestjs/config';
 import * as QRCode from 'qrcode';
 import { QrCode, QrCodeStatus } from '../../entities/qr-code.entity';
 import { RedemptionEvent } from '../../entities/redemption-event.entity';
-import { Campaign, CampaignStatus, isCampaignOpenForParticipation } from '../../entities/campaign.entity';
+import {
+  Campaign,
+  isCampaignOpenForParticipation,
+  getParticipationBlockedReason,
+} from '../../entities/campaign.entity';
 import { CampaignVerification } from '../../entities/campaign-verification.entity';
 
 interface RedeemQrDto {
@@ -71,11 +75,7 @@ export class QrService {
     const campaign = qrCode.campaign;
 
     if (!isCampaignOpenForParticipation(campaign)) {
-      throw new BadRequestException(
-        campaign.status === CampaignStatus.ACTIVE
-          ? 'Campaign has not started yet'
-          : 'Campaign is not active',
-      );
+      throw new BadRequestException(getParticipationBlockedReason(campaign));
     }
 
     const isDemo = qrCode.status === QrCodeStatus.DEMO;
@@ -145,9 +145,7 @@ export class QrService {
       const found = await this.campaignRepo.findOne({ where: { id: campaignId } });
       if (!found) throw new NotFoundException(`Campaign ${campaignId} not found`);
       if (!isCampaignOpenForParticipation(found)) {
-        throw new BadRequestException(
-          found.status === CampaignStatus.ACTIVE ? 'Campaign has not started yet' : 'Campaign is not active',
-        );
+        throw new BadRequestException(getParticipationBlockedReason(found));
       }
       campaign = found;
       const code = `tajribti:${campaignId}:${Date.now()}`;
@@ -182,9 +180,7 @@ export class QrService {
     }
 
     if (!isCampaignOpenForParticipation(campaign)) {
-      throw new BadRequestException(
-        campaign.status === CampaignStatus.ACTIVE ? 'Campaign has not started yet' : 'Campaign is not active',
-      );
+      throw new BadRequestException(getParticipationBlockedReason(campaign));
     }
 
     // Unconditional, unlike redeemQr() below: this function's pre-existing

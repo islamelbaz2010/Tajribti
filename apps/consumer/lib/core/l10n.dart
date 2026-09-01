@@ -97,6 +97,13 @@ class AppStr {
   String get campaignNotActive    => ar ? 'هذه الحملة غير متاحة حالياً' : 'This Campaign Isn\'t Available';
   String get campaignNotActiveSub => ar ? 'لم تعد هذه الحملة تقبل مشاركات جديدة في الوقت الحالي.' : 'This campaign is not currently accepting new participation.';
   String get campaignComingSoonTitle => ar ? 'الحملة قريباً' : 'Coming Soon';
+  // Campaign End-Date Gate (2026-09-01, pass 2): distinct from
+  // campaignNotActive/campaignNotActiveSub above — this campaign genuinely
+  // ran and completed its scheduled window, rather than being paused/
+  // draft/archived, so the copy says "ended" rather than "not available".
+  String get campaignEndedTitle => ar ? 'انتهت الحملة' : 'Campaign Ended';
+  String get campaignEndedSub   => ar ? 'لم تعد هذه الحملة تقبل مشاركات جديدة، حيث انتهت فترتها المحددة.'
+                                       : 'This campaign is no longer accepting new participation — its scheduled window has ended.';
 
   // ── Account authentication (email + password) ───────────────────────────
   String get welcome        => ar ? 'مرحباً بك'                   : 'Welcome';
@@ -211,6 +218,11 @@ class AppStr {
   String startsOn(String date)  => ar ? 'يبدأ $date'                      : 'Starts $date';
   String comingSoonNotice(String date) =>
       ar ? 'ستتوفر هذه الحملة اعتباراً من $date.' : 'This campaign opens for participation on $date.';
+
+  // ── Ended (Campaign End-Date Gate, 2026-09-01, pass 2) ─────────────────────
+  String get ended              => ar ? 'انتهت'                         : 'Ended';
+  String endedOn(String date)   => ar ? 'انتهت في $date'                : 'Ended $date';
+
   // kept for screens that still reference these
   String get homeReady          => ar ? 'جاهز لتجربة جديدة؟'               : 'Ready for a new trial?';
   String get homeSub            => ar ? 'امسح رمز QR على المنتج لتبدأ تجربتك وتشارك رأيك' : 'Scan the QR code on the product to start your trial and share your feedback';

@@ -570,6 +570,38 @@ class _CampaignCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                )
+              // Campaign End-Date Gate (2026-09-01, pass 2): symmetric with
+              // the isComingSoon badge above — status=active but endDate
+              // has passed, so participation is closed even though the
+              // card is still shown (discovery is unaffected, same as the
+              // Coming Soon case; only the entry gate is closed).
+              else if (campaign.hasEnded)
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade600,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.event_busy_rounded, color: Colors.white, size: 14),
+                        const SizedBox(width: 4),
+                        Text(
+                          s.ended,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -653,24 +685,34 @@ class _CampaignCard extends StatelessWidget {
                     ] else
                       const Spacer(),
                     GestureDetector(
+                      // Campaign End-Date Gate (2026-09-01, pass 2): same
+                      // pattern as isComingSoon above — tapping still
+                      // navigates to Campaign Detail (matching the
+                      // existing completed-campaign card's behavior),
+                      // which shows the dedicated Ended screen with no way
+                      // to proceed, rather than disabling the tap here.
                       onTap: onTap,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                         decoration: BoxDecoration(
-                          color: campaign.isComingSoon ? Colors.transparent : kPrimary,
-                          border: campaign.isComingSoon
-                              ? Border.all(color: kPrimary.withOpacity(0.4))
+                          color: (campaign.isComingSoon || campaign.hasEnded) ? Colors.transparent : kPrimary,
+                          border: (campaign.isComingSoon || campaign.hasEnded)
+                              ? Border.all(color: (campaign.hasEnded ? Colors.grey.shade400 : kPrimary.withOpacity(0.4)))
                               : null,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          campaign.isComingSoon && campaign.startDate != null
-                              ? s.startsOn(s.formatShortDate(DateTime.parse(campaign.startDate!)))
-                              : s.startTrialCard,
+                          campaign.hasEnded
+                              ? s.ended
+                              : campaign.isComingSoon && campaign.startDate != null
+                                  ? s.startsOn(s.formatShortDate(DateTime.parse(campaign.startDate!)))
+                                  : s.startTrialCard,
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: campaign.isComingSoon ? kPrimary : Colors.white,
+                            color: campaign.hasEnded
+                                ? Colors.grey.shade600
+                                : campaign.isComingSoon ? kPrimary : Colors.white,
                           ),
                         ),
                       ),

@@ -72,6 +72,27 @@ class Campaign {
       return false;
     }
   }
+
+  // Campaign End-Date Gate (2026-09-01, pass 2): the symmetric mirror of
+  // isComingSoon above — status=active but endDate has already passed, so
+  // participation is closed even though the campaign is still nominally
+  // "active" (no new lifecycle status; see campaign.entity.ts's
+  // hasCampaignEnded on the API side, which this presentation-only getter
+  // mirrors). endDate is INCLUSIVE — the campaign is still open THROUGH
+  // its end date, not before it; only "before today" counts as ended,
+  // matching the server's own >= today-UTC gate. Presentation only — the
+  // API (isCampaignOpenForParticipation) remains the real authority.
+  bool get hasEnded {
+    if (status != 'active' || endDate == null || endDate!.isEmpty) return false;
+    try {
+      final end = DateTime.parse(endDate!);
+      final today = DateTime.now();
+      final todayDateOnly = DateTime(today.year, today.month, today.day);
+      return DateTime(end.year, end.month, end.day).isBefore(todayDateOnly);
+    } catch (_) {
+      return false;
+    }
+  }
 }
 
 class SurveyQuestion {

@@ -337,6 +337,100 @@ class _CampaignScreenState extends State<CampaignScreen> {
       );
     }
 
+    // Campaign End-Date Gate (2026-09-01, pass 2): status=active but
+    // endDate has already passed — genuinely ran and completed its
+    // scheduled window, not paused/draft/archived, so a distinct "ended"
+    // state (not the generic campaignNotActive one below) is shown.
+    // qr.service.ts/auth.service.ts already enforce this server-side
+    // (isCampaignOpenForParticipation + getParticipationBlockedReason);
+    // this mirrors it here. Checked before the generic non-active branch
+    // below (same reasoning as isComingSoon above it) since hasEnded
+    // implies status IS active — and after _alreadyCompleted above, so a
+    // consumer who already participated still sees their completed state,
+    // not "ended", even once the campaign's window closes.
+    if (_campaign != null && _campaign!.hasEnded) {
+      final campaign = _campaign!;
+      return Directionality(
+        textDirection: context.dir,
+        child: Scaffold(
+          backgroundColor: kBackground,
+          appBar: AppBar(
+            backgroundColor: kPrimary,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+              onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
+            ),
+            actions: const [
+              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle(light: true))),
+            ],
+          ),
+          body: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.event_busy_rounded, color: Colors.grey.shade600, size: 48),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      campaign.productName,
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: kPrimary),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      s.campaignEndedTitle,
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.grey.shade600),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      s.campaignEndedSub,
+                      style: TextStyle(fontSize: 15, color: Colors.grey.shade600, height: 1.5),
+                      textAlign: TextAlign.center,
+                    ),
+                    if (campaign.endDate != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        s.endedOn(s.formatShortDate(DateTime.parse(campaign.endDate!))),
+                        style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                    const SizedBox(height: 36),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: () => context.go('/home'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kPrimary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          elevation: 0,
+                        ),
+                        child: Text(s.backHome, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     // Campaign lifecycle: a first-time (not-yet-completed) visitor reaching
     // a non-active campaign directly (stale QR, bookmarked link) must see a
     // clear unavailable state here rather than a Start Trial that would only

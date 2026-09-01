@@ -68,6 +68,7 @@ export default function CreateCampaign() {
 
   const [brandName, setBrandName] = useState('');
   const [productName, setProductName] = useState('');
+  const [productImage, setProductImage] = useState('');
   const [locationName, setLocationName] = useState('');
   const [locationAddress, setLocationAddress] = useState('');
   const [description, setDescription] = useState('');
@@ -90,6 +91,7 @@ export default function CreateCampaign() {
       const campaign = await campaignApi.create({
         brandName: brandName.trim(),
         productName: productName.trim(),
+        productImage: productImage.trim() || undefined,
         description: description.trim() || undefined,
         locationName: locationName.trim() || undefined,
         locationAddress: locationAddress.trim() || undefined,
@@ -135,6 +137,14 @@ export default function CreateCampaign() {
               onChange={(e) => setProductName(e.target.value)}
               placeholder="e.g. Sprite Zero Sugar"
               required
+            />
+          </Field>
+          <Field label="Product Image URL">
+            <input
+              style={styles.input}
+              value={productImage}
+              onChange={(e) => setProductImage(e.target.value)}
+              placeholder="https://…"
             />
           </Field>
           <Field label="Location Name">

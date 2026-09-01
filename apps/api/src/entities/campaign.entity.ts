@@ -18,6 +18,14 @@ export enum CampaignStatus {
   ACTIVE = 'active',
   PAUSED = 'paused',
   COMPLETED = 'completed',
+  // Soft-delete/archive semantic (Campaign Management, 2026-09-01): the
+  // codebase has no hard-delete path for a Campaign anywhere (redemptions/
+  // survey responses/QR codes/reports all reference it), so "remove a
+  // campaign" is modeled as a lifecycle status like the other four rather
+  // than inventing a destructive DELETE. Requires migration
+  // 1788000000000-AddArchivedCampaignStatus to exist on the Postgres enum
+  // type before this value can be written.
+  ARCHIVED = 'archived',
 }
 
 export interface SurveyQuestion {

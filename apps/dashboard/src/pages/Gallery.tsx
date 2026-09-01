@@ -54,6 +54,7 @@ export default function Gallery() {
 
   const handleDelete = async (mediaId: string) => {
     if (!campaign) return;
+    if (!window.confirm('Remove this media item? This cannot be undone.')) return;
     await mediaApi.remove(campaign.id, mediaId);
     await refresh(campaign.id);
   };

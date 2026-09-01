@@ -7,6 +7,7 @@ const NAV_SECTIONS = [
   {
     group: 'CAMPAIGN',
     items: [
+      { to: '/campaigns', label: 'Campaign Management' },
       { to: '/overview', label: 'Overview' },
       { to: '/campaign', label: 'Trial QR' },
     ],

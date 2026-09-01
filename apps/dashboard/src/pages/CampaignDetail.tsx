@@ -2,7 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { campaignApi, qrApi } from '../api/endpoints';
 import type { Campaign } from '../api/types';
 
-const STATUS_OPTIONS = ['draft', 'active', 'paused', 'completed'];
+const STATUS_OPTIONS = ['draft', 'active', 'paused', 'completed', 'archived'];
+// Statuses that end a campaign's active life — confirmed before saving so a
+// brand doesn't lose QR/discovery visibility by an accidental dropdown
+// click. Not a state machine (any status can still move to any other, same
+// as before); this is only a confirmation gate on the destructive-feeling
+// transitions.
+const LIFECYCLE_ENDING_STATUSES = ['completed', 'archived'];
 
 export default function CampaignDetail() {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
@@ -18,6 +24,9 @@ export default function CampaignDetail() {
   const [editTargetCount, setEditTargetCount] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [editProductImage, setEditProductImage] = useState('');
+  const [editLocationName, setEditLocationName] = useState('');
+  const [editLocationAddress, setEditLocationAddress] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -29,6 +38,9 @@ export default function CampaignDetail() {
     setEditTargetCount(String(c.targetCount));
     setEditEndDate(c.endDate ?? '');
     setEditDescription(c.description ?? '');
+    setEditProductImage(c.productImage ?? '');
+    setEditLocationName(c.locationName ?? '');
+    setEditLocationAddress(c.locationAddress ?? '');
   };
 
   useEffect(() => {
@@ -45,6 +57,16 @@ export default function CampaignDetail() {
 
   const handleSave = () => {
     if (!campaign) return;
+    if (
+      editStatus !== campaign.status &&
+      LIFECYCLE_ENDING_STATUSES.includes(editStatus) &&
+      !window.confirm(
+        `Set this campaign to ${editStatus.toUpperCase()}? It will stop appearing as an active ` +
+          'trial to consumers. This can be changed back later.',
+      )
+    ) {
+      return;
+    }
     setSaving(true);
     setSaveError('');
     setSaveSuccess(false);
@@ -67,6 +89,9 @@ export default function CampaignDetail() {
         targetCount,
         endDate: editEndDate || undefined,
         description: editDescription,
+        productImage: editProductImage || undefined,
+        locationName: editLocationName || undefined,
+        locationAddress: editLocationAddress || undefined,
       })
       .then((updated) => {
         loadFromCampaign(updated);
@@ -225,7 +250,32 @@ export default function CampaignDetail() {
               onChange={(e) => setEditEndDate(e.target.value)}
             />
           </label>
+          <label style={styles.fieldLabel}>
+            Location Name
+            <input
+              style={styles.input}
+              value={editLocationName}
+              onChange={(e) => setEditLocationName(e.target.value)}
+            />
+          </label>
+          <label style={styles.fieldLabel}>
+            Location Address
+            <input
+              style={styles.input}
+              value={editLocationAddress}
+              onChange={(e) => setEditLocationAddress(e.target.value)}
+            />
+          </label>
         </div>
+        <label style={styles.fieldLabel}>
+          Product Image URL
+          <input
+            style={styles.input}
+            value={editProductImage}
+            onChange={(e) => setEditProductImage(e.target.value)}
+            placeholder="https://…"
+          />
+        </label>
         <label style={styles.fieldLabel}>
           Description
           <textarea

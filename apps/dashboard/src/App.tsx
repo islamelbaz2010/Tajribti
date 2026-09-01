@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Overview from './pages/Overview';
+import Campaigns from './pages/Campaigns';
 import CreateCampaign from './pages/CreateCampaign';
 import CampaignDetail from './pages/CampaignDetail';
 import Insights from './pages/Insights';
@@ -34,6 +35,7 @@ export default function App() {
           {/* Brand dashboard */}
           <Route path="/login" element={<Login />} />
           <Route path="/overview" element={<ProtectedRoute><Overview /></ProtectedRoute>} />
+          <Route path="/campaigns" element={<ProtectedRoute><Campaigns /></ProtectedRoute>} />
           <Route path="/campaigns/new" element={<ProtectedRoute><CreateCampaign /></ProtectedRoute>} />
           <Route path="/campaign" element={<ProtectedRoute><CampaignDetail /></ProtectedRoute>} />
           <Route path="/insights" element={<ProtectedRoute><Insights /></ProtectedRoute>} />

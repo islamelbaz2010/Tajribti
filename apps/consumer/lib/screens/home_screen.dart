@@ -23,6 +23,11 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _error;
   final _buttonKey = GlobalKey();
   final _signInKey = GlobalKey();
+  final _headerKey = GlobalKey();
+  final _cardKey = GlobalKey();
+  final _heroKey = GlobalKey();
+  final _scrollViewKey = GlobalKey();
+  final _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -38,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     AuthService.authEpoch.removeListener(_onAuthChanged);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -81,24 +87,26 @@ class _HomeScreenState extends State<HomeScreen> {
         'dpr=${mq.devicePixelRatio} padTop=${mq.padding.top} '
         'padBottom=${mq.padding.bottom}');
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final box = _buttonKey.currentContext?.findRenderObject() as RenderBox?;
-      if (box != null && box.hasSize) {
-        final topLeft = box.localToGlobal(Offset.zero);
-        final br = box.localToGlobal(box.size.bottomRight(Offset.zero));
-        print('P0_TRACE:button-realbox left=${topLeft.dx} top=${topLeft.dy} '
-            'w=${box.size.width} h=${box.size.height} '
-            'right=${br.dx} bottom=${br.dy}');
-      } else {
-        print('P0_TRACE:button-realbox NOT FOUND');
+      void probe(String label, GlobalKey key) {
+        final box = key.currentContext?.findRenderObject() as RenderBox?;
+        if (box != null && box.hasSize) {
+          final tl = box.localToGlobal(Offset.zero);
+          print('P0_TRACE:$label-realbox left=${tl.dx} top=${tl.dy} '
+              'w=${box.size.width} h=${box.size.height}');
+        } else {
+          print('P0_TRACE:$label-realbox NOT FOUND');
+        }
       }
-      final signInBox = _signInKey.currentContext?.findRenderObject() as RenderBox?;
-      if (signInBox != null && signInBox.hasSize) {
-        final tl = signInBox.localToGlobal(Offset.zero);
-        print('P0_TRACE:signin-realbox left=${tl.dx} top=${tl.dy} '
-            'w=${signInBox.size.width} h=${signInBox.size.height}');
-      } else {
-        print('P0_TRACE:signin-realbox NOT FOUND');
-      }
+      probe('signin', _signInKey);
+      probe('hero', _heroKey);
+      probe('header', _headerKey);
+      probe('card', _cardKey);
+      probe('button', _buttonKey);
+      probe('scrollview', _scrollViewKey);
+      final scrollPos = _scrollController.hasClients
+          ? _scrollController.position.pixels
+          : null;
+      print('P0_TRACE:scrolloffset pixels=$scrollPos');
     });
     return Directionality(
       textDirection: context.dir,
@@ -113,6 +121,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 onRefresh: _load,
                 color: kPrimary,
                 child: CustomScrollView(
+                  key: _scrollViewKey,
+                  controller: _scrollController,
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
                     // ── App Bar ──────────────────────────────────────────────
@@ -165,11 +175,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       )
                     else
-                      SliverToBoxAdapter(child: _HeroBanner(s: s)),
+                      SliverToBoxAdapter(
+                        child: KeyedSubtree(key: _heroKey, child: _HeroBanner(s: s)),
+                      ),
 
                     // ── Campaign Section Header ──────────────────────────────
                     SliverToBoxAdapter(
                       child: Padding(
+                        key: _headerKey,
                         padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
                         child: Row(
                           children: [
@@ -209,6 +222,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               final alreadyParticipated = _loggedIn && _profile != null &&
                                   _profile!.recentCampaigns.any((r) => r.campaignId == _campaigns[i].id);
                               return Listener(
+                                key: i == 0 ? _cardKey : null,
                                 behavior: HitTestBehavior.translucent,
                                 onPointerDown: (e) => print('P0_TRACE:card ${e.position}'),
                                 child: _CampaignCard(

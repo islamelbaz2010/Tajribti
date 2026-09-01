@@ -14,6 +14,8 @@ import Participants from './pages/Participants';
 import Gallery from './pages/Gallery';
 import Report from './pages/Report';
 import CompanyProfile from './pages/CompanyProfile';
+import PublicHome from './pages/public/Home';
+import PublicSampleReport from './pages/public/SampleReport';
 import JoinLayout from './pages/consumer/JoinLayout';
 import JoinPage from './pages/consumer/JoinPage';
 import PhonePage from './pages/consumer/PhonePage';
@@ -33,6 +35,10 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* Public marketing site — no auth (Commercial V1 Completion Sprint, 2026-09-01) */}
+          <Route path="/" element={<PublicHome />} />
+          <Route path="/sample-report" element={<PublicSampleReport />} />
+
           {/* Brand dashboard */}
           <Route path="/login" element={<Login />} />
           <Route path="/overview" element={<ProtectedRoute><Overview /></ProtectedRoute>} />
@@ -57,7 +63,7 @@ export default function App() {
             <Route path="thankyou" element={<ThankYouPage />} />
           </Route>
 
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

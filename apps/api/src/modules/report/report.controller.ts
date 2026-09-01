@@ -5,10 +5,13 @@ import {
   Request,
   UseGuards,
   ForbiddenException,
+  SetMetadata,
 } from '@nestjs/common';
 import { ReportService } from './report.service';
-import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { JwtAuthGuard, IS_PUBLIC_KEY } from '../auth/guards/jwt.guard';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+
+const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 
 interface RequestWithUser extends Request {
   user: AuthenticatedUser;
@@ -18,6 +21,16 @@ interface RequestWithUser extends Request {
 @UseGuards(JwtAuthGuard)
 export class ReportController {
   constructor(private readonly reportService: ReportService) {}
+
+  // Public Sample Report (Commercial V1 Completion Sprint, 2026-09-01):
+  // powers the public marketing site — no auth, no campaignId param,
+  // hardcoded server-side to the seeded demo campaign only (see
+  // report.service.ts's generatePublicSampleReport()).
+  @Public()
+  @Get('sample')
+  getPublicSampleReport() {
+    return this.reportService.generatePublicSampleReport();
+  }
 
   private async assertOwnership(req: RequestWithUser, campaignId: string): Promise<void> {
     if (req.user.type !== 'brand') throw new ForbiddenException('Brand account required');

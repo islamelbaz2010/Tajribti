@@ -79,7 +79,13 @@ const AR = {
   narrativeArMissing: '(الملخص التنفيذي بالعربية غير متاح لهذا التقرير المخزّن مؤقتاً — يُعرض النص الإنجليزي أعلاه.)',
 };
 
-export default function Report() {
+// `public` mode (Commercial V1 Completion Sprint, 2026-09-01): powers the
+// unauthenticated marketing site's Sample Report page — same component,
+// same rendering, only the data source changes (the public, demo-only
+// `/report/sample` endpoint instead of the authenticated per-campaign
+// one). Defaults to the existing authenticated behavior; the `/report`
+// route's own behavior is unchanged.
+export default function Report({ mode = 'authenticated' }: { mode?: 'authenticated' | 'public' }) {
   const location = useLocation();
   const [data, setData] = useState<PdfData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,13 +99,15 @@ export default function Report() {
     setData(null);
     setError('');
     setLoading(true);
-    campaignApi
-      .getSelected()
-      .then((c) => reportApi.getPdfData(c.id))
+    const load =
+      mode === 'public'
+        ? reportApi.getPublicSample()
+        : campaignApi.getSelected().then((c) => reportApi.getPdfData(c.id));
+    load
       .then(setData)
       .catch(() => setError('Failed to load report data.'))
       .finally(() => setLoading(false));
-  }, [location.search]);
+  }, [location.search, mode]);
 
   const t = (en: string, ar: string) => (isAr ? ar : en);
 

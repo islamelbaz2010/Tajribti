@@ -31,6 +31,24 @@ export class ReportService {
     if (campaign.brandAccountId !== brandId) throw new ForbiddenException('Access denied');
   }
 
+  // Public Sample Report (Commercial V1 Completion Sprint, 2026-09-01):
+  // powers the public marketing site's "View Sample Report" path — a
+  // prospective Company must be able to see the deliverable before
+  // logging in or buying anything. Deliberately hardcoded to the seeded
+  // `isDemo: true` campaign only (admin.service.ts's seedDemo(), the
+  // same campaign every /admin/seed/reset run recreates) — never accepts
+  // a campaignId from the caller, so it can never expose real customer
+  // data no matter what the public route is asked to render. Reuses
+  // generatePdfData() unchanged; the existing `isDemo` flag already
+  // drives the "SAMPLE DATA" badges/disclaimers throughout Report.tsx.
+  async generatePublicSampleReport(): ReturnType<ReportService['generatePdfData']> {
+    const demoCampaign = await this.campaignRepo.findOne({ where: { isDemo: true } });
+    if (!demoCampaign) {
+      throw new NotFoundException('No sample campaign is currently seeded.');
+    }
+    return this.generatePdfData(demoCampaign.id);
+  }
+
   async getAiSummary(campaignId: string): Promise<{
     narrative: string;
     narrativeAr: string | null;

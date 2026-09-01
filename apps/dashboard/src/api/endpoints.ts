@@ -131,4 +131,8 @@ export const reportApi = {
     client.get(`/report/${campaignId}/ai-summary`),
   getPdfData: (campaignId: string): Promise<PdfData> =>
     client.get(`/report/${campaignId}/pdf-data`),
+  // Commercial V1 Completion Sprint (2026-09-01): public, unauthenticated
+  // — powers the marketing site's Sample Report page. Server-side scoped
+  // to the seeded demo campaign only; no campaignId is ever sent.
+  getPublicSample: (): Promise<PdfData> => client.get('/report/sample'),
 };

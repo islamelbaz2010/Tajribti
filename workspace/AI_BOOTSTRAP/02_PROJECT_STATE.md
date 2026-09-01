@@ -1,7 +1,25 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-09-01 (DL-065 End-to-End Pilot Loop — DEVICE VERIFIED, on top of DL-064 Product Coherence Audit, DL-063 Visual/UX Maturation phase 2, DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+**Last updated:** 2026-09-01 (DL-066 Survey Builder V2 + Report cover polish, on top of DL-065 End-to-End Pilot Loop, DL-064 Product Coherence Audit, DL-063 Visual/UX Maturation phase 2, DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+
+---
+
+## CURRENT SESSION DELTA — 2026-09-01, ninth pass (Survey Builder V2 + Report Cover Polish / DL-066)
+
+Between this pass and the last, a read-only Product Integrity Audit confirmed the Company Console ↔ Consumer Mobile campaign/status reconciliation was already correct by design (Available Campaigns = active-status-driven, My Activity = historical `recentCampaigns`-driven — confirmed from `home_screen.dart`/`activity_screen.dart` source) and found no defects; no code changed in that pass.
+
+This pass implemented Survey Builder V2:
+
+- **Core/custom split**: the first 5 questions of every campaign stay id/type/order-immutable (wording/options still editable, unchanged from DL-062) because `analytics.service.ts` reads their answers by fixed key (`q2`/`q3`/`q5`) and AI Insights/Report depend on that. Anything a Company adds beyond position 5 is a free "custom" question — add/remove/reorder/retype with no constraint. DTO cap raised from 5 to 10 total questions.
+- `analytics.service.ts getSurveyBreakdown()` now also returns `customQuestions` — a generic per-question result (multiple_choice breakdown, stars/scale average, or text verbatims via the existing quality gate) for whatever a Company has added. Existing q2/q3/q5 logic completely untouched.
+- New shared `apps/dashboard/src/components/SurveyEditor.tsx` replaces two near-duplicate inline editors in `CreateCampaign.tsx`/`CampaignDetail.tsx`. `SurveyResults.tsx` renders the new custom-question results in a "Campaign-Specific Questions" section.
+- `Report.tsx`: cover meta chips (location/period/reported date) swapped from emoji to small-caps text labels — the only Report change; content re-reviewed on a fresh read and judged already strong (evidence-grounded, explicit insufficient-data handling, no overclaiming), so nothing else was touched.
+- **Mobile compatibility confirmed by source, not assumed**: `survey_screen.dart` computes progress/isLast purely from `questions.length` — zero Mobile code change needed.
+- Runtime-verified locally (added/removed/reordered custom questions, confirmed core-question edits still rejected) and re-verified in production afterward (rejection-path only, zero mutation — the real live campaign's existing data reads identically to before, confirming zero regression).
+- `tsc --noEmit` + `CI=true npm run build` clean on both apps. Deployed: Railway auto-deployed the API, Dashboard deployed via `vercel --prod`.
+
+Full detail: `DECISION_LOG.md` DL-066.
 
 ---
 

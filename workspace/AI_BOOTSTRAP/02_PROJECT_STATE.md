@@ -1,7 +1,23 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-09-01 (DL-064 End-to-End Product Coherence Audit — NO CODE CHANGE — on top of DL-063 Visual/UX Maturation phase 2, DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+**Last updated:** 2026-09-01 (DL-065 End-to-End Pilot Loop — DEVICE VERIFIED, on top of DL-064 Product Coherence Audit, DL-063 Visual/UX Maturation phase 2, DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+
+---
+
+## CURRENT SESSION DELTA — 2026-09-01, eighth pass (End-to-End Pilot Loop / DL-065 — DEVICE VERIFIED, no code change)
+
+Closed DL-064's one remaining gap — source/API verification is not the same as an actual device-level runtime proof:
+
+- Created one clearly-labeled production campaign (`[PILOT VALIDATION] Test Product`, id `351596c2-ec45-47e9-8742-99f2f81542b7`) via the real Company Console API path, with a deliberately distinctive 5-question survey (Q3 options `Alpha/Beta/Gamma/Delta/Epsilon` — non-default, so any semantic mismatch would be unmistakable).
+- **DEVICE VERIFIED** on `TKINR8IJ5D9DSKQK` using the existing installed APK — zero rebuilds, zero reinstalls, zero Consumer Mobile code changes: force-stopping/relaunching the app surfaced the new campaign in Available Offers automatically; Campaign Detail showed every configured field correctly.
+- QR camera-scan could not be automated from this sandboxed shell (no way to present a QR code to a physical camera) — handed off as one Manual Founder Test Protocol step. The Founder scanned the campaign's QR from the Company Console and completed phone/OTP/survey on the device.
+- **Independently re-verified server-side afterward** (not taken on the Founder's word): exactly 1 redemption and 1 survey response (no duplication); `analytics/{id}/survey`'s `questionBreakdown.q3` showed `"Delta"` — the exact distinctive custom option, proving the Company's configured survey reached the device, was displayed, answered, and correctly mapped back through the fixed-key analytics; Demographics matched the real participant; the AI narrative referenced the real product name, the real 100% purchase intent, the real "Delta" descriptor, and correctly hedged on the 1-person sample size; Report `pdf-data` returned the same consistent data. Device-side: the consumer's point balance increased by exactly 5 (matching the configured reward) and the campaign showed as completed.
+- Campaign set back to `draft` afterward (record kept, not deleted). No code changed this pass.
+
+**Conclusion**: the full product loop is now verified not just from source/API but from an actual device run with a real Founder participation — the strongest evidence level available.
+
+Full detail: `DECISION_LOG.md` DL-065.
 
 ---
 

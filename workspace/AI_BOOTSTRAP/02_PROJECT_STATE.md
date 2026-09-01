@@ -1,7 +1,15 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-09-01 (DL-069 Company Foundation, on top of DL-068 Campaign Details identity + campaign scheduling + Coming Soon, DL-067 Survey Builder ordering fix, DL-066 Survey Builder V2 + Report cover polish, DL-065 End-to-End Pilot Loop, DL-064 Product Coherence Audit, DL-063 Visual/UX Maturation phase 2, DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+**Last updated:** 2026-09-01 (DL-070 Production Schema Safety Finding, on top of DL-069 Company Foundation, DL-068 Campaign Details identity + campaign scheduling + Coming Soon, DL-067 Survey Builder ordering fix, DL-066 Survey Builder V2 + Report cover polish, DL-065 End-to-End Pilot Loop, DL-064 Product Coherence Audit, DL-063 Visual/UX Maturation phase 2, DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+
+---
+
+## CURRENT SESSION DELTA — 2026-09-01, thirteenth pass (Production Schema Safety Finding / DL-070)
+
+**IMPORTANT — corrects prior "migration not yet applied to production" claims (this file previously said so for both the archive and Company Foundation migrations).** Railway's `api` service has `NODE_ENV=pilot`, not `production`; `app.module.ts` only turns TypeORM `synchronize` off when `NODE_ENV === 'production'` — so schema auto-sync has been silently live against the real production database all session. Confirmed (non-destructively): the Company Foundation schema (`sector`, `brand_contacts`) and the `archived` campaign-status enum value (from the twelfth and earlier passes) are BOTH already present/working in production, despite neither migration ever having been run via `migration:run`. **Current, accurate state**: production's schema already matches every entity change made this session; only the `migrations` tracking table doesn't record it — harmless, since both migration files are idempotent and will safely no-op if run later. **Open Founder action**: decide whether to set Railway's `api` `NODE_ENV=production` or narrow the `synchronize` condition in `app.module.ts` — `synchronize:true` in a live environment is riskier than migrations in general (can silently drop a column/table on a future non-additive entity change), even though every change so far has been safely additive. No code changed this pass.
+
+Full detail: `DECISION_LOG.md` DL-070.
 
 ---
 
@@ -9,7 +17,7 @@
 
 Extended the product from "one Brand with campaigns" toward real Companies:
 
-- **Company = `BrandAccount`** — confirmed the existing entity already the right shape (no new identity entity). Added nullable `sector` (`fmcg`/`beauty_personal_care`/`pharma_otc`, from locked DL-003/DL-007 only) and a new `brand_contacts` table (record, not an account — no login) via additive migration `1788100000000-AddCompanyFoundation` — **not yet run against production**, same open Founder/deploy action as the still-outstanding `1788000000000-AddArchivedCampaignStatus`.
+- **Company = `BrandAccount`** — confirmed the existing entity already the right shape (no new identity entity). Added nullable `sector` (`fmcg`/`beauty_personal_care`/`pharma_otc`, from locked DL-003/DL-007 only) and a new `brand_contacts` table (record, not an account — no login) via additive migration `1788100000000-AddCompanyFoundation`. **Correction (see the thirteenth-pass/DL-070 block above)**: this schema is already live in production via TypeORM `synchronize` (Railway's `NODE_ENV=pilot`, not `production`) — the formal migration itself was never run, but the schema it would produce already matches reality.
 - `Campaign` gained an ownership-validated, nullable `contactId` (`ON DELETE SET NULL` — deleting a contact never touches campaign history).
 - **Admin** (`x-admin-secret`): brand listing/edit (`GET`/`PATCH /admin/brands*`) + full contact CRUD (`/admin/brands/:id/contacts*`).
 - **Self-service** (new `CompanyModule`, brand-JWT-scoped): `GET /company/me`, contact CRUD, `GET /company/sector-framework` (2 product-authored recommended questions per sector, namespaced ids that can't collide with core `q1`-`q5`).

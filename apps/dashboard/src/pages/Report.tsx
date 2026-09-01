@@ -171,7 +171,38 @@ export default function Report() {
   // campaigns don't, so the following sections' displayed step numbers stay
   // sequential (06/07/08) rather than jumping to 07/08/09 with a gap.
   const hasCustomFindings = survey.customQuestions.length > 0;
+  // Methodology accuracy fix (2026-09-01, this pass): "Survey Length" was
+  // hardcoded to always say "5 questions" — true for every campaign until
+  // Survey Builder V2 (DL-066/069) let a Company add up to 5 more. A
+  // campaign with custom questions was reporting a false question count in
+  // its own Methodology section, undermining the "evidence-grounded, never
+  // states anything untrue" standard the rest of this report holds itself
+  // to. Computed from the actual campaign.surveyQuestions length; wording
+  // is byte-identical to before for every campaign that still has exactly
+  // 5 (the large majority), so no existing report's text changes.
+  const totalQuestionCount = campaign.surveyQuestions?.length ?? 5;
+  const surveyLengthValue =
+    totalQuestionCount === 5
+      ? t(
+          '5 questions: trial rating, purchase intent, product descriptor, overall satisfaction, open-ended feedback',
+          AR.methodSurveyLengthVal
+        )
+      : t(
+          `${totalQuestionCount} questions: 5 standard trial-research questions plus ${totalQuestionCount - 5} campaign-specific question(s) added by the Company`,
+          `${totalQuestionCount} سؤالاً: 5 أسئلة بحثية معيارية بالإضافة إلى ${totalQuestionCount - 5} سؤال خاص بالحملة أضافته الشركة`
+        );
   const isDemo = campaign.isDemo;
+  // Report narrative text defect fix (2026-09-01, this pass): locationName
+  // is an optional Create-Campaign field (campaign.entity.ts: nullable),
+  // already correctly guarded on the cover (`campaign.locationName &&`)
+  // and the Methodology table (`|| 'Not specified'`), but several
+  // narrative sentences interpolated it directly — a campaign created
+  // without a location would render a grammatically broken sentence
+  // ("...trial at . These figures...") instead of readable text. Applied
+  // wherever the report constructs a sentence around it; every campaign
+  // that already has a locationName (the large majority, including every
+  // real campaign in production today) renders byte-identical text.
+  const locationLabel = campaign.locationName || t('the trial location', 'موقع التجربة');
   const topAge = demographics.ageDistribution[0];
   const topGender = demographics.genderDistribution[0];
   const topCity = demographics.cityDistribution[0];
@@ -372,12 +403,12 @@ export default function Report() {
             <p style={pg.sectionIntro}>
               {isDemo
                 ? t(
-                    `This section shows sample data illustrating what an audience profile looks like for a real campaign at ${campaign.locationName}. These figures are illustrative, not from real participants. In a live campaign, every participant authenticates via WhatsApp OTP and demographics are collected immediately post-trial.`,
-                    `${AR.audienceIntroDemo} ${campaign.locationName}. ${AR.audienceAuthDemo}`
+                    `This section shows sample data illustrating what an audience profile looks like for a real campaign at ${locationLabel}. These figures are illustrative, not from real participants. In a live campaign, every participant authenticates via WhatsApp OTP and demographics are collected immediately post-trial.`,
+                    `${AR.audienceIntroDemo} ${locationLabel}. ${AR.audienceAuthDemo}`
                   )
                 : t(
-                    `${overview.totalRedemptions} consumers completed a verified physical product trial at ${campaign.locationName}. All participants authenticated via WhatsApp OTP. Demographics reflect self-reported data collected immediately post-trial.`,
-                    `${AR.audienceIntro} ${campaign.locationName}. ${AR.audienceAuth}`
+                    `${overview.totalRedemptions} consumers completed a verified physical product trial at ${locationLabel}. All participants authenticated via WhatsApp OTP. Demographics reflect self-reported data collected immediately post-trial.`,
+                    `${AR.audienceIntro} ${locationLabel}. ${AR.audienceAuth}`
                   )}
             </p>
 
@@ -643,8 +674,8 @@ export default function Report() {
               <RecItem
                 num={1}
                 text={isAr
-                  ? `${topCity?.label ?? campaign.locationName} كانت موقع هذه التجربة وليست بالضرورة أفضل سوق للتوزيع. فكّر في التحقق من الإشارة عبر تجربة إضافية في موقع آخر قبل اتخاذ قرار توزيع كبير بناءً على هذا الموقع وحده.`
-                  : `${topCity?.label ?? campaign.locationName} was this trial's location, not necessarily the strongest retail market — sample concentration here reflects where the trial ran, not proven market demand. Consider validating with an additional trial location before committing distribution decisions to this area alone.`
+                  ? `${topCity?.label ?? locationLabel} كانت موقع هذه التجربة وليست بالضرورة أفضل سوق للتوزيع. فكّر في التحقق من الإشارة عبر تجربة إضافية في موقع آخر قبل اتخاذ قرار توزيع كبير بناءً على هذا الموقع وحده.`
+                  : `${topCity?.label ?? locationLabel} was this trial's location, not necessarily the strongest retail market — sample concentration here reflects where the trial ran, not proven market demand. Consider validating with an additional trial location before committing distribution decisions to this area alone.`
                 }
               />
               {topAge && topGender && (
@@ -699,10 +730,7 @@ export default function Report() {
               />
               <MethodRow
                 label={t('Survey Length', AR.methodSurveyLength)}
-                value={t(
-                  '5 questions: trial rating, purchase intent, product descriptor, overall satisfaction, open-ended feedback',
-                  AR.methodSurveyLengthVal
-                )}
+                value={surveyLengthValue}
               />
               <MethodRow
                 label={t('Consumer Authentication', AR.methodAuth)}

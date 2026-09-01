@@ -90,6 +90,25 @@ export default function PublicHome() {
         </div>
       </section>
 
+      {/* ── PROBLEM / OPPORTUNITY ── */}
+      {/* Commercial V1 Finalization (2026-09-01): the site previously moved straight
+          from hero to "how it works" without ever naming the problem being solved.
+          Framing sourced from the repository's own approved mission statement
+          (AI_BOOTSTRAP/00_AI_START_HERE.md — "Replace guesswork in product launches
+          with real-time, consented consumer truth"), not invented copy. */}
+      <section style={s.section}>
+        <div style={s.sectionInner}>
+          <div style={s.sectionLabel}>THE PROBLEM</div>
+          <h2 style={s.sectionTitle}>Most product decisions are still made on guesswork.</h2>
+          <p style={{ ...s.sectionSub, maxWidth: 640 }}>
+            Focus groups are slow and small. Social listening is unverified and secondhand.
+            Sales data arrives after the decision is already made. Tajribti replaces that
+            guesswork with real-time, consented consumer truth — a real product in a real
+            consumer&rsquo;s hands, and structured feedback captured while the trial is still fresh.
+          </p>
+        </div>
+      </section>
+
       {/* ── VALUE PROPS ── */}
       <section style={s.section}>
         <div style={s.sectionInner}>
@@ -125,6 +144,26 @@ export default function PublicHome() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── WHAT WE ASK CONSUMERS ── */}
+      {/* Commercial V1 Finalization (2026-09-01): answers "what data do you collect?"
+          — previously unanswered on the site. Every field listed here is verified
+          against the actual Consumer entity (apps/api/src/entities/consumer.entity.ts)
+          and the existing PDPL_Lawyer_Brief.md data-categories table — nothing added
+          that the product doesn't actually collect. */}
+      <section style={{ ...s.section, background: '#f7f8fb' }}>
+        <div style={s.sectionInner}>
+          <div style={s.sectionLabel}>WHAT WE ASK CONSUMERS</div>
+          <h2 style={s.sectionTitle}>Only what a real study needs — nothing more.</h2>
+          <p style={s.sectionSub}>
+            A first name, a broad age range, gender, and general area — enough to build
+            meaningful segments, never a full identity profile. Phone verification confirms
+            a real, one-time participant per campaign; it is never shared with the Company.
+            The rest is the survey itself: satisfaction, product perception, purchase intent,
+            and open-ended feedback, always in the consumer&rsquo;s own words.
+          </p>
         </div>
       </section>
 

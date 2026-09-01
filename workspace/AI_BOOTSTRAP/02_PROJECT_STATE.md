@@ -1,9 +1,17 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-09-01 (DL-074 Pilot Closure Pass, on top of DL-073 Final Pilot Gate, DL-072 Campaign Lifecycle Completion — End-Date Participation Gate, DL-071 Production Safety + Campaign Scheduling UX + Company Foundation Hardening, DL-070 Production Schema Safety Finding, DL-069 Company Foundation, DL-068 Campaign Details identity + campaign scheduling + Coming Soon, DL-067 Survey Builder ordering fix, DL-066 Survey Builder V2 + Report cover polish, DL-065 End-to-End Pilot Loop, DL-064 Product Coherence Audit, DL-063 Visual/UX Maturation phase 2, DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+**Last updated:** 2026-09-01 (DL-075 Commercial Pilot Preparation Audit, on top of DL-074 Pilot Closure Pass, DL-073 Final Pilot Gate, DL-072 Campaign Lifecycle Completion — End-Date Participation Gate, DL-071 Production Safety + Campaign Scheduling UX + Company Foundation Hardening, DL-070 Production Schema Safety Finding, DL-069 Company Foundation, DL-068 Campaign Details identity + campaign scheduling + Coming Soon, DL-067 Survey Builder ordering fix, DL-066 Survey Builder V2 + Report cover polish, DL-065 End-to-End Pilot Loop, DL-064 Product Coherence Audit, DL-063 Visual/UX Maturation phase 2, DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
 
-**PILOT STATUS: READY FOR PILOT WITH FOUNDER ACTION.** Sole outstanding item: production migration bookkeeping reconciliation (`DECISION_LOG.md` DL-073/074 has the exact manual procedure — cannot be executed from this sandboxed environment). Secondary manual item: the Founder needs to log back into the Consumer Mobile app (session cleared by the DL-072 APK reinstall). No known P0.
+**PILOT STATUS: COMMERCIAL PILOT READY WITH FOUNDER ACTION.** Sole outstanding item: production migration bookkeeping reconciliation (`DECISION_LOG.md` DL-073/074 has the exact manual procedure — cannot be executed from this sandboxed environment). Secondary manual item: the Founder needs to log back into the Consumer Mobile app (session cleared by the DL-072 APK reinstall). No known P0.
+
+---
+
+## CURRENT SESSION DELTA — 2026-09-01, eighteenth pass (Commercial Pilot Preparation Audit / DL-075)
+
+Full commercial-workflow audit; found and fixed one real P1 gap, confirmed everything else already correct (no re-testing of unchanged code, per this task's own "if already correct, leave it alone" rule). **Fixed**: `Report.tsx` never rendered Survey Builder V2's custom (campaign-specific) questions, despite the data already flowing through `analytics.service.ts`/`report.service.ts` and already showing on the Dashboard's Survey Results page — a Company's campaign customization was invisible in the actual PDF deliverable it keeps. New conditional "Campaign-Specific Findings" section (renders only when a campaign has custom questions; all other reports unchanged), reusing already-proven display patterns; subsequent section numbers now computed dynamically so they stay sequential either way. Verified against real production data shape. `tsc`/`CI build` clean; deployed to the existing `tajribti` Vercel project (`vercel project ls` confirmed — not a new project; `web` untouched). No other P0/P1 found.
+
+Full detail: `DECISION_LOG.md` DL-075.
 
 ---
 

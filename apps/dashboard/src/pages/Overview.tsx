@@ -408,7 +408,7 @@ export default function Overview() {
 
   return (
     <div>
-      {/* Campaign Identity */}
+      {/* 1. What campaign am I looking at? */}
       <div style={styles.campaignHeader}>
         <div style={styles.headerLeft}>
           {campaign.isDemo && <span style={styles.demoBadge}>DEMO CAMPAIGN</span>}
@@ -419,26 +419,33 @@ export default function Overview() {
             {campaign.locationName}
           </p>
         </div>
-        <div style={styles.liveBadge}>
-          <div style={styles.liveDot} />
-          LIVE
+        <div
+          style={{
+            ...styles.statusBadge,
+            color: STATUS_COLOR[campaign.status] ?? '#7c8eb8',
+            borderColor: `${STATUS_COLOR[campaign.status] ?? '#7c8eb8'}40`,
+            background: `${STATUS_COLOR[campaign.status] ?? '#7c8eb8'}12`,
+          }}
+        >
+          {campaign.status === 'active' && <div style={styles.liveDot} />}
+          {campaign.status.toUpperCase()}
         </div>
       </div>
 
-      {/* Trial → Signal → Intelligence → Decision */}
+      {/* Trial → Signal → Intelligence → Decision — the story this whole
+          page tells, in order, below */}
       <SignalFlowStrip />
 
-      {/* Consumer Signals Hero */}
+      {/* 2. How is the campaign performing? */}
       <SignalHero count={data.totalRedemptions} pulse={pulse} />
 
-      {/* Metric Cards */}
       <div style={styles.metricsGrid}>
         <MetricCard label="Survey Completions" value={data.surveyCompletions} />
         <MetricCard label="Completion Rate" value={`${data.completionRate}%`} />
         <MetricCard label="Purchase Intent" value={`${data.purchaseIntentPercent}%`} accent />
       </div>
 
-      {/* Recent Activity */}
+      {/* 3. Who participated? */}
       <div style={styles.feedSection}>
         <div style={styles.feedHeader}>
           <h2 style={styles.feedTitle}>Recent Activity</h2>
@@ -453,10 +460,101 @@ export default function Overview() {
         )}
       </div>
 
+      {/* 4–6. What did they say? What did we learn? Where's the full
+          report? — real navigation into the value layer, not duplicated
+          data. purchaseIntentPercent is the one number Overview already
+          has that's worth surfacing again as a teaser. */}
+      <GoDeeper hasData={data.totalRedemptions > 0} purchaseIntentPercent={data.purchaseIntentPercent} />
+
       <OtherCampaignsLink count={otherCampaigns.length} />
     </div>
   );
 }
+
+const STATUS_COLOR: Record<string, string> = {
+  active: '#b2f24d',
+  draft: '#6b7fa8',
+  paused: '#f5c451',
+  completed: '#5b8cff',
+  archived: '#4a5a7e',
+};
+
+function GoDeeper({
+  hasData,
+  purchaseIntentPercent,
+}: {
+  hasData: boolean;
+  purchaseIntentPercent: number;
+}) {
+  const items = [
+    {
+      to: '/survey',
+      label: 'Survey Results',
+      desc: hasData ? `${purchaseIntentPercent}% purchase intent so far` : 'What consumers say once they respond',
+    },
+    {
+      to: '/summary',
+      label: 'AI Insights',
+      desc: hasData ? 'Structured findings from the responses so far' : 'Findings appear once consumers respond',
+    },
+    {
+      to: '/report',
+      label: 'Report',
+      desc: 'The full campaign story, ready to share',
+    },
+  ];
+  return (
+    <div style={deeperStyles.wrap}>
+      <div style={deeperStyles.label}>Go Deeper</div>
+      <div style={deeperStyles.grid}>
+        {items.map((item) => (
+          <Link key={item.to} to={item.to} style={deeperStyles.card}>
+            <span style={deeperStyles.cardLabel}>{item.label}</span>
+            <span style={deeperStyles.cardDesc}>{item.desc}</span>
+            <span style={deeperStyles.cardArrow}>→</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const deeperStyles: Record<string, React.CSSProperties> = {
+  wrap: { marginTop: 20 },
+  label: {
+    fontSize: 10,
+    fontWeight: 700,
+    color: '#2e3d5e',
+    letterSpacing: 1.5,
+    marginBottom: 10,
+    textTransform: 'uppercase' as const,
+  },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: 12,
+  },
+  card: {
+    background: '#0a1120',
+    border: '1px solid #111d35',
+    borderRadius: 12,
+    padding: '16px 18px',
+    textDecoration: 'none',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 4,
+    position: 'relative' as const,
+  },
+  cardLabel: { fontSize: 13, fontWeight: 700, color: '#edf0ff' },
+  cardDesc: { fontSize: 11, color: '#4a5a7e', lineHeight: 1.4, paddingRight: 16 },
+  cardArrow: {
+    position: 'absolute' as const,
+    top: 14,
+    right: 16,
+    color: '#2e3d5e',
+    fontSize: 14,
+  },
+};
 
 const styles: Record<string, React.CSSProperties> = {
   loading: { color: '#2e3d5e', fontSize: 16, marginTop: 40 },
@@ -522,14 +620,12 @@ const styles: Record<string, React.CSSProperties> = {
     margin: '0 6px',
     color: '#1a2540',
   },
-  liveBadge: {
+  statusBadge: {
     display: 'flex',
     alignItems: 'center',
     gap: 6,
-    background: 'rgba(178, 242, 77, 0.08)',
-    border: '1px solid rgba(178, 242, 77, 0.2)',
-    color: '#b2f24d',
     borderRadius: 20,
+    border: '1px solid',
     padding: '6px 14px',
     fontSize: 10,
     fontWeight: 800,

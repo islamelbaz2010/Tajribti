@@ -38,7 +38,17 @@ export default function AiSummary() {
         <div style={styles.errorCard}>{error}</div>
       )}
 
-      {report && !loading && (
+      {report && !loading && report.responseCountAtGeneration === 0 && (
+        <div style={styles.emptyState}>
+          <div style={styles.emptyTitle}>Not enough data yet</div>
+          <p style={styles.emptyBody}>
+            AI Insights are generated from consumer survey responses. Once consumers try this
+            campaign and complete the survey, structured findings will appear here.
+          </p>
+        </div>
+      )}
+
+      {report && !loading && report.responseCountAtGeneration > 0 && (
         <div>
           <div style={styles.metaRow}>
             <span style={styles.meta}>
@@ -135,6 +145,14 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#fb7185',
     fontSize: 13,
   },
+  emptyState: {
+    background: '#0a1120',
+    border: '1px solid #111d35',
+    borderRadius: 12,
+    padding: '32px 28px',
+  },
+  emptyTitle: { fontSize: 15, fontWeight: 700, color: '#edf0ff', marginBottom: 8 },
+  emptyBody: { fontSize: 13, color: '#4a5a7e', lineHeight: 1.6, margin: 0, maxWidth: 480 },
   metaRow: {
     display: 'flex',
     justifyContent: 'space-between',

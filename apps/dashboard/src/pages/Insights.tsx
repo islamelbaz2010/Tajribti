@@ -58,6 +58,16 @@ export default function Insights() {
         </p>
       </div>
 
+      {totalParticipants === 0 ? (
+        <div style={styles.emptyState}>
+          <div style={styles.emptyTitle}>No demographic data yet</div>
+          <p style={styles.emptyBody}>
+            Age, gender, and city breakdowns appear here once consumers start trying this
+            campaign and completing the survey.
+          </p>
+        </div>
+      ) : (
+      <>
       <div style={styles.chartsGrid}>
         <div style={styles.card}>
           <div style={styles.cardTitle}>Age Distribution</div>
@@ -148,6 +158,8 @@ export default function Insights() {
           </div>
         </div>
       )}
+      </>
+      )}
     </div>
   );
 }
@@ -175,6 +187,14 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: -0.3,
   },
   sub: { fontSize: 13, color: '#2e3d5e', margin: 0 },
+  emptyState: {
+    background: '#0a1120',
+    border: '1px solid #111d35',
+    borderRadius: 12,
+    padding: '32px 28px',
+  },
+  emptyTitle: { fontSize: 15, fontWeight: 700, color: '#edf0ff', marginBottom: 8 },
+  emptyBody: { fontSize: 13, color: '#4a5a7e', lineHeight: 1.6, margin: 0, maxWidth: 480 },
   chartsGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',

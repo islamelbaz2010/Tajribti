@@ -37,6 +37,7 @@ export default function SurveyResults() {
 
   const intentData = data.purchaseIntentDistribution;
   const descriptorData = data.questionBreakdown['q3'] ?? [];
+  const totalResponses = intentData.reduce((sum, item) => sum + item.count, 0);
 
   return (
     <div>
@@ -46,6 +47,16 @@ export default function SurveyResults() {
         <p style={styles.sub}>What consumers said — purchase intent, product perception, and open feedback</p>
       </div>
 
+      {totalResponses === 0 ? (
+        <div style={styles.emptyState}>
+          <div style={styles.emptyTitle}>No survey responses yet</div>
+          <p style={styles.emptyBody}>
+            Purchase intent, product perception, and open feedback appear here once consumers
+            complete the survey after trying this campaign.
+          </p>
+        </div>
+      ) : (
+      <>
       <div style={styles.scoreRow}>
         <div style={styles.scoreCard}>
           <div style={styles.scoreLabel}>Purchase Intent Score</div>
@@ -110,9 +121,9 @@ export default function SurveyResults() {
           <div style={styles.cardTitle}>Open Feedback (Q5)</div>
           {data.verbatims.length === 0 ? (
             <div style={styles.emptyWrap}>
-              <p style={styles.empty}>No open-ended responses in this demo scenario.</p>
+              <p style={styles.empty}>No open-ended responses yet.</p>
               <p style={styles.emptyHint}>
-                In a live campaign, consumer verbatims appear here when respondents answer Q5.
+                Consumer verbatims appear here as respondents answer this question.
               </p>
             </div>
           ) : (
@@ -127,6 +138,8 @@ export default function SurveyResults() {
           )}
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }
@@ -154,6 +167,14 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: -0.3,
   },
   sub: { fontSize: 13, color: '#2e3d5e', margin: 0 },
+  emptyState: {
+    background: '#0a1120',
+    border: '1px solid #111d35',
+    borderRadius: 12,
+    padding: '32px 28px',
+  },
+  emptyTitle: { fontSize: 15, fontWeight: 700, color: '#edf0ff', marginBottom: 8 },
+  emptyBody: { fontSize: 13, color: '#4a5a7e', lineHeight: 1.6, margin: 0, maxWidth: 480 },
   scoreRow: {
     display: 'flex',
     gap: 20,

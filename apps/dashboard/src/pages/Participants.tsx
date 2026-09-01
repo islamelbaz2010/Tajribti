@@ -44,18 +44,27 @@ export default function Participants() {
     <div>
       <div style={styles.header}>
         <div>
-          <span style={styles.demoBadge}>CONSUMERS</span>
+          <span style={styles.demoBadge}>CONSUMER INSIGHTS</span>
           <h1 style={styles.title}>Participants</h1>
-          <p style={styles.sub}>Anonymised consumer records from this trial campaign</p>
+          <p style={styles.sub}>Who tried this campaign — anonymised consumer records</p>
         </div>
         <div style={styles.totalBadge}>
           <span style={styles.totalNum}>{total}</span>
-          <span style={styles.totalLabel}>total signals</span>
+          <span style={styles.totalLabel}>{total === 1 ? 'participant' : 'participants'}</span>
         </div>
       </div>
 
       {loading ? (
         <div style={styles.loading}>Loading participants…</div>
+      ) : total === 0 ? (
+        <div style={styles.emptyState}>
+          <div style={styles.emptyTitle}>No one has participated yet</div>
+          <p style={styles.emptyBody}>
+            Once a consumer scans this campaign&rsquo;s QR code and completes a trial, they&rsquo;ll
+            appear here — with demographics and survey status, ready to feed Demographics and
+            Survey Results.
+          </p>
+        </div>
       ) : (
         <>
           <div style={styles.tableWrap}>
@@ -162,6 +171,14 @@ const styles: Record<string, React.CSSProperties> = {
   },
   totalNum: { fontSize: 28, fontWeight: 900, color: '#b2f24d', lineHeight: 1 },
   totalLabel: { fontSize: 10, color: '#2e3d5e', marginTop: 4, letterSpacing: 0.5 },
+  emptyState: {
+    background: '#0a1120',
+    border: '1px solid #111d35',
+    borderRadius: 12,
+    padding: '32px 28px',
+  },
+  emptyTitle: { fontSize: 15, fontWeight: 700, color: '#edf0ff', marginBottom: 8 },
+  emptyBody: { fontSize: 13, color: '#4a5a7e', lineHeight: 1.6, margin: 0, maxWidth: 480 },
   tableWrap: {
     background: '#0a1120',
     border: '1px solid #111d35',

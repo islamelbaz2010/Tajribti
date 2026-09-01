@@ -1,7 +1,22 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-09-01 (DL-066 Survey Builder V2 + Report cover polish, on top of DL-065 End-to-End Pilot Loop, DL-064 Product Coherence Audit, DL-063 Visual/UX Maturation phase 2, DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+**Last updated:** 2026-09-01 (DL-067 Survey Builder ordering fix, on top of DL-066 Survey Builder V2 + Report cover polish, DL-065 End-to-End Pilot Loop, DL-064 Product Coherence Audit, DL-063 Visual/UX Maturation phase 2, DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+
+---
+
+## CURRENT SESSION DELTA — 2026-09-01, tenth pass (Survey Builder Ordering Fix / DL-067)
+
+The Founder manually tested DL-066's Survey Builder in production and found a genuine bug: a custom question couldn't move past a core question — the ↑ control was disabled at that boundary.
+
+- **Root cause** (traced from source, not guessed): three places in DL-066 conflated "core" with "the first 5 array positions" instead of a reserved-id identity — `campaign.service.ts`'s edit guard, `analytics.service.ts`'s custom-question detection (`.slice(5)`), and `SurveyEditor.tsx`'s move handler + up-button disabled state. `analytics.service.ts` reads answers by question id from a dictionary (`answers['q2']`/`['q3']`/`['q5']`), never by array position, and Mobile stores answers the same way (`_answers[q.id]`) — a core question's array position was always safe to move; only its id/type mattered, which the guard was already checking separately.
+- **Fix**: replaced the positional boundary with an identity-based one (reserved ids `{q1,q2,q3,q4,q5}`) in all three places. A custom question can now move to any position, including ahead of every core question. Core-question removal/retyping protection is unchanged — only the position constraint was ever wrong.
+- No migration — validation-logic/UI bug, not a schema issue. No historical `SurveyResponse` data at risk (id-keyed, not position-keyed).
+- Runtime-verified locally (multiple custom questions interleaved among core questions, both directions, core protections still enforced) and **in production using the Founder's own already-present test custom question on the exact campaign the bug report came from** (`351596c2`): confirmed the old failure (400) before deploying, confirmed success (200) after, with that campaign's real historical survey response (`q3 = "Delta"`, 100% purchase intent) unchanged before and after.
+- Regression-checked: all 3 production campaigns and the real Sprite Zero campaign's analytics unaffected.
+- `tsc --noEmit` + `CI=true npm run build` clean. Deployed to Railway and Vercel.
+
+Full detail: `DECISION_LOG.md` DL-067.
 
 ---
 

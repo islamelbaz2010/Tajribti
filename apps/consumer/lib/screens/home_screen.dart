@@ -21,13 +21,6 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   bool _loggedIn = false;
   String? _error;
-  final _buttonKey = GlobalKey();
-  final _signInKey = GlobalKey();
-  final _headerKey = GlobalKey();
-  final _cardKey = GlobalKey();
-  final _heroKey = GlobalKey();
-  final _scrollViewKey = GlobalKey();
-  final _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -43,7 +36,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     AuthService.authEpoch.removeListener(_onAuthChanged);
-    _scrollController.dispose();
     super.dispose();
   }
 
@@ -82,47 +74,16 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final s = context.l10n;
-    final mq = MediaQuery.of(context);
-    print('P0_TRACE:mediaquery w=${mq.size.width} h=${mq.size.height} '
-        'dpr=${mq.devicePixelRatio} padTop=${mq.padding.top} '
-        'padBottom=${mq.padding.bottom}');
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      void probe(String label, GlobalKey key) {
-        final box = key.currentContext?.findRenderObject() as RenderBox?;
-        if (box != null && box.hasSize) {
-          final tl = box.localToGlobal(Offset.zero);
-          print('P0_TRACE:$label-realbox left=${tl.dx} top=${tl.dy} '
-              'w=${box.size.width} h=${box.size.height}');
-        } else {
-          print('P0_TRACE:$label-realbox NOT FOUND');
-        }
-      }
-      probe('signin', _signInKey);
-      probe('hero', _heroKey);
-      probe('header', _headerKey);
-      probe('card', _cardKey);
-      probe('button', _buttonKey);
-      probe('scrollview', _scrollViewKey);
-      final scrollPos = _scrollController.hasClients
-          ? _scrollController.position.pixels
-          : null;
-      print('P0_TRACE:scrolloffset pixels=$scrollPos');
-    });
     return Directionality(
       textDirection: context.dir,
       child: Scaffold(
         backgroundColor: kBackground,
         body: _loading
             ? const Center(child: CircularProgressIndicator(color: kPrimary))
-            : Listener(
-                behavior: HitTestBehavior.translucent,
-                onPointerDown: (e) => print('P0_TRACE:body-root ${e.position}'),
-                child: RefreshIndicator(
+            : RefreshIndicator(
                 onRefresh: _load,
                 color: kPrimary,
                 child: CustomScrollView(
-                  key: _scrollViewKey,
-                  controller: _scrollController,
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
                     // ── App Bar ──────────────────────────────────────────────
@@ -156,7 +117,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           )
                         else
                           TextButton(
-                            key: _signInKey,
                             onPressed: () => context.push('/auth-choice'),
                             child: Text(
                               s.signIn,
@@ -175,14 +135,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       )
                     else
-                      SliverToBoxAdapter(
-                        child: KeyedSubtree(key: _heroKey, child: _HeroBanner(s: s)),
-                      ),
+                      SliverToBoxAdapter(child: _HeroBanner(s: s)),
 
                     // ── Campaign Section Header ──────────────────────────────
                     SliverToBoxAdapter(
                       child: Padding(
-                        key: _headerKey,
                         padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
                         child: Row(
                           children: [
@@ -221,12 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             (_, i) {
                               final alreadyParticipated = _loggedIn && _profile != null &&
                                   _profile!.recentCampaigns.any((r) => r.campaignId == _campaigns[i].id);
-                              return Listener(
-                                key: i == 0 ? _cardKey : null,
-                                behavior: HitTestBehavior.translucent,
-                                onPointerDown: (e) => print('P0_TRACE:card ${e.position}'),
-                                child: _CampaignCard(
-                                buttonKey: i == 0 ? _buttonKey : null,
+                              return _CampaignCard(
                                 campaign: _campaigns[i],
                                 s: s,
                                 alreadyParticipated: alreadyParticipated,
@@ -236,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 onTap: alreadyParticipated
                                     ? () => _openCompletedCampaign(_campaigns[i].id)
                                     : () => _enterCampaign(_campaigns[i].id),
-                              ));
+                              );
                             },
                             childCount: _campaigns.length,
                           ),
@@ -309,7 +261,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SliverToBoxAdapter(child: SizedBox(height: 24)),
                   ],
                 ),
-              ),
               ),
       ),
     );
@@ -527,13 +478,11 @@ class _CampaignCard extends StatelessWidget {
   final AppStr s;
   final bool alreadyParticipated;
   final VoidCallback onTap;
-  final Key? buttonKey;
   const _CampaignCard({
     required this.campaign,
     required this.s,
     this.alreadyParticipated = false,
     required this.onTap,
-    this.buttonKey,
   });
 
   @override
@@ -599,10 +548,7 @@ class _CampaignCard extends StatelessWidget {
           ),
 
           // ── Info section ──────────────────────────────────────────────
-          Listener(
-            behavior: HitTestBehavior.translucent,
-            onPointerDown: (e) => print('P0_TRACE:info-padding ${e.position}'),
-            child: Padding(
+          Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -651,10 +597,7 @@ class _CampaignCard extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 12),
-                Listener(
-                  behavior: HitTestBehavior.translucent,
-                  onPointerDown: (e) => print('P0_TRACE:reward-row ${e.position}'),
-                  child: Row(
+                Row(
                   children: [
                     if (campaign.rewardPoints > 0) ...[
                       Container(
@@ -682,16 +625,9 @@ class _CampaignCard extends StatelessWidget {
                       const Spacer(),
                     ] else
                       const Spacer(),
-                    Listener(
-                      behavior: HitTestBehavior.translucent,
-                      onPointerDown: (e) => print('P0_TRACE:button-listener ${e.position}'),
-                      child: GestureDetector(
-                      onTap: () {
-                        print('P0_TRACE:button-onTap-fired');
-                        onTap();
-                      },
+                    GestureDetector(
+                      onTap: onTap,
                       child: Container(
-                        key: buttonKey,
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                         decoration: BoxDecoration(
                           color: kPrimary,
@@ -707,13 +643,10 @@ class _CampaignCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    ),
                   ],
-                ),
                 ),
               ],
             ),
-          ),
           ),
         ],
       ),
@@ -728,11 +661,7 @@ class _CardBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 180, // must match Image.network's declared height above -
-      // Image wraps the errorBuilder's replacement in a box sized by its
-      // own explicit height/width, so a shorter banner here paints inside
-      // a taller reserved box, leaving a blank strip below it that is
-      // still part of the Stack's layout footprint for hit-testing.
+      height: 140,
       width: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(

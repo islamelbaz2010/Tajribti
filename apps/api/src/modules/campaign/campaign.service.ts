@@ -160,37 +160,60 @@ export class CampaignService {
     return this.campaignRepo.save(campaign);
   }
 
-  // Survey Builder V2 (Company Console Product Maturation, 2026-09-01):
-  // the first CORE_QUESTION_COUNT questions of every campaign are the
-  // "core" set — analytics.service.ts reads their answers by fixed key
-  // (q2 = purchase intent scale, q3 = descriptor choice, q5 = free text),
-  // and AI Insights/Report depend on those same three. Changing a core
-  // question's id/type/order after real consumers may have answered it
-  // would silently corrupt those sections for this campaign, so the core
-  // set's id/type/order is immutable once a campaign exists (wording and
-  // options may still change freely — unchanged from the original DL-062
-  // rule). Anything a Company adds beyond the core set is a "custom"
-  // question: free to add, remove, reorder, or retype, because nothing in
-  // analytics/report hardcodes its key — analytics.service.ts picks up
-  // custom questions generically instead (see getSurveyBreakdown).
-  private static readonly CORE_QUESTION_COUNT = 5;
+  // Survey Builder V2 (Company Console Product Maturation, 2026-09-01;
+  // ordering fixed 2026-09-01): "core" is an IDENTITY, not a position.
+  // analytics.service.ts reads answers by fixed key (q2 = purchase intent
+  // scale, q3 = descriptor choice, q5 = free text) looked up in the
+  // `answers` jsonb object — a dictionary keyed by question id, never by
+  // array index. That means a core question's ARRAY POSITION can change
+  // freely without affecting analytics identity at all; only removing a
+  // core id or changing its type would corrupt those sections. The
+  // original implementation conflated the two (blocked reordering into
+  // the first 5 array slots), which trapped every custom question after
+  // the core set even though nothing about analytics required that.
+  // Reserved ids q1–q5 are the core set for every campaign (the shape
+  // DEFAULT_SURVEY_QUESTIONS and every Create Campaign submission already
+  // use); anything else is a free "custom" question — add, remove,
+  // reorder anywhere (including between/before core questions), or
+  // retype, because analytics.service.ts picks those up generically by id
+  // (see getSurveyBreakdown), not by position.
+  private static readonly CORE_QUESTION_IDS = new Set(['q1', 'q2', 'q3', 'q4', 'q5']);
 
   private validateSurveyQuestionEdit(
     current: SurveyQuestion[],
     proposed: SurveyQuestion[],
   ): void {
-    const coreCount = Math.min(CampaignService.CORE_QUESTION_COUNT, current.length);
+    const currentCore = new Map(
+      current
+        .filter((q) => CampaignService.CORE_QUESTION_IDS.has(q.id))
+        .map((q) => [q.id, q] as const),
+    );
+    const proposedById = new Map(proposed.map((q) => [q.id, q] as const));
 
-    if (proposed.length < coreCount) {
-      throw new BadRequestException(
-        `Cannot remove a core survey question — the first ${coreCount} question(s) must remain.`,
-      );
+    // Every core question that exists today must still exist, with its
+    // type unchanged, somewhere in the proposed list. Its array position
+    // may move freely.
+    for (const [id, coreQuestion] of currentCore) {
+      const match = proposedById.get(id);
+      if (!match) {
+        throw new BadRequestException(
+          `Cannot remove core question ${id} — it can be reordered anywhere in the survey, but not removed.`,
+        );
+      }
+      if (match.type !== coreQuestion.type) {
+        throw new BadRequestException(
+          `Question ${id} is a core question and must keep its existing type — only its wording/options/position may change.`,
+        );
+      }
     }
 
-    for (let i = 0; i < coreCount; i++) {
-      if (proposed[i].id !== current[i].id || proposed[i].type !== current[i].type) {
+    // A new/custom question may not claim a reserved core id it didn't
+    // already have — prevents silently taking over that id's analytics
+    // identity (e.g. a custom question renamed to "q2").
+    for (const q of proposed) {
+      if (CampaignService.CORE_QUESTION_IDS.has(q.id) && !currentCore.has(q.id)) {
         throw new BadRequestException(
-          `Question ${i + 1} (${current[i].id}) is a core question and must keep its existing id and type — only its wording/options may change. Add a new question instead if you need something different.`,
+          `"${q.id}" is a reserved core question id and cannot be used by a new question.`,
         );
       }
     }

@@ -1,16 +1,19 @@
 import React from 'react';
 import type { SurveyQuestion } from '../api/types';
 
-// Survey Builder V2 (Company Console Product Maturation, 2026-09-01):
-// shared editor used by both CreateCampaign.tsx and CampaignDetail.tsx so
-// the two forms can't drift apart. The first `coreCount` questions are
-// "core" — analytics/AI Insights/Report depend on their id/type staying
-// fixed (see campaign.service.ts CORE_QUESTION_COUNT), so only their
-// wording/options are editable here, matching the same bound the backend
-// enforces. Questions beyond that are "custom" — a Company's own
-// campaign/product-specific additions: freely add, remove, reorder, or
-// retype, since analytics.service.ts picks those up generically.
-const CORE_QUESTION_COUNT = 5;
+// Survey Builder V2 (Company Console Product Maturation, 2026-09-01;
+// ordering fixed 2026-09-01): shared editor used by both
+// CreateCampaign.tsx and CampaignDetail.tsx so the two forms can't drift
+// apart. "Core" is an IDENTITY (reserved ids q1–q5), not a position —
+// analytics/AI Insights/Report read answers by question id from a
+// dictionary, never by array index (see campaign.service.ts
+// CORE_QUESTION_IDS), so a core question's array position can move
+// freely; only its id/type must stay fixed, which is why only
+// wording/options are editable here for core questions. Custom questions
+// (any other id) can be added, removed, retyped, and moved to ANY
+// position — including before or between core questions — matching the
+// backend's identity-based guard exactly.
+const CORE_QUESTION_IDS = new Set(['q1', 'q2', 'q3', 'q4', 'q5']);
 const MAX_QUESTIONS = 10;
 const QUESTION_TYPES: SurveyQuestion['type'][] = ['stars', 'scale', 'multiple_choice', 'text'];
 const TYPE_LABEL: Record<SurveyQuestion['type'], string> = {
@@ -39,8 +42,6 @@ export default function SurveyEditor({
   questions: SurveyQuestion[];
   onChange: (next: SurveyQuestion[]) => void;
 }) {
-  const coreCount = Math.min(CORE_QUESTION_COUNT, questions.length);
-
   const update = (index: number, patch: Partial<SurveyQuestion>) => {
     onChange(questions.map((q, i) => (i === index ? { ...q, ...patch } : q)));
   };
@@ -53,9 +54,13 @@ export default function SurveyEditor({
     onChange(questions.filter((_, i) => i !== index));
   };
 
+  // Swaps a custom question with whichever question — core or custom —
+  // currently sits in the adjacent slot. No positional floor/ceiling
+  // beyond the array bounds: a custom question can walk all the way past
+  // every core question if moved up enough times, landing before Q1.
   const moveCustom = (index: number, direction: -1 | 1) => {
     const target = index + direction;
-    if (target < coreCount || target >= questions.length) return;
+    if (target < 0 || target >= questions.length) return;
     const next = [...questions];
     [next[index], next[target]] = [next[target], next[index]];
     onChange(next);
@@ -70,7 +75,7 @@ export default function SurveyEditor({
     <div>
       <div style={styles.list}>
         {questions.map((q, i) => {
-          const isCore = i < coreCount;
+          const isCore = CORE_QUESTION_IDS.has(q.id);
           return (
             <div key={q.id} style={styles.card}>
               <div style={styles.cardHeader}>
@@ -94,7 +99,7 @@ export default function SurveyEditor({
                       type="button"
                       style={styles.iconBtn}
                       onClick={() => moveCustom(i, -1)}
-                      disabled={i === coreCount}
+                      disabled={i === 0}
                       title="Move up"
                     >
                       ↑

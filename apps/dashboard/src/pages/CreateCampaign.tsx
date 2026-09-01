@@ -219,8 +219,9 @@ export default function CreateCampaign() {
             <p style={styles.surveyHint}>
               The 5 core questions cover the standard trial research (impression, purchase
               intent, descriptor, comparison, open feedback) — reword them for this
-              product/category if useful. Add your own questions below for anything specific
-              to this campaign, product, or industry.
+              product/category if useful. Add your own questions for anything specific to this
+              campaign, product, or industry, and use the ↑/↓ controls to place them anywhere in
+              the survey, including ahead of a core question.
             </p>
             <SurveyEditor questions={questions} onChange={setQuestions} />
           </div>

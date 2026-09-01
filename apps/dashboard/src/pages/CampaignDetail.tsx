@@ -304,8 +304,9 @@ export default function CampaignDetail() {
         <div style={styles.cardTitle}>Survey</div>
         <p style={styles.surveyHint}>
           What consumers are asked after they try this product. The 5 core questions can be
-          reworded but keep their order/type (Survey Results, AI Insights, and Report depend on
-          them). Add your own questions below for anything specific to this campaign.
+          reworded but keep their type (Survey Results, AI Insights, and Report depend on them) —
+          their position can move freely. Add your own questions and use the ↑/↓ controls to
+          place them anywhere in the survey, including ahead of a core question.
         </p>
         <SurveyEditor questions={editSurveyQuestions} onChange={setEditSurveyQuestions} />
 

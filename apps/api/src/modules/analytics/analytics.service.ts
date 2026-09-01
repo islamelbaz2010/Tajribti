@@ -141,10 +141,14 @@ export class AnalyticsService {
     };
   }
 
-  // Survey Builder V2 (2026-09-01): questions beyond the campaign's core 5
-  // (campaign.service.ts CORE_QUESTION_COUNT) — a Company's own
-  // campaign/product-specific additions.
-  private static readonly CORE_QUESTION_COUNT = 5;
+  // Survey Builder V2 (2026-09-01; ordering fixed 2026-09-01): a Company's
+  // own campaign/product-specific additions — anything whose id is not one
+  // of the reserved core ids (campaign.service.ts CORE_QUESTION_IDS).
+  // Identity-based, not positional: custom questions can be reordered
+  // anywhere in `surveyQuestions` (including before/between core
+  // questions), so slicing by array position would incorrectly include a
+  // relocated core question or exclude a relocated custom one.
+  private static readonly CORE_QUESTION_IDS = new Set(['q1', 'q2', 'q3', 'q4', 'q5']);
 
   async getSurveyBreakdown(campaignId: string): Promise<SurveyData> {
     const surveys = await this.surveyRepo.find({ where: { campaignId } });
@@ -199,7 +203,7 @@ export class AnalyticsService {
     // 5, computed by type — no hardcoded id the way q2/q3/q5 are, because
     // a Company's custom questions have no fixed key.
     const customQuestions: CustomQuestionResult[] = (
-      campaign?.surveyQuestions.slice(AnalyticsService.CORE_QUESTION_COUNT) ?? []
+      campaign?.surveyQuestions.filter((q) => !AnalyticsService.CORE_QUESTION_IDS.has(q.id)) ?? []
     ).map((q) => {
       const answered = surveys
         .map((s) => s.answers[q.id])

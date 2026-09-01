@@ -55,20 +55,23 @@ class _ActivityScreenState extends State<ActivityScreen> {
       child: Scaffold(
         backgroundColor: kBackground,
         appBar: AppBar(
-          backgroundColor: kPrimary,
+          // Consumer Experience Polish (2026-09-01): light header, matching
+          // Home and Campaign Detail.
+          backgroundColor: kSurface,
+          surfaceTintColor: kSurface,
           elevation: 0,
           title: Text(
             s.myActivityFull,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+            style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w800),
           ),
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            icon: const Icon(Icons.arrow_back_rounded, color: kPrimary),
             onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
           ),
           actions: const [
             Padding(
               padding: EdgeInsets.only(right: 12),
-              child: Center(child: LangToggle(light: true)),
+              child: Center(child: LangToggle()),
             ),
           ],
         ),
@@ -316,8 +319,8 @@ class _NotLoggedIn extends StatelessWidget {
             ElevatedButton(
               onPressed: () => context.push('/auth-choice'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: kPrimary,
-                foregroundColor: Colors.white,
+                backgroundColor: kBrand,
+                foregroundColor: kPrimary,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
@@ -351,8 +354,8 @@ class _ActivityError extends StatelessWidget {
             ElevatedButton(
               onPressed: onRetry,
               style: ElevatedButton.styleFrom(
-                backgroundColor: kPrimary,
-                foregroundColor: Colors.white,
+                backgroundColor: kBrand,
+                foregroundColor: kPrimary,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 0,
               ),

@@ -119,10 +119,11 @@ class _CampaignScreenState extends State<CampaignScreen> {
       return Scaffold(
         backgroundColor: kBackground,
         appBar: AppBar(
-          backgroundColor: kPrimary,
+          backgroundColor: kSurface,
+          surfaceTintColor: kSurface,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            icon: const Icon(Icons.arrow_back_rounded, color: kPrimary),
             onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
           ),
         ),
@@ -141,14 +142,17 @@ class _CampaignScreenState extends State<CampaignScreen> {
         child: Scaffold(
           backgroundColor: kBackground,
           appBar: AppBar(
-            backgroundColor: kPrimary,
+            // Consumer Experience Polish (2026-09-01): light header
+            // replacing the dark-navy one, matching Home.
+            backgroundColor: kSurface,
+            surfaceTintColor: kSurface,
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+              icon: const Icon(Icons.arrow_back_rounded, color: kPrimary),
               onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
             ),
             actions: const [
-              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle(light: true))),
+              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle())),
             ],
           ),
           body: SafeArea(
@@ -181,14 +185,17 @@ class _CampaignScreenState extends State<CampaignScreen> {
         child: Scaffold(
           backgroundColor: kBackground,
           appBar: AppBar(
-            backgroundColor: kPrimary,
+            // Consumer Experience Polish (2026-09-01): light header
+            // replacing the dark-navy one, matching Home.
+            backgroundColor: kSurface,
+            surfaceTintColor: kSurface,
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+              icon: const Icon(Icons.arrow_back_rounded, color: kPrimary),
               onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
             ),
             actions: const [
-              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle(light: true))),
+              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle())),
             ],
           ),
           body: SafeArea(
@@ -226,8 +233,8 @@ class _CampaignScreenState extends State<CampaignScreen> {
                       child: ElevatedButton(
                         onPressed: () => context.go('/home'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: kPrimary,
-                          foregroundColor: Colors.white,
+                          backgroundColor: kBrand,
+                          foregroundColor: kPrimary,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           elevation: 0,
                         ),
@@ -259,14 +266,17 @@ class _CampaignScreenState extends State<CampaignScreen> {
         child: Scaffold(
           backgroundColor: kBackground,
           appBar: AppBar(
-            backgroundColor: kPrimary,
+            // Consumer Experience Polish (2026-09-01): light header
+            // replacing the dark-navy one, matching Home.
+            backgroundColor: kSurface,
+            surfaceTintColor: kSurface,
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+              icon: const Icon(Icons.arrow_back_rounded, color: kPrimary),
               onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
             ),
             actions: const [
-              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle(light: true))),
+              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle())),
             ],
           ),
           body: SafeArea(
@@ -320,8 +330,8 @@ class _CampaignScreenState extends State<CampaignScreen> {
                       child: ElevatedButton(
                         onPressed: () => context.go('/home'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: kPrimary,
-                          foregroundColor: Colors.white,
+                          backgroundColor: kBrand,
+                          foregroundColor: kPrimary,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           elevation: 0,
                         ),
@@ -355,14 +365,17 @@ class _CampaignScreenState extends State<CampaignScreen> {
         child: Scaffold(
           backgroundColor: kBackground,
           appBar: AppBar(
-            backgroundColor: kPrimary,
+            // Consumer Experience Polish (2026-09-01): light header
+            // replacing the dark-navy one, matching Home.
+            backgroundColor: kSurface,
+            surfaceTintColor: kSurface,
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+              icon: const Icon(Icons.arrow_back_rounded, color: kPrimary),
               onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
             ),
             actions: const [
-              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle(light: true))),
+              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle())),
             ],
           ),
           body: SafeArea(
@@ -414,8 +427,8 @@ class _CampaignScreenState extends State<CampaignScreen> {
                       child: ElevatedButton(
                         onPressed: () => context.go('/home'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: kPrimary,
-                          foregroundColor: Colors.white,
+                          backgroundColor: kBrand,
+                          foregroundColor: kPrimary,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           elevation: 0,
                         ),
@@ -444,14 +457,17 @@ class _CampaignScreenState extends State<CampaignScreen> {
         child: Scaffold(
           backgroundColor: kBackground,
           appBar: AppBar(
-            backgroundColor: kPrimary,
+            // Consumer Experience Polish (2026-09-01): light header
+            // replacing the dark-navy one, matching Home.
+            backgroundColor: kSurface,
+            surfaceTintColor: kSurface,
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+              icon: const Icon(Icons.arrow_back_rounded, color: kPrimary),
               onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
             ),
             actions: const [
-              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle(light: true))),
+              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle())),
             ],
           ),
           body: SafeArea(
@@ -489,8 +505,8 @@ class _CampaignScreenState extends State<CampaignScreen> {
                       child: ElevatedButton(
                         onPressed: () => context.go('/home'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: kPrimary,
-                          foregroundColor: Colors.white,
+                          backgroundColor: kBrand,
+                          foregroundColor: kPrimary,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           elevation: 0,
                         ),
@@ -535,10 +551,19 @@ class _CampaignScreenState extends State<CampaignScreen> {
                       left: 12,
                       child: _BackButton(),
                     ),
+                    // Consumer Experience Polish (2026-09-01): this overlay
+                    // sits on either a real product photo (any color) or
+                    // _BrandBanner's now-bright gradient — a plain
+                    // light:true toggle (white-on-transparent) had good
+                    // contrast on the old dark fallback but not the new
+                    // bright one. Wrapping it in the same translucent-black
+                    // scrim _BackButton already uses (below) guarantees
+                    // contrast against any background, without needing to
+                    // track image-load state.
                     const Positioned(
                       top: 12,
                       right: 12,
-                      child: LangToggle(light: true),
+                      child: _ScrimWrapper(child: LangToggle(light: true)),
                     ),
                   ],
                 ),
@@ -688,8 +713,8 @@ class _CampaignScreenState extends State<CampaignScreen> {
                           child: ElevatedButton(
                             onPressed: _entering ? null : _start,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: kPrimary,
-                              foregroundColor: Colors.white,
+                              backgroundColor: kBrand,
+                              foregroundColor: kPrimary,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                               elevation: 0,
                             ),
@@ -697,7 +722,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
                                 ? const SizedBox(
                                     width: 24,
                                     height: 24,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                    child: CircularProgressIndicator(color: kPrimary, strokeWidth: 2),
                                   )
                                 : Text(
                                     s.startTrial,
@@ -736,18 +761,41 @@ class _BackButton extends StatelessWidget {
   }
 }
 
+// Consumer Experience Polish (2026-09-01): small translucent-black scrim,
+// same opacity as _BackButton above, so an overlay reads correctly against
+// any hero background (photo or gradient) without needing to know what's
+// behind it.
+class _ScrimWrapper extends StatelessWidget {
+  final Widget child;
+  const _ScrimWrapper({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: child,
+    );
+  }
+}
+
 class _BrandBanner extends StatelessWidget {
   final String brandName;
   const _BrandBanner({required this.brandName});
 
   @override
   Widget build(BuildContext context) {
+    // Consumer Experience Polish (2026-09-01): brand-gradient fallback for
+    // campaigns without a product image, replacing the dark-navy block —
+    // mirrors the same treatment on Home's campaign cards.
     return Container(
       width: double.infinity,
       height: 280,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [kPrimary, Color(0xFF2d3a5c)],
+          colors: [kBrand, kBrandSoft],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -758,7 +806,7 @@ class _BrandBanner extends StatelessWidget {
           style: const TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.w900,
-            color: Colors.white,
+            color: kPrimary,
             letterSpacing: -0.5,
           ),
         ),

@@ -90,12 +90,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     SliverAppBar(
                       floating: true,
                       pinned: true,
-                      backgroundColor: kPrimary,
+                      backgroundColor: kSurface,
+                      surfaceTintColor: kSurface,
                       elevation: 0,
+                      // Consumer Experience Polish (2026-09-01): white/light
+                      // header replacing the dark-navy bar, matching the
+                      // public website's own light sticky header for brand
+                      // consistency. Business logic (auth state, routes)
+                      // unchanged — only colors below.
+                      bottom: PreferredSize(
+                        preferredSize: const Size.fromHeight(1),
+                        child: Container(height: 1, color: const Color(0xFFEDEFF5)),
+                      ),
                       title: Text(
                         s.homeTitle,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: kPrimary,
                           fontWeight: FontWeight.w900,
                           fontSize: 20,
                           letterSpacing: -0.3,
@@ -104,15 +114,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       actions: [
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 4),
-                          child: Center(child: LangToggle(light: true)),
+                          child: Center(child: LangToggle()),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.info_outline_rounded, color: Colors.white),
+                          icon: const Icon(Icons.info_outline_rounded, color: kPrimary),
                           onPressed: () => context.push('/services'),
                         ),
                         if (_loggedIn)
                           IconButton(
-                            icon: const Icon(Icons.person_rounded, color: Colors.white),
+                            icon: const Icon(Icons.person_rounded, color: kPrimary),
                             onPressed: () => context.push('/profile'),
                           )
                         else
@@ -120,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             onPressed: () => context.push('/auth-choice'),
                             child: Text(
                               s.signIn,
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                              style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w700),
                             ),
                           ),
                       ],
@@ -278,11 +288,15 @@ class _ProfileBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Consumer Experience Polish (2026-09-01): bright brand-gradient card
+    // replacing the dark-navy one — same layout/content/tap target, only
+    // the surface and text/icon colors flip for a light-on-bright card
+    // instead of light-on-dark.
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [kPrimary, Color(0xFF2d3a5c)],
+          colors: [kBrand, kBrandSoft],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -294,11 +308,11 @@ class _ProfileBanner extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withOpacity(0.25), width: 2),
+              border: Border.all(color: kPrimary.withOpacity(0.12), width: 2),
             ),
-            child: const Icon(Icons.person_rounded, color: Colors.white, size: 26),
+            child: const Icon(Icons.person_rounded, color: kPrimary, size: 26),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -310,7 +324,7 @@ class _ProfileBanner extends StatelessWidget {
                       ? '${s.welcomeBack}، ${profile!.name}'
                       : s.welcomeBack,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: kPrimary,
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                   ),
@@ -322,8 +336,8 @@ class _ProfileBanner extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text(
                       '${profile?.totalPoints ?? 0} ${s.pointsLabel}',
-                      style: const TextStyle(
-                        color: Colors.white70,
+                      style: TextStyle(
+                        color: kPrimary.withOpacity(0.7),
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -336,12 +350,12 @@ class _ProfileBanner extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Icon(
               Icons.chevron_right_rounded,
-              color: Colors.white.withOpacity(0.7),
+              color: kPrimary.withOpacity(0.6),
               size: 20,
             ),
           ),
@@ -367,19 +381,23 @@ class _HeroBanner extends StatelessWidget {
       (Icons.rate_review_rounded, s.heroStepShare),
       (Icons.stars_rounded, s.heroStepEarn),
     ];
+    // Consumer Experience Polish (2026-09-01): bright brand-gradient hero
+    // replacing the dark-navy one that made the first thing a logged-out
+    // consumer sees feel like an admin panel. Same content/steps/tap
+    // targets — only the surface and text/icon colors flip.
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [kPrimary, Color(0xFF2d3a5c)],
+          colors: [kBrand, kBrandSoft],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: kPrimary.withOpacity(0.3),
+            color: kBrand.withOpacity(0.35),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -391,7 +409,7 @@ class _HeroBanner extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.auto_awesome_rounded, color: kGold, size: 18),
@@ -400,7 +418,7 @@ class _HeroBanner extends StatelessWidget {
           Text(
             s.heroTagline,
             style: const TextStyle(
-              color: Colors.white,
+              color: kPrimary,
               fontSize: 22,
               fontWeight: FontWeight.w900,
               height: 1.3,
@@ -410,7 +428,7 @@ class _HeroBanner extends StatelessWidget {
           Text(
             s.heroSub,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
+              color: kPrimary.withOpacity(0.65),
               fontSize: 13,
               height: 1.6,
             ),
@@ -424,7 +442,7 @@ class _HeroBanner extends StatelessWidget {
                   Expanded(
                     child: Container(
                       height: 1,
-                      color: Colors.white.withOpacity(0.2),
+                      color: kPrimary.withOpacity(0.15),
                     ),
                   ),
               ],
@@ -449,8 +467,8 @@ class _HeroStep extends StatelessWidget {
         Container(
           width: 40,
           height: 40,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
+          decoration: const BoxDecoration(
+            color: Colors.white,
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: kGold, size: 18),
@@ -459,7 +477,7 @@ class _HeroStep extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            color: Colors.white,
+            color: kPrimary,
             fontSize: 10,
             fontWeight: FontWeight.w700,
           ),
@@ -695,7 +713,12 @@ class _CampaignCard extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                         decoration: BoxDecoration(
-                          color: (campaign.isComingSoon || campaign.hasEnded) ? Colors.transparent : kPrimary,
+                          // Consumer Experience Polish (2026-09-01): active
+                          // CTA fill moved from dark-navy to the brand
+                          // accent (matches the public website's primary
+                          // CTA) — Coming Soon/Ended states unchanged
+                          // (still an outline, no fill).
+                          color: (campaign.isComingSoon || campaign.hasEnded) ? Colors.transparent : kBrand,
                           border: (campaign.isComingSoon || campaign.hasEnded)
                               ? Border.all(color: (campaign.hasEnded ? Colors.grey.shade400 : kPrimary.withOpacity(0.4)))
                               : null,
@@ -710,9 +733,7 @@ class _CampaignCard extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: campaign.hasEnded
-                                ? Colors.grey.shade600
-                                : campaign.isComingSoon ? kPrimary : Colors.white,
+                            color: campaign.hasEnded ? Colors.grey.shade600 : kPrimary,
                           ),
                         ),
                       ),
@@ -734,12 +755,14 @@ class _CardBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Consumer Experience Polish (2026-09-01): brand-gradient fallback for
+    // campaigns without a product image, replacing the dark-navy block.
     return Container(
       height: 140,
       width: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [kPrimary, Color(0xFF2d3a5c)],
+          colors: [kBrand, kBrandSoft],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -750,7 +773,7 @@ class _CardBanner extends StatelessWidget {
           style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w900,
-            color: Colors.white,
+            color: kPrimary,
             letterSpacing: -0.5,
           ),
         ),
@@ -916,8 +939,8 @@ class _ErrorState extends StatelessWidget {
             ElevatedButton(
               onPressed: onRetry,
               style: ElevatedButton.styleFrom(
-                backgroundColor: kPrimary,
-                foregroundColor: Colors.white,
+                backgroundColor: kBrand,
+                foregroundColor: kPrimary,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 0,
               ),

@@ -77,6 +77,7 @@ export const campaignApi = {
       locationAddress: string;
       rewardPoints: number;
       targetCount: number;
+      startDate: string;
       endDate: string;
       status: string;
       surveyQuestions: SurveyQuestion[];

@@ -53,6 +53,23 @@ class AppStr {
   TextDirection get dir     => ar ? TextDirection.rtl : TextDirection.ltr;
   bool get isRtl            => ar;
 
+  // Shared short date format ("15 Sep" / "15 سبتمبر") — same month-name
+  // table already used by activity_screen.dart's _formatDate, exposed here
+  // so Coming Soon (home_screen.dart, campaign_screen.dart) doesn't
+  // duplicate it a second and third time.
+  static const _monthsEn = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  static const _monthsAr = [
+    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+  ];
+  String formatShortDate(DateTime d) {
+    final months = ar ? _monthsAr : _monthsEn;
+    return '${d.day} ${months[d.month - 1]}';
+  }
+
   // ── Language toggle ────────────────────────────────────────────────────────
   String get switchToOther  => ar ? 'EN' : 'ع';
 
@@ -79,6 +96,7 @@ class AppStr {
   String get alreadyParticipatedSub => ar ? 'شاركت في هذه الحملة من قبل وحصلت على مكافأتك.'  : 'You already participated in this campaign and earned your reward.';
   String get campaignNotActive    => ar ? 'هذه الحملة غير متاحة حالياً' : 'This Campaign Isn\'t Available';
   String get campaignNotActiveSub => ar ? 'لم تعد هذه الحملة تقبل مشاركات جديدة في الوقت الحالي.' : 'This campaign is not currently accepting new participation.';
+  String get campaignComingSoonTitle => ar ? 'الحملة قريباً' : 'Coming Soon';
 
   // ── Account authentication (email + password) ───────────────────────────
   String get welcome        => ar ? 'مرحباً بك'                   : 'Welcome';
@@ -187,6 +205,12 @@ class AppStr {
   String get pointsLabel        => ar ? 'نقطة'                              : 'pts';
   String get startTrialCard     => ar ? 'جرّب الآن'                         : 'Try Now';
   String get loadError          => ar ? 'تعذّر تحميل البيانات'               : 'Could not load data';
+
+  // ── Coming Soon (Campaign Scheduling, 2026-09-01) ──────────────────────────
+  String get comingSoon         => ar ? 'قريباً'                           : 'Coming Soon';
+  String startsOn(String date)  => ar ? 'يبدأ $date'                      : 'Starts $date';
+  String comingSoonNotice(String date) =>
+      ar ? 'ستتوفر هذه الحملة اعتباراً من $date.' : 'This campaign opens for participation on $date.';
   // kept for screens that still reference these
   String get homeReady          => ar ? 'جاهز لتجربة جديدة؟'               : 'Ready for a new trial?';
   String get homeSub            => ar ? 'امسح رمز QR على المنتج لتبدأ تجربتك وتشارك رأيك' : 'Scan the QR code on the product to start your trial and share your feedback';

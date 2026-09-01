@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
@@ -21,16 +22,20 @@ const CHART_TOOLTIP = {
 };
 
 export default function SurveyResults() {
+  const location = useLocation();
   const [data, setData] = useState<SurveyData | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // Re-resolves whenever ?campaignId= changes — see CampaignDetail.tsx.
+    setData(null);
+    setError('');
     campaignApi
       .getSelected()
       .then((c) => analyticsApi.getSurvey(c.id))
       .then(setData)
       .catch(() => setError('Failed to load survey data.'));
-  }, []);
+  }, [location.search]);
 
   if (error) return <div style={styles.error}>{error}</div>;
   if (!data) return <div style={styles.loading}>Loading survey signals…</div>;

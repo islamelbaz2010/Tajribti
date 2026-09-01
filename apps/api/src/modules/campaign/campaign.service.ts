@@ -63,6 +63,7 @@ export class CampaignService {
   ) {}
 
   async createCampaign(brandAccountId: string, dto: CreateCampaignDto): Promise<Campaign> {
+    this.validateDateRange(dto.startDate ?? null, dto.endDate ?? null);
     const campaign = this.campaignRepo.create({
       brandAccountId,
       brandName: dto.brandName,
@@ -150,14 +151,33 @@ export class CampaignService {
     if (dto.locationAddress !== undefined) campaign.locationAddress = dto.locationAddress;
     if (dto.rewardPoints !== undefined) campaign.rewardPoints = dto.rewardPoints;
     if (dto.targetCount !== undefined) campaign.targetCount = dto.targetCount;
-    if (dto.endDate !== undefined) campaign.endDate = dto.endDate;
+    // Empty string -> clear to null rather than pass through: the current
+    // Dashboard UI never sends "" (it omits the field instead), but an
+    // empty string reaching the Postgres `date` column directly is an
+    // invalid literal and would otherwise 500 instead of clearing the date.
+    if (dto.startDate !== undefined) campaign.startDate = dto.startDate || null;
+    if (dto.endDate !== undefined) campaign.endDate = dto.endDate || null;
     if (dto.status !== undefined) campaign.status = dto.status;
     if (dto.surveyQuestions !== undefined) {
       this.validateSurveyQuestionEdit(campaign.surveyQuestions, dto.surveyQuestions);
       campaign.surveyQuestions = dto.surveyQuestions;
     }
+    // Validated against the campaign's resulting state (not just the DTO),
+    // so this correctly catches e.g. only endDate being edited to before
+    // an unchanged, already-stored startDate.
+    this.validateDateRange(campaign.startDate, campaign.endDate);
 
     return this.campaignRepo.save(campaign);
+  }
+
+  // Campaign Scheduling (2026-09-01): the one cross-field validation date
+  // fields need. Both fields are optional (a campaign may have no dates,
+  // or only one), so this only rejects the case where both are present
+  // and end precedes start.
+  private validateDateRange(startDate: string | null, endDate: string | null): void {
+    if (startDate && endDate && endDate < startDate) {
+      throw new BadRequestException('End date cannot be earlier than start date.');
+    }
   }
 
   // Survey Builder V2 (Company Console Product Maturation, 2026-09-01;

@@ -15,18 +15,22 @@ import { Type } from 'class-transformer';
 import { CampaignStatus } from '../../../entities/campaign.entity';
 import { SurveyQuestionDto } from './survey-question.dto';
 
-// Bounded edit surface for Internal Tajribti Campaign Operations (DL-055 item 1)
-// and Campaign-Specific Survey Configuration / Survey Builder V2 (Company
-// Console Product Maturation, 2026-09-01). Deliberately excludes
-// brandAccountId, isDemo, and startDate (a campaign's start shouldn't move
-// once QR codes/participation may already reference it). `surveyQuestions`
-// here is bounded, not a free-form Survey Builder: campaign.service.ts's
-// validateSurveyQuestionEdit() requires the first CORE_QUESTION_COUNT (5)
-// questions to keep their existing id/type/order exactly, because
-// analytics.service.ts reads answers by fixed key (`answers['q2']`,
-// `answers['q3']`, `answers['q5']`) for those specific positions — but
-// questions beyond that core set may be freely added, removed, reordered,
-// or retyped, since nothing in analytics/report hardcodes their keys.
+// Bounded edit surface for Internal Tajribti Campaign Operations (DL-055 item 1),
+// Survey Builder V2 (Company Console Product Maturation, 2026-09-01), and
+// Campaign Scheduling / "Coming Soon" (2026-09-01). Deliberately excludes
+// brandAccountId and isDemo (ownership/demo status are not reassignable).
+// `startDate` is now editable — nothing in participation gating ever
+// actually depended on it being immutable (only `status` gated
+// participation until this pass added isCampaignOpenForParticipation,
+// which reads startDate live rather than assuming it can't change);
+// campaign.service.ts validates endDate isn't before startDate on save.
+// `surveyQuestions` is bounded, not a free-form Survey Builder:
+// campaign.service.ts's validateSurveyQuestionEdit() requires every
+// reserved core question id (CORE_QUESTION_IDS) to keep its existing
+// type — its array position is unconstrained — because analytics.service.ts
+// reads answers by fixed key (`answers['q2']`, `answers['q3']`,
+// `answers['q5']`); questions with any other id may be freely added,
+// removed, reordered, or retyped.
 export class UpdateCampaignDto {
   @IsOptional()
   @IsString()
@@ -62,6 +66,10 @@ export class UpdateCampaignDto {
   @IsInt()
   @Min(1)
   targetCount?: number;
+
+  @IsOptional()
+  @IsString()
+  startDate?: string;
 
   @IsOptional()
   @IsString()

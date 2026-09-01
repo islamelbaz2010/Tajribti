@@ -1,20 +1,26 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { campaignApi, reportApi } from '../api/endpoints';
 import type { AiReport } from '../api/types';
 
 export default function AiSummary() {
+  const location = useLocation();
   const [report, setReport] = useState<AiReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // Re-resolves whenever ?campaignId= changes — see CampaignDetail.tsx.
+    setReport(null);
+    setError('');
+    setLoading(true);
     campaignApi
       .getSelected()
       .then((c) => reportApi.getAiSummary(c.id))
       .then(setReport)
       .catch(() => setError('Failed to generate intelligence summary.'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [location.search]);
 
   return (
     <div>

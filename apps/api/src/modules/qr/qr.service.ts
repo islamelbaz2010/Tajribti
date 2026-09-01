@@ -10,7 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import * as QRCode from 'qrcode';
 import { QrCode, QrCodeStatus } from '../../entities/qr-code.entity';
 import { RedemptionEvent } from '../../entities/redemption-event.entity';
-import { Campaign, CampaignStatus } from '../../entities/campaign.entity';
+import { Campaign, CampaignStatus, isCampaignOpenForParticipation } from '../../entities/campaign.entity';
 import { CampaignVerification } from '../../entities/campaign-verification.entity';
 
 interface RedeemQrDto {
@@ -70,8 +70,12 @@ export class QrService {
 
     const campaign = qrCode.campaign;
 
-    if (campaign.status !== CampaignStatus.ACTIVE) {
-      throw new BadRequestException('Campaign is not active');
+    if (!isCampaignOpenForParticipation(campaign)) {
+      throw new BadRequestException(
+        campaign.status === CampaignStatus.ACTIVE
+          ? 'Campaign has not started yet'
+          : 'Campaign is not active',
+      );
     }
 
     const isDemo = qrCode.status === QrCodeStatus.DEMO;
@@ -140,8 +144,10 @@ export class QrService {
       // Mirrors generateQrImage() logic so discovery and QR-scan entries are equivalent.
       const found = await this.campaignRepo.findOne({ where: { id: campaignId } });
       if (!found) throw new NotFoundException(`Campaign ${campaignId} not found`);
-      if (found.status !== CampaignStatus.ACTIVE) {
-        throw new BadRequestException('Campaign is not active');
+      if (!isCampaignOpenForParticipation(found)) {
+        throw new BadRequestException(
+          found.status === CampaignStatus.ACTIVE ? 'Campaign has not started yet' : 'Campaign is not active',
+        );
       }
       campaign = found;
       const code = `tajribti:${campaignId}:${Date.now()}`;
@@ -155,10 +161,11 @@ export class QrService {
       resolvedQrId = newQr.id;
     }
 
-    if (campaign.status !== CampaignStatus.ACTIVE) {
-      throw new BadRequestException('Campaign is not active');
-    }
-
+    // Checked before the date gate below: a consumer who already
+    // redeemed must always be able to see their existing status, even if
+    // the campaign's startDate was later edited to a future date (the
+    // gate is about opening NEW participation, not retroactively hiding
+    // one that already happened).
     const existingRedemption = await this.redemptionRepo.findOne({
       where: { consumerId, campaignId },
       relations: ['surveyResponse'],
@@ -172,6 +179,12 @@ export class QrService {
         rewardPoints: campaign.rewardPoints,
         alreadyCompleted: !!existingRedemption.surveyResponse,
       };
+    }
+
+    if (!isCampaignOpenForParticipation(campaign)) {
+      throw new BadRequestException(
+        campaign.status === CampaignStatus.ACTIVE ? 'Campaign has not started yet' : 'Campaign is not active',
+      );
     }
 
     // Unconditional, unlike redeemQr() below: this function's pre-existing

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { campaignApi, reportApi } from '../api/endpoints';
 import type { PdfData } from '../api/types';
 
@@ -77,6 +78,7 @@ const AR = {
 };
 
 export default function Report() {
+  const location = useLocation();
   const [data, setData] = useState<PdfData | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -85,13 +87,17 @@ export default function Report() {
   const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Re-resolves whenever ?campaignId= changes — see CampaignDetail.tsx.
+    setData(null);
+    setError('');
+    setLoading(true);
     campaignApi
       .getSelected()
       .then((c) => reportApi.getPdfData(c.id))
       .then(setData)
       .catch(() => setError('Failed to load report data.'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [location.search]);
 
   const t = (en: string, ar: string) => (isAr ? ar : en);
 

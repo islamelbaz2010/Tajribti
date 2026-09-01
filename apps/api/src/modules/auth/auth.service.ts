@@ -17,7 +17,7 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { Consumer } from '../../entities/consumer.entity';
 import { BrandAccount } from '../../entities/brand-account.entity';
-import { Campaign, CampaignStatus } from '../../entities/campaign.entity';
+import { Campaign, CampaignStatus, isCampaignOpenForParticipation } from '../../entities/campaign.entity';
 import { CampaignVerification } from '../../entities/campaign-verification.entity';
 import { EmailVerificationToken } from '../../entities/email-verification-token.entity';
 import { RequestOtpDto } from './dto/request-otp.dto';
@@ -389,8 +389,10 @@ export class AuthService {
     if (!campaign) {
       throw new NotFoundException('Campaign not found');
     }
-    if (campaign.status !== CampaignStatus.ACTIVE) {
-      throw new BadRequestException('Campaign is not active');
+    if (!isCampaignOpenForParticipation(campaign)) {
+      throw new BadRequestException(
+        campaign.status === CampaignStatus.ACTIVE ? 'Campaign has not started yet' : 'Campaign is not active',
+      );
     }
     return campaign;
   }

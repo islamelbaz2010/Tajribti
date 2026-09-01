@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   BarChart,
   Bar,
@@ -32,16 +33,22 @@ const AXIS_TICK = { fontSize: 11, fill: '#3d4a6a' };
 const AXIS_LINE = { stroke: '#1a2540' };
 
 export default function Insights() {
+  const location = useLocation();
   const [data, setData] = useState<DemographicsData | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // Re-resolves whenever ?campaignId= changes — this route doesn't
+    // remount on a query-string change alone (same fix as Overview.tsx/
+    // Gallery.tsx/CampaignDetail.tsx).
+    setData(null);
+    setError('');
     campaignApi
       .getSelected()
       .then((c) => analyticsApi.getDemographics(c.id))
       .then(setData)
       .catch(() => setError('Failed to load demographics.'));
-  }, []);
+  }, [location.search]);
 
   if (error) return <div style={styles.error}>{error}</div>;
   if (!data) return <div style={styles.loading}>Loading demographic signals…</div>;

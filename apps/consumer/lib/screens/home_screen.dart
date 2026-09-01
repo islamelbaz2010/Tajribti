@@ -543,6 +543,33 @@ class _CampaignCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                )
+              else if (campaign.isComingSoon)
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: kPrimary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.schedule_rounded, color: Colors.white, size: 14),
+                        const SizedBox(width: 4),
+                        Text(
+                          s.comingSoon,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -630,15 +657,20 @@ class _CampaignCard extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                         decoration: BoxDecoration(
-                          color: kPrimary,
+                          color: campaign.isComingSoon ? Colors.transparent : kPrimary,
+                          border: campaign.isComingSoon
+                              ? Border.all(color: kPrimary.withOpacity(0.4))
+                              : null,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          s.startTrialCard,
-                          style: const TextStyle(
+                          campaign.isComingSoon && campaign.startDate != null
+                              ? s.startsOn(s.formatShortDate(DateTime.parse(campaign.startDate!)))
+                              : s.startTrialCard,
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: campaign.isComingSoon ? kPrimary : Colors.white,
                           ),
                         ),
                       ),

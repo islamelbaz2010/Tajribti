@@ -243,6 +243,100 @@ class _CampaignScreenState extends State<CampaignScreen> {
       );
     }
 
+    // Campaign Scheduling / "Coming Soon" (2026-09-01): status=active but
+    // startDate is in the future — genuinely configured, publicly
+    // discoverable (it's why the consumer reached this screen at all), but
+    // not yet open for QR/OTP/survey participation. qr.service.ts/
+    // auth.service.ts already enforce this server-side (isCampaignOpenForParticipation);
+    // this mirrors that same rule here so the consumer sees why, instead of
+    // reaching a Start Trial button that would only fail later. Checked
+    // before the generic non-active branch below because isComingSoon
+    // implies status IS active.
+    if (_campaign != null && _campaign!.isComingSoon) {
+      final campaign = _campaign!;
+      return Directionality(
+        textDirection: context.dir,
+        child: Scaffold(
+          backgroundColor: kBackground,
+          appBar: AppBar(
+            backgroundColor: kPrimary,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+              onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
+            ),
+            actions: const [
+              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle(light: true))),
+            ],
+          ),
+          body: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        color: kPrimary.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.schedule_rounded, color: kPrimary, size: 48),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      campaign.productName,
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: kPrimary),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      s.campaignComingSoonTitle,
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: kGold),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      campaign.startDate != null
+                          ? s.comingSoonNotice(s.formatShortDate(DateTime.parse(campaign.startDate!)))
+                          : s.campaignNotActiveSub,
+                      style: TextStyle(fontSize: 15, color: Colors.grey.shade600, height: 1.5),
+                      textAlign: TextAlign.center,
+                    ),
+                    if (campaign.endDate != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        '${s.startsOn(s.formatShortDate(DateTime.parse(campaign.startDate!)))} · ${s.formatShortDate(DateTime.parse(campaign.endDate!))}',
+                        style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                    const SizedBox(height: 36),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: () => context.go('/home'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kPrimary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          elevation: 0,
+                        ),
+                        child: Text(s.backHome, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     // Campaign lifecycle: a first-time (not-yet-completed) visitor reaching
     // a non-active campaign directly (stale QR, bookmarked link) must see a
     // clear unavailable state here rather than a Start Trial that would only

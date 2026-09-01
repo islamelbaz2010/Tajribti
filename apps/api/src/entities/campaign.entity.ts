@@ -108,3 +108,24 @@ export class Campaign {
   @OneToMany(() => AiReport, (report) => report.campaign)
   aiReports: AiReport[];
 }
+
+// Campaign Scheduling / "Coming Soon" (2026-09-01): a campaign can be
+// status=ACTIVE with a startDate in the future — genuinely configured and
+// publicly discoverable (GET /campaigns already returns all ACTIVE
+// campaigns regardless of date, which is what lets Consumer Mobile show it
+// as upcoming), but not yet open for actual participation. This is the
+// single source of truth for "is this campaign open for participation
+// right now" — every participation entry point (qr.service.ts's
+// redeemQr/enterCampaignWeb, auth.service.ts's Campaign OTP flow) must use
+// it instead of checking `status === ACTIVE` alone, or a future-dated
+// campaign could be entered before its start date.
+//
+// Date comparison is UTC-day-only, matching the existing convention
+// already used elsewhere for these `date`-typed columns (see
+// admin.service.ts's seed dates) — no new timezone policy introduced.
+export function isCampaignOpenForParticipation(campaign: Campaign): boolean {
+  if (campaign.status !== CampaignStatus.ACTIVE) return false;
+  if (!campaign.startDate) return true;
+  const todayUtc = new Date().toISOString().split('T')[0];
+  return campaign.startDate <= todayUtc;
+}

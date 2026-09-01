@@ -76,6 +76,10 @@ export default function CreateCampaign() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
+    if (startDate && endDate && endDate < startDate) {
+      setError('End date cannot be earlier than start date.');
+      return;
+    }
     setSubmitting(true);
     setError('');
     try {

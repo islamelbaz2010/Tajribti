@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { campaignApi, qrApi } from '../api/endpoints';
 import type { Campaign, SurveyQuestion } from '../api/types';
 import SurveyEditor from '../components/SurveyEditor';
@@ -12,6 +13,7 @@ const STATUS_OPTIONS = ['draft', 'active', 'paused', 'completed', 'archived'];
 const LIFECYCLE_ENDING_STATUSES = ['completed', 'archived'];
 
 export default function CampaignDetail() {
+  const location = useLocation();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,6 +25,10 @@ export default function CampaignDetail() {
   const [editStatus, setEditStatus] = useState('active');
   const [editRewardPoints, setEditRewardPoints] = useState('');
   const [editTargetCount, setEditTargetCount] = useState('');
+  // Campaign Scheduling (2026-09-01): startDate is now editable — nothing
+  // in participation gating actually depended on it being fixed after
+  // creation; the API now enforces endDate >= startDate on save.
+  const [editStartDate, setEditStartDate] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editProductImage, setEditProductImage] = useState('');
@@ -43,6 +49,7 @@ export default function CampaignDetail() {
     setEditStatus(c.status);
     setEditRewardPoints(String(c.rewardPoints));
     setEditTargetCount(String(c.targetCount));
+    setEditStartDate(c.startDate ?? '');
     setEditEndDate(c.endDate ?? '');
     setEditDescription(c.description ?? '');
     setEditProductImage(c.productImage ?? '');
@@ -52,6 +59,16 @@ export default function CampaignDetail() {
   };
 
   useEffect(() => {
+    // Re-resolves whenever ?campaignId= changes — the route itself
+    // (/campaign) doesn't remount on a query-string change alone, so this
+    // effect must depend on location.search directly (same fix already
+    // applied to Overview.tsx/Gallery.tsx). Without it, this page kept
+    // showing whichever campaign it first loaded regardless of which
+    // campaign the Company later navigated to — the exact bug reported.
+    setLoading(true);
+    setError('');
+    setCampaign(null);
+    setQrUrl(null);
     campaignApi
       .getSelected()
       .then(async (c) => {
@@ -61,7 +78,7 @@ export default function CampaignDetail() {
       })
       .catch(() => setError('Failed to load campaign. Is the backend running and seeded?'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [location.search]);
 
   const handleSave = () => {
     if (!campaign) return;
@@ -90,11 +107,17 @@ export default function CampaignDetail() {
       setSaving(false);
       return;
     }
+    if (editStartDate && editEndDate && editEndDate < editStartDate) {
+      setSaveError('End date cannot be earlier than start date.');
+      setSaving(false);
+      return;
+    }
     campaignApi
       .update(campaign.id, {
         status: editStatus,
         rewardPoints,
         targetCount,
+        startDate: editStartDate || undefined,
         endDate: editEndDate || undefined,
         description: editDescription,
         productImage: editProductImage || undefined,
@@ -252,6 +275,15 @@ export default function CampaignDetail() {
               min={1}
               value={editTargetCount}
               onChange={(e) => setEditTargetCount(e.target.value)}
+            />
+          </label>
+          <label style={styles.fieldLabel}>
+            Start Date
+            <input
+              style={styles.input}
+              type="date"
+              value={editStartDate}
+              onChange={(e) => setEditStartDate(e.target.value)}
             />
           </label>
           <label style={styles.fieldLabel}>

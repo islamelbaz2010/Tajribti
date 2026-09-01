@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { analyticsApi, campaignApi } from '../api/endpoints';
 import type { Participant } from '../api/types';
 
 const PAGE_SIZE = 20;
 
 export default function Participants() {
+  const location = useLocation();
   const [campaignId, setCampaignId] = useState('');
   const [rows, setRows] = useState<Participant[]>([]);
   const [total, setTotal] = useState(0);
@@ -13,6 +15,13 @@ export default function Participants() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // Re-resolves whenever ?campaignId= changes — see CampaignDetail.tsx.
+    // Also resets pagination, since page 3 of Campaign A's participants
+    // isn't a meaningful starting point for Campaign B.
+    setRows([]);
+    setTotal(0);
+    setPage(1);
+    setError('');
     campaignApi
       .getSelected()
       .then((c) => { setCampaignId(c.id); return c.id; })
@@ -20,7 +29,7 @@ export default function Participants() {
       .then((r) => { setRows(r.participants); setTotal(r.total); })
       .catch(() => setError('Failed to load participants.'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [location.search]);
 
   const goToPage = async (p: number) => {
     if (!campaignId) return;

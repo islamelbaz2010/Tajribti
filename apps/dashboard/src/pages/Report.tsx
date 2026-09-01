@@ -23,6 +23,7 @@ const AR = {
   s02: 'ملف الجمهور',
   s03: 'تحليل نية الشراء',
   s04: 'صوت المستهلك',
+  s04b: 'نتائج خاصة بالحملة',
   s05: 'الاكتشافات الرئيسية',
   s06: 'التوصيات',
   s07: 'المنهجية وسلامة البيانات',
@@ -165,6 +166,11 @@ export default function Report() {
   // may be unset; both are optional decoration, never required for the
   // report to render correctly.
   const sectorLabel = company?.sector ? SECTOR_LABELS[company.sector] : null;
+  // Campaign-Specific Findings section (2026-09-01, this pass) only renders
+  // when the campaign actually has custom questions — the vast majority of
+  // campaigns don't, so the following sections' displayed step numbers stay
+  // sequential (06/07/08) rather than jumping to 07/08/09 with a gap.
+  const hasCustomFindings = survey.customQuestions.length > 0;
   const isDemo = campaign.isDemo;
   const topAge = demographics.ageDistribution[0];
   const topGender = demographics.genderDistribution[0];
@@ -508,8 +514,62 @@ export default function Report() {
             </div>
           </ReportSection>
 
+          {/* ─── CAMPAIGN-SPECIFIC FINDINGS ─── */}
+          {/* Survey Builder V2 (2026-09-01, this pass): the data this section
+              renders (survey.customQuestions) was already computed by
+              analytics.service.ts and already returned by report.service.ts's
+              generatePdfData() — this section only renders it. Every existing
+              campaign with zero custom questions (the vast majority, including
+              every historical report generated so far) renders nothing here;
+              customQuestions.length === 0 skips the section entirely, so no
+              existing report's appearance changes. */}
+          {survey.customQuestions.length > 0 && (
+            <ReportSection title={t('Campaign-Specific Findings', AR.s04b)} num="06" isAr={isAr}>
+              <p style={pg.emptyNote}>
+                {t(
+                  'Questions this Company added specifically for this campaign, beyond the standard trial-research core.',
+                  'أسئلة أضافتها الشركة خصيصاً لهذه الحملة، بالإضافة إلى الأسئلة الأساسية المعيارية.'
+                )}
+              </p>
+              {survey.customQuestions.map((q) => (
+                <div key={q.id} style={pg.voiceBlock}>
+                  <div style={pg.chartLabel}>{isAr && q.textAr ? q.textAr : q.text}</div>
+                  {q.responseCount === 0 ? (
+                    <p style={pg.emptyNote}>{t('No responses to this question yet.', 'لا توجد إجابات على هذا السؤال حتى الآن.')}</p>
+                  ) : q.breakdown && q.breakdown.length > 0 ? (
+                    <div style={pg.descriptorList}>
+                      {q.breakdown.map((item, i) => (
+                        <div key={item.label} style={pg.descriptorRow}>
+                          <span style={pg.descriptorRank}>{i + 1}</span>
+                          <span style={pg.descriptorLabel}>{item.label}</span>
+                          <span style={pg.descriptorCount}>{item.count} {t('responses', AR.responses)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : q.average !== undefined ? (
+                    <p style={pg.narrativeLine}>
+                      {t(
+                        `Average rating: ${q.average} / 5 across ${q.responseCount} response(s).`,
+                        `متوسط التقييم: ${q.average} / 5 من إجمالي ${q.responseCount} إجابة.`
+                      )}
+                    </p>
+                  ) : q.verbatims && q.verbatims.length > 0 ? (
+                    q.verbatims.map((v, i) => (
+                      <div key={i} style={verbatimStyle(v)}>
+                        <span style={pg.verbatimMark}>"</span>
+                        {v}
+                      </div>
+                    ))
+                  ) : (
+                    <p style={pg.emptyNote}>{t('No open-ended responses meet the display threshold yet.', 'لا توجد إجابات مفتوحة كافية للعرض حتى الآن.')}</p>
+                  )}
+                </div>
+              ))}
+            </ReportSection>
+          )}
+
           {/* ─── KEY FINDINGS ─── */}
-          <ReportSection title={t('Key Findings', AR.s05)} num="06" isAr={isAr}>
+          <ReportSection title={t('Key Findings', AR.s05)} num={hasCustomFindings ? '07' : '06'} isAr={isAr}>
             <div style={pg.findingsGrid}>
               <FindingCard
                 type={t('Strongest Signal', AR.strongestSignal)}
@@ -578,7 +638,7 @@ export default function Report() {
           </ReportSection>
 
           {/* ─── RECOMMENDATIONS ─── */}
-          <ReportSection title={t('Recommended Actions', AR.s06)} num="07" isAr={isAr}>
+          <ReportSection title={t('Recommended Actions', AR.s06)} num={hasCustomFindings ? '08' : '07'} isAr={isAr}>
             <div style={pg.recList}>
               <RecItem
                 num={1}
@@ -620,7 +680,7 @@ export default function Report() {
           </ReportSection>
 
           {/* ─── METHODOLOGY ─── */}
-          <ReportSection title={t('Methodology & Data Integrity', AR.s07)} num="08" noBorder isAr={isAr}>
+          <ReportSection title={t('Methodology & Data Integrity', AR.s07)} num={hasCustomFindings ? '09' : '08'} noBorder isAr={isAr}>
             <div style={pg.methodTable}>
               <MethodRow
                 label={t('Sample Size', AR.methodSampleSize)}

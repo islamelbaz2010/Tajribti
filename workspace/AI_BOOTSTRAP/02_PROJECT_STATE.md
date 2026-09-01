@@ -1,7 +1,19 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-09-01 (DL-059 Controlled Brand Provisioning, on top of DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+**Last updated:** 2026-09-01 (DL-060 Pilot Go-Live pass, on top of DL-059 Controlled Brand Provisioning and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+
+---
+
+## CURRENT SESSION DELTA — 2026-09-01, third pass (Pilot Go-Live / DL-060)
+
+- **API is live in production with DL-058/059 code**: Railway's GitHub integration auto-deployed on push — no manual `railway up` was needed. Confirmed via safe, non-mutating production requests: `POST /admin/brands` exists and correctly validates/rejects (empty body → 400; wrong secret → 401 "Invalid admin secret"; no account created by either check); `GET /campaigns` and `POST /auth/brand/login` remain healthy; the existing demo campaign (`9c370244-...`) is unchanged.
+- **Dashboard deployed to production**: `cd apps/dashboard && npx vercel --prod --yes` against the existing linked `dashboard` project (no new project) — now aliased at the existing `https://dashboard-six-flame-wsaixia9cm.vercel.app`. Reachability-verified via HTTP (root + `/login` → 200, fresh build hash confirmed). No interactive browser click-through was performed — no browser-automation tool available in this environment.
+- **Archive migration (`1788000000000-AddArchivedCampaignStatus`) is still NOT applied to production.** Attempted the safest available path — `railway connect postgres` (Railway's own authorized DB tunnel, which would never have exposed `DATABASE_URL` to this session) — and the harness's own permission classifier blocked the action before any connection was attempted. Per this session's explicit instruction, this was not retried and no workaround was attempted. **Founder action required:** run `npm run migration:run` from `apps/api` against the production database (e.g. via `railway run` from a machine that can resolve `postgres.railway.internal`, or via the Railway dashboard's own migration/shell tooling) before using the Archive status in production.
+- **Second real Brand NOT provisioned.** No Founder-approved real Brand name/email/credentials exist anywhere in the workspace to provision with `POST /admin/brands` — the Edita/Rimon Sami material is an unsent sales-outreach target, not approved account data. Fabricating one for production was out of scope. **Founder action required:** either provide real Brand details (name, email, initial password, optional logo URL) for this session to provision, or run `POST /admin/brands` yourself with the production `ADMIN_SECRET`.
+- No code changed this pass — deployment and verification only.
+
+Full detail: `DECISION_LOG.md` DL-060.
 
 ---
 

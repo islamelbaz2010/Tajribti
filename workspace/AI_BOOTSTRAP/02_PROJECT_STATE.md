@@ -1,7 +1,23 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-09-01 (DL-061 Company Console Reconciliation, on top of DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+**Last updated:** 2026-09-01 (DL-062 Company Console Product Transformation, on top of DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+
+---
+
+## CURRENT SESSION DELTA — 2026-09-01, fifth pass (Company Console Product Transformation / DL-062)
+
+Implemented the IA proposed (not built) in the DL-061 pass:
+
+- **Nav regrouped** from five flat MEOS-demo-inherited sections to two: `CAMPAIGN` (Campaigns, Details & QR, Media) and `CONSUMER INSIGHTS` (Overview, Participants, Demographics, Survey Results, AI Insights, Report). Every route URL unchanged.
+- **Sidebar now shows the selected campaign's product name + status** as a persistent "Working on" context across every page, reusing the `getSelected()` call `Layout.tsx` already made.
+- **Renamed inherited demo-show titles**: "Who Tried It?"→Demographics, "What Did They Say?"→Survey Results, "What Did We Learn?"→AI Insights, "Turn Trial Into Signal"→Campaign Details, "Trial QR Code"→Campaign QR Code, "Signal Stream"→Recent Activity. Fixed the QR page's "resets after each scan" hint, previously shown even for real (non-demo) campaigns — now conditional on `isDemo`. Overview's duplicate "Other Campaigns" list replaced with a link to the Campaigns page.
+- **Added Campaign-Specific Survey Configuration**: a Company can now reword its own campaign's survey questions/options after creation via `CampaignDetail.tsx`'s new Survey section, reusing `CreateCampaign.tsx`'s existing question-editor UI. Bounded server-side by a new `validateSurveyQuestionEdit()` guard in `campaign.service.ts`: question count, order, id, and type must exactly match the existing campaign — only text/textAr/options/optionsAr may change. This protects `analytics.service.ts`'s fixed-key reads (`answers['q2']`/`['q3']`/`['q5']`) from silent corruption. Not a Survey Builder — the same bound `CreateCampaignDto` already enforced at creation time, now also enforced for edits.
+- **Runtime-verified twice**: locally against the non-production `tajribti_demo` DB (wording-only edit → 200, type-change → 400, question-drop → 400; test data reverted after), and in production against the real live campaign (`9c370244-...`) using the rejection path only — an intentional invalid edit returned the identical 400 from the new guard (proving the code is live) with zero mutation; the campaign's data was re-read afterward and confirmed unchanged.
+- `tsc --noEmit` + `CI=true npm run build` clean on both `apps/api` and `apps/dashboard`.
+- **Deployed**: Railway auto-deployed the API on push (no manual action needed). Dashboard deployed via `vercel --prod` to the (now-renamed) `tajribti` Vercel project — same project, aliased to the existing production URL; all 9 dashboard routes verified reachable (200) post-deploy with a fresh build hash.
+
+Full detail: `DECISION_LOG.md` DL-062.
 
 ---
 

@@ -48,7 +48,19 @@ import { CampaignVerification } from './entities/campaign-verification.entity';
           EmailVerificationToken,
           CampaignVerification,
         ],
-        synchronize: configService.get('NODE_ENV') !== 'production',
+        // Production Schema Safety (DL-070, 2026-09-01): was `!== 'production'`
+        // — a blocklist that silently stayed `true` for any unrecognized
+        // NODE_ENV value, which is exactly what happened in the real pilot
+        // environment (Railway's `api` service runs `NODE_ENV=pilot`, not
+        // `production`), leaving TypeORM schema auto-sync live against the
+        // real production database all session. Flipped to an allowlist
+        // matching the adjacent `logging` line's existing pattern one line
+        // below: synchronize is now only ever enabled for the one value
+        // local development actually uses (`NODE_ENV=development`, per
+        // `apps/api/.env`) — every other value, including `pilot`,
+        // `production`, staging, or unset, now correctly disables it.
+        // Production schema changes must go through `migration:run` only.
+        synchronize: configService.get('NODE_ENV') === 'development',
         ssl: configService.get('DATABASE_URL', '').includes('localhost') ? false : { rejectUnauthorized: false },
         logging: configService.get('NODE_ENV') === 'development',
       }),

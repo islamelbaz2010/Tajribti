@@ -9,6 +9,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ReportModule } from './modules/report/report.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { MediaModule } from './modules/media/media.module';
+import { CompanyModule } from './modules/company/company.module';
 import { Consumer } from './entities/consumer.entity';
 import { OtpSession } from './entities/otp-session.entity';
 import { Campaign } from './entities/campaign.entity';
@@ -16,6 +17,7 @@ import { QrCode } from './entities/qr-code.entity';
 import { RedemptionEvent } from './entities/redemption-event.entity';
 import { SurveyResponse } from './entities/survey-response.entity';
 import { BrandAccount } from './entities/brand-account.entity';
+import { BrandContact } from './entities/brand-contact.entity';
 import { AiReport } from './entities/ai-report.entity';
 import { CampaignMedia } from './entities/campaign-media.entity';
 import { EmailVerificationToken } from './entities/email-verification-token.entity';
@@ -40,6 +42,7 @@ import { CampaignVerification } from './entities/campaign-verification.entity';
           RedemptionEvent,
           SurveyResponse,
           BrandAccount,
+          BrandContact,
           AiReport,
           CampaignMedia,
           EmailVerificationToken,
@@ -59,6 +62,7 @@ import { CampaignVerification } from './entities/campaign-verification.entity';
     ReportModule,
     AdminModule,
     MediaModule,
+    CompanyModule,
   ],
 })
 export class AppModule {}

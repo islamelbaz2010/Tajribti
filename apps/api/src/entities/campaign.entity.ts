@@ -8,6 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { BrandAccount } from './brand-account.entity';
+import { BrandContact } from './brand-contact.entity';
 import { QrCode } from './qr-code.entity';
 import { RedemptionEvent } from './redemption-event.entity';
 import { SurveyResponse } from './survey-response.entity';
@@ -89,6 +90,19 @@ export class Campaign {
 
   @Column({ name: 'survey_questions', type: 'jsonb' })
   surveyQuestions: SurveyQuestion[];
+
+  // Company Foundation (2026-09-01): optional reference to one of the
+  // owning Company's own BrandContact records — "who at the Company is
+  // running/responsible for this campaign." Ownership-validated in
+  // campaign.service.ts (a contact from another Company can never be
+  // attached). ON DELETE SET NULL at the DB level so deleting a contact
+  // never touches campaign data/history.
+  @Column({ name: 'contact_id', type: 'uuid', nullable: true })
+  contactId: string | null;
+
+  @ManyToOne(() => BrandContact, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'contact_id' })
+  contact: BrandContact | null;
 
   @Column({ name: 'is_demo', default: false })
   isDemo: boolean;

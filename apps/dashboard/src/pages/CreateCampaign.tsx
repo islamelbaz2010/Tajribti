@@ -1,7 +1,7 @@
-import React, { useState, FormEvent } from 'react';
+import React, { useState, useEffect, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { campaignApi } from '../api/endpoints';
-import type { SurveyQuestion } from '../api/types';
+import { campaignApi, companyApi } from '../api/endpoints';
+import type { SurveyQuestion, BrandContact } from '../api/types';
 import SurveyEditor from '../components/SurveyEditor';
 
 // Campaign-creation form. Reuses the existing POST /campaigns contract
@@ -67,9 +67,28 @@ export default function CreateCampaign() {
   const [targetCount, setTargetCount] = useState(100);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [contactId, setContactId] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // Company Foundation (2026-09-01): the Company's own contacts (for
+  // "who at the Company is running this campaign") and its sector's
+  // recommended question framework — both scoped server-side to the
+  // authenticated brand, never another Company's data.
+  const [contacts, setContacts] = useState<BrandContact[]>([]);
+  const [framework, setFramework] = useState<SurveyQuestion[]>([]);
+
+  useEffect(() => {
+    companyApi.getContacts().then(setContacts).catch(() => setContacts([]));
+    companyApi.getSectorFramework().then(setFramework).catch(() => setFramework([]));
+  }, []);
+
+  const addFrameworkQuestion = (q: SurveyQuestion) => {
+    if (questions.some((existing) => existing.id === q.id)) return;
+    setCustomizeSurvey(true);
+    setQuestions((prev) => [...prev, q]);
+  };
 
   const canSubmit = brandName.trim().length > 0 && productName.trim().length > 0 && !submitting;
 
@@ -94,6 +113,7 @@ export default function CreateCampaign() {
         targetCount,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
+        contactId: contactId || undefined,
         surveyQuestions: customizeSurvey ? questions : undefined,
       });
       navigate(`/overview?campaignId=${campaign.id}`);
@@ -194,7 +214,28 @@ export default function CreateCampaign() {
               onChange={(e) => setEndDate(e.target.value)}
             />
           </Field>
+          <Field label="Campaign Contact">
+            <select
+              style={styles.input}
+              value={contactId}
+              onChange={(e) => setContactId(e.target.value)}
+            >
+              <option value="">— None —</option>
+              {contacts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}{c.role ? ` (${c.role})` : ''}
+                </option>
+              ))}
+            </select>
+          </Field>
         </div>
+
+        {contacts.length === 0 && (
+          <p style={styles.surveyHint}>
+            No Company contacts yet — add one from Company Profile to assign a contact to this
+            campaign.
+          </p>
+        )}
 
         <Field label="Description" full>
           <textarea
@@ -227,6 +268,29 @@ export default function CreateCampaign() {
               campaign, product, or industry, and use the ↑/↓ controls to place them anywhere in
               the survey, including ahead of a core question.
             </p>
+
+            {framework.length > 0 && (
+              <div style={styles.frameworkBox}>
+                <p style={styles.frameworkTitle}>Recommended for your industry</p>
+                {framework.map((q) => {
+                  const added = questions.some((existing) => existing.id === q.id);
+                  return (
+                    <div key={q.id} style={styles.frameworkRow}>
+                      <span style={styles.frameworkText}>{q.text}</span>
+                      <button
+                        type="button"
+                        style={added ? styles.frameworkAddedBtn : styles.frameworkAddBtn}
+                        disabled={added}
+                        onClick={() => addFrameworkQuestion(q)}
+                      >
+                        {added ? 'Added' : '+ Add'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             <SurveyEditor questions={questions} onChange={setQuestions} />
           </div>
         )}
@@ -328,6 +392,40 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 18,
   },
   surveyHint: { fontSize: 12, color: '#6b7fa8', margin: 0, lineHeight: 1.5 },
+  frameworkBox: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 8,
+    background: 'rgba(178, 242, 77, 0.05)',
+    border: '1px solid rgba(178, 242, 77, 0.2)',
+    borderRadius: 10,
+    padding: 14,
+  },
+  frameworkTitle: { fontSize: 10, fontWeight: 800, color: '#b2f24d', letterSpacing: 0.5, textTransform: 'uppercase' as const, margin: '0 0 4px' },
+  frameworkRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  frameworkText: { fontSize: 12, color: '#c3cbe6', flex: 1 },
+  frameworkAddBtn: {
+    background: 'transparent',
+    border: '1px solid #b2f24d',
+    color: '#b2f24d',
+    borderRadius: 6,
+    padding: '4px 10px',
+    fontSize: 11,
+    fontWeight: 700,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap' as const,
+  },
+  frameworkAddedBtn: {
+    background: 'transparent',
+    border: '1px solid #1a2540',
+    color: '#6b7fa8',
+    borderRadius: 6,
+    padding: '4px 10px',
+    fontSize: 11,
+    fontWeight: 700,
+    cursor: 'default',
+    whiteSpace: 'nowrap' as const,
+  },
   questionCard: {
     display: 'flex',
     flexDirection: 'column' as const,

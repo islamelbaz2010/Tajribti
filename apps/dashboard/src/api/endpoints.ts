@@ -9,6 +9,8 @@ import type {
   SurveyQuestion,
   AiReport,
   PdfData,
+  Company,
+  BrandContact,
 } from './types';
 
 export const authApi = {
@@ -62,6 +64,7 @@ export const campaignApi = {
     targetCount: number;
     startDate?: string;
     endDate?: string;
+    contactId?: string;
     surveyQuestions?: SurveyQuestion[];
   }): Promise<Campaign> => client.post('/campaigns', body),
   // Internal Tajribti Campaign Operations (DL-055 item 1): edit + status
@@ -80,9 +83,20 @@ export const campaignApi = {
       startDate: string;
       endDate: string;
       status: string;
+      contactId: string;
       surveyQuestions: SurveyQuestion[];
     }>,
   ): Promise<Campaign> => client.patch(`/campaigns/${id}`, body),
+};
+
+// Company Foundation (2026-09-01): self-service Company Console surface.
+export const companyApi = {
+  getMe: (): Promise<Company> => client.get('/company/me'),
+  getContacts: (): Promise<BrandContact[]> => client.get('/company/contacts'),
+  createContact: (body: { name: string; email: string; role?: string }): Promise<BrandContact> =>
+    client.post('/company/contacts', body),
+  removeContact: (id: string): Promise<void> => client.delete(`/company/contacts/${id}`),
+  getSectorFramework: (): Promise<SurveyQuestion[]> => client.get('/company/sector-framework'),
 };
 
 export const mediaApi = {

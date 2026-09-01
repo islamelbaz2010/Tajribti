@@ -95,6 +95,34 @@ export interface Campaign {
   rewardPoints: number;
   isDemo: boolean;
   surveyQuestions: SurveyQuestion[];
+  contactId?: string | null;
+}
+
+// Company Foundation (2026-09-01)
+export type BrandSector = 'fmcg' | 'beauty_personal_care' | 'pharma_otc';
+
+export const SECTOR_LABELS: Record<BrandSector, string> = {
+  fmcg: 'FMCG (Food & Beverage)',
+  beauty_personal_care: 'Beauty & Personal Care',
+  pharma_otc: 'Pharma-OTC',
+};
+
+export interface Company {
+  id: string;
+  name: string;
+  email: string;
+  logoUrl: string | null;
+  sector: BrandSector | null;
+  createdAt: string;
+}
+
+export interface BrandContact {
+  id: string;
+  brandAccountId: string;
+  name: string;
+  email: string;
+  role: string | null;
+  createdAt: string;
 }
 
 export interface AiReport {
@@ -106,6 +134,7 @@ export interface AiReport {
 
 export interface PdfData {
   campaign: Campaign;
+  company: { name: string; logoUrl: string | null; sector: BrandSector | null } | null;
   overview: OverviewData;
   demographics: DemographicsData;
   survey: SurveyData;

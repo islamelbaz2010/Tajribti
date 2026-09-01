@@ -1,4 +1,4 @@
-import { Injectable, Logger, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -8,9 +8,12 @@ import { Consumer } from '../../entities/consumer.entity';
 import { RedemptionEvent } from '../../entities/redemption-event.entity';
 import { SurveyResponse } from '../../entities/survey-response.entity';
 import { BrandAccount } from '../../entities/brand-account.entity';
+import { BrandContact } from '../../entities/brand-contact.entity';
 import { AiReport } from '../../entities/ai-report.entity';
 import { ConfigService } from '@nestjs/config';
 import { CreateBrandAccountDto } from './dto/create-brand-account.dto';
+import { UpdateBrandAccountDto } from './dto/update-brand-account.dto';
+import { CreateBrandContactDto } from './dto/create-brand-contact.dto';
 
 const AGE_RANGES = ['18-24', '25-34', '35-44', '45-54', '55+'] as const;
 const GENDERS = ['male', 'female'] as const;
@@ -77,6 +80,8 @@ export class AdminService {
     private readonly surveyRepo: Repository<SurveyResponse>,
     @InjectRepository(BrandAccount)
     private readonly brandRepo: Repository<BrandAccount>,
+    @InjectRepository(BrandContact)
+    private readonly brandContactRepo: Repository<BrandContact>,
     @InjectRepository(AiReport)
     private readonly aiReportRepo: Repository<AiReport>,
     private readonly configService: ConfigService,
@@ -169,6 +174,7 @@ export class AdminService {
         email: dto.email,
         password: hashedPassword,
         logoUrl: dto.logoUrl ?? null,
+        sector: dto.sector ?? null,
       }),
     );
 
@@ -178,6 +184,74 @@ export class AdminService {
       email: brand.email,
       createdAt: brand.createdAt,
     };
+  }
+
+  // Company Foundation (2026-09-01): Admin listing/edit of existing
+  // Companies — deliberately never returns `password`. Same x-admin-secret
+  // gate as every other admin.* method.
+  async listBrands(): Promise<
+    Array<Pick<BrandAccount, 'id' | 'name' | 'email' | 'logoUrl' | 'sector' | 'createdAt'>>
+  > {
+    const brands = await this.brandRepo.find({ order: { createdAt: 'DESC' } });
+    return brands.map(({ id, name, email, logoUrl, sector, createdAt }) => ({
+      id,
+      name,
+      email,
+      logoUrl,
+      sector,
+      createdAt,
+    }));
+  }
+
+  async updateBrand(
+    id: string,
+    dto: UpdateBrandAccountDto,
+  ): Promise<Pick<BrandAccount, 'id' | 'name' | 'email' | 'logoUrl' | 'sector'>> {
+    const brand = await this.brandRepo.findOne({ where: { id } });
+    if (!brand) throw new NotFoundException('Brand account not found');
+
+    if (dto.name !== undefined) brand.name = dto.name;
+    if (dto.logoUrl !== undefined) brand.logoUrl = dto.logoUrl || null;
+    if (dto.sector !== undefined) brand.sector = dto.sector;
+
+    const saved = await this.brandRepo.save(brand);
+    return { id: saved.id, name: saved.name, email: saved.email, logoUrl: saved.logoUrl, sector: saved.sector };
+  }
+
+  // ── Company Contacts (Company Foundation, 2026-09-01) ──────────────────
+  // Admin-side CRUD, mirrored by a self-service subset in company.service.ts
+  // for the Company's own console. Not a second auth system — no
+  // password/login is ever created for a contact.
+
+  async listBrandContacts(brandId: string): Promise<BrandContact[]> {
+    await this.requireBrand(brandId);
+    return this.brandContactRepo.find({ where: { brandAccountId: brandId }, order: { createdAt: 'DESC' } });
+  }
+
+  async createBrandContact(brandId: string, dto: CreateBrandContactDto): Promise<BrandContact> {
+    await this.requireBrand(brandId);
+    return this.brandContactRepo.save(
+      this.brandContactRepo.create({
+        brandAccountId: brandId,
+        name: dto.name,
+        email: dto.email,
+        role: dto.role ?? null,
+      }),
+    );
+  }
+
+  async deleteBrandContact(brandId: string, contactId: string): Promise<void> {
+    const contact = await this.brandContactRepo.findOne({ where: { id: contactId } });
+    if (!contact || contact.brandAccountId !== brandId) {
+      throw new NotFoundException('Contact not found for this brand');
+    }
+    await this.brandContactRepo.remove(contact);
+  }
+
+  private async requireBrand(id: string): Promise<BrandAccount> {
+    const brand = await this.brandRepo.findOne({ where: { id } });
+    if (!brand) throw new NotFoundException('Brand account not found');
+    return brand;
   }
 
   async resetDemo(): Promise<{ message: string }> {

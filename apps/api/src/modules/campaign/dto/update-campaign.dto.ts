@@ -2,6 +2,7 @@ import {
   IsString,
   IsInt,
   IsOptional,
+  IsUUID,
   Min,
   MaxLength,
   MinLength,
@@ -78,6 +79,12 @@ export class UpdateCampaignDto {
   @IsOptional()
   @IsEnum(CampaignStatus)
   status?: CampaignStatus;
+
+  // Company Foundation (2026-09-01): see create-campaign.dto.ts — same
+  // ownership-validated contact reference, editable after creation.
+  @IsOptional()
+  @IsUUID()
+  contactId?: string;
 
   @IsOptional()
   @IsArray()

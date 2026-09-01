@@ -6,6 +6,7 @@ import { Consumer } from '../../entities/consumer.entity';
 import { RedemptionEvent } from '../../entities/redemption-event.entity';
 import { SurveyResponse } from '../../entities/survey-response.entity';
 import { BrandAccount } from '../../entities/brand-account.entity';
+import { BrandContact } from '../../entities/brand-contact.entity';
 import { AiReport } from '../../entities/ai-report.entity';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
@@ -19,6 +20,7 @@ import { AdminService } from './admin.service';
       RedemptionEvent,
       SurveyResponse,
       BrandAccount,
+      BrandContact,
       AiReport,
     ]),
   ],

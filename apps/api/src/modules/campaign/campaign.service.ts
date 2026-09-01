@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Campaign, CampaignStatus, SurveyQuestion } from '../../entities/campaign.entity';
 import { QrCode } from '../../entities/qr-code.entity';
+import { BrandContact } from '../../entities/brand-contact.entity';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
 
@@ -60,10 +61,15 @@ export class CampaignService {
     private readonly campaignRepo: Repository<Campaign>,
     @InjectRepository(QrCode)
     private readonly qrCodeRepo: Repository<QrCode>,
+    @InjectRepository(BrandContact)
+    private readonly brandContactRepo: Repository<BrandContact>,
   ) {}
 
   async createCampaign(brandAccountId: string, dto: CreateCampaignDto): Promise<Campaign> {
     this.validateDateRange(dto.startDate ?? null, dto.endDate ?? null);
+    if (dto.contactId) {
+      await this.assertContactOwnership(brandAccountId, dto.contactId);
+    }
     const campaign = this.campaignRepo.create({
       brandAccountId,
       brandName: dto.brandName,
@@ -76,6 +82,7 @@ export class CampaignService {
       targetCount: dto.targetCount,
       startDate: dto.startDate ?? null,
       endDate: dto.endDate ?? null,
+      contactId: dto.contactId ?? null,
       // Internal per-campaign research configuration (DL-057 scope): use
       // the provided question set if Tajribti's team prepared one for
       // this campaign's sector/product, otherwise the existing standard
@@ -158,6 +165,10 @@ export class CampaignService {
     if (dto.startDate !== undefined) campaign.startDate = dto.startDate || null;
     if (dto.endDate !== undefined) campaign.endDate = dto.endDate || null;
     if (dto.status !== undefined) campaign.status = dto.status;
+    if (dto.contactId !== undefined) {
+      if (dto.contactId) await this.assertContactOwnership(brandAccountId, dto.contactId);
+      campaign.contactId = dto.contactId || null;
+    }
     if (dto.surveyQuestions !== undefined) {
       this.validateSurveyQuestionEdit(campaign.surveyQuestions, dto.surveyQuestions);
       campaign.surveyQuestions = dto.surveyQuestions;
@@ -168,6 +179,17 @@ export class CampaignService {
     this.validateDateRange(campaign.startDate, campaign.endDate);
 
     return this.campaignRepo.save(campaign);
+  }
+
+  // Company Foundation (2026-09-01): a campaign may only reference a
+  // contact belonging to its own owning Company — same ownership-scoping
+  // discipline as every other brand-scoped resource in this codebase
+  // (analytics/report/media all assert `resource.brandAccountId === brandId`).
+  private async assertContactOwnership(brandAccountId: string, contactId: string): Promise<void> {
+    const contact = await this.brandContactRepo.findOne({ where: { id: contactId } });
+    if (!contact || contact.brandAccountId !== brandAccountId) {
+      throw new BadRequestException('Contact not found for this company');
+    }
   }
 
   // Campaign Scheduling (2026-09-01): the one cross-field validation date

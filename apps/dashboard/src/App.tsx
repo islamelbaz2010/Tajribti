@@ -13,6 +13,7 @@ import AiSummary from './pages/AiSummary';
 import Participants from './pages/Participants';
 import Gallery from './pages/Gallery';
 import Report from './pages/Report';
+import CompanyProfile from './pages/CompanyProfile';
 import JoinLayout from './pages/consumer/JoinLayout';
 import JoinPage from './pages/consumer/JoinPage';
 import PhonePage from './pages/consumer/PhonePage';
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="/participants" element={<ProtectedRoute><Participants /></ProtectedRoute>} />
           <Route path="/gallery" element={<ProtectedRoute><Gallery /></ProtectedRoute>} />
           <Route path="/report" element={<ProtectedRoute><Report /></ProtectedRoute>} />
+          <Route path="/company" element={<ProtectedRoute><CompanyProfile /></ProtectedRoute>} />
 
           {/* Consumer web journey — no brand auth required */}
           <Route path="/join/:campaignId" element={<JoinLayout />}>

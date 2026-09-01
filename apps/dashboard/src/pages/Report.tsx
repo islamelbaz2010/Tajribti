@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { campaignApi, reportApi } from '../api/endpoints';
 import type { PdfData } from '../api/types';
+import { SECTOR_LABELS } from '../api/types';
 
 /* ─── Arabic string table ─── */
 const AR = {
@@ -158,7 +159,12 @@ export default function Report() {
   if (error) return <div style={outer.error}>{error}</div>;
   if (!data) return null;
 
-  const { campaign, overview, demographics, survey, report } = data;
+  const { campaign, company, overview, demographics, survey, report } = data;
+  // Company Foundation (2026-09-01): cover branding only — company may be
+  // null (legacy/demo campaign with no owning brandAccountId) and sector
+  // may be unset; both are optional decoration, never required for the
+  // report to render correctly.
+  const sectorLabel = company?.sector ? SECTOR_LABELS[company.sector] : null;
   const isDemo = campaign.isDemo;
   const topAge = demographics.ageDistribution[0];
   const topGender = demographics.genderDistribution[0];
@@ -232,8 +238,13 @@ export default function Report() {
           {/* ─── COVER ─── */}
           <div style={pg.coverBlock}>
             <div style={pg.coverTopBar}>
-              <div style={{ ...pg.tajribtiLogo, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
-                {isAr ? 'تجربتي' : 'TAJRIBTI'}
+              <div style={pg.coverTopBarLeft}>
+                <div style={{ ...pg.tajribtiLogo, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                  {isAr ? 'تجربتي' : 'TAJRIBTI'}
+                </div>
+                {company?.logoUrl && (
+                  <img src={company.logoUrl} alt={company.name} style={pg.companyLogo} />
+                )}
               </div>
               {isDemo ? (
                 <div style={pg.demoBanner}>{t('SAMPLE DATA · For evaluation purposes only', AR.sampleBanner)}</div>
@@ -258,6 +269,13 @@ export default function Report() {
                     <span style={pg.coverMetaLabel}>{t('Period', 'الفترة')}</span>
                     {' · '}
                     {campaignPeriod}
+                  </span>
+                )}
+                {sectorLabel && (
+                  <span style={pg.coverMetaChip}>
+                    <span style={pg.coverMetaLabel}>{t('Sector', 'القطاع')}</span>
+                    {' · '}
+                    {sectorLabel}
                   </span>
                 )}
                 <span style={pg.coverMetaChip}>
@@ -914,6 +932,18 @@ const pg: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     padding: '16px 28px',
     borderBottom: '1px solid rgba(255,255,255,0.08)',
+  },
+  coverTopBarLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 14,
+  },
+  companyLogo: {
+    height: 22,
+    maxWidth: 100,
+    objectFit: 'contain' as const,
+    borderLeft: '1px solid rgba(255,255,255,0.15)',
+    paddingLeft: 14,
   },
   tajribtiLogo: {
     fontSize: 14,

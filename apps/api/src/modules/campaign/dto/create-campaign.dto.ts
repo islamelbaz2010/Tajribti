@@ -3,6 +3,7 @@ import {
   IsInt,
   IsOptional,
   IsArray,
+  IsUUID,
   Min,
   MaxLength,
   MinLength,
@@ -58,6 +59,14 @@ export class CreateCampaignDto {
   @IsOptional()
   @IsString()
   endDate?: string;
+
+  // Company Foundation (2026-09-01): optional reference to one of the
+  // owning Company's own BrandContact records — ownership-validated in
+  // campaign.service.ts (a contact from another Company can never be
+  // attached, same pattern as every other ownership check in this file).
+  @IsOptional()
+  @IsUUID()
+  contactId?: string;
 
   // Campaign-specific research configuration (Survey Builder V2,
   // 2026-09-01). Omitted -> the existing standard 5-question survey is

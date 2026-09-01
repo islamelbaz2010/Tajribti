@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { campaignApi, qrApi } from '../api/endpoints';
-import type { Campaign, SurveyQuestion } from '../api/types';
+import { campaignApi, qrApi, companyApi } from '../api/endpoints';
+import type { Campaign, SurveyQuestion, BrandContact } from '../api/types';
 import SurveyEditor from '../components/SurveyEditor';
 
 const STATUS_OPTIONS = ['draft', 'active', 'paused', 'completed', 'archived'];
@@ -40,6 +40,10 @@ export default function CampaignDetail() {
   // key) — SurveyEditor only allows wording/options edits on those.
   // Anything beyond the core 5 is free to add/remove/reorder/retype.
   const [editSurveyQuestions, setEditSurveyQuestions] = useState<SurveyQuestion[]>([]);
+  // Company Foundation (2026-09-01): who at the Company is running this
+  // campaign — selectable from the Company's own contacts only.
+  const [editContactId, setEditContactId] = useState('');
+  const [contacts, setContacts] = useState<BrandContact[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -56,7 +60,12 @@ export default function CampaignDetail() {
     setEditLocationName(c.locationName ?? '');
     setEditLocationAddress(c.locationAddress ?? '');
     setEditSurveyQuestions(c.surveyQuestions ?? []);
+    setEditContactId(c.contactId ?? '');
   };
+
+  useEffect(() => {
+    companyApi.getContacts().then(setContacts).catch(() => setContacts([]));
+  }, []);
 
   useEffect(() => {
     // Re-resolves whenever ?campaignId= changes — the route itself
@@ -123,6 +132,7 @@ export default function CampaignDetail() {
         productImage: editProductImage || undefined,
         locationName: editLocationName || undefined,
         locationAddress: editLocationAddress || undefined,
+        contactId: editContactId || undefined,
         surveyQuestions: editSurveyQuestions,
       })
       .then((updated) => {
@@ -310,6 +320,21 @@ export default function CampaignDetail() {
               value={editLocationAddress}
               onChange={(e) => setEditLocationAddress(e.target.value)}
             />
+          </label>
+          <label style={styles.fieldLabel}>
+            Campaign Contact
+            <select
+              style={styles.select}
+              value={editContactId}
+              onChange={(e) => setEditContactId(e.target.value)}
+            >
+              <option value="">— None —</option>
+              {contacts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}{c.role ? ` (${c.role})` : ''}
+                </option>
+              ))}
+            </select>
           </label>
         </div>
         <label style={styles.fieldLabel}>

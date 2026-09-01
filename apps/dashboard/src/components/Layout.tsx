@@ -38,6 +38,10 @@ const NAV_SECTIONS = [
   },
 ];
 
+// Company Foundation (2026-09-01): a third, company-scoped group — not
+// campaign-scoped, so it deliberately does not carry ?campaignId=.
+const COMPANY_NAV_ITEM = { to: '/company', label: 'Company Profile' };
+
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -139,6 +143,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               ))}
             </div>
           ))}
+
+          <div style={styles.navSection}>
+            <div style={styles.navGroupLabel}>COMPANY</div>
+            <NavLink
+              to={COMPANY_NAV_ITEM.to}
+              style={({ isActive }) => ({
+                ...styles.navItem,
+                ...(isActive ? styles.navItemActive : {}),
+              })}
+            >
+              {COMPANY_NAV_ITEM.label}
+            </NavLink>
+          </div>
         </nav>
 
         <button style={styles.logoutBtn} onClick={handleLogout}>

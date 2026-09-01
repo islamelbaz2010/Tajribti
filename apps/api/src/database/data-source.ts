@@ -8,6 +8,7 @@ import { QrCode } from '../entities/qr-code.entity';
 import { RedemptionEvent } from '../entities/redemption-event.entity';
 import { SurveyResponse } from '../entities/survey-response.entity';
 import { BrandAccount } from '../entities/brand-account.entity';
+import { BrandContact } from '../entities/brand-contact.entity';
 import { AiReport } from '../entities/ai-report.entity';
 import { CampaignMedia } from '../entities/campaign-media.entity';
 import { EmailVerificationToken } from '../entities/email-verification-token.entity';
@@ -30,6 +31,7 @@ export const AppDataSource = new DataSource({
     RedemptionEvent,
     SurveyResponse,
     BrandAccount,
+    BrandContact,
     AiReport,
     CampaignMedia,
     EmailVerificationToken,

@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { AiReport } from '../../entities/ai-report.entity';
 import { SurveyResponse } from '../../entities/survey-response.entity';
 import { Campaign } from '../../entities/campaign.entity';
+import { BrandAccount, BrandSector } from '../../entities/brand-account.entity';
 import { AnalyticsService } from '../analytics/analytics.service';
 
 @Injectable()
@@ -18,6 +19,8 @@ export class ReportService {
     private readonly surveyRepo: Repository<SurveyResponse>,
     @InjectRepository(Campaign)
     private readonly campaignRepo: Repository<Campaign>,
+    @InjectRepository(BrandAccount)
+    private readonly brandRepo: Repository<BrandAccount>,
     private readonly analyticsService: AnalyticsService,
     private readonly configService: ConfigService,
   ) {}
@@ -74,6 +77,7 @@ export class ReportService {
 
   async generatePdfData(campaignId: string): Promise<{
     campaign: Campaign;
+    company: { name: string; logoUrl: string | null; sector: BrandSector | null } | null;
     overview: Awaited<ReturnType<AnalyticsService['getOverview']>>;
     demographics: Awaited<ReturnType<AnalyticsService['getDemographics']>>;
     survey: Awaited<ReturnType<AnalyticsService['getSurveyBreakdown']>>;
@@ -94,7 +98,22 @@ export class ReportService {
       this.getAiSummary(campaignId),
     ]);
 
-    return { campaign, overview, demographics, survey, report };
+    // Company Foundation (2026-09-01): cover branding only — graceful
+    // fallback to null when the campaign has no owning brandAccountId
+    // (legacy/demo shape) or the brand can't be found, so the Report's
+    // pagination/data-calculation logic never has to special-case this.
+    const company = campaign.brandAccountId
+      ? await this.brandRepo.findOne({ where: { id: campaign.brandAccountId } })
+      : null;
+
+    return {
+      campaign,
+      company: company ? { name: company.name, logoUrl: company.logoUrl, sector: company.sector } : null,
+      overview,
+      demographics,
+      survey,
+      report,
+    };
   }
 
   /** Below this response count, narrative language must hedge rather than assert. */

@@ -10,6 +10,7 @@ import { SurveyResponse } from '../../entities/survey-response.entity';
 import { BrandAccount } from '../../entities/brand-account.entity';
 import { AiReport } from '../../entities/ai-report.entity';
 import { ConfigService } from '@nestjs/config';
+import { CreateBrandAccountDto } from './dto/create-brand-account.dto';
 
 const AGE_RANGES = ['18-24', '25-34', '35-44', '45-54', '55+'] as const;
 const GENDERS = ['male', 'female'] as const;
@@ -143,6 +144,39 @@ export class AdminService {
       message: 'Demo data seeded successfully. 49 historical consumers loaded.',
       campaignId: campaign.id,
       qrCode: qrCodeValue,
+    };
+  }
+
+  // Controlled/internal Brand provisioning (Pilot Operations Closure,
+  // 2026-09-01): the only real-Brand onboarding mechanism authorized for
+  // this pilot phase. Callable only by whoever holds ADMIN_SECRET (same
+  // gate as /admin/seed) — deliberately NOT a public signup endpoint, no
+  // Brand-facing route calls this. Reuses the exact BrandAccount creation
+  // shape seedDemo() has always used; no second identity model, no new
+  // auth system. Returns nothing password-related.
+  async createBrand(
+    dto: CreateBrandAccountDto,
+  ): Promise<{ id: string; name: string; email: string; createdAt: Date }> {
+    const existing = await this.brandRepo.findOne({ where: { email: dto.email } });
+    if (existing) {
+      throw new ConflictException(`A brand account already exists for ${dto.email}`);
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const brand = await this.brandRepo.save(
+      this.brandRepo.create({
+        name: dto.name,
+        email: dto.email,
+        password: hashedPassword,
+        logoUrl: dto.logoUrl ?? null,
+      }),
+    );
+
+    return {
+      id: brand.id,
+      name: brand.name,
+      email: brand.email,
+      createdAt: brand.createdAt,
     };
   }
 

@@ -1,7 +1,21 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-09-01 (DL-058 Campaign Management completion; see delta block below. Blocks after this one describe pre-2026-09-01 state and are superseded where they conflict with this delta.)
+**Last updated:** 2026-09-01 (DL-059 Controlled Brand Provisioning, on top of DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+
+---
+
+## CURRENT SESSION DELTA — 2026-09-01, second pass (Pilot Operations Closure / DL-059)
+
+Closed the brand-onboarding gap DL-058 flagged as open, per explicit Founder direction that pilot onboarding is internal/admin-provisioned, not public self-service signup:
+
+- Audited existing admin architecture first (as directed) rather than assuming `POST /admin/seed` was reusable as-is: found `AdminController`/`AdminService` already had a working internal-operator authorization primitive (`x-admin-secret` header vs. `ADMIN_SECRET` — already configured in Railway production, since it gates `/admin/seed`) and already created `BrandAccount` rows with bcrypt-hashed passwords inside `seedDemo()`.
+- Added `POST /admin/brands` (`CreateBrandAccountDto`) reusing that exact mechanism/shape. No new auth system, no second Brand identity model, no RBAC. Response is `{id, name, email, createdAt}` only — password never returned.
+- **Runtime-verified end-to-end**, not just source-read: started the API locally against the local, non-production `tajribti_demo` DB (port 3010 — port 3000 was occupied by an unrelated project's dev server, left untouched) and confirmed: unauthenticated → 401; wrong secret → 401; valid request → 201 with no password in the response; duplicate email → 409; weak password → 400. The provisioned brand then logged in via the existing `/auth/brand/login`, created a campaign with a product image, and set its own status to `archived` (confirms the DL-058 migration's enum value is correct, via local `synchronize:true`). A second provisioned brand got 403 attempting to PATCH the first brand's campaign and saw an empty `/campaigns/my` — cross-brand isolation confirmed on the real code path. All test rows deleted from the local DB afterward; local server cleanly stopped.
+- Also confirmed Consumer Mobile compatibility: the Flutter app's only campaign-status check is `status != 'active'` (gates "Start Trial"), and public campaign discovery is already server-filtered to `status = active` — the new `archived` value needs no Consumer Mobile change and none was made.
+- `tsc --noEmit` + `nest build` clean. No dashboard, consumer, MEOS, or deployment changes this pass.
+
+Full detail: `DECISION_LOG.md` DL-059.
 
 ---
 

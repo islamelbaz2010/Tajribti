@@ -1,6 +1,7 @@
-import { Controller, Post, Headers, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Body, Headers, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AdminService } from './admin.service';
+import { CreateBrandAccountDto } from './dto/create-brand-account.dto';
 
 @Controller('admin')
 export class AdminController {
@@ -29,5 +30,19 @@ export class AdminController {
   resetSeed(@Headers('x-admin-secret') secret: string | undefined) {
     this.checkAdminSecret(secret);
     return this.adminService.resetDemo();
+  }
+
+  // Controlled/internal Brand provisioning (Pilot Operations Closure,
+  // 2026-09-01): the current pilot's onboarding mechanism — an internal
+  // operator holding ADMIN_SECRET provisions a real BrandAccount, then
+  // hands the Brand its email/password for /auth/brand/login. Not a
+  // public signup route: same x-admin-secret gate as /admin/seed above.
+  @Post('brands')
+  createBrand(
+    @Headers('x-admin-secret') secret: string | undefined,
+    @Body() dto: CreateBrandAccountDto,
+  ) {
+    this.checkAdminSecret(secret);
+    return this.adminService.createBrand(dto);
   }
 }

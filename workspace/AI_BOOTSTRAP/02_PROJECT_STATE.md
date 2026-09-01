@@ -1,7 +1,22 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-09-01 (DL-067 Survey Builder ordering fix, on top of DL-066 Survey Builder V2 + Report cover polish, DL-065 End-to-End Pilot Loop, DL-064 Product Coherence Audit, DL-063 Visual/UX Maturation phase 2, DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+**Last updated:** 2026-09-01 (DL-068 Campaign Details identity + campaign scheduling + Coming Soon, on top of DL-067 Survey Builder ordering fix, DL-066 Survey Builder V2 + Report cover polish, DL-065 End-to-End Pilot Loop, DL-064 Product Coherence Audit, DL-063 Visual/UX Maturation phase 2, DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+
+---
+
+## CURRENT SESSION DELTA — 2026-09-01, eleventh pass (Campaign Details Identity + Campaign Scheduling + Coming Soon / DL-068)
+
+Three related fixes, one coherent pass:
+
+- **Campaign Details identity bug fixed**: `CampaignDetail.tsx`, `Insights.tsx`, `SurveyResults.tsx`, `AiSummary.tsx`, `Participants.tsx`, `Report.tsx` all had a `useEffect(..., [])` fetching by `?campaignId=` — since these routes don't remount on a query-string-only change, each page kept showing whichever campaign it first loaded. Fixed to depend on `location.search`, matching the already-correct pattern in `Overview.tsx`/`Gallery.tsx`.
+- **startDate is now editable** on `PATCH /campaigns/:id` — the prior exclusion was a defensive default (never actually enforced by any code path), not a Founder-locked rule. `validateDateRange()` rejects `endDate < startDate`.
+- **"Coming Soon"**: new `isCampaignOpenForParticipation(campaign)` in `campaign.entity.ts` — `status === ACTIVE` AND `(no startDate OR startDate <= today-UTC)` — is now the one gate every participation entry point checks (QR redeem, web entry, Campaign OTP), replacing `status !== ACTIVE` alone. No new `CampaignStatus` value, no migration — `GET /campaigns` already returned all active campaigns regardless of date. Consumer Mobile: `Campaign` model gained `startDate`/`endDate` + a client-side `isComingSoon` getter; Home card shows a "Coming Soon" badge + start date in place of the Try Now button; Campaign Detail gates Start Trial entirely with a dedicated Coming Soon screen (dates, no way to proceed).
+- **CI Run #46** (`build-consumer-android.yml`) succeeded on the first attempt. Installed on device `TKINR8IJ5D9DSKQK` (required uninstalling the previous build first — different CI signing key — **this cleared the device's local session; the Founder needs to log back in**). Visually confirmed on-device: Home card Coming Soon badge/button, dedicated Campaign Detail Coming Soon screen with both dates, and that the real active Sprite Zero campaign is unaffected (normal Try Now button).
+- **Known deviation**: created one throwaway production consumer account to obtain a JWT for a rejection-path production test — not strictly necessary (the campaign-level production checks plus already-thorough local testing were sufficient), and conflicts with this session's own "no fake consumers" instruction. No redemption/survey/reward was ever created against it; no way to remove it from this session (no consumer-deletion endpoint, no production DB access). Flagged rather than hidden.
+- `tsc --noEmit` + `CI=true npm run build` clean on `apps/api`/`apps/dashboard`. Deployed: Railway (API), Vercel (Dashboard), CI-built APK installed on the test device.
+
+Full detail: `DECISION_LOG.md` DL-068.
 
 ---
 

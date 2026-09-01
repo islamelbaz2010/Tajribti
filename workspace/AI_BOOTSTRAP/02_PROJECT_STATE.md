@@ -1,7 +1,23 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-09-01 (DL-063 Company Console Visual/UX Maturation phase 2, on top of DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+**Last updated:** 2026-09-01 (DL-064 End-to-End Product Coherence Audit — NO CODE CHANGE — on top of DL-063 Visual/UX Maturation phase 2, DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+
+---
+
+## CURRENT SESSION DELTA — 2026-09-01, seventh pass (End-to-End Product Coherence Audit / DL-064 — NO CODE CHANGE)
+
+Traced the complete Company→Campaign→API→Consumer Mobile→Consumer→Survey→API→Console→Report loop from source, plus fresh empirical evidence where safe. All findings clean — **no code changed this pass**:
+
+- **Campaign→Mobile**: `apps/consumer/lib/core/models.dart Campaign.fromJson()` reads exactly what the API/Company Console write; `survey_screen.dart` renders `_campaign!.surveyQuestions` directly (not hardcoded) — a Company's configured survey genuinely reaches the consumer.
+- **Consumer→API**: `qr.service.ts redeemQr()` blocks redemption on any non-`active` campaign (lifecycle correctly gates participation) and requires a fresh `CampaignVerification` row (campaign-specific OTP phone stored separately — never overwrites the consumer account's own phone/email). `survey.service.ts submit()` derives `campaignId` from the redemption record (not client input), rejects a duplicate submission with 409, and invalidates the cached AI report on new data. Confirmed `_answers[q.id]` (Mobile) matches `analytics.service.ts`'s fixed-key reads (`answers['q2']`/`['q3']`/`['q5']`) — the semantic-integrity guarantee behind `validateSurveyQuestionEdit` (DL-062) is real.
+- **API→Console isolation**: `AnalyticsController`/`ReportController`/`MediaController` confirmed byte-for-byte identical ownership-check implementations to `CampaignController`'s. **Freshly re-verified live** (not reused from a prior pass): a second local brand got 403 on all 7 owned-data endpoints (4 analytics + 2 report + 1 media) for a campaign it doesn't own; the owning brand's own access still returned 200.
+- **Console→Report**: `Report.tsx`/`report.service.ts` deep-read against a 13-section target information architecture — found 8 real sections (Executive Summary, Research Objective, Audience Profile, Purchase Intent Analysis, Consumer Voice, Key Findings, Recommended Actions, Methodology) plus a KPI cover, already covering nearly all target concepts; Key Findings explicitly guards against insufficient data and consistently avoids overclaiming causation from correlation.
+- No Consumer Mobile device test performed — no Consumer Mobile code changed, and every hop was verified from source/API/local-runtime evidence, which is sufficient per the task's own device-testing safety rules.
+
+**Conclusion**: the product loop already works end-to-end as designed. No further engineering changes are justified by this audit.
+
+Full detail: `DECISION_LOG.md` DL-064.
 
 ---
 

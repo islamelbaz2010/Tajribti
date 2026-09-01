@@ -22,6 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loggedIn = false;
   String? _error;
   final _buttonKey = GlobalKey();
+  final _signInKey = GlobalKey();
 
   @override
   void initState() {
@@ -90,6 +91,14 @@ class _HomeScreenState extends State<HomeScreen> {
       } else {
         print('P0_TRACE:button-realbox NOT FOUND');
       }
+      final signInBox = _signInKey.currentContext?.findRenderObject() as RenderBox?;
+      if (signInBox != null && signInBox.hasSize) {
+        final tl = signInBox.localToGlobal(Offset.zero);
+        print('P0_TRACE:signin-realbox left=${tl.dx} top=${tl.dy} '
+            'w=${signInBox.size.width} h=${signInBox.size.height}');
+      } else {
+        print('P0_TRACE:signin-realbox NOT FOUND');
+      }
     });
     return Directionality(
       textDirection: context.dir,
@@ -137,6 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           )
                         else
                           TextButton(
+                            key: _signInKey,
                             onPressed: () => context.push('/auth-choice'),
                             child: Text(
                               s.signIn,

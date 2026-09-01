@@ -1,7 +1,21 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-09-01 (DL-071 Production Safety + Campaign Scheduling UX + Company Foundation Hardening, on top of DL-070 Production Schema Safety Finding, DL-069 Company Foundation, DL-068 Campaign Details identity + campaign scheduling + Coming Soon, DL-067 Survey Builder ordering fix, DL-066 Survey Builder V2 + Report cover polish, DL-065 End-to-End Pilot Loop, DL-064 Product Coherence Audit, DL-063 Visual/UX Maturation phase 2, DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+**Last updated:** 2026-09-01 (DL-072 Campaign Lifecycle Completion — End-Date Participation Gate, on top of DL-071 Production Safety + Campaign Scheduling UX + Company Foundation Hardening, DL-070 Production Schema Safety Finding, DL-069 Company Foundation, DL-068 Campaign Details identity + campaign scheduling + Coming Soon, DL-067 Survey Builder ordering fix, DL-066 Survey Builder V2 + Report cover polish, DL-065 End-to-End Pilot Loop, DL-064 Product Coherence Audit, DL-063 Visual/UX Maturation phase 2, DL-062 Product Transformation, DL-061 Reconciliation, DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+
+---
+
+## CURRENT SESSION DELTA — 2026-09-01, fifteenth pass (Campaign Lifecycle Completion — End-Date Participation Gate / DL-072)
+
+Closes the scheduling model's last gap (flagged open in DL-071): `isCampaignOpenForParticipation()` now also closes participation once `endDate` passes — **inclusive** (open through the end date, closed the day after), derived from existing repository conventions (`validateDateRange()` already allows a same-day campaign; mirrors `startDate`'s own inclusive-at-start rule), not invented. No new lifecycle status. All 3 real participation gates (QR redeem, web entry, Campaign OTP) already funneled through the one shared function — audited, no bypass found or introduced. `GET /campaigns` discovery unchanged (ended campaigns stay visible, same pattern as Coming Soon).
+
+**Consumer Mobile changed and device-verified this pass** (CI Run #47, succeeded first try; installed on `TKINR8IJ5D9DSKQK`, required the same signing-key-mismatch reinstall as prior CI builds — **the Founder needs to log back into the app again**): new `hasEnded` getter, bilingual Ended strings, a dedicated Campaign Detail Ended screen, and a muted "Ended" badge/button on the Home card — confirmed on-device using the safe zero-data test campaign (temporarily set to an ended window, restored after); the real Sprite Zero campaign was unaffected throughout.
+
+**No new open Founder decision** — this pass had explicit authorization to resolve the end-date interpretation itself and documented it in `DECISION_LOG.md` DL-072. The migration-tracking-table gap (DL-070/071) remains the sole carried-forward open item, unchanged.
+
+`tsc --noEmit`/`nest build` clean on `apps/api`. Deployed: Railway (API) + CI-built APK (Mobile). Dashboard unchanged, not redeployed.
+
+Full detail: `DECISION_LOG.md` DL-072.
 
 ---
 

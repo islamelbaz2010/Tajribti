@@ -1,7 +1,19 @@
 # Project State — Current and Only Current
 
 **This file contains ONLY the current state. No historical context. Update when state changes.**  
-**Last updated:** 2026-09-01 (DL-060 Pilot Go-Live pass, on top of DL-059 Controlled Brand Provisioning and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+**Last updated:** 2026-09-01 (DL-061 Company Console Reconciliation, on top of DL-060 Pilot Go-Live, DL-059 Controlled Brand Provisioning, and DL-058 Campaign Management completion; see delta blocks below. Blocks after these are superseded where they conflict.)
+
+---
+
+## CURRENT SESSION DELTA — 2026-09-01, fourth pass (Company Console Reconciliation / DL-061)
+
+- **Dashboard IA audit**: every route (`Campaigns`, `Overview`, `CampaignDetail`/Trial QR, `Insights`, `SurveyResults`, `Participants`, `AiSummary`, `Report`, `Gallery`) is backed by a real, working API call — no dead screens found. The Founder's "still looks like the old product" observation is correct as a naming/IA finding: the nav groups and conversational page titles ("Who Tried It?", "What Did They Say?", "What Did We Learn?") are the original MEOS v1 commercial-demo's 7-screen structure, never reorganized around the current Campaign-Management-first shape. This is presentational, not a code defect.
+- **Company Console → Railway → Consumer Mobile data flow verified end-to-end in production**, not just by source reading: created one clearly-labeled test campaign (`[INTEGRATION TEST — DO NOT USE] Company Console Verification`) via the existing demo brand's `POST /campaigns`, confirmed it appeared correctly in `GET /campaigns` and `GET /campaigns/:id` — the exact endpoints Consumer Mobile's Home and Campaign Detail screens call — with every field intact (image, description, location, reward, dates), then set it to `status: draft` to remove it from live discovery (record kept, not deleted).
+- Confirmed by reading `apps/consumer/lib/core/models.dart` exactly which Campaign fields Consumer Mobile uses: `id/productName/brandName/description/locationName/productImage/rewardPoints/status/surveyQuestions`. `locationAddress`, `targetCount`, `startDate`, `endDate` are stored and API-served but never read by the Consumer app — informational only, not a defect (no date-based auto-expiry exists in the API either; `findActive()` filters on `status` only).
+- **Vercel project renamed** `dashboard` → `tajribti` via `vercel project rename` (same project ID `prj_HtmXMR8S0D99GbCNTfPYXhoYORvW`, no new project). Verified first that the production alias `dashboard-six-flame-wsaixia9cm.vercel.app` is a separately pinned alias object (via `vercel alias ls`), then confirmed it stayed live (200) and unchanged through the rename.
+- No Dashboard/API code changed this pass. The corrected information architecture is proposed in this session's report (Company Console organized around Campaigns → Campaign Operations → Consumer Signals → Insights/Reports, keeping every existing capability), not implemented — visual/IA transformation is the next-priority future pass, per this session's own instruction not to redesign blindly in the same diagnostic pass.
+
+Full detail: `DECISION_LOG.md` DL-061.
 
 ---
 

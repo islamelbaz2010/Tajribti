@@ -163,6 +163,25 @@ export class ReportService {
     const campaign = await this.campaignRepo.findOne({ where: { id: campaignId } });
     if (!campaign) throw new NotFoundException('Campaign not found');
 
+    // Release-gate fix (2026-09-02): with zero survey responses,
+    // purchaseIntentBySegment is empty on both dimensions, so the segment
+    // picks below fall through to their 'unknown' default and the
+    // narrative asserted "The unknown unknown segment showed the highest
+    // purchase intent within this sample" — a specific, confident-sounding
+    // claim about data that does not exist. Reproduced live against a real
+    // campaign with 1 redemption and 0 survey responses. This is the exact
+    // "no fabricated conclusions" principle the rest of this file (and
+    // SurveyResults.tsx's own "No survey responses yet" empty state) already
+    // holds to — an honest empty state, not a manufactured finding, is the
+    // correct output when there is genuinely nothing to report on yet.
+    if (responseCount === 0) {
+      const en =
+        'No survey responses have been recorded for this campaign yet. This section will populate with real findings once consumers complete the survey after their trial.';
+      const ar =
+        'لم يتم تسجيل أي ردود على الاستبيان لهذه الحملة بعد. سيتم ملء هذا القسم بنتائج حقيقية بمجرد أن يكمل المستهلكون الاستبيان بعد تجربتهم.';
+      return { narrative: en, narrativeAr: ar };
+    }
+
     // Evidence-accuracy fix (2026-09-02): the narrative below has always
     // asserted "[topGender] [topAgeRange] showed the highest purchase
     // intent" — but topGender/topAgeRange were computed from

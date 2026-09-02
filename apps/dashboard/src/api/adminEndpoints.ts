@@ -61,6 +61,23 @@ export const adminCampaignsApi = {
     brandId?: string;
   }): Promise<AdminCampaignsResponse> => adminClient.get('/admin/campaigns', { params: query }),
   get: (id: string): Promise<AdminCampaign> => adminClient.get(`/admin/campaigns/${id}`),
+  // Product Reference Alignment (2026-09-02): real operational control —
+  // same UpdateCampaignDto shape the Company Console's own campaignApi.update
+  // already uses (endpoints.ts), reused here rather than duplicated.
+  update: (
+    id: string,
+    body: Partial<{
+      productName: string;
+      description: string;
+      locationName: string;
+      locationAddress: string;
+      rewardPoints: number;
+      targetCount: number;
+      startDate: string;
+      endDate: string;
+      status: string;
+    }>,
+  ): Promise<AdminCampaign> => adminClient.patch(`/admin/campaigns/${id}`, body),
   getOverview: (id: string): Promise<OverviewData> => adminClient.get(`/admin/campaigns/${id}/overview`),
   getDemographics: (id: string): Promise<DemographicsData> =>
     adminClient.get(`/admin/campaigns/${id}/demographics`),

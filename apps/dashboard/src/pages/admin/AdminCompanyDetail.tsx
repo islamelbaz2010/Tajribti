@@ -38,7 +38,6 @@ export default function AdminCompanyDetail() {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editSector, setEditSector] = useState<BrandSector | ''>('');
-  const [editLogoUrl, setEditLogoUrl] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState('');
 
@@ -57,7 +56,6 @@ export default function AdminCompanyDetail() {
         setCampaigns(camps.campaigns);
         setEditName(c.name);
         setEditSector(c.sector ?? '');
-        setEditLogoUrl(c.logoUrl ?? '');
       })
       .catch(() => setError('Failed to load company.'))
       .finally(() => setLoading(false));
@@ -71,7 +69,7 @@ export default function AdminCompanyDetail() {
     setSavingEdit(true);
     setEditError('');
     adminCompaniesApi
-      .update(id, { name: editName.trim(), sector: editSector || undefined, logoUrl: editLogoUrl.trim() })
+      .update(id, { name: editName.trim(), sector: editSector || undefined })
       .then((updated) => {
         setCompany((prev) => (prev ? { ...prev, ...updated } : prev));
         setEditing(false);
@@ -155,8 +153,15 @@ export default function AdminCompanyDetail() {
                 <option key={k} value={k}>{v}</option>
               ))}
             </select>
-            <input style={styles.input} placeholder="Logo URL (optional)" value={editLogoUrl} onChange={(e) => setEditLogoUrl(e.target.value)} />
           </div>
+          {/* Product Reference Alignment (2026-09-02), Phase 14: logo is
+              deliberately NOT editable here as a raw URL field anymore —
+              the Company already has a correct, working upload mechanism
+              (CompanyProfile.tsx's own Upload/Change/Remove Logo, backed
+              by the existing Postgres-asset-store AssetsController) that
+              this admin edit form should not bypass with an unvalidated
+              text field. No new upload infrastructure was introduced for
+              Admin specifically, per this task's own instruction. */}
           {editError && <p style={styles.error}>{editError}</p>}
           <button type="submit" style={styles.addBtn} disabled={savingEdit}>
             {savingEdit ? 'Saving…' : 'Save Changes'}

@@ -44,12 +44,18 @@ export class Campaign {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'brand_account_id', type: 'uuid', nullable: true })
-  brandAccountId: string | null;
+  // Product Reference Alignment (2026-09-02), Phase 16: enforced NOT NULL
+  // per Founder requirement "Every Campaign belongs to a Company" — see
+  // migration 1788500000000-EnforceCampaignCompanyOwnership, applied only
+  // after verifying zero existing null rows in both local dev and
+  // production. Was nullable historically; no campaign has ever actually
+  // needed a null owner since Company Foundation (DL-069).
+  @Column({ name: 'brand_account_id', type: 'uuid' })
+  brandAccountId: string;
 
-  @ManyToOne(() => BrandAccount, { nullable: true })
+  @ManyToOne(() => BrandAccount)
   @JoinColumn({ name: 'brand_account_id' })
-  brandAccount: BrandAccount | null;
+  brandAccount: BrandAccount;
 
   @Column({ name: 'brand_name', length: 100 })
   brandName: string;

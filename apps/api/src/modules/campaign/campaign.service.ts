@@ -150,7 +150,29 @@ export class CampaignService {
     if (campaign.brandAccountId !== brandAccountId) {
       throw new ForbiddenException('Access denied');
     }
+    return this.applyUpdate(campaign, dto);
+  }
 
+  // Admin Operations (Product Reference Alignment, 2026-09-02): the exact
+  // same update logic as updateCampaign() above, minus the per-Company
+  // ownership check — Admin's cross-Company authorization already
+  // happened at the controller (the admin-auth gate every /admin/*
+  // route requires), which stands in for the ownership check every other
+  // caller of applyUpdate() goes through. No new campaign fields, no new
+  // lifecycle state, no separate validation path: this is the Company
+  // owner's own edit/status-change capability, exercised by an
+  // authorized operator instead of the owner. Addresses the benchmark's
+  // "TAJRIBTI Operations must be able to actually operate campaigns
+  // (launch/pause/close)" finding — previously Admin could only read.
+  async updateCampaignAsAdmin(id: string, dto: UpdateCampaignDto): Promise<Campaign> {
+    const campaign = await this.campaignRepo.findOne({ where: { id } });
+    if (!campaign) {
+      throw new NotFoundException(`Campaign ${id} not found`);
+    }
+    return this.applyUpdate(campaign, dto);
+  }
+
+  private async applyUpdate(campaign: Campaign, dto: UpdateCampaignDto): Promise<Campaign> {
     if (dto.productName !== undefined) campaign.productName = dto.productName;
     if (dto.productImage !== undefined) campaign.productImage = dto.productImage;
     if (dto.description !== undefined) campaign.description = dto.description;
@@ -166,7 +188,9 @@ export class CampaignService {
     if (dto.endDate !== undefined) campaign.endDate = dto.endDate || null;
     if (dto.status !== undefined) campaign.status = dto.status;
     if (dto.contactId !== undefined) {
-      if (dto.contactId) await this.assertContactOwnership(brandAccountId, dto.contactId);
+      if (dto.contactId) {
+        await this.assertContactOwnership(campaign.brandAccountId ?? '', dto.contactId);
+      }
       campaign.contactId = dto.contactId || null;
     }
     if (dto.surveyQuestions !== undefined) {

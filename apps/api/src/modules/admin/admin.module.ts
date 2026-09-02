@@ -16,6 +16,7 @@ import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { ReportModule } from '../report/report.module';
+import { CampaignModule } from '../campaign/campaign.module';
 
 // Founder ruling W-2 (2026-09-02): AdminModule now also owns the real
 // TAJRIBTI Admin identity (AdminUser) and, via AnalyticsModule/ReportModule,
@@ -53,6 +54,7 @@ import { ReportModule } from '../report/report.module';
     }),
     AnalyticsModule,
     ReportModule,
+    CampaignModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

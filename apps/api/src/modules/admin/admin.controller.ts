@@ -18,6 +18,7 @@ import { UpdateBrandAccountDto } from './dto/update-brand-account.dto';
 import { CreateBrandContactDto } from './dto/create-brand-contact.dto';
 import { CreateCompanyEmployeeDto } from './dto/create-company-employee.dto';
 import { CreateAdminUserDto } from './dto/create-admin-user.dto';
+import { UpdateCampaignDto } from '../campaign/dto/update-campaign.dto';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 
 @Controller('admin')
@@ -282,6 +283,20 @@ export class AdminController {
   ) {
     await this.checkAdminAuth(secret, authHeader);
     return this.adminService.getCampaignDetailForAdmin(id);
+  }
+
+  // Product Reference Alignment (2026-09-02): real operational control —
+  // launch/pause/complete/archive, or correct a field — same DTO/
+  // validation the Company owner's own PATCH /campaigns/:id uses.
+  @Patch('campaigns/:id')
+  async updateCampaign(
+    @Headers('x-admin-secret') secret: string | undefined,
+    @Headers('authorization') authHeader: string | undefined,
+    @Param('id') id: string,
+    @Body() dto: UpdateCampaignDto,
+  ) {
+    await this.checkAdminAuth(secret, authHeader);
+    return this.adminService.updateCampaignForAdmin(id, dto);
   }
 
   @Get('campaigns/:id/overview')

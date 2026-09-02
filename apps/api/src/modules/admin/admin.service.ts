@@ -21,6 +21,8 @@ import { CreateCompanyEmployeeDto } from './dto/create-company-employee.dto';
 import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { ReportService } from '../report/report.service';
+import { CampaignService } from '../campaign/campaign.service';
+import { UpdateCampaignDto } from '../campaign/dto/update-campaign.dto';
 
 const AGE_RANGES = ['18-24', '25-34', '35-44', '45-54', '55+'] as const;
 const GENDERS = ['male', 'female'] as const;
@@ -98,6 +100,7 @@ export class AdminService {
     private readonly configService: ConfigService,
     private readonly analyticsService: AnalyticsService,
     private readonly reportService: ReportService,
+    private readonly campaignService: CampaignService,
   ) {}
 
   async seedDemo(): Promise<{ message: string; campaignId: string; qrCode: string }> {
@@ -444,6 +447,17 @@ export class AdminService {
       campaigns: campaigns.map((c) => ({ ...c, companyName: c.brandAccount?.name ?? null })),
       total,
     };
+  }
+
+  // Product Reference Alignment (2026-09-02): real operational control,
+  // not read-only drill-down — Admin can launch/pause/complete/archive a
+  // campaign, or correct its fields, the same way the Company owner can.
+  // Reuses campaign.service.ts's exact validation (date range, survey
+  // question core-identity protection) via updateCampaignAsAdmin(); no
+  // new lifecycle state, no new fields, no separate rules.
+  async updateCampaignForAdmin(id: string, dto: UpdateCampaignDto): Promise<Campaign & { companyName: string | null }> {
+    const updated = await this.campaignService.updateCampaignAsAdmin(id, dto);
+    return this.getCampaignDetailForAdmin(updated.id);
   }
 
   async getCampaignDetailForAdmin(id: string): Promise<Campaign & { companyName: string | null }> {

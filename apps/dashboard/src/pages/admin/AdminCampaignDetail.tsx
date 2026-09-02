@@ -38,6 +38,8 @@ export default function AdminCampaignDetail() {
   const [aiReport, setAiReport] = useState<AiReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [statusError, setStatusError] = useState('');
 
   const load = useCallback(() => {
     if (!id) return;
@@ -70,6 +72,30 @@ export default function AdminCampaignDetail() {
     }
   }, [tab, id, aiReport]);
 
+  // Product Reference Alignment (2026-09-02): real operational control —
+  // same lifecycle model and confirm-before-ending pattern
+  // CampaignDetail.tsx (Company Console) already uses; no new state
+  // machine, just an authorized operator exercising the same transition.
+  const LIFECYCLE_ENDING_STATUSES = ['completed', 'archived'];
+  const handleStatusChange = (newStatus: string) => {
+    if (!id || !campaign || newStatus === campaign.status) return;
+    if (
+      LIFECYCLE_ENDING_STATUSES.includes(newStatus) &&
+      !window.confirm(
+        `Set this campaign to ${newStatus.toUpperCase()}? It will stop appearing as an active trial to consumers. This can be changed back later.`,
+      )
+    ) {
+      return;
+    }
+    setStatusSaving(true);
+    setStatusError('');
+    adminCampaignsApi
+      .update(id, { status: newStatus })
+      .then((updated) => setCampaign((prev) => (prev ? { ...prev, status: updated.status } : prev)))
+      .catch(() => setStatusError('Could not change status.'))
+      .finally(() => setStatusSaving(false));
+  };
+
   const loadParticipantsPage = (page: number) => {
     if (!id) return;
     adminCampaignsApi.getParticipants(id, page).then((res) => {
@@ -92,13 +118,29 @@ export default function AdminCampaignDetail() {
         ← {campaign.companyName ?? 'Campaigns'}
       </Link>
 
-      <div style={styles.header}>
-        <h1 style={styles.title}>{campaign.productName}</h1>
-        <p style={styles.sub}>
-          {campaign.companyName ?? 'No Company'} · {campaign.status.toUpperCase()}
-          {campaign.locationName ? ` · ${campaign.locationName}` : ''}
-        </p>
+      <div style={styles.headerRow}>
+        <div style={styles.header}>
+          <h1 style={styles.title}>{campaign.productName}</h1>
+          <p style={styles.sub}>
+            {campaign.companyName ?? 'No Company'}
+            {campaign.locationName ? ` · ${campaign.locationName}` : ''}
+          </p>
+        </div>
+        <div style={styles.statusControl}>
+          <span style={styles.statusControlLabel}>Status</span>
+          <select
+            style={styles.statusSelect}
+            value={campaign.status}
+            disabled={statusSaving}
+            onChange={(e) => handleStatusChange(e.target.value)}
+          >
+            {['draft', 'active', 'paused', 'completed', 'archived'].map((s) => (
+              <option key={s} value={s}>{s.toUpperCase()}</option>
+            ))}
+          </select>
+        </div>
       </div>
+      {statusError && <p style={styles.statusErrorText}>{statusError}</p>}
 
       <div style={styles.tabs}>
         {TABS.map((t) => (
@@ -309,7 +351,15 @@ const styles: Record<string, React.CSSProperties> = {
   muted: { color: '#7a8bab', fontSize: 14 },
   errMsg: { color: '#dc2626', fontSize: 14 },
   backLink: { fontSize: 12, color: '#7a8bab', textDecoration: 'none', fontWeight: 600 },
-  header: { margin: '16px 0 20px' },
+  headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', margin: '16px 0 4px' },
+  header: {},
+  statusControl: { display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 4 },
+  statusControlLabel: { fontSize: 10, fontWeight: 800, color: '#7a8bab', letterSpacing: 0.5, textTransform: 'uppercase' as const },
+  statusSelect: {
+    background: '#ffffff', border: '1px solid #e8ecf3', borderRadius: 8, padding: '8px 12px',
+    fontSize: 12, fontWeight: 700, color: '#0a1120', outline: 'none', cursor: 'pointer',
+  },
+  statusErrorText: { fontSize: 12, color: '#dc2626', margin: '0 0 12px' },
   title: { fontSize: 22, fontWeight: 800, color: '#0a1120', margin: '0 0 4px', letterSpacing: -0.3 },
   sub: { fontSize: 12, color: '#7a8bab', margin: 0 },
   tabs: { display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid #e8ecf3' },

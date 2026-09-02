@@ -501,7 +501,11 @@ export default function Overview() {
           report? — real navigation into the value layer, not duplicated
           data. purchaseIntentPercent is the one number Overview already
           has that's worth surfacing again as a teaser. */}
-      <GoDeeper hasData={data.totalRedemptions > 0} purchaseIntentPercent={data.purchaseIntentPercent} />
+      <GoDeeper
+        campaignId={campaign.id}
+        hasData={data.totalRedemptions > 0}
+        purchaseIntentPercent={data.purchaseIntentPercent}
+      />
 
       <OtherCampaignsLink count={otherCampaigns.length} />
     </div>
@@ -516,26 +520,38 @@ const STATUS_COLOR: Record<string, string> = {
   archived: '#4a5a7e',
 };
 
+// Campaign-scoped navigation (2026-09-02): these three links previously
+// pointed to bare '/survey', '/summary', '/report' — no ?campaignId=, unlike
+// every other campaign-scoped link in the product (Layout.tsx's sidebar,
+// Campaigns.tsx's card actions). A Company viewing a NON-default campaign's
+// Overview (reached via ?campaignId=, e.g. from Campaigns.tsx or the
+// "other campaigns" strip) who then clicked into "Survey Results"/"AI
+// Insights"/"Report" from here was silently dropped back onto their
+// default active campaign's data instead of the one they were just
+// looking at — a real campaign-scoping defect, not a cosmetic gap.
 function GoDeeper({
+  campaignId,
   hasData,
   purchaseIntentPercent,
 }: {
+  campaignId: string;
   hasData: boolean;
   purchaseIntentPercent: number;
 }) {
+  const suffix = `?campaignId=${campaignId}`;
   const items = [
     {
-      to: '/survey',
+      to: `/survey${suffix}`,
       label: 'Survey Results',
       desc: hasData ? `${purchaseIntentPercent}% purchase intent so far` : 'What consumers say once they respond',
     },
     {
-      to: '/summary',
+      to: `/summary${suffix}`,
       label: 'AI Insights',
       desc: hasData ? 'Structured findings from the responses so far' : 'Findings appear once consumers respond',
     },
     {
-      to: '/report',
+      to: `/report${suffix}`,
       label: 'Report',
       desc: 'The full campaign story, ready to share',
     },

@@ -14,6 +14,16 @@ export default function Gallery() {
   const [items, setItems] = useState<CampaignMedia[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // Distinct from `error` above (which is scoped to the add-media form
+  // below) — this tracks whether the *initial* campaign/media load failed.
+  // Previously any failure here (including a real backend error) fell
+  // through to the same `if (!campaign) return <div>No campaign
+  // selected.</div>` early return with no error ever surfaced, since
+  // `campaign` stays null on any getSelected() failure — masking a real
+  // problem as an empty state. Confirmed via Founder production QA
+  // (2026-09-02): "Media" showed "No campaign selected." even though
+  // campaigns existed and were visible elsewhere in the Console.
+  const [loadError, setLoadError] = useState('');
 
   const [type, setType] = useState<'photo' | 'video'>('photo');
   const [url, setUrl] = useState('');
@@ -22,14 +32,23 @@ export default function Gallery() {
 
   useEffect(() => {
     setLoading(true);
+    setLoadError('');
+    setCampaign(null);
+    setItems([]);
     campaignApi
       .getSelected()
       .then((c) => {
+        // Campaign resolved — show it even if fetching its media list
+        // fails, rather than blanking the page back to "no campaign".
         setCampaign(c);
-        return mediaApi.list(c.id);
+        return mediaApi
+          .list(c.id)
+          .then(setItems)
+          .catch(() => setLoadError('Could not load media for this campaign. Refresh to retry.'));
       })
-      .then(setItems)
-      .catch(() => setError('Could not load this campaign’s media.'))
+      .catch(() =>
+        setLoadError('Could not load your campaign. Refresh to retry, or create a campaign first.'),
+      )
       .finally(() => setLoading(false));
   }, [location.search]);
 
@@ -60,7 +79,13 @@ export default function Gallery() {
   };
 
   if (loading) return <div style={styles.loading}>Loading campaign media…</div>;
-  if (!campaign) return <div style={styles.loading}>No campaign selected.</div>;
+  if (!campaign) {
+    return (
+      <div style={styles.loading}>
+        {loadError || 'No campaign selected. Create a campaign first to add media.'}
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -69,6 +94,7 @@ export default function Gallery() {
         <p style={styles.sub}>
           {campaign.brandName} · {campaign.productName}
         </p>
+        {loadError && <p style={styles.error}>{loadError}</p>}
       </div>
 
       <form onSubmit={handleAdd} style={styles.form}>

@@ -21,6 +21,18 @@ export default function CampaignDetail() {
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // QR image generation is a second, independent network call after the
+  // campaign itself has already loaded — previously a QR-fetch failure
+  // (transient network blip, slow response, etc.) rejected the same promise
+  // chain the campaign load used, so the `error` catch below fired and threw
+  // away the already-loaded `campaign` state, rendering the generic
+  // "Failed to load campaign" message even though the campaign loaded fine
+  // and only its QR image did not. Confirmed via Founder production QA
+  // (2026-09-02): "Details & QR" showed that exact message while the
+  // Company Console itself was functioning and campaigns were visible.
+  // Tracked separately so a QR failure degrades only the QR card, not the
+  // whole page.
+  const [qrError, setQrError] = useState('');
 
   // Internal Tajribti Campaign Operations (DL-055 item 1) — edit + status
   // lifecycle for the loaded campaign. Local form state mirrors `campaign`
@@ -85,15 +97,28 @@ export default function CampaignDetail() {
     setError('');
     setCampaign(null);
     setQrUrl(null);
+    setQrError('');
     campaignApi
       .getSelected()
-      .then(async (c) => {
+      .then((c) => {
+        // Campaign resolved — render it immediately rather than waiting on
+        // the QR image, and fetch the QR image as its own independent
+        // operation so a QR-specific failure can't blank the whole page.
         loadFromCampaign(c);
-        const blob = await qrApi.getQrImage(c.id);
-        setQrUrl(URL.createObjectURL(blob));
+        setLoading(false);
+        qrApi
+          .getQrImage(c.id)
+          .then((blob) => setQrUrl(URL.createObjectURL(blob)))
+          .catch(() =>
+            setQrError('Could not generate the QR code image. Refresh this page to retry.'),
+          );
       })
-      .catch(() => setError('Failed to load campaign. Is the backend running and seeded?'))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        setError(
+          'Could not load this campaign. It may have been removed, or you may no longer have access to it.',
+        );
+        setLoading(false);
+      });
   }, [location.search]);
 
   const handleSave = () => {
@@ -285,6 +310,8 @@ export default function CampaignDetail() {
           <div style={styles.qrWrap}>
             {qrUrl ? (
               <img src={qrUrl} alt="Campaign QR Code" style={styles.qrImg} />
+            ) : qrError ? (
+              <div style={styles.qrPlaceholder}>{qrError}</div>
             ) : (
               <div style={styles.qrPlaceholder}>Generating…</div>
             )}

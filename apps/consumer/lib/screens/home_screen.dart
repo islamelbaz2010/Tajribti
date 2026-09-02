@@ -268,11 +268,79 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
 
+                    // ── Why Your Feedback Matters ────────────────────────────
+                    // Consumer Home upgrade (2026-09-02): Home previously
+                    // read primarily as a campaign list — this closes the
+                    // TRY → TELL → INFORM/EARN loop in plain language,
+                    // without turning Home into a marketing/B2B page (one
+                    // compact card, three short rows, no fake stats).
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 28, 20, 8),
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: kSurface,
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: [
+                              BoxShadow(color: kCardShadow, blurRadius: 12, offset: const Offset(0, 3)),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                s.homeWhyMattersTitle,
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: kPrimary),
+                              ),
+                              const SizedBox(height: 16),
+                              _WhyMattersRow(label: s.homeWhyTryLabel, body: s.homeWhyTryBody, color: kBrand600),
+                              const SizedBox(height: 14),
+                              _WhyMattersRow(label: s.homeWhyTellLabel, body: s.homeWhyTellBody, color: kGold),
+                              const SizedBox(height: 14),
+                              _WhyMattersRow(label: s.homeWhyInformLabel, body: s.homeWhyInformBody, color: kSuccess),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
                     const SliverToBoxAdapter(child: SizedBox(height: 24)),
                   ],
                 ),
               ),
       ),
+    );
+  }
+}
+
+class _WhyMattersRow extends StatelessWidget {
+  final String label;
+  final String body;
+  final Color color;
+  const _WhyMattersRow({required this.label, required this.body, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 52,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color, letterSpacing: 0.6),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            body,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: kPrimary, height: 1.4),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -22,6 +22,10 @@ const Color kCardShadow = Color(0x0D1A1A2E);
 // fills move from kPrimary to kBrand.
 const Color kBrand = Color(0xFFB2F24D);
 const Color kBrandSoft = Color(0xFFEFFAD1);
+// Darker olive-lime for TEXT on a light surface — kBrand itself is too
+// light/yellow for body-text contrast (same shade the public marketing
+// site already uses for its lime-tinted badge text, e.g. Home.tsx).
+const Color kBrand600 = Color(0xFF5C7A1F);
 
 const String kAccessTokenKey = 'access_token';
 const String kRefreshTokenKey = 'refresh_token';

@@ -27,8 +27,8 @@ function OtherCampaignsLink({ count }: { count: number }) {
 
 const historyStyles: Record<string, React.CSSProperties> = {
   section: {
-    background: '#0a1120',
-    border: '1px solid #111d35',
+    background: '#ffffff',
+    border: '1px solid #e8ecf3',
     borderRadius: 16,
     padding: '18px 24px',
     marginTop: 20,
@@ -38,8 +38,8 @@ const historyStyles: Record<string, React.CSSProperties> = {
     gap: 16,
     flexWrap: 'wrap' as const,
   },
-  title: { fontSize: 13, fontWeight: 700, color: '#edf0ff', margin: '0 0 2px', letterSpacing: 0.3 },
-  sub: { fontSize: 11, color: '#2e3d5e', margin: 0 },
+  title: { fontSize: 13, fontWeight: 700, color: '#0a1120', margin: '0 0 2px', letterSpacing: 0.3 },
+  sub: { fontSize: 11, color: '#7a8bab', margin: 0 },
   link: {
     fontSize: 12,
     fontWeight: 700,
@@ -79,8 +79,8 @@ const stripStyles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: 12,
     padding: '14px 24px',
-    background: '#0a1120',
-    border: '1px solid #111d35',
+    background: '#ffffff',
+    border: '1px solid #e8ecf3',
     borderRadius: 10,
     marginBottom: 24,
     overflowX: 'auto',
@@ -100,12 +100,12 @@ const stripStyles: Record<string, React.CSSProperties> = {
   },
   stepSub: {
     fontSize: 10,
-    color: '#2e3d5e',
+    color: '#7a8bab',
     textAlign: 'center' as const,
     lineHeight: 1.3,
   },
   arrow: {
-    color: '#1a2540',
+    color: '#94a3b8',
     fontSize: 16,
     fontWeight: 700,
     flexShrink: 0,
@@ -145,8 +145,8 @@ const heroStyles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     alignItems: 'center',
     padding: '44px 24px 36px',
-    background: '#0a1120',
-    border: '1px solid #111d35',
+    background: '#ffffff',
+    border: '1px solid #e8ecf3',
     borderRadius: 16,
     marginBottom: 20,
     position: 'relative' as const,
@@ -159,7 +159,7 @@ const heroStyles: Record<string, React.CSSProperties> = {
     fontSize: 11,
     fontWeight: 800,
     letterSpacing: 3,
-    color: '#2e3d5e',
+    color: '#7a8bab',
   },
   countWrap: {
     position: 'relative' as const,
@@ -204,7 +204,7 @@ const heroStyles: Record<string, React.CSSProperties> = {
   count: {
     fontSize: 100,
     fontWeight: 900,
-    color: '#edf0ff',
+    color: '#0a1120',
     lineHeight: 1,
     letterSpacing: -3,
     transition: 'transform 0.25s ease',
@@ -220,7 +220,7 @@ const heroStyles: Record<string, React.CSSProperties> = {
   },
   sub: {
     fontSize: 12,
-    color: '#2e3d5e',
+    color: '#7a8bab',
     fontWeight: 500,
     letterSpacing: 0.5,
   },
@@ -239,8 +239,8 @@ function MetricCard({ label, value, accent }: { label: string; value: string | n
 
 const metricStyles: Record<string, React.CSSProperties> = {
   card: {
-    background: '#0a1120',
-    border: '1px solid #111d35',
+    background: '#ffffff',
+    border: '1px solid #e8ecf3',
     borderRadius: 12,
     padding: '20px 24px',
     display: 'flex',
@@ -253,7 +253,7 @@ const metricStyles: Record<string, React.CSSProperties> = {
   value: {
     fontSize: 34,
     fontWeight: 800,
-    color: '#edf0ff',
+    color: '#0a1120',
     lineHeight: 1,
   },
   valueAccent: {
@@ -261,7 +261,7 @@ const metricStyles: Record<string, React.CSSProperties> = {
   },
   label: {
     fontSize: 11,
-    color: '#2e3d5e',
+    color: '#7a8bab',
     fontWeight: 500,
     letterSpacing: 0.3,
   },
@@ -295,7 +295,7 @@ const feedStyles: Record<string, React.CSSProperties> = {
     borderRadius: 6,
     border: '1px solid #0e1a2e',
     marginBottom: 4,
-    background: '#070c1a',
+    background: '#f7f8fb',
   },
   dot: {
     width: 6,
@@ -312,14 +312,14 @@ const feedStyles: Record<string, React.CSSProperties> = {
   },
   tag: {
     fontSize: 11,
-    color: '#6b7fa8',
+    color: '#4a5a7e',
     background: '#0e1a2e',
     borderRadius: 4,
     padding: '2px 8px',
     fontWeight: 500,
   },
-  anon: { fontSize: 12, color: '#2e3d5e' },
-  time: { fontSize: 11, color: '#2e3d5e', flexShrink: 0 },
+  anon: { fontSize: 12, color: '#7a8bab' },
+  time: { fontSize: 11, color: '#7a8bab', flexShrink: 0 },
 };
 
 export default function Overview() {
@@ -524,7 +524,7 @@ const deeperStyles: Record<string, React.CSSProperties> = {
   label: {
     fontSize: 10,
     fontWeight: 700,
-    color: '#2e3d5e',
+    color: '#7a8bab',
     letterSpacing: 1.5,
     marginBottom: 10,
     textTransform: 'uppercase' as const,
@@ -535,8 +535,8 @@ const deeperStyles: Record<string, React.CSSProperties> = {
     gap: 12,
   },
   card: {
-    background: '#0a1120',
-    border: '1px solid #111d35',
+    background: '#ffffff',
+    border: '1px solid #e8ecf3',
     borderRadius: 12,
     padding: '16px 18px',
     textDecoration: 'none',
@@ -545,32 +545,32 @@ const deeperStyles: Record<string, React.CSSProperties> = {
     gap: 4,
     position: 'relative' as const,
   },
-  cardLabel: { fontSize: 13, fontWeight: 700, color: '#edf0ff' },
+  cardLabel: { fontSize: 13, fontWeight: 700, color: '#0a1120' },
   cardDesc: { fontSize: 11, color: '#4a5a7e', lineHeight: 1.4, paddingRight: 16 },
   cardArrow: {
     position: 'absolute' as const,
     top: 14,
     right: 16,
-    color: '#2e3d5e',
+    color: '#7a8bab',
     fontSize: 14,
   },
 };
 
 const styles: Record<string, React.CSSProperties> = {
-  loading: { color: '#2e3d5e', fontSize: 16, marginTop: 40 },
+  loading: { color: '#7a8bab', fontSize: 16, marginTop: 40 },
   emptyState: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     textAlign: 'center' as const,
-    background: '#0a1120',
-    border: '1px solid #111d35',
+    background: '#ffffff',
+    border: '1px solid #e8ecf3',
     borderRadius: 16,
     padding: '64px 32px',
     marginTop: 40,
   },
-  emptyTitle: { fontSize: 20, fontWeight: 800, color: '#edf0ff', margin: '0 0 8px' },
-  emptySub: { fontSize: 13, color: '#6b7fa8', margin: '0 0 24px', maxWidth: 420, lineHeight: 1.5 },
+  emptyTitle: { fontSize: 20, fontWeight: 800, color: '#0a1120', margin: '0 0 8px' },
+  emptySub: { fontSize: 13, color: '#4a5a7e', margin: '0 0 24px', maxWidth: 420, lineHeight: 1.5 },
   emptyBtn: {
     background: '#b2f24d',
     color: '#040812',
@@ -607,18 +607,18 @@ const styles: Record<string, React.CSSProperties> = {
   brandName: {
     fontSize: 28,
     fontWeight: 800,
-    color: '#edf0ff',
+    color: '#0a1120',
     margin: 0,
     letterSpacing: -0.5,
   },
   campaignSub: {
     fontSize: 13,
-    color: '#2e3d5e',
+    color: '#7a8bab',
     margin: 0,
   },
   sep: {
     margin: '0 6px',
-    color: '#1a2540',
+    color: '#94a3b8',
   },
   statusBadge: {
     display: 'flex',
@@ -645,8 +645,8 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 20,
   },
   feedSection: {
-    background: '#0a1120',
-    border: '1px solid #111d35',
+    background: '#ffffff',
+    border: '1px solid #e8ecf3',
     borderRadius: 16,
     padding: 24,
   },
@@ -656,17 +656,17 @@ const styles: Record<string, React.CSSProperties> = {
   feedTitle: {
     fontSize: 14,
     fontWeight: 700,
-    color: '#edf0ff',
+    color: '#0a1120',
     margin: '0 0 2px',
     letterSpacing: 0.3,
   },
   feedSub: {
     fontSize: 11,
-    color: '#2e3d5e',
+    color: '#7a8bab',
     margin: 0,
   },
   empty: {
-    color: '#2e3d5e',
+    color: '#7a8bab',
     fontSize: 13,
     textAlign: 'center' as const,
     padding: '24px 0',

@@ -172,12 +172,12 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     height: '100vh',
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    background: '#070c1a',
+    background: '#f7f8fb',
   },
   sidebar: {
     width: 232,
-    background: '#040812',
-    borderRight: '1px solid #111d35',
+    background: '#ffffff',
+    borderRight: '1px solid #e8ecf3',
     display: 'flex',
     flexDirection: 'column',
     flexShrink: 0,
@@ -185,7 +185,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   logoArea: {
     padding: '24px 20px 18px',
-    borderBottom: '1px solid #111d35',
+    borderBottom: '1px solid #e8ecf3',
   },
   logoRow: {
     display: 'flex',
@@ -196,7 +196,7 @@ const styles: Record<string, React.CSSProperties> = {
   logoText: {
     fontSize: 16,
     fontWeight: 900,
-    color: '#edf0ff',
+    color: '#0a1120',
     letterSpacing: 3,
   },
   demoBadge: {
@@ -210,7 +210,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   consoleLabel: {
     fontSize: 10,
-    color: '#2e3d5e',
+    color: '#7a8bab',
     fontWeight: 600,
     letterSpacing: 1,
     marginBottom: 8,
@@ -223,21 +223,21 @@ const styles: Record<string, React.CSSProperties> = {
   },
   campaignContext: {
     padding: '14px 20px',
-    borderBottom: '1px solid #111d35',
+    borderBottom: '1px solid #e8ecf3',
     display: 'flex',
     flexDirection: 'column' as const,
     gap: 4,
   },
   campaignContextLabel: {
     fontSize: 9,
-    color: '#2e3d5e',
+    color: '#7a8bab',
     fontWeight: 700,
     letterSpacing: 1,
     textTransform: 'uppercase' as const,
   },
   campaignContextProduct: {
     fontSize: 13,
-    color: '#edf0ff',
+    color: '#0a1120',
     fontWeight: 700,
     lineHeight: 1.3,
   },
@@ -267,7 +267,7 @@ const styles: Record<string, React.CSSProperties> = {
   navGroupLabel: {
     fontSize: 9,
     fontWeight: 700,
-    color: '#2e3d5e',
+    color: '#7a8bab',
     letterSpacing: 1.5,
     padding: '0 8px',
     marginBottom: 4,
@@ -311,13 +311,13 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     overflow: 'auto',
     padding: 32,
-    background: '#070c1a',
+    background: '#f7f8fb',
   },
   logoutBtn: {
     margin: '12px 20px 24px',
     background: 'transparent',
-    border: '1px solid #111d35',
-    color: '#2e3d5e',
+    border: '1px solid #e8ecf3',
+    color: '#7a8bab',
     borderRadius: 6,
     padding: '8px 12px',
     cursor: 'pointer',

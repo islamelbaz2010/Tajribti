@@ -940,8 +940,8 @@ function MethodRow({
 /* ─── Styles ─── */
 
 const outer: Record<string, React.CSSProperties> = {
-  loading: { color: '#2e3d5e', fontSize: 14, marginTop: 32 },
-  error: { color: '#fb7185', fontSize: 14, marginTop: 32 },
+  loading: { color: '#7a8bab', fontSize: 14, marginTop: 32 },
+  error: { color: '#dc2626', fontSize: 14, marginTop: 32 },
   actionBar: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -963,18 +963,18 @@ const outer: Record<string, React.CSSProperties> = {
   title: {
     fontSize: 26,
     fontWeight: 800,
-    color: '#edf0ff',
+    color: '#0a1120',
     margin: '4px 0',
     letterSpacing: -0.3,
   },
   subtitle: {
     fontSize: 13,
-    color: '#2e3d5e',
+    color: '#7a8bab',
     margin: 0,
   },
   langBtn: {
     background: 'rgba(255,255,255,0.06)',
-    color: '#edf0ff',
+    color: '#0a1120',
     border: '1px solid rgba(255,255,255,0.15)',
     borderRadius: 8,
     padding: '10px 18px',
@@ -998,8 +998,8 @@ const outer: Record<string, React.CSSProperties> = {
     marginTop: 12,
   },
   reportOuter: {
-    background: '#0a1120',
-    border: '1px solid #111d35',
+    background: '#ffffff',
+    border: '1px solid #e8ecf3',
     borderRadius: 16,
     padding: 24,
   },
@@ -1319,14 +1319,14 @@ const pg: Record<string, React.CSSProperties> = {
   },
   intentScoreMax: {
     fontSize: 14,
-    color: '#6b7fa8',
+    color: '#4a5a7e',
     fontWeight: 600,
     marginBottom: 8,
   },
   intentScoreLabel: {
     fontSize: 9,
     fontWeight: 700,
-    color: '#6b7fa8',
+    color: '#4a5a7e',
     textTransform: 'uppercase' as const,
     letterSpacing: 1,
     textAlign: 'center' as const,

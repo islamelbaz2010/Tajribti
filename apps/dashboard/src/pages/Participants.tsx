@@ -102,7 +102,7 @@ export default function Participants() {
                         {p.hasSurvey ? 'Complete' : 'Pending'}
                       </span>
                     </td>
-                    <td style={{ ...styles.td, color: '#2e3d5e' }}>
+                    <td style={{ ...styles.td, color: '#7a8bab' }}>
                       {new Date(p.redeemedAt).toLocaleString('en-EG', {
                         month: 'short',
                         day: 'numeric',
@@ -142,8 +142,8 @@ export default function Participants() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  loading: { color: '#2e3d5e', fontSize: 14, marginTop: 32 },
-  error: { color: '#fb7185', fontSize: 14, marginTop: 32 },
+  loading: { color: '#7a8bab', fontSize: 14, marginTop: 32 },
+  error: { color: '#dc2626', fontSize: 14, marginTop: 32 },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -164,14 +164,14 @@ const styles: Record<string, React.CSSProperties> = {
   title: {
     fontSize: 26,
     fontWeight: 800,
-    color: '#edf0ff',
+    color: '#0a1120',
     margin: '4px 0 6px',
     letterSpacing: -0.3,
   },
-  sub: { fontSize: 13, color: '#2e3d5e', margin: 0 },
+  sub: { fontSize: 13, color: '#7a8bab', margin: 0 },
   totalBadge: {
-    background: '#0a1120',
-    border: '1px solid #111d35',
+    background: '#ffffff',
+    border: '1px solid #e8ecf3',
     borderRadius: 12,
     padding: '14px 20px',
     display: 'flex',
@@ -179,42 +179,42 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
   },
   totalNum: { fontSize: 28, fontWeight: 900, color: '#b2f24d', lineHeight: 1 },
-  totalLabel: { fontSize: 10, color: '#2e3d5e', marginTop: 4, letterSpacing: 0.5 },
+  totalLabel: { fontSize: 10, color: '#7a8bab', marginTop: 4, letterSpacing: 0.5 },
   emptyState: {
-    background: '#0a1120',
-    border: '1px solid #111d35',
+    background: '#ffffff',
+    border: '1px solid #e8ecf3',
     borderRadius: 12,
     padding: '32px 28px',
   },
-  emptyTitle: { fontSize: 15, fontWeight: 700, color: '#edf0ff', marginBottom: 8 },
+  emptyTitle: { fontSize: 15, fontWeight: 700, color: '#0a1120', marginBottom: 8 },
   emptyBody: { fontSize: 13, color: '#4a5a7e', lineHeight: 1.6, margin: 0, maxWidth: 480 },
   tableWrap: {
-    background: '#0a1120',
-    border: '1px solid #111d35',
+    background: '#ffffff',
+    border: '1px solid #e8ecf3',
     borderRadius: 12,
     overflow: 'hidden',
   },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {
-    background: '#040812',
+    background: '#f7f8fb',
     padding: '12px 16px',
     textAlign: 'left' as const,
     fontSize: 10,
     fontWeight: 700,
-    color: '#2e3d5e',
+    color: '#7a8bab',
     textTransform: 'uppercase' as const,
     letterSpacing: 1,
-    borderBottom: '1px solid #111d35',
+    borderBottom: '1px solid #e8ecf3',
   },
   tr: {},
-  trAlt: { background: 'rgba(255,255,255,0.01)' },
+  trAlt: { background: 'rgba(10,17,32,0.02)' },
   td: {
     padding: '11px 16px',
     fontSize: 13,
-    color: '#7c8eb8',
+    color: '#4a5a7e',
     borderBottom: '1px solid #0e1a2e',
   },
-  rowNum: { fontSize: 11, color: '#2e3d5e', fontWeight: 600 },
+  rowNum: { fontSize: 11, color: '#7a8bab', fontWeight: 600 },
   badgeGreen: {
     background: 'rgba(178, 242, 77, 0.1)',
     color: '#b2f24d',
@@ -226,7 +226,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   badgeGray: {
     background: '#0e1a2e',
-    color: '#2e3d5e',
+    color: '#7a8bab',
     borderRadius: 4,
     padding: '2px 8px',
     fontSize: 11,
@@ -240,14 +240,14 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: 20,
   },
   pageBtn: {
-    background: '#0a1120',
-    border: '1px solid #1a2540',
-    color: '#7c8eb8',
+    background: '#ffffff',
+    border: '1px solid #dde3ee',
+    color: '#4a5a7e',
     borderRadius: 8,
     padding: '8px 16px',
     fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',
   },
-  pageInfo: { fontSize: 12, color: '#2e3d5e' },
+  pageInfo: { fontSize: 12, color: '#7a8bab' },
 };

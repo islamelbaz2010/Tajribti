@@ -36,21 +36,18 @@ class ServicesScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
           children: [
             // ── Hero Card ─────────────────────────────────────────────────
+            // Consumer Visual System (2026-09-02): lightened from a dark
+            // navy gradient to a white card with a restrained lime accent,
+            // matching the rest of the app's light-first system (Home,
+            // Campaign, Activity already used it — this screen was the one
+            // remaining full-card dark surface).
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [kPrimary, Color(0xFF2d3a5c)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: kSurface,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
-                  BoxShadow(
-                    color: kPrimary.withOpacity(0.3),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
+                  BoxShadow(color: kCardShadow, blurRadius: 16, offset: const Offset(0, 6)),
                 ],
               ),
               child: Column(
@@ -59,20 +56,25 @@ class ServicesScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
+                      color: kBrandSoft,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(Icons.auto_awesome_rounded, color: kGold, size: 20),
                   ),
                   const SizedBox(height: 16),
                   Text(
+                    s.servicesWhyMatters,
+                    style: const TextStyle(color: kPrimary, fontSize: 20, fontWeight: FontWeight.w800, height: 1.3),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
                     s.servicesTagline,
-                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, height: 1.3),
+                    style: const TextStyle(color: kPrimary, fontSize: 14, fontWeight: FontWeight.w700, height: 1.4),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     s.servicesIntro,
-                    style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 14, height: 1.7),
+                    style: TextStyle(color: kPrimary.withOpacity(0.65), fontSize: 14, height: 1.7),
                   ),
                 ],
               ),
@@ -130,6 +132,31 @@ class ServicesScreen extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(height: 32),
+
+            // ── What Your Feedback Helps Brands Understand ─────────────────
+            _SectionLabel(label: s.servicesLearnTitle),
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(color: kCardShadow, blurRadius: 10, offset: const Offset(0, 2)),
+                ],
+              ),
+              child: Column(
+                children: [
+                  _LearnRow(text: s.servicesLearnImpressions),
+                  _LearnRow(text: s.servicesLearnExperience),
+                  _LearnRow(text: s.servicesLearnLikes),
+                  _LearnRow(text: s.servicesLearnPurchase),
+                  _LearnRow(text: s.servicesLearnImprove, isLast: true),
+                ],
+              ),
+            ),
             const SizedBox(height: 20),
             Text(
               s.servicesFooter,
@@ -159,6 +186,40 @@ class _SectionLabel extends StatelessWidget {
           color: Colors.grey.shade400,
           letterSpacing: 1.2,
         ),
+      ),
+    );
+  }
+}
+
+class _LearnRow extends StatelessWidget {
+  final String text;
+  final bool isLast;
+  const _LearnRow({required this.text, this.isLast = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: BoxDecoration(
+        border: isLast
+            ? null
+            : Border(bottom: BorderSide(color: Colors.grey.shade100, width: 1)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(color: kBrand, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: kPrimary),
+            ),
+          ),
+        ],
       ),
     );
   }

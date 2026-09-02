@@ -265,6 +265,29 @@ class AppStr {
   String get servicesCategoriesSub => ar ? 'منتجات استهلاكية سريعة، مستحضرات تجميل، ومنتجات صيدلانية بدون وصفة طبية' : 'FMCG, beauty, and pharma-OTC products';
   String get servicesFooter        => ar ? 'العروض المتاحة تظهر في الصفحة الرئيسية عند إطلاقها من قبل العلامات التجارية الشريكة.' : 'Available offers appear on the Home screen as partner brands launch them.';
 
+  // Commercial V1 Finalization (2026-09-02): strengthens the positioning
+  // beyond "what the app does" to "why it matters" — the section was
+  // entirely missing before; no research/certification claims made.
+  String get servicesWhyMatters      => ar ? 'تجربتك تساعد العلامات التجارية على اتخاذ قرارات أفضل.' : 'Your experience helps brands make better decisions.';
+  String get servicesLearnTitle      => ar ? 'ما الذي تساعد ملاحظاتك العلامات التجارية على فهمه' : 'What your feedback helps brands understand';
+  String get servicesLearnImpressions => ar ? 'الانطباعات الأولى'            : 'First impressions';
+  String get servicesLearnExperience  => ar ? 'تجربة استخدام المنتج'         : 'Product experience';
+  String get servicesLearnLikes       => ar ? 'ما يعجب أو لا يعجب المستهلكين' : 'What consumers like or dislike';
+  String get servicesLearnPurchase    => ar ? 'مدى احتمالية الشراء'          : 'Purchase consideration';
+  String get servicesLearnImprove     => ar ? 'ما يمكن تحسينه في المنتج'     : 'What could improve the product';
+
+  // Home "Why Your Feedback Matters" section (2026-09-02): the Home
+  // previously read primarily as a campaign list — this closes the
+  // TRY → TELL → INFORM/EARN loop the app is actually built around,
+  // without turning Home into a marketing page (three short rows only).
+  String get homeWhyMattersTitle   => ar ? 'لماذا رأيك مهم'                 : 'Why your feedback matters';
+  String get homeWhyTryLabel       => ar ? 'جرّب'                          : 'TRY';
+  String get homeWhyTryBody        => ar ? 'جرّب المنتجات في الواقع'        : 'Experience products in real life.';
+  String get homeWhyTellLabel      => ar ? 'أخبرنا'                        : 'TELL';
+  String get homeWhyTellBody       => ar ? 'شارك رأيك الصادق في استبيان قصير' : 'Share honest feedback in a short survey.';
+  String get homeWhyInformLabel    => ar ? 'أفدنا'                         : 'INFORM';
+  String get homeWhyInformBody     => ar ? 'رأيك يساعد العلامات التجارية على تحسين منتجاتها وتسويقها' : 'Your feedback helps brands improve products and marketing.';
+
   // ── General ───────────────────────────────────────────────────────────────
   String get retry          => ar ? 'إعادة المحاولة'              : 'Try Again';
   String get loading        => ar ? 'جارٍ التحميل…'              : 'Loading…';

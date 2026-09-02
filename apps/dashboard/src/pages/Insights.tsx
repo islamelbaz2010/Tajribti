@@ -19,14 +19,14 @@ const COLORS = ['#b2f24d', '#38bdf8', '#fb7185', '#a78bfa', '#fbbf24'];
 const CHART_TOOLTIP = {
   contentStyle: {
     background: '#0c1526',
-    border: '1px solid #1a2540',
-    color: '#edf0ff',
+    border: '1px solid #dde3ee',
+    color: '#0a1120',
     borderRadius: 6,
     fontSize: 12,
   },
-  itemStyle: { color: '#edf0ff' },
-  labelStyle: { color: '#7c8eb8', marginBottom: 4 },
-  cursor: { fill: 'rgba(255,255,255,0.04)' },
+  itemStyle: { color: '#0a1120' },
+  labelStyle: { color: '#4a5a7e', marginBottom: 4 },
+  cursor: { fill: 'rgba(10,17,32,0.04)' },
 };
 
 const AXIS_TICK = { fontSize: 11, fill: '#3d4a6a' };
@@ -172,8 +172,8 @@ export default function Insights() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  loading: { color: '#2e3d5e', fontSize: 14, marginTop: 32 },
-  error: { color: '#fb7185', fontSize: 14, marginTop: 32 },
+  loading: { color: '#7a8bab', fontSize: 14, marginTop: 32 },
+  error: { color: '#dc2626', fontSize: 14, marginTop: 32 },
   header: { marginBottom: 24 },
   demoBadge: {
     display: 'inline-block',
@@ -189,18 +189,18 @@ const styles: Record<string, React.CSSProperties> = {
   title: {
     fontSize: 26,
     fontWeight: 800,
-    color: '#edf0ff',
+    color: '#0a1120',
     margin: '4px 0 6px',
     letterSpacing: -0.3,
   },
-  sub: { fontSize: 13, color: '#2e3d5e', margin: 0 },
+  sub: { fontSize: 13, color: '#7a8bab', margin: 0 },
   emptyState: {
-    background: '#0a1120',
-    border: '1px solid #111d35',
+    background: '#ffffff',
+    border: '1px solid #e8ecf3',
     borderRadius: 12,
     padding: '32px 28px',
   },
-  emptyTitle: { fontSize: 15, fontWeight: 700, color: '#edf0ff', marginBottom: 8 },
+  emptyTitle: { fontSize: 15, fontWeight: 700, color: '#0a1120', marginBottom: 8 },
   emptyBody: { fontSize: 13, color: '#4a5a7e', lineHeight: 1.6, margin: 0, maxWidth: 480 },
   chartsGrid: {
     display: 'grid',
@@ -209,8 +209,8 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 16,
   },
   card: {
-    background: '#0a1120',
-    border: '1px solid #111d35',
+    background: '#ffffff',
+    border: '1px solid #e8ecf3',
     borderRadius: 14,
     padding: '20px 24px',
   },
@@ -218,7 +218,7 @@ const styles: Record<string, React.CSSProperties> = {
   cardTitle: {
     fontSize: 11,
     fontWeight: 700,
-    color: '#2e3d5e',
+    color: '#7a8bab',
     letterSpacing: 1.5,
     marginBottom: 16,
     textTransform: 'uppercase' as const,
@@ -226,8 +226,8 @@ const styles: Record<string, React.CSSProperties> = {
   legend: { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 },
   legendItem: { display: 'flex', alignItems: 'center', gap: 8 },
   legendDot: { width: 8, height: 8, borderRadius: '50%', flexShrink: 0 },
-  legendLabel: { fontSize: 12, color: '#7c8eb8', flex: 1 },
-  legendCount: { fontSize: 12, color: '#edf0ff', fontWeight: 600 },
+  legendLabel: { fontSize: 12, color: '#4a5a7e', flex: 1 },
+  legendCount: { fontSize: 12, color: '#0a1120', fontWeight: 600 },
   segmentCard: {
     background: 'rgba(178, 242, 77, 0.05)',
     border: '1px solid rgba(178, 242, 77, 0.15)',
@@ -258,10 +258,10 @@ const styles: Record<string, React.CSSProperties> = {
   segmentValue: {
     fontSize: 20,
     fontWeight: 800,
-    color: '#edf0ff',
+    color: '#0a1120',
     marginBottom: 6,
     letterSpacing: -0.3,
   },
-  segmentSep: { color: '#1a2540' },
+  segmentSep: { color: '#94a3b8' },
   segmentDesc: { fontSize: 11, color: '#4a5a7e', lineHeight: 1.6 },
 };

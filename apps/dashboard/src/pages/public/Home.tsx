@@ -1,6 +1,36 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { SECTOR_LABELS } from '../../api/types';
+
+// Restrained motion (2026-09-02): a scroll-reveal wrapper + hover-lift
+// utility class, both no-ops under prefers-reduced-motion. No animation
+// library — just an IntersectionObserver toggling one class, and CSS
+// transitions for the hover states already present on cards/chips. No
+// autoplay, no parallax, no continuous/looping animation.
+function Reveal({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.15 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className={`tj-reveal${visible ? ' is-visible' : ''}`}>
+      {children}
+    </div>
+  );
+}
 
 // Public marketing site (Commercial V1 Completion Sprint, 2026-09-01):
 // TAJRIBTI's first public-facing surface — the repository previously had
@@ -62,6 +92,19 @@ const DELIVERABLES = [
 export default function PublicHome() {
   return (
     <div style={s.page}>
+      <style>{`
+        .tj-reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .tj-reveal.is-visible { opacity: 1; transform: translateY(0); }
+        .tj-hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .tj-hover-lift:hover { transform: translateY(-3px); box-shadow: 0 10px 24px -12px rgba(10,17,32,0.18); }
+        .tj-cta-hover { transition: transform 0.15s ease, opacity 0.15s ease; }
+        .tj-cta-hover:hover { transform: translateY(-1px); opacity: 0.92; }
+        @media (prefers-reduced-motion: reduce) {
+          .tj-reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+          .tj-hover-lift, .tj-cta-hover { transition: none !important; }
+          .tj-hover-lift:hover, .tj-cta-hover:hover { transform: none !important; }
+        }
+      `}</style>
       <header style={s.header}>
         <div style={s.headerInner}>
           <div style={s.logo}>TAJRIBTI</div>
@@ -84,8 +127,23 @@ export default function PublicHome() {
             in-hand product trial into structured, decision-ready Consumer Insights.
           </p>
           <div style={s.heroCtas}>
-            <Link to="/sample-report" style={s.ctaPrimary}>View a Sample Report &rarr;</Link>
-            <Link to="/login" style={s.ctaSecondary}>Company Login</Link>
+            <Link to="/sample-report" className="tj-cta-hover" style={s.ctaPrimary}>View a Sample Report &rarr;</Link>
+            <Link to="/login" className="tj-cta-hover" style={s.ctaSecondary}>Company Login</Link>
+          </div>
+
+          {/* Abstract product-agnostic flow visual (2026-09-02) — no stock
+              photography, no fabricated client/product imagery, just the
+              real mechanism the site already describes in words. */}
+          <div style={s.heroFlow}>
+            {['Trial', 'Feedback', 'Insight', 'Decision'].map((label, i, arr) => (
+              <React.Fragment key={label}>
+                <div style={s.heroFlowNode}>
+                  <div style={s.heroFlowDot} />
+                  <span style={s.heroFlowLabel}>{label}</span>
+                </div>
+                {i < arr.length - 1 && <div style={s.heroFlowLine} />}
+              </React.Fragment>
+            ))}
           </div>
         </div>
       </section>
@@ -112,19 +170,21 @@ export default function PublicHome() {
       {/* ── VALUE PROPS ── */}
       <section style={s.section}>
         <div style={s.sectionInner}>
-          <div style={s.grid4}>
-            {[
-              ['Real Trial', 'A physical product in a consumer’s hands — not a recall survey or a panel opinion.'],
-              ['Structured Feedback', 'A campaign-specific survey captures purchase intent, perception, and open feedback right after the trial.'],
-              ['Verified Consumers', 'Every participant authenticates via a one-time WhatsApp code — no bots, no duplicate entries.'],
-              ['A Report, Not a Dashboard', 'Findings, evidence, and recommendations — delivered as a document you can actually send around.'],
-            ].map(([title, body]) => (
-              <div key={title} style={s.valueCard}>
-                <div style={s.valueTitle}>{title}</div>
-                <div style={s.valueBody}>{body}</div>
-              </div>
-            ))}
-          </div>
+          <Reveal>
+            <div style={s.grid4}>
+              {[
+                ['Real Trial', 'A physical product in a consumer’s hands — not a recall survey or a panel opinion.'],
+                ['Structured Feedback', 'A campaign-specific survey captures purchase intent, perception, and open feedback right after the trial.'],
+                ['Verified Consumers', 'Every participant authenticates via a one-time WhatsApp code — no bots, no duplicate entries.'],
+                ['A Report, Not a Dashboard', 'Findings, evidence, and recommendations — delivered as a document you can actually send around.'],
+              ].map(([title, body]) => (
+                <div key={title} className="tj-hover-lift" style={s.valueCard}>
+                  <div style={s.valueTitle}>{title}</div>
+                  <div style={s.valueBody}>{body}</div>
+                </div>
+              ))}
+            </div>
+          </Reveal>
         </div>
       </section>
 
@@ -133,17 +193,19 @@ export default function PublicHome() {
         <div style={s.sectionInner}>
           <div style={s.sectionLabel}>HOW IT WORKS</div>
           <h2 style={s.sectionTitle}>From product trial to business decision</h2>
-          <div style={s.stepsList}>
-            {STEPS.map((step) => (
-              <div key={step.n} style={s.stepRow}>
-                <div style={s.stepNum}>{step.n}</div>
-                <div>
-                  <div style={s.stepTitle}>{step.title}</div>
-                  <div style={s.stepBody}>{step.body}</div>
+          <Reveal>
+            <div style={s.stepsList}>
+              {STEPS.map((step) => (
+                <div key={step.n} style={s.stepRow}>
+                  <div style={s.stepNum}>{step.n}</div>
+                  <div>
+                    <div style={s.stepTitle}>{step.title}</div>
+                    <div style={s.stepBody}>{step.body}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </Reveal>
         </div>
       </section>
 
@@ -176,16 +238,18 @@ export default function PublicHome() {
             Every number in it traces back to a real, verified consumer response — never a
             placeholder, never an inferred statistic.
           </p>
-          <div style={s.deliverableGrid}>
-            {DELIVERABLES.map((d) => (
-              <div key={d} style={s.deliverableRow}>
-                <span style={s.checkMark}>&#10003;</span>
-                {d}
-              </div>
-            ))}
-          </div>
+          <Reveal>
+            <div style={s.deliverableGrid}>
+              {DELIVERABLES.map((d) => (
+                <div key={d} className="tj-hover-lift" style={s.deliverableRow}>
+                  <span style={s.checkMark}>&#10003;</span>
+                  {d}
+                </div>
+              ))}
+            </div>
+          </Reveal>
           <div style={{ marginTop: 32 }}>
-            <Link to="/sample-report" style={s.ctaPrimary}>See it for yourself &rarr;</Link>
+            <Link to="/sample-report" className="tj-cta-hover" style={s.ctaPrimary}>See it for yourself &rarr;</Link>
           </div>
         </div>
       </section>
@@ -198,11 +262,13 @@ export default function PublicHome() {
           <p style={s.sectionSub}>
             Tajribti currently supports campaigns for:
           </p>
-          <div style={s.sectorRow}>
-            {SECTORS.map((sec) => (
-              <span key={sec} style={s.sectorChip}>{sec}</span>
-            ))}
-          </div>
+          <Reveal>
+            <div style={s.sectorRow}>
+              {SECTORS.map((sec) => (
+                <span key={sec} className="tj-hover-lift" style={s.sectorChip}>{sec}</span>
+              ))}
+            </div>
+          </Reveal>
         </div>
       </section>
 
@@ -211,8 +277,8 @@ export default function PublicHome() {
         <div style={s.sectionInner}>
           <h2 style={s.finalCtaTitle}>See what your consumers would actually say.</h2>
           <div style={s.heroCtas}>
-            <Link to="/sample-report" style={s.ctaPrimaryDark}>View a Sample Report &rarr;</Link>
-            <Link to="/login" style={s.ctaSecondaryDark}>Company Login</Link>
+            <Link to="/sample-report" className="tj-cta-hover" style={s.ctaPrimaryDark}>View a Sample Report &rarr;</Link>
+            <Link to="/login" className="tj-cta-hover" style={s.ctaSecondaryDark}>Company Login</Link>
           </div>
         </div>
       </section>
@@ -296,6 +362,24 @@ const s: Record<string, React.CSSProperties> = {
     margin: '0 auto 36px',
   },
   heroCtas: { display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' as const },
+  heroFlow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 56,
+    flexWrap: 'wrap' as const,
+  },
+  heroFlowNode: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 8, width: 84 },
+  heroFlowDot: {
+    width: 14,
+    height: 14,
+    borderRadius: '50%',
+    background: '#b2f24d',
+    border: '3px solid rgba(178,242,77,0.3)',
+  },
+  heroFlowLabel: { fontSize: 12, fontWeight: 700, color: '#4a5a7e', letterSpacing: 0.3 },
+  heroFlowLine: { width: 40, height: 2, background: '#e2e8f0', marginBottom: 22 },
   ctaPrimary: {
     background: '#b2f24d',
     color: '#0a1120',

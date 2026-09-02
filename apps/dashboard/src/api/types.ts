@@ -113,7 +113,12 @@ export interface Company {
   email: string;
   logoUrl: string | null;
   sector: BrandSector | null;
+  employeeCode: string | null;
   createdAt: string;
+  // Present only on GET /company/me — which identity is currently logged
+  // in (the Company owner's own BrandAccount, or an authenticated
+  // CompanyEmployee). Both see the same Company data.
+  viewerType?: 'brand' | 'employee';
 }
 
 export interface BrandContact {
@@ -123,6 +128,45 @@ export interface BrandContact {
   email: string;
   role: string | null;
   createdAt: string;
+}
+
+// Founder ruling W-1 (2026-09-02): a real authenticated Company Employee —
+// distinct from BrandContact above (a non-authenticated record).
+export interface CompanyEmployee {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: string;
+}
+
+export interface EmployeeSignupCompany {
+  id: string;
+  name: string;
+  logoUrl: string | null;
+}
+
+// Founder ruling W-2 (2026-09-02): TAJRIBTI Admin Control Center types.
+export interface AdminCompany {
+  id: string;
+  name: string;
+  email: string;
+  logoUrl: string | null;
+  sector: BrandSector | null;
+  employeeCode: string | null;
+  createdAt: string;
+  employeeCount: number;
+  campaignCount: number;
+}
+
+export interface AdminCampaign extends Campaign {
+  brandAccountId: string | null;
+  companyName: string | null;
+  createdAt: string;
+}
+
+export interface AdminCampaignsResponse {
+  campaigns: AdminCampaign[];
+  total: number;
 }
 
 export interface AiReport {

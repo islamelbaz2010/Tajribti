@@ -40,7 +40,12 @@ const NAV_SECTIONS = [
 
 // Company Foundation (2026-09-01): a third, company-scoped group — not
 // campaign-scoped, so it deliberately does not carry ?campaignId=.
-const COMPANY_NAV_ITEM = { to: '/company', label: 'Company Profile' };
+// Founder ruling W-1 (2026-09-02): Employees added to the same group —
+// same reasoning (Company-scoped, not Campaign-scoped).
+const COMPANY_NAV_ITEMS = [
+  { to: '/company', label: 'Company Profile' },
+  { to: '/employees', label: 'Employees' },
+];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { logout, isAuthenticated } = useAuth();
@@ -146,15 +151,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
           <div style={styles.navSection}>
             <div style={styles.navGroupLabel}>COMPANY</div>
-            <NavLink
-              to={COMPANY_NAV_ITEM.to}
-              style={({ isActive }) => ({
-                ...styles.navItem,
-                ...(isActive ? styles.navItemActive : {}),
-              })}
-            >
-              {COMPANY_NAV_ITEM.label}
-            </NavLink>
+            {COMPANY_NAV_ITEMS.map(({ to, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                style={({ isActive }) => ({
+                  ...styles.navItem,
+                  ...(isActive ? styles.navItemActive : {}),
+                })}
+              >
+                {label}
+              </NavLink>
+            ))}
           </div>
         </nav>
 

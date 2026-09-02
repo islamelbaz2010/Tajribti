@@ -14,6 +14,8 @@ import { CampaignMedia } from '../entities/campaign-media.entity';
 import { EmailVerificationToken } from '../entities/email-verification-token.entity';
 import { CampaignVerification } from '../entities/campaign-verification.entity';
 import { Asset } from '../entities/asset.entity';
+import { CompanyEmployee } from '../entities/company-employee.entity';
+import { AdminUser } from '../entities/admin-user.entity';
 
 config({ path: '.env' });
 
@@ -38,6 +40,8 @@ export const AppDataSource = new DataSource({
     EmailVerificationToken,
     CampaignVerification,
     Asset,
+    CompanyEmployee,
+    AdminUser,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,

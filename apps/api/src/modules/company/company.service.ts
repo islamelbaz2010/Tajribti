@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BrandAccount } from '../../entities/brand-account.entity';
 import { BrandContact } from '../../entities/brand-contact.entity';
+import { CompanyEmployee } from '../../entities/company-employee.entity';
 import { SurveyQuestion } from '../../entities/campaign.entity';
 import { CreateBrandContactDto } from '../admin/dto/create-brand-contact.dto';
 import { getSectorFramework } from './sector-framework';
@@ -25,15 +26,40 @@ export class CompanyService {
     private readonly brandRepo: Repository<BrandAccount>,
     @InjectRepository(BrandContact)
     private readonly brandContactRepo: Repository<BrandContact>,
+    @InjectRepository(CompanyEmployee)
+    private readonly employeeRepo: Repository<CompanyEmployee>,
   ) {}
 
   async getMe(
     brandId: string,
-  ): Promise<Pick<BrandAccount, 'id' | 'name' | 'email' | 'logoUrl' | 'sector' | 'createdAt'>> {
+  ): Promise<
+    Pick<BrandAccount, 'id' | 'name' | 'email' | 'logoUrl' | 'sector' | 'employeeCode' | 'createdAt'>
+  > {
     const brand = await this.brandRepo.findOne({ where: { id: brandId } });
     if (!brand) throw new NotFoundException('Company not found');
-    const { id, name, email, logoUrl, sector, createdAt } = brand;
-    return { id, name, email, logoUrl, sector, createdAt };
+    const { id, name, email, logoUrl, sector, employeeCode, createdAt } = brand;
+    return { id, name, email, logoUrl, sector, employeeCode, createdAt };
+  }
+
+  // Founder ruling W-1 (2026-09-02): self-service visibility into who
+  // currently has employee access to this Company — never returns
+  // passwordHash (explicit response shape, not a raw entity spread).
+  async listEmployees(
+    brandId: string,
+  ): Promise<Array<Pick<CompanyEmployee, 'id' | 'name' | 'email' | 'createdAt'>>> {
+    const employees = await this.employeeRepo.find({
+      where: { brandAccountId: brandId },
+      order: { createdAt: 'DESC' },
+    });
+    return employees.map(({ id, name, email, createdAt }) => ({ id, name, email, createdAt }));
+  }
+
+  async removeEmployee(brandId: string, employeeId: string): Promise<void> {
+    const employee = await this.employeeRepo.findOne({ where: { id: employeeId } });
+    if (!employee || employee.brandAccountId !== brandId) {
+      throw new NotFoundException('Employee not found for this company');
+    }
+    await this.employeeRepo.softRemove(employee);
   }
 
   async listContacts(brandId: string): Promise<BrandContact[]> {

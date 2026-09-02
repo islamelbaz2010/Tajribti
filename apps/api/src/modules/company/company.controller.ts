@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Delete, Body, Param, Request, UseGuards, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Request, UseGuards } from '@nestjs/common';
 import { CompanyService } from './company.service';
 import { CreateBrandContactDto } from '../admin/dto/create-brand-contact.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { resolveCompanyId } from '../auth/company-scope.util';
 
 interface RequestWithUser extends Request {
   user: AuthenticatedUser;
@@ -17,13 +18,35 @@ export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
 
   private requireBrand(req: RequestWithUser): string {
-    if (req.user.type !== 'brand') throw new ForbiddenException('Brand account required');
-    return req.user.id;
+    return resolveCompanyId(req.user);
   }
 
   @Get('me')
   getMe(@Request() req: RequestWithUser) {
-    return this.companyService.getMe(this.requireBrand(req));
+    // Also useful for distinguishing "logged in as the Company owner" vs
+    // "logged in as an employee" in the Dashboard UI — both resolve to the
+    // same Company data, but the caller's own token type is exposed too.
+    return this.companyService.getMe(this.requireBrand(req)).then((company) => ({
+      ...company,
+      viewerType: req.user.type,
+    }));
+  }
+
+  // Founder ruling W-1 (2026-09-02): a Company can see its own employee
+  // roster and revoke an employee's access, without needing an Admin
+  // round-trip. Creating a new employee remains Admin-only (Admin may
+  // create employee accounts when the Company requests them) — the other
+  // half of the Founder's requirement, self-service registration via the
+  // Company's own code, happens through /auth/employee/signup instead.
+  @Get('employees')
+  listEmployees(@Request() req: RequestWithUser) {
+    return this.companyService.listEmployees(this.requireBrand(req));
+  }
+
+  @Delete('employees/:id')
+  async removeEmployee(@Request() req: RequestWithUser, @Param('id') id: string) {
+    await this.companyService.removeEmployee(this.requireBrand(req), id);
+    return { success: true };
   }
 
   @Get('contacts')

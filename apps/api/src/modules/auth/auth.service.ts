@@ -24,6 +24,8 @@ import {
 } from '../../entities/campaign.entity';
 import { CampaignVerification } from '../../entities/campaign-verification.entity';
 import { EmailVerificationToken } from '../../entities/email-verification-token.entity';
+import { CompanyEmployee } from '../../entities/company-employee.entity';
+import { AdminUser } from '../../entities/admin-user.entity';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -31,6 +33,9 @@ import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { BrandLoginDto } from './dto/brand-login.dto';
+import { EmployeeSignupDto } from './dto/employee-signup.dto';
+import { EmployeeLoginDto } from './dto/employee-login.dto';
+import { AdminLoginDto } from './dto/admin-login.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
 
 export interface TokenPair {
@@ -89,6 +94,10 @@ export class AuthService {
     private readonly campaignVerificationRepo: Repository<CampaignVerification>,
     @InjectRepository(EmailVerificationToken)
     private readonly emailVerificationRepo: Repository<EmailVerificationToken>,
+    @InjectRepository(CompanyEmployee)
+    private readonly employeeRepo: Repository<CompanyEmployee>,
+    @InjectRepository(AdminUser)
+    private readonly adminRepo: Repository<AdminUser>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
@@ -439,6 +448,99 @@ export class AuthService {
     return { ...tokens, brandId: brand.id, brandName: brand.name };
   }
 
+  // ── Company Employee identity (Founder ruling W-1, 2026-09-02) ─────────
+  // A real, separately-authenticated account — NOT merged with Consumer
+  // identity (a different registration path entirely, no Company
+  // selection in ordinary consumer signup) and NOT the same login as the
+  // Company's own BrandAccount owner.
+
+  // Public directory for the "select an existing real Company" step —
+  // deliberately minimal fields (id/name/logoUrl only; never email,
+  // employeeCode, sector, or anything else). Companies are provisioned by
+  // Admin only (no public company signup, unchanged) — this list simply
+  // lets a legitimate employee find the Company they already work for.
+  async listCompaniesForEmployeeSignup(): Promise<
+    Array<{ id: string; name: string; logoUrl: string | null }>
+  > {
+    const brands = await this.brandRepo.find({ order: { name: 'ASC' } });
+    return brands.map(({ id, name, logoUrl }) => ({ id, name, logoUrl }));
+  }
+
+  async employeeSignup(dto: EmployeeSignupDto): Promise<TokenPair & { employeeId: string; companyId: string; companyName: string }> {
+    const company = await this.brandRepo.findOne({ where: { id: dto.companyId } });
+    if (!company) {
+      throw new NotFoundException('Company not found');
+    }
+    if (!company.employeeCode) {
+      throw new BadRequestException(
+        'This Company has not enabled employee registration yet — ask your Company admin to contact TAJRIBTI support.',
+      );
+    }
+    if (dto.code !== company.employeeCode) {
+      throw new BadRequestException(
+        'That code is not valid for this Company — ask your Company admin for the correct employee code.',
+      );
+    }
+
+    const email = dto.email.trim().toLowerCase();
+    const existing = await this.employeeRepo.findOne({ where: { email } });
+    if (existing) {
+      throw new ConflictException('An employee account with this email already exists');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, BCRYPT_SALT_ROUNDS);
+    const employee = await this.employeeRepo.save(
+      this.employeeRepo.create({
+        brandAccountId: company.id,
+        name: dto.name,
+        email,
+        passwordHash,
+      }),
+    );
+
+    const tokens = this.generateTokens(employee.id, employee.email, 'employee', company.id);
+    return { ...tokens, employeeId: employee.id, companyId: company.id, companyName: company.name };
+  }
+
+  async employeeLogin(dto: EmployeeLoginDto): Promise<TokenPair & { employeeId: string; companyId: string; companyName: string }> {
+    const email = dto.email.trim().toLowerCase();
+    const employee = await this.employeeRepo.findOne({ where: { email } });
+    if (!employee) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+    const passwordValid = await bcrypt.compare(dto.password, employee.passwordHash);
+    if (!passwordValid) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+    const company = await this.brandRepo.findOne({ where: { id: employee.brandAccountId } });
+    if (!company) {
+      // The owning Company was hard-deleted out from under this employee
+      // record (never happens via any existing code path — BrandAccount
+      // only ever soft-deletes — but fail closed rather than assume).
+      throw new UnauthorizedException('This employee account has no associated Company');
+    }
+
+    const tokens = this.generateTokens(employee.id, employee.email, 'employee', company.id);
+    return { ...tokens, employeeId: employee.id, companyId: company.id, companyName: company.name };
+  }
+
+  // ── TAJRIBTI Admin identity (Founder ruling W-2, 2026-09-02) ───────────
+
+  async adminLogin(dto: AdminLoginDto): Promise<TokenPair & { adminId: string; adminName: string }> {
+    const email = dto.email.trim().toLowerCase();
+    const admin = await this.adminRepo.findOne({ where: { email } });
+    if (!admin) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+    const passwordValid = await bcrypt.compare(dto.password, admin.passwordHash);
+    if (!passwordValid) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    const tokens = this.generateTokens(admin.id, admin.email, 'admin');
+    return { ...tokens, adminId: admin.id, adminName: admin.name };
+  }
+
   async getMe(consumerId: string): Promise<Omit<Consumer, 'passwordHash'> & { totalPoints: number; recentCampaigns: object[] }> {
     const consumer = await this.consumerRepo.findOne({
       where: { id: consumerId },
@@ -481,18 +583,36 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
-    if (payload.type !== 'consumer') throw new UnauthorizedException('Token type not eligible for refresh');
-    const consumer = await this.consumerRepo.findOne({ where: { id: payload.sub } });
-    if (!consumer) throw new UnauthorizedException('Consumer not found');
-    return this.generateTokens(payload.sub, payload.identifier, 'consumer');
+    if (payload.type === 'consumer') {
+      const consumer = await this.consumerRepo.findOne({ where: { id: payload.sub } });
+      if (!consumer) throw new UnauthorizedException('Consumer not found');
+      return this.generateTokens(payload.sub, payload.identifier, 'consumer');
+    }
+    if (payload.type === 'brand') {
+      const brand = await this.brandRepo.findOne({ where: { id: payload.sub } });
+      if (!brand) throw new UnauthorizedException('Brand account not found');
+      return this.generateTokens(payload.sub, payload.identifier, 'brand');
+    }
+    if (payload.type === 'employee') {
+      const employee = await this.employeeRepo.findOne({ where: { id: payload.sub } });
+      if (!employee) throw new UnauthorizedException('Employee account not found');
+      return this.generateTokens(payload.sub, payload.identifier, 'employee', employee.brandAccountId);
+    }
+    if (payload.type === 'admin') {
+      const admin = await this.adminRepo.findOne({ where: { id: payload.sub } });
+      if (!admin) throw new UnauthorizedException('Admin account not found');
+      return this.generateTokens(payload.sub, payload.identifier, 'admin');
+    }
+    throw new UnauthorizedException('Token type not eligible for refresh');
   }
 
   private generateTokens(
     sub: string,
     identifier: string,
-    type: 'consumer' | 'brand',
+    type: 'consumer' | 'brand' | 'employee' | 'admin',
+    companyId?: string,
   ): TokenPair {
-    const payload: JwtPayload = { sub, identifier, type };
+    const payload: JwtPayload = { sub, identifier, type, ...(companyId ? { companyId } : {}) };
     const secret = this.configService.getOrThrow<string>('JWT_SECRET');
     const refreshSecret = this.configService.getOrThrow<string>('JWT_REFRESH_SECRET');
 

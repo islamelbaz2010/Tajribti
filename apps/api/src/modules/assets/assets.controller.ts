@@ -9,7 +9,6 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
-  ForbiddenException,
   SetMetadata,
   HttpCode,
   HttpStatus,
@@ -19,6 +18,7 @@ import { Response } from 'express';
 import { AssetsService, UploadedFileLike } from './assets.service';
 import { JwtAuthGuard, IS_PUBLIC_KEY } from '../auth/guards/jwt.guard';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { resolveCompanyId } from '../auth/company-scope.util';
 
 const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 
@@ -32,8 +32,7 @@ export class AssetsController {
   constructor(private readonly assetsService: AssetsService) {}
 
   private requireBrand(req: RequestWithUser): string {
-    if (req.user.type !== 'brand') throw new ForbiddenException('Brand account required');
-    return req.user.id;
+    return resolveCompanyId(req.user);
   }
 
   @Post('logo')

@@ -7,12 +7,12 @@ import {
   Body,
   Request,
   UseGuards,
-  ForbiddenException,
 } from '@nestjs/common';
 import { MediaService } from './media.service';
 import { CreateMediaDto } from './dto/create-media.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { resolveCompanyId } from '../auth/company-scope.util';
 
 interface RequestWithUser extends Request {
   user: AuthenticatedUser;
@@ -28,8 +28,7 @@ export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
 
   private async assertOwnership(req: RequestWithUser, campaignId: string): Promise<void> {
-    if (req.user.type !== 'brand') throw new ForbiddenException('Brand account required');
-    await this.mediaService.assertBrandOwnership(campaignId, req.user.id);
+    await this.mediaService.assertBrandOwnership(campaignId, resolveCompanyId(req.user));
   }
 
   @Get()

@@ -8,13 +8,13 @@ import {
   Request,
   UseGuards,
   SetMetadata,
-  ForbiddenException,
 } from '@nestjs/common';
 import { CampaignService } from './campaign.service';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { JwtAuthGuard, IS_PUBLIC_KEY } from '../auth/guards/jwt.guard';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { resolveCompanyId } from '../auth/company-scope.util';
 
 const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 
@@ -29,14 +29,12 @@ export class CampaignController {
 
   @Post()
   create(@Request() req: RequestWithUser, @Body() dto: CreateCampaignDto) {
-    if (req.user.type !== 'brand') throw new ForbiddenException('Brand account required');
-    return this.campaignService.createCampaign(req.user.id, dto);
+    return this.campaignService.createCampaign(resolveCompanyId(req.user), dto);
   }
 
   @Get('my')
   findMy(@Request() req: RequestWithUser) {
-    if (req.user.type !== 'brand') throw new ForbiddenException('Brand account required');
-    return this.campaignService.findByBrand(req.user.id);
+    return this.campaignService.findByBrand(resolveCompanyId(req.user));
   }
 
   // Internal Tajribti Campaign Operations (DL-055 item 1): edit + status
@@ -47,8 +45,7 @@ export class CampaignController {
     @Request() req: RequestWithUser,
     @Body() dto: UpdateCampaignDto,
   ) {
-    if (req.user.type !== 'brand') throw new ForbiddenException('Brand account required');
-    return this.campaignService.updateCampaign(req.user.id, id, dto);
+    return this.campaignService.updateCampaign(resolveCompanyId(req.user), id, dto);
   }
 
   @Public()

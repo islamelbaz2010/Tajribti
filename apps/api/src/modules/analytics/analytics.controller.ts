@@ -5,11 +5,11 @@ import {
   Query,
   UseGuards,
   Request,
-  ForbiddenException,
 } from '@nestjs/common';
 import { AnalyticsService } from './analytics.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { resolveCompanyId } from '../auth/company-scope.util';
 
 interface RequestWithUser extends Request {
   user: AuthenticatedUser;
@@ -21,8 +21,7 @@ export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
   private async assertOwnership(req: RequestWithUser, campaignId: string): Promise<void> {
-    if (req.user.type !== 'brand') throw new ForbiddenException('Brand account required');
-    await this.analyticsService.assertBrandOwnership(campaignId, req.user.id);
+    await this.analyticsService.assertBrandOwnership(campaignId, resolveCompanyId(req.user));
   }
 
   @Get(':campaignId/overview')

@@ -24,6 +24,8 @@ import { AiReport } from './entities/ai-report.entity';
 import { CampaignMedia } from './entities/campaign-media.entity';
 import { EmailVerificationToken } from './entities/email-verification-token.entity';
 import { CampaignVerification } from './entities/campaign-verification.entity';
+import { CompanyEmployee } from './entities/company-employee.entity';
+import { AdminUser } from './entities/admin-user.entity';
 
 @Module({
   imports: [
@@ -50,6 +52,8 @@ import { CampaignVerification } from './entities/campaign-verification.entity';
           EmailVerificationToken,
           CampaignVerification,
           Asset,
+          CompanyEmployee,
+          AdminUser,
         ],
         // Production Schema Safety (DL-070, 2026-09-01): was `!== 'production'`
         // — a blocklist that silently stayed `true` for any unrecognized

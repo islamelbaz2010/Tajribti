@@ -11,11 +11,31 @@ import type {
   PdfData,
   Company,
   BrandContact,
+  CompanyEmployee,
+  EmployeeSignupCompany,
 } from './types';
 
 export const authApi = {
   login: (email: string, password: string): Promise<{ accessToken: string; refreshToken: string }> =>
     client.post('/auth/brand/login', { email, password }),
+  // Founder ruling W-1 (2026-09-02): Company Employee identity — a
+  // separate login/registration path from the Company owner's own
+  // BrandAccount login above, and from ordinary Consumer signup.
+  employeeLogin: (
+    email: string,
+    password: string,
+  ): Promise<{ accessToken: string; refreshToken: string; companyName: string }> =>
+    client.post('/auth/employee/login', { email, password }),
+  listCompaniesForEmployeeSignup: (): Promise<EmployeeSignupCompany[]> =>
+    client.get('/auth/employee/companies'),
+  employeeSignup: (body: {
+    companyId: string;
+    code: string;
+    name: string;
+    email: string;
+    password: string;
+  }): Promise<{ accessToken: string; refreshToken: string; companyName: string }> =>
+    client.post('/auth/employee/signup', body),
 };
 
 export const campaignApi = {
@@ -113,6 +133,15 @@ export const companyApi = {
     client.post('/company/contacts', body),
   removeContact: (id: string): Promise<void> => client.delete(`/company/contacts/${id}`),
   getSectorFramework: (): Promise<SurveyQuestion[]> => client.get('/company/sector-framework'),
+};
+
+// Founder ruling W-1 (2026-09-02): self-service view of who has employee
+// access to the currently-logged-in Company. Works identically whether the
+// caller is the Company owner (BrandAccount) or an employee — both are
+// scoped to the same Company server-side.
+export const employeesApi = {
+  list: (): Promise<CompanyEmployee[]> => client.get('/company/employees'),
+  remove: (id: string): Promise<void> => client.delete(`/company/employees/${id}`),
 };
 
 // Upload capability (2026-09-02): Postgres-backed asset store (see API's

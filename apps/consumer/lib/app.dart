@@ -17,6 +17,10 @@ import 'screens/profile_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/activity_screen.dart';
 import 'screens/services_screen.dart';
+import 'screens/employee/employee_login_screen.dart';
+import 'screens/employee/employee_home_screen.dart';
+import 'screens/employee/employee_campaign_detail_screen.dart';
+import 'core/models.dart';
 
 final _router = GoRouter(
   initialLocation: '/',
@@ -60,6 +64,16 @@ final _router = GoRouter(
     GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
     GoRoute(path: '/activity', builder: (_, __) => const ActivityScreen()),
     GoRoute(path: '/services', builder: (_, __) => const ServicesScreen()),
+
+    // Employee Mobile (Founder ruling W-1, 2026-09-02) — a separate,
+    // additive route branch. Reachable only via AuthChoiceScreen's
+    // "Company Employee?" link; never entered from a Consumer route.
+    GoRoute(path: '/employee/login', builder: (_, __) => const EmployeeLoginScreen()),
+    GoRoute(path: '/employee/home', builder: (_, __) => const EmployeeHomeScreen()),
+    GoRoute(
+      path: '/employee/campaign',
+      builder: (_, state) => EmployeeCampaignDetailScreen(campaign: state.extra as Campaign),
+    ),
   ],
 );
 

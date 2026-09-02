@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { Campaign } from './campaign.entity';
 import { BrandContact } from './brand-contact.entity';
+import { CompanyEmployee } from './company-employee.entity';
 
 // Company Foundation (2026-09-01): the controlled sector/category list.
 // Sourced only from locked Founder decisions DL-003 ("Target market: FMCG,
@@ -46,6 +47,19 @@ export class BrandAccount {
   @Column({ type: 'enum', enum: BrandSector, nullable: true })
   sector: BrandSector | null;
 
+  // Company Employee identity (Founder ruling W-1, 2026-09-02): the
+  // Company-specific code a person registering as an employee must supply
+  // (see AuthService.employeeSignup()) — "wrong/invalid code blocks
+  // registration and instructs the user to obtain the correct code" is
+  // enforced by comparing against this column. Nullable: a Company
+  // provisioned before this feature, or one Admin hasn't enabled employee
+  // self-registration for yet, simply has no code and self-registration
+  // is blocked with a clear message (Admin can still create employee
+  // accounts directly either way). Unique so a code can never be guessed
+  // into a different Company by chance collision.
+  @Column({ name: 'employee_code', type: 'varchar', length: 20, unique: true, nullable: true })
+  employeeCode: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
@@ -57,4 +71,7 @@ export class BrandAccount {
 
   @OneToMany(() => BrandContact, (contact) => contact.brandAccount)
   contacts: BrandContact[];
+
+  @OneToMany(() => CompanyEmployee, (employee) => employee.brandAccount)
+  employees: CompanyEmployee[];
 }

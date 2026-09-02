@@ -1,5 +1,5 @@
 import React, { useState, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 // Company Login visual consistency (2026-09-02): previously a dark
@@ -16,20 +16,36 @@ import { useAuth } from '../context/AuthContext';
 // Auth logic, JWT/session handling, and post-login routing are unchanged.
 const isDemoBuild = process.env.NODE_ENV !== 'production';
 
+// Founder ruling W-1 (2026-09-02): this page now serves two distinct
+// account types — the Company owner's own BrandAccount login (unchanged)
+// and an authenticated Company Employee login (new) — via a simple mode
+// toggle, not two separate pages, since both land on the exact same
+// Company Console. Admin has its own separate login at /admin/login
+// (Founder ruling W-2) — deliberately not offered here, to keep the two
+// identities from ever being confused on one screen.
 export default function Login() {
-  const { login } = useAuth();
+  const { login, loginEmployee } = useAuth();
   const navigate = useNavigate();
+  const [mode, setMode] = useState<'owner' | 'employee'>('owner');
   const [email, setEmail] = useState(isDemoBuild ? 'demo@brand.com' : '');
   const [password, setPassword] = useState(isDemoBuild ? 'Demo1234!' : '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const switchMode = (next: 'owner' | 'employee') => {
+    setMode(next);
+    setError('');
+    setEmail(next === 'owner' && isDemoBuild ? 'demo@brand.com' : '');
+    setPassword(next === 'owner' && isDemoBuild ? 'Demo1234!' : '');
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
+      if (mode === 'owner') await login(email, password);
+      else await loginEmployee(email, password);
       navigate('/overview');
     } catch {
       setError('Invalid email or password.');
@@ -43,9 +59,26 @@ export default function Login() {
       <div style={styles.panel}>
         <div style={styles.logoRow}>
           <span style={styles.logoText}>TAJRIBTI</span>
-          {isDemoBuild && <span style={styles.demoBadge}>DEMO</span>}
+          {isDemoBuild && mode === 'owner' && <span style={styles.demoBadge}>DEMO</span>}
         </div>
-        <div style={styles.tagline}>Company Login</div>
+        <div style={styles.tagline}>{mode === 'owner' ? 'Company Login' : 'Employee Login'}</div>
+
+        <div style={styles.modeToggle}>
+          <button
+            type="button"
+            style={{ ...styles.modeBtn, ...(mode === 'owner' ? styles.modeBtnActive : {}) }}
+            onClick={() => switchMode('owner')}
+          >
+            Company Owner
+          </button>
+          <button
+            type="button"
+            style={{ ...styles.modeBtn, ...(mode === 'employee' ? styles.modeBtnActive : {}) }}
+            onClick={() => switchMode('employee')}
+          >
+            Employee
+          </button>
+        </div>
 
         <div style={styles.concept}>
           {['TRIAL', 'SIGNAL', 'INTELLIGENCE', 'DECISION'].map((step, i, arr) => (
@@ -84,7 +117,12 @@ export default function Login() {
           </button>
         </form>
 
-        {isDemoBuild && <p style={styles.hint}>Demo credentials are pre-filled.</p>}
+        {isDemoBuild && mode === 'owner' && <p style={styles.hint}>Demo credentials are pre-filled.</p>}
+        {mode === 'employee' && (
+          <p style={styles.hint}>
+            New here? <Link to="/employee/signup" style={styles.link}>Register with your Company's employee code →</Link>
+          </p>
+        )}
       </div>
     </div>
   );
@@ -133,8 +171,37 @@ const styles: Record<string, React.CSSProperties> = {
   tagline: {
     fontSize: 12,
     color: '#7a8bab',
-    marginBottom: 28,
+    marginBottom: 16,
     fontWeight: 600,
+  },
+  modeToggle: {
+    display: 'flex',
+    background: '#f7f8fb',
+    border: '1px solid #e8ecf3',
+    borderRadius: 8,
+    padding: 3,
+    marginBottom: 24,
+  },
+  modeBtn: {
+    flex: 1,
+    background: 'transparent',
+    border: 'none',
+    borderRadius: 6,
+    padding: '8px 10px',
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#7a8bab',
+    cursor: 'pointer',
+  },
+  modeBtnActive: {
+    background: '#ffffff',
+    color: '#0a1120',
+    boxShadow: '0 1px 3px rgba(10,17,32,0.1)',
+  },
+  link: {
+    color: '#5c7a1f',
+    fontWeight: 700,
+    textDecoration: 'none',
   },
   concept: {
     display: 'flex',

@@ -107,6 +107,21 @@ class AuthChoiceScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
+                // Employee Mobile entry point (Founder ruling W-1,
+                // 2026-09-02): the one, deliberately small and separate
+                // touchpoint into the Employee identity — never mixed into
+                // the Consumer Sign In/Create Account buttons above, and
+                // added only here (before any Consumer identity exists),
+                // not into any other protected Consumer screen.
+                Center(
+                  child: TextButton(
+                    onPressed: () => context.push('/employee/login'),
+                    child: Text(
+                      s.isRtl ? 'موظف شركة؟ تسجيل الدخول ←' : 'Company Employee? Sign in →',
+                      style: TextStyle(color: Colors.grey.shade500, fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

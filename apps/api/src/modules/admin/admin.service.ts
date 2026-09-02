@@ -2,6 +2,7 @@ import { Injectable, Logger, ConflictException, NotFoundException } from '@nestj
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { Campaign, CampaignStatus, SurveyQuestion } from '../../entities/campaign.entity';
 import { QrCode, QrCodeStatus } from '../../entities/qr-code.entity';
 import { Consumer } from '../../entities/consumer.entity';
@@ -9,11 +10,17 @@ import { RedemptionEvent } from '../../entities/redemption-event.entity';
 import { SurveyResponse } from '../../entities/survey-response.entity';
 import { BrandAccount } from '../../entities/brand-account.entity';
 import { BrandContact } from '../../entities/brand-contact.entity';
+import { CompanyEmployee } from '../../entities/company-employee.entity';
+import { AdminUser } from '../../entities/admin-user.entity';
 import { AiReport } from '../../entities/ai-report.entity';
 import { ConfigService } from '@nestjs/config';
 import { CreateBrandAccountDto } from './dto/create-brand-account.dto';
 import { UpdateBrandAccountDto } from './dto/update-brand-account.dto';
 import { CreateBrandContactDto } from './dto/create-brand-contact.dto';
+import { CreateCompanyEmployeeDto } from './dto/create-company-employee.dto';
+import { CreateAdminUserDto } from './dto/create-admin-user.dto';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { ReportService } from '../report/report.service';
 
 const AGE_RANGES = ['18-24', '25-34', '35-44', '45-54', '55+'] as const;
 const GENDERS = ['male', 'female'] as const;
@@ -84,7 +91,13 @@ export class AdminService {
     private readonly brandContactRepo: Repository<BrandContact>,
     @InjectRepository(AiReport)
     private readonly aiReportRepo: Repository<AiReport>,
+    @InjectRepository(CompanyEmployee)
+    private readonly employeeRepo: Repository<CompanyEmployee>,
+    @InjectRepository(AdminUser)
+    private readonly adminUserRepo: Repository<AdminUser>,
     private readonly configService: ConfigService,
+    private readonly analyticsService: AnalyticsService,
+    private readonly reportService: ReportService,
   ) {}
 
   async seedDemo(): Promise<{ message: string; campaignId: string; qrCode: string }> {
@@ -161,7 +174,7 @@ export class AdminService {
   // auth system. Returns nothing password-related.
   async createBrand(
     dto: CreateBrandAccountDto,
-  ): Promise<{ id: string; name: string; email: string; createdAt: Date }> {
+  ): Promise<{ id: string; name: string; email: string; employeeCode: string; createdAt: Date }> {
     const existing = await this.brandRepo.findOne({ where: { email: dto.email } });
     if (existing) {
       throw new ConflictException(`A brand account already exists for ${dto.email}`);
@@ -175,6 +188,11 @@ export class AdminService {
         password: hashedPassword,
         logoUrl: dto.logoUrl ?? null,
         sector: dto.sector ?? null,
+        // Founder ruling W-1 (2026-09-02): every newly-provisioned Company
+        // gets a working employee code immediately, so "Admin creates the
+        // Company" and "employees can self-register with a code" are not
+        // two separate manual steps.
+        employeeCode: await this.generateUniqueEmployeeCode(),
       }),
     );
 
@@ -182,25 +200,75 @@ export class AdminService {
       id: brand.id,
       name: brand.name,
       email: brand.email,
+      employeeCode: brand.employeeCode as string,
       createdAt: brand.createdAt,
     };
   }
 
   // Company Foundation (2026-09-01): Admin listing/edit of existing
   // Companies — deliberately never returns `password`. Same x-admin-secret
-  // gate as every other admin.* method.
+  // gate as every other admin.* method. Extended (Founder ruling W-2,
+  // 2026-09-01/02) with employeeCount/campaignCount so the Admin Control
+  // Center's Companies list is immediately useful, not just names.
   async listBrands(): Promise<
-    Array<Pick<BrandAccount, 'id' | 'name' | 'email' | 'logoUrl' | 'sector' | 'createdAt'>>
+    Array<
+      Pick<BrandAccount, 'id' | 'name' | 'email' | 'logoUrl' | 'sector' | 'employeeCode' | 'createdAt'> & {
+        employeeCount: number;
+        campaignCount: number;
+      }
+    >
   > {
     const brands = await this.brandRepo.find({ order: { createdAt: 'DESC' } });
-    return brands.map(({ id, name, email, logoUrl, sector, createdAt }) => ({
+    if (brands.length === 0) return [];
+    const brandIds = brands.map((b) => b.id);
+
+    const [employeeCounts, campaignCounts] = await Promise.all([
+      this.employeeRepo
+        .createQueryBuilder('e')
+        .select('e.brand_account_id', 'brandAccountId')
+        .addSelect('COUNT(*)', 'count')
+        .where('e.brand_account_id IN (:...brandIds)', { brandIds })
+        .groupBy('e.brand_account_id')
+        .getRawMany<{ brandAccountId: string; count: string }>(),
+      this.campaignRepo
+        .createQueryBuilder('c')
+        .select('c.brand_account_id', 'brandAccountId')
+        .addSelect('COUNT(*)', 'count')
+        .where('c.brand_account_id IN (:...brandIds)', { brandIds })
+        .groupBy('c.brand_account_id')
+        .getRawMany<{ brandAccountId: string; count: string }>(),
+    ]);
+    const employeeCountMap = new Map(employeeCounts.map((r) => [r.brandAccountId, Number(r.count)]));
+    const campaignCountMap = new Map(campaignCounts.map((r) => [r.brandAccountId, Number(r.count)]));
+
+    return brands.map(({ id, name, email, logoUrl, sector, employeeCode, createdAt }) => ({
       id,
       name,
       email,
       logoUrl,
       sector,
+      employeeCode,
       createdAt,
+      employeeCount: employeeCountMap.get(id) ?? 0,
+      campaignCount: campaignCountMap.get(id) ?? 0,
     }));
+  }
+
+  // Admin Control Center (Founder ruling W-2, 2026-09-02): single-Company
+  // drill-down — the "Admin -> Company" step of the required navigation.
+  async getBrandDetail(id: string): Promise<
+    Pick<BrandAccount, 'id' | 'name' | 'email' | 'logoUrl' | 'sector' | 'employeeCode' | 'createdAt'> & {
+      employeeCount: number;
+      campaignCount: number;
+    }
+  > {
+    const brand = await this.requireBrand(id);
+    const [employeeCount, campaignCount] = await Promise.all([
+      this.employeeRepo.count({ where: { brandAccountId: id } }),
+      this.campaignRepo.count({ where: { brandAccountId: id } }),
+    ]);
+    const { name, email, logoUrl, sector, employeeCode, createdAt } = brand;
+    return { id, name, email, logoUrl, sector, employeeCode, createdAt, employeeCount, campaignCount };
   }
 
   async updateBrand(
@@ -248,10 +316,194 @@ export class AdminService {
     await this.brandContactRepo.remove(contact);
   }
 
+  // ── Company Employees (Founder ruling W-1, 2026-09-02) ─────────────────
+  // Admin-side creation ("Admin may create employee accounts when the
+  // Company requests them") — the operator sets email+password directly,
+  // exactly like createBrand() above. Self-registration via the Company's
+  // own employee code is the other, Admin-independent path (see
+  // auth.service.ts employeeSignup()).
+
+  async listCompanyEmployees(
+    brandId: string,
+  ): Promise<Array<Pick<CompanyEmployee, 'id' | 'name' | 'email' | 'createdAt'>>> {
+    await this.requireBrand(brandId);
+    const employees = await this.employeeRepo.find({
+      where: { brandAccountId: brandId },
+      order: { createdAt: 'DESC' },
+    });
+    return employees.map(({ id, name, email, createdAt }) => ({ id, name, email, createdAt }));
+  }
+
+  async createCompanyEmployee(
+    brandId: string,
+    dto: CreateCompanyEmployeeDto,
+  ): Promise<{ id: string; name: string; email: string; createdAt: Date }> {
+    await this.requireBrand(brandId);
+    const email = dto.email.trim().toLowerCase();
+    const existing = await this.employeeRepo.findOne({ where: { email } });
+    if (existing) {
+      throw new ConflictException(`An employee account already exists for ${email}`);
+    }
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const employee = await this.employeeRepo.save(
+      this.employeeRepo.create({ brandAccountId: brandId, name: dto.name, email, passwordHash }),
+    );
+    return { id: employee.id, name: employee.name, email: employee.email, createdAt: employee.createdAt };
+  }
+
+  async deleteCompanyEmployee(brandId: string, employeeId: string): Promise<void> {
+    const employee = await this.employeeRepo.findOne({ where: { id: employeeId } });
+    if (!employee || employee.brandAccountId !== brandId) {
+      throw new NotFoundException('Employee not found for this company');
+    }
+    await this.employeeRepo.softRemove(employee);
+  }
+
+  // Regenerates a Company's employee self-registration code — invalidates
+  // the old code immediately (anyone who had it can no longer register;
+  // already-registered employees are unaffected, since the code is only
+  // ever checked at signup time, never stored on the employee record).
+  async regenerateEmployeeCode(brandId: string): Promise<{ employeeCode: string }> {
+    const brand = await this.requireBrand(brandId);
+    brand.employeeCode = await this.generateUniqueEmployeeCode();
+    await this.brandRepo.save(brand);
+    return { employeeCode: brand.employeeCode };
+  }
+
+  private async generateUniqueEmployeeCode(): Promise<string> {
+    // 8 uppercase alphanumeric characters (Crockford-ish, no ambiguous
+    // 0/O/1/I) — short enough for a Company to read aloud/type, long
+    // enough that guessing isn't a realistic path to another Company's
+    // employee registration.
+    const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const bytes = crypto.randomBytes(8);
+      let code = '';
+      for (let i = 0; i < 8; i++) code += alphabet[bytes[i] % alphabet.length];
+      const existing = await this.brandRepo.findOne({ where: { employeeCode: code } });
+      if (!existing) return code;
+    }
+    throw new ConflictException('Could not generate a unique employee code — please retry');
+  }
+
+  // ── TAJRIBTI Admin identity (Founder ruling W-2, 2026-09-02) ───────────
+  // Bootstraps a real AdminUser — the ONLY thing the legacy x-admin-secret
+  // is still the sole gate for; every other admin.* method now also
+  // accepts a valid AdminUser JWT (see admin.controller.ts checkAdminAuth()).
+
+  async bootstrapAdminUser(
+    dto: CreateAdminUserDto,
+  ): Promise<{ id: string; name: string; email: string; createdAt: Date }> {
+    const email = dto.email.trim().toLowerCase();
+    const existing = await this.adminUserRepo.findOne({ where: { email } });
+    if (existing) {
+      throw new ConflictException(`An admin account already exists for ${email}`);
+    }
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const admin = await this.adminUserRepo.save(
+      this.adminUserRepo.create({ name: dto.name, email, passwordHash }),
+    );
+    return { id: admin.id, name: admin.name, email: admin.email, createdAt: admin.createdAt };
+  }
+
+  // ── Admin Control Center: cross-Company Campaign navigation
+  // (Founder ruling W-2, 2026-09-02) ──────────────────────────────────────
+  // "Admin -> Company -> Campaigns -> Selected Campaign -> Participants/
+  // Data -> Insights -> Report" — the navigation this task requires. Reuses
+  // AnalyticsService/ReportService exactly as the Company Console does;
+  // Admin authorization (already checked at the controller) stands in for
+  // the per-Company ownership check those services also expose.
+
+  async listAllCampaigns(query: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    brandId?: string;
+  }): Promise<{ campaigns: Array<Campaign & { companyName: string | null }>; total: number }> {
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(100, Math.max(1, query.limit ?? 20));
+
+    const qb = this.campaignRepo
+      .createQueryBuilder('campaign')
+      .leftJoinAndSelect('campaign.brandAccount', 'brandAccount')
+      .orderBy('campaign.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    if (query.status) qb.andWhere('campaign.status = :status', { status: query.status });
+    if (query.brandId) qb.andWhere('campaign.brandAccountId = :brandId', { brandId: query.brandId });
+    if (query.search) {
+      qb.andWhere('(campaign.productName ILIKE :search OR campaign.brandName ILIKE :search)', {
+        search: `%${query.search}%`,
+      });
+    }
+
+    const [campaigns, total] = await qb.getManyAndCount();
+    return {
+      campaigns: campaigns.map((c) => ({ ...c, companyName: c.brandAccount?.name ?? null })),
+      total,
+    };
+  }
+
+  async getCampaignDetailForAdmin(id: string): Promise<Campaign & { companyName: string | null }> {
+    const campaign = await this.campaignRepo.findOne({
+      where: { id },
+      relations: ['brandAccount'],
+    });
+    if (!campaign) throw new NotFoundException(`Campaign ${id} not found`);
+    return { ...campaign, companyName: campaign.brandAccount?.name ?? null };
+  }
+
+  async getCampaignOverviewForAdmin(campaignId: string) {
+    await this.getCampaignDetailForAdmin(campaignId);
+    return this.analyticsService.getOverview(campaignId);
+  }
+
+  async getCampaignDemographicsForAdmin(campaignId: string) {
+    await this.getCampaignDetailForAdmin(campaignId);
+    return this.analyticsService.getDemographics(campaignId);
+  }
+
+  async getCampaignSurveyForAdmin(campaignId: string) {
+    await this.getCampaignDetailForAdmin(campaignId);
+    return this.analyticsService.getSurveyBreakdown(campaignId);
+  }
+
+  async getCampaignParticipantsForAdmin(campaignId: string, page: number, limit: number) {
+    await this.getCampaignDetailForAdmin(campaignId);
+    return this.analyticsService.getParticipants(campaignId, page, limit);
+  }
+
+  async getCampaignReportForAdmin(campaignId: string) {
+    await this.getCampaignDetailForAdmin(campaignId);
+    return this.reportService.generatePdfData(campaignId);
+  }
+
+  async getCampaignAiSummaryForAdmin(campaignId: string) {
+    await this.getCampaignDetailForAdmin(campaignId);
+    return this.reportService.getAiSummary(campaignId);
+  }
+
   private async requireBrand(id: string): Promise<BrandAccount> {
     const brand = await this.brandRepo.findOne({ where: { id } });
     if (!brand) throw new NotFoundException('Brand account not found');
     return brand;
+  }
+
+  // Used by AdminController's checkAdminAuth() to validate a decoded
+  // Admin JWT's subject actually still corresponds to a live AdminUser
+  // (not soft-deleted) — kept here rather than duplicating repo access in
+  // the controller layer.
+  async isValidAdminUser(adminId: string): Promise<boolean> {
+    const admin = await this.adminUserRepo.findOne({ where: { id: adminId } });
+    return !!admin;
+  }
+
+  async getAdminUser(adminId: string): Promise<{ id: string; name: string; email: string } | null> {
+    const admin = await this.adminUserRepo.findOne({ where: { id: adminId } });
+    if (!admin) return null;
+    return { id: admin.id, name: admin.name, email: admin.email };
   }
 
   async resetDemo(): Promise<{ message: string }> {

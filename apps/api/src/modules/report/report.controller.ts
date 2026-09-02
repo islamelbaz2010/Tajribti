@@ -4,12 +4,12 @@ import {
   Param,
   Request,
   UseGuards,
-  ForbiddenException,
   SetMetadata,
 } from '@nestjs/common';
 import { ReportService } from './report.service';
 import { JwtAuthGuard, IS_PUBLIC_KEY } from '../auth/guards/jwt.guard';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { resolveCompanyId } from '../auth/company-scope.util';
 
 const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 
@@ -33,8 +33,7 @@ export class ReportController {
   }
 
   private async assertOwnership(req: RequestWithUser, campaignId: string): Promise<void> {
-    if (req.user.type !== 'brand') throw new ForbiddenException('Brand account required');
-    await this.reportService.assertBrandOwnership(campaignId, req.user.id);
+    await this.reportService.assertBrandOwnership(campaignId, resolveCompanyId(req.user));
   }
 
   @Get(':campaignId/ai-summary')

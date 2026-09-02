@@ -17,6 +17,9 @@ import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { BrandLoginDto } from './dto/brand-login.dto';
+import { EmployeeSignupDto } from './dto/employee-signup.dto';
+import { EmployeeLoginDto } from './dto/employee-login.dto';
+import { AdminLoginDto } from './dto/admin-login.dto';
 import { JwtAuthGuard, IS_PUBLIC_KEY } from './guards/jwt.guard';
 import { AuthenticatedUser } from './strategies/jwt.strategy';
 
@@ -128,6 +131,60 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   brandLogin(@Body() dto: BrandLoginDto) {
     return this.authService.brandLogin(dto);
+  }
+
+  // ── Company Employee identity (Founder ruling W-1, 2026-09-02) ──────────
+  // A separate registration/login path from both Consumer and Brand — see
+  // auth.service.ts's employeeSignup()/employeeLogin() for the full
+  // company-code validation contract.
+
+  /**
+   * GET /api/v1/auth/employee/companies
+   * Public, minimal-field directory (id/name/logoUrl only) so a person
+   * registering as an employee can select the real Company they work for.
+   */
+  @Public()
+  @Get('employee/companies')
+  listCompaniesForEmployeeSignup() {
+    return this.authService.listCompaniesForEmployeeSignup();
+  }
+
+  /**
+   * POST /api/v1/auth/employee/signup
+   * Registers a new Company Employee against an existing Company + its
+   * employee code. Wrong/missing code is rejected with a message telling
+   * the person to obtain the correct one from their Company.
+   */
+  @Public()
+  @Post('employee/signup')
+  @HttpCode(HttpStatus.CREATED)
+  employeeSignup(@Body() dto: EmployeeSignupDto) {
+    return this.authService.employeeSignup(dto);
+  }
+
+  /**
+   * POST /api/v1/auth/employee/login
+   */
+  @Public()
+  @Post('employee/login')
+  @HttpCode(HttpStatus.OK)
+  employeeLogin(@Body() dto: EmployeeLoginDto) {
+    return this.authService.employeeLogin(dto);
+  }
+
+  // ── TAJRIBTI Admin identity (Founder ruling W-2, 2026-09-02) ────────────
+  // Admin *creation* stays under AdminController (POST /admin/auth/bootstrap,
+  // gated by the existing x-admin-secret) — this is only the login path,
+  // symmetric with /auth/brand/login and /auth/employee/login above.
+
+  /**
+   * POST /api/v1/auth/admin/login
+   */
+  @Public()
+  @Post('admin/login')
+  @HttpCode(HttpStatus.OK)
+  adminLogin(@Body() dto: AdminLoginDto) {
+    return this.authService.adminLogin(dto);
   }
 
   /**

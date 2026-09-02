@@ -17,6 +17,17 @@ import {
 } from '../../entities/campaign.entity';
 import { CampaignVerification } from '../../entities/campaign-verification.entity';
 
+// B-04 remediation (2026-09-01): Postgres unique_violation SQLSTATE. TypeORM
+// wraps driver errors in QueryFailedError; node-postgres always sets `.code`
+// on the underlying driver error, and different TypeORM versions surface it
+// either directly on the thrown error or nested under `.driverError` — check
+// both rather than assume one.
+const POSTGRES_UNIQUE_VIOLATION = '23505';
+function isUniqueViolation(err: unknown): boolean {
+  const e = err as { code?: string; driverError?: { code?: string } };
+  return e?.code === POSTGRES_UNIQUE_VIOLATION || e?.driverError?.code === POSTGRES_UNIQUE_VIOLATION;
+}
+
 interface RedeemQrDto {
   qrCode: string;
   consumerId: string;
@@ -100,14 +111,30 @@ export class QrService {
       await this.assertCampaignVerified(dto.consumerId, dto.campaignId);
     }
 
-    const redemption = await this.redemptionRepo.save(
-      this.redemptionRepo.create({
-        consumerId: dto.consumerId,
-        campaignId: dto.campaignId,
-        qrCodeId: qrCode.id,
-        isDemoSeed: false,
-      }),
-    );
+    // B-04 remediation: the existingRedemption check above is a
+    // check-then-act race under concurrent requests (proven by load test,
+    // 2026-09-01) — two requests can both pass the check before either
+    // inserts. The DB-level partial unique index (migration
+    // AddRedemptionUniqueConstraint1788200000000) is the actual guarantee;
+    // this catch converts the resulting unique-violation into the same
+    // business error the pre-check above already gives the normal-timing
+    // caller, instead of leaking a raw 500.
+    let redemption;
+    try {
+      redemption = await this.redemptionRepo.save(
+        this.redemptionRepo.create({
+          consumerId: dto.consumerId,
+          campaignId: dto.campaignId,
+          qrCodeId: qrCode.id,
+          isDemoSeed: false,
+        }),
+      );
+    } catch (err) {
+      if (!isDemo && isUniqueViolation(err)) {
+        throw new BadRequestException('You have already redeemed this campaign');
+      }
+      throw err;
+    }
 
     return {
       success: true,
@@ -125,13 +152,43 @@ export class QrService {
     rewardPoints: number;
     alreadyCompleted?: boolean;
   }> {
-    const existingQr = await this.qrRepo.findOne({
-      where: [
-        { campaignId, status: QrCodeStatus.ACTIVE },
-        { campaignId, status: QrCodeStatus.DEMO },
-      ],
-      relations: ['campaign'],
-    });
+    // B-04 performance remediation (2026-09-01): these three reads (QR
+    // lookup, existing-redemption lookup, Campaign-verification lookup) are
+    // mutually independent — none uses another's result — but were
+    // previously three sequential `await`s, each holding its own
+    // connection-pool checkout back-to-back. A load test at 200 concurrent
+    // requests measured p95 ~2.1s against the documented <1s target;
+    // running these three concurrently removes two round-trips' worth of
+    // sequential wait per request without changing any business logic
+    // below, which still runs the same checks in the same order against
+    // the now-already-fetched results. See
+    // `16_Reports/B04_QR_CONCURRENCY_LOAD_TEST_2026-09-01.md`.
+    const [existingQr, existingRedemption, verified] = await Promise.all([
+      this.qrRepo.findOne({
+        where: [
+          { campaignId, status: QrCodeStatus.ACTIVE },
+          { campaignId, status: QrCodeStatus.DEMO },
+        ],
+        relations: ['campaign'],
+      }),
+      // Checked before the date gate below: a consumer who already
+      // redeemed must always be able to see their existing status, even if
+      // the campaign's startDate was later edited to a future date (the
+      // gate is about opening NEW participation, not retroactively hiding
+      // one that already happened).
+      this.redemptionRepo.findOne({
+        where: { consumerId, campaignId },
+        relations: ['surveyResponse'],
+      }),
+      // Prefetched unconditionally alongside the other two reads even
+      // though it's only consulted if there's no existingRedemption below
+      // (unconditional, unlike redeemQr(): this entry path's pre-existing
+      // duplicate-redemption check never exempted demo campaigns, so
+      // Campaign verification doesn't either) — one occasionally-unused
+      // query is cheaper than a fourth sequential round-trip on every
+      // first-time request, which is the volume case this fix targets.
+      this.campaignVerificationRepo.findOne({ where: { consumerId, campaignId } }),
+    ]);
 
     let resolvedQrId: string;
     let campaign: Campaign;
@@ -159,16 +216,6 @@ export class QrService {
       resolvedQrId = newQr.id;
     }
 
-    // Checked before the date gate below: a consumer who already
-    // redeemed must always be able to see their existing status, even if
-    // the campaign's startDate was later edited to a future date (the
-    // gate is about opening NEW participation, not retroactively hiding
-    // one that already happened).
-    const existingRedemption = await this.redemptionRepo.findOne({
-      where: { consumerId, campaignId },
-      relations: ['surveyResponse'],
-    });
-
     if (existingRedemption) {
       return {
         success: true,
@@ -183,20 +230,45 @@ export class QrService {
       throw new BadRequestException(getParticipationBlockedReason(campaign));
     }
 
-    // Unconditional, unlike redeemQr() below: this function's pre-existing
-    // duplicate-redemption check above never exempted demo campaigns
-    // either, so Campaign verification doesn't either - no bypass was
-    // ever part of this entry path's design.
-    await this.assertCampaignVerified(consumerId, campaignId);
+    if (!verified) {
+      throw new ForbiddenException('Campaign verification required before participation');
+    }
 
-    const redemption = await this.redemptionRepo.save(
-      this.redemptionRepo.create({
-        consumerId,
-        campaignId,
-        qrCodeId: resolvedQrId,
-        isDemoSeed: false,
-      }),
-    );
+    // B-04 remediation: same check-then-act race as redeemQr() above,
+    // proven by load test (2026-09-01) — this is the endpoint the load
+    // test actually exercised (POST /qr/enter/:campaignId, the real
+    // Consumer Mobile/web entry path). On the DB rejecting a concurrent
+    // duplicate, re-fetch and return the same alreadyCompleted shape the
+    // existingRedemption branch above already returns for normal timing,
+    // instead of leaking a raw 500.
+    let redemption;
+    try {
+      redemption = await this.redemptionRepo.save(
+        this.redemptionRepo.create({
+          consumerId,
+          campaignId,
+          qrCodeId: resolvedQrId,
+          isDemoSeed: false,
+        }),
+      );
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        const raced = await this.redemptionRepo.findOne({
+          where: { consumerId, campaignId },
+          relations: ['surveyResponse'],
+        });
+        if (raced) {
+          return {
+            success: true,
+            redemptionId: raced.id,
+            productName: campaign.productName,
+            rewardPoints: campaign.rewardPoints,
+            alreadyCompleted: !!raced.surveyResponse,
+          };
+        }
+      }
+      throw err;
+    }
 
     return {
       success: true,

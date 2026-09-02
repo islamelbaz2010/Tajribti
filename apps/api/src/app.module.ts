@@ -10,6 +10,8 @@ import { ReportModule } from './modules/report/report.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { MediaModule } from './modules/media/media.module';
 import { CompanyModule } from './modules/company/company.module';
+import { AssetsModule } from './modules/assets/assets.module';
+import { Asset } from './entities/asset.entity';
 import { Consumer } from './entities/consumer.entity';
 import { OtpSession } from './entities/otp-session.entity';
 import { Campaign } from './entities/campaign.entity';
@@ -47,6 +49,7 @@ import { CampaignVerification } from './entities/campaign-verification.entity';
           CampaignMedia,
           EmailVerificationToken,
           CampaignVerification,
+          Asset,
         ],
         // Production Schema Safety (DL-070, 2026-09-01): was `!== 'production'`
         // — a blocklist that silently stayed `true` for any unrecognized
@@ -62,6 +65,19 @@ import { CampaignVerification } from './entities/campaign-verification.entity';
         // Production schema changes must go through `migration:run` only.
         synchronize: configService.get('NODE_ENV') === 'development',
         ssl: configService.get('DATABASE_URL', '').includes('localhost') ? false : { rejectUnauthorized: false },
+        // B-04 remediation (2026-09-01): no pool size was configured, so
+        // node-postgres used its default of 10. A load test at 200
+        // concurrent QR redemptions (repository-derived from RISK_REGISTER
+        // R-TECH-01's "hundreds of consumers may scan simultaneously")
+        // measured p95 latency of ~4.6s against MASTER_DELIVERY_PLAN.md's
+        // documented "<1s response time" acceptance criterion for TJ-005 —
+        // consistent with requests queueing for one of only 10 DB
+        // connections. Raised conservatively (not to an arbitrarily large
+        // number): this environment cannot verify Railway's actual
+        // Postgres plan connection ceiling, so 20 stays well inside any
+        // standard Postgres `max_connections` default (100) while still
+        // meaningfully relieving the measured bottleneck.
+        extra: { max: 20 },
         logging: configService.get('NODE_ENV') === 'development',
       }),
       inject: [ConfigService],
@@ -75,6 +91,7 @@ import { CampaignVerification } from './entities/campaign-verification.entity';
     AdminModule,
     MediaModule,
     CompanyModule,
+    AssetsModule,
   ],
 })
 export class AppModule {}

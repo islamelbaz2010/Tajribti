@@ -2,11 +2,25 @@ import React, { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
+// Company Login visual consistency (2026-09-02): previously a dark
+// admin-tool panel (#070c1a/#0a1120) with unconditionally prefilled demo
+// credentials and a visible "DEMO" badge — inconsistent with the public
+// marketing site's light identity (apps/dashboard/src/pages/public/Home.tsx:
+// white surface, #0a1120 deep-navy text, #4a5a7e muted, #b2f24d brand lime)
+// that a real prospective Company sees first, and a real production-facing
+// exposure of working test credentials. Restyled to the exact public-site
+// palette; the prefill/badge now only render when NODE_ENV !== 'production'
+// (react-scripts sets this automatically on `npm run build`, so the real
+// Vercel production build never shows them — no new env var, no manual
+// action — while `npm start` keeps the existing fast local/demo login).
+// Auth logic, JWT/session handling, and post-login routing are unchanged.
+const isDemoBuild = process.env.NODE_ENV !== 'production';
+
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('demo@brand.com');
-  const [password, setPassword] = useState('Demo1234!');
+  const [email, setEmail] = useState(isDemoBuild ? 'demo@brand.com' : '');
+  const [password, setPassword] = useState(isDemoBuild ? 'Demo1234!' : '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -18,7 +32,7 @@ export default function Login() {
       await login(email, password);
       navigate('/overview');
     } catch {
-      setError('Invalid credentials. Check API connection and seed status.');
+      setError('Invalid email or password.');
     } finally {
       setLoading(false);
     }
@@ -29,9 +43,9 @@ export default function Login() {
       <div style={styles.panel}>
         <div style={styles.logoRow}>
           <span style={styles.logoText}>TAJRIBTI</span>
-          <span style={styles.demoBadge}>DEMO</span>
+          {isDemoBuild && <span style={styles.demoBadge}>DEMO</span>}
         </div>
-        <div style={styles.tagline}>Consumer Intelligence Platform</div>
+        <div style={styles.tagline}>Company Login</div>
 
         <div style={styles.concept}>
           {['TRIAL', 'SIGNAL', 'INTELLIGENCE', 'DECISION'].map((step, i, arr) => (
@@ -70,7 +84,7 @@ export default function Login() {
           </button>
         </form>
 
-        <p style={styles.hint}>Demo credentials are pre-filled.</p>
+        {isDemoBuild && <p style={styles.hint}>Demo credentials are pre-filled.</p>}
       </div>
     </div>
   );
@@ -79,7 +93,7 @@ export default function Login() {
 const styles: Record<string, React.CSSProperties> = {
   root: {
     minHeight: '100vh',
-    background: '#070c1a',
+    background: 'linear-gradient(180deg, #fbfdf6 0%, #ffffff 60%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -87,9 +101,10 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 24,
   },
   panel: {
-    background: '#0a1120',
-    border: '1px solid #111d35',
+    background: '#ffffff',
+    border: '1px solid #e8ecf3',
     borderRadius: 16,
+    boxShadow: '0 20px 50px -20px rgba(10,17,32,0.15)',
     padding: '48px 44px',
     width: '100%',
     maxWidth: 400,
@@ -103,13 +118,13 @@ const styles: Record<string, React.CSSProperties> = {
   logoText: {
     fontSize: 20,
     fontWeight: 900,
-    color: '#edf0ff',
+    color: '#0a1120',
     letterSpacing: 3,
   },
   demoBadge: {
     fontSize: 9,
     fontWeight: 800,
-    color: '#040812',
+    color: '#0a1120',
     background: '#b2f24d',
     borderRadius: 3,
     padding: '2px 8px',
@@ -117,9 +132,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   tagline: {
     fontSize: 12,
-    color: '#2e3d5e',
+    color: '#7a8bab',
     marginBottom: 28,
-    fontWeight: 500,
+    fontWeight: 600,
   },
   concept: {
     display: 'flex',
@@ -131,11 +146,11 @@ const styles: Record<string, React.CSSProperties> = {
   conceptStep: {
     fontSize: 9,
     fontWeight: 800,
-    color: '#b2f24d',
+    color: '#5c7a1f',
     letterSpacing: 1.5,
   },
   arrow: {
-    color: '#1a2540',
+    color: '#c7d0e0',
     fontSize: 12,
     fontWeight: 700,
   },
@@ -151,32 +166,32 @@ const styles: Record<string, React.CSSProperties> = {
   },
   label: {
     fontSize: 11,
-    fontWeight: 600,
-    color: '#2e3d5e',
+    fontWeight: 700,
+    color: '#4a5a7e',
     letterSpacing: 0.5,
   },
   input: {
-    background: '#070c1a',
-    border: '1px solid #1a2540',
+    background: '#f7f8fb',
+    border: '1px solid #dde3ee',
     borderRadius: 8,
     padding: '10px 14px',
     fontSize: 13,
-    color: '#edf0ff',
+    color: '#0a1120',
     outline: 'none',
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
   },
   error: {
     fontSize: 12,
-    color: '#fb7185',
-    background: 'rgba(251, 113, 133, 0.08)',
-    border: '1px solid rgba(251, 113, 133, 0.2)',
+    color: '#b91c1c',
+    background: 'rgba(185, 28, 28, 0.06)',
+    border: '1px solid rgba(185, 28, 28, 0.18)',
     borderRadius: 6,
     padding: '8px 12px',
     margin: 0,
   },
   btn: {
     background: '#b2f24d',
-    color: '#040812',
+    color: '#0a1120',
     border: 'none',
     borderRadius: 8,
     padding: '12px 24px',
@@ -189,7 +204,7 @@ const styles: Record<string, React.CSSProperties> = {
   hint: {
     textAlign: 'center' as const,
     fontSize: 11,
-    color: '#1a2540',
+    color: '#a8b3c9',
     marginTop: 20,
     marginBottom: 0,
   },

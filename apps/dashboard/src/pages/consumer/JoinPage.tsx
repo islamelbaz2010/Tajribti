@@ -2,11 +2,28 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useConsumerJourney } from './JoinLayout';
 
+// QR/Consumer content fix (2026-09-02): this line previously hardcoded
+// "أجب على ٥ أسئلة" ("answer 5 questions") for every campaign regardless of
+// its actual surveyQuestions length — Survey Builder V2 already lets a
+// Company add/remove custom questions per campaign (campaign.service.ts),
+// so a campaign with a different count would show a false question count
+// right before the consumer starts. Converts to Eastern Arabic-Indic digits
+// to match the surrounding Arabic copy's existing "٥" style.
+const ARABIC_INDIC_DIGITS = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+function toArabicDigits(n: number): string {
+  return String(n)
+    .split('')
+    .map((ch) => (ch >= '0' && ch <= '9' ? ARABIC_INDIC_DIGITS[Number(ch)] : ch))
+    .join('');
+}
+
 export default function JoinPage() {
   const { campaign, campaignId } = useConsumerJourney();
   const navigate = useNavigate();
 
   if (!campaign) return null;
+
+  const questionCount = campaign.surveyQuestions?.length || 5;
 
   return (
     <div style={s.root}>
@@ -35,8 +52,8 @@ export default function JoinPage() {
         )}
         <p style={s.steps}>
           {campaign.rewardPoints > 0
-            ? 'جرّب المنتج → أجب على ٥ أسئلة → واحصل على نقاطك'
-            : 'جرّب المنتج → أجب على ٥ أسئلة → وشاركنا رأيك'}
+            ? `جرّب المنتج → أجب على ${toArabicDigits(questionCount)} أسئلة → واحصل على نقاطك`
+            : `جرّب المنتج → أجب على ${toArabicDigits(questionCount)} أسئلة → وشاركنا رأيك`}
         </p>
         <button style={s.btn} onClick={() => navigate(`/join/${campaignId}/phone`)}>
           ابدأ التجربة

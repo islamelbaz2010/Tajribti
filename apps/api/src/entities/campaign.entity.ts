@@ -151,12 +151,27 @@ export class Campaign {
 // lifecycle status, is how "participation must stop after endDate" is
 // implemented.
 //
-// Date comparison is UTC-day-only, matching the existing convention
-// already used elsewhere for these `date`-typed columns (see
-// admin.service.ts's seed dates) — no new timezone policy introduced.
+// QR root-cause fix (2026-09-02): date comparison was UTC-day-only. Egypt
+// (Africa/Cairo, UTC+2, no DST since 2014) is 2 hours ahead of UTC, so for
+// the first ~2 hours of every local calendar day, `new Date().toISOString()`
+// still reports the PREVIOUS day. A campaign created with startDate = "today"
+// (the Dashboard's own date picker, which is the Company's local date) was
+// therefore treated as not-yet-started by this gate until ~02:00 Cairo time
+// — reproduced live 2026-09-02 against the real "test Brand" campaign
+// (startDate 2026-09-02, server UTC clock still 2026-09-01 23:5x): the QR/
+// join flow rendered and accepted phone/OTP entry correctly, then rejected
+// the final redemption with "Campaign has not started yet" the moment this
+// function ran — a real defect, not a guess. Fixed by computing "today" in
+// the same local calendar this platform's dates are entered in
+// (Africa/Cairo) instead of UTC. `en-CA` formats as YYYY-MM-DD, matching the
+// stored `date` column format exactly.
+function todayInCairo(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(new Date());
+}
+
 export function isCampaignOpenForParticipation(campaign: Campaign): boolean {
   if (campaign.status !== CampaignStatus.ACTIVE) return false;
-  const todayUtc = new Date().toISOString().split('T')[0];
+  const todayUtc = todayInCairo();
   if (campaign.startDate && campaign.startDate > todayUtc) return false;
   if (campaign.endDate && campaign.endDate < todayUtc) return false;
   return true;
@@ -168,8 +183,7 @@ export function isCampaignOpenForParticipation(campaign: Campaign): boolean {
 // apart since both return false. Never used for the actual gate itself.
 export function hasCampaignEnded(campaign: Campaign): boolean {
   if (!campaign.endDate) return false;
-  const todayUtc = new Date().toISOString().split('T')[0];
-  return campaign.endDate < todayUtc;
+  return campaign.endDate < todayInCairo();
 }
 
 // Single shared source of truth for the rejection message every

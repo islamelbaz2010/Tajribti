@@ -87,15 +87,16 @@ class _ProfileBody extends StatelessWidget {
       child: Column(
         children: [
           // ── Profile Header ──────────────────────────────────────────────
+          // Consumer Visual System (2026-09-02): was a full-bleed dark navy
+          // gradient block — the exact "dark profile" inconsistency this
+          // pass's visual-consistency review named, next to Settings'
+          // all-light body using the same kBackground Scaffold. Converted
+          // to a light, premium card matching the target hierarchy
+          // (surface white, primary text deep navy, brand accent used only
+          // as a restrained ring around the avatar) instead of a dark hero.
           Container(
             width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [kPrimary, Color(0xFF2d3a5c)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
+            color: kBackground,
             padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
             child: Column(
               children: [
@@ -103,18 +104,21 @@ class _ProfileBody extends StatelessWidget {
                   width: 88,
                   height: 88,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: kSurface,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withOpacity(0.25), width: 2),
+                    border: Border.all(color: kBrand, width: 3),
+                    boxShadow: [
+                      BoxShadow(color: kCardShadow, blurRadius: 12, offset: const Offset(0, 4)),
+                    ],
                   ),
-                  child: const Icon(Icons.person_rounded, color: Colors.white, size: 44),
+                  child: const Icon(Icons.person_rounded, color: kPrimary, size: 44),
                 ),
                 const SizedBox(height: 16),
                 if (profile.name != null && profile.name!.isNotEmpty)
                   Text(
                     profile.name!,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: kPrimary,
                       fontSize: 22,
                       fontWeight: FontWeight.w900,
                     ),
@@ -124,7 +128,7 @@ class _ProfileBody extends StatelessWidget {
                   Text(
                     profile.email!,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: kPrimary.withOpacity(0.65),
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
@@ -132,7 +136,7 @@ class _ProfileBody extends StatelessWidget {
                 Text(
                   profile.phone,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.5),
+                    color: kPrimary.withOpacity(0.45),
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
@@ -142,15 +146,15 @@ class _ProfileBody extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
+                      color: kGold.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       s.emailNotVerifiedNote,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: kGold.withOpacity(0.9),
                         fontSize: 11,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -226,8 +230,9 @@ class _StatBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: kSurface,
         borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: kCardShadow, blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(
         children: [
@@ -236,7 +241,7 @@ class _StatBadge extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(
-              color: Colors.white,
+              color: kPrimary,
               fontSize: 24,
               fontWeight: FontWeight.w900,
             ),
@@ -244,7 +249,7 @@ class _StatBadge extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.65),
+              color: kPrimary.withOpacity(0.55),
               fontSize: 12,
               fontWeight: FontWeight.w500,
             ),

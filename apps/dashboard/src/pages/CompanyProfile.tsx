@@ -1,7 +1,10 @@
-import React, { useEffect, useState, FormEvent } from 'react';
-import { companyApi } from '../api/endpoints';
+import React, { useEffect, useRef, useState, FormEvent } from 'react';
+import { companyApi, assetsApi } from '../api/endpoints';
 import type { Company, BrandContact } from '../api/types';
 import { SECTOR_LABELS } from '../api/types';
+
+const MAX_LOGO_BYTES = 4 * 1024 * 1024;
+const ACCEPTED_LOGO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 // Company Foundation (2026-09-01): "who am I" for the authenticated
 // Company — identity (name/email/logo/sector, Admin-provisioned) plus
@@ -19,6 +22,10 @@ export default function CompanyProfile() {
   const [role, setRole] = useState('');
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState('');
+
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError, setLogoError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = () => {
     setLoading(true);
@@ -60,6 +67,41 @@ export default function CompanyProfile() {
     companyApi.removeContact(id).then(() => setContacts((prev) => prev.filter((c) => c.id !== id)));
   };
 
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file later
+    if (!file) return;
+    setLogoError('');
+    if (!ACCEPTED_LOGO_TYPES.includes(file.type)) {
+      setLogoError('Only JPEG, PNG, or WebP images are allowed.');
+      return;
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      setLogoError('Image must be 4MB or smaller.');
+      return;
+    }
+    setLogoUploading(true);
+    assetsApi
+      .uploadLogo(file)
+      .then(({ logoUrl }) => setCompany((prev) => (prev ? { ...prev, logoUrl } : prev)))
+      .catch((err) => {
+        setLogoError(
+          err?.response?.data?.message ? String(err.response.data.message) : 'Upload failed.',
+        );
+      })
+      .finally(() => setLogoUploading(false));
+  };
+
+  const handleLogoRemove = () => {
+    if (!window.confirm('Remove your company logo?')) return;
+    setLogoUploading(true);
+    assetsApi
+      .removeLogo()
+      .then(() => setCompany((prev) => (prev ? { ...prev, logoUrl: null } : prev)))
+      .catch(() => setLogoError('Could not remove logo.'))
+      .finally(() => setLogoUploading(false));
+  };
+
   if (loading) return <div style={styles.muted}>Loading Company profile…</div>;
   if (error) return <div style={styles.errMsg}>{error}</div>;
   if (!company) return null;
@@ -78,11 +120,33 @@ export default function CompanyProfile() {
           ) : (
             <div style={styles.logoPlaceholder}>{company.name.charAt(0).toUpperCase()}</div>
           )}
-          <div>
+          <div style={{ flex: 1 }}>
             <div style={styles.companyName}>{company.name}</div>
             <div style={styles.companyEmail}>{company.email}</div>
           </div>
+          <div style={styles.logoActions}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              style={{ display: 'none' }}
+              onChange={handleLogoSelect}
+            />
+            <button
+              style={styles.logoBtn}
+              disabled={logoUploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {logoUploading ? 'Uploading…' : company.logoUrl ? 'Change Logo' : 'Upload Logo'}
+            </button>
+            {company.logoUrl && (
+              <button style={styles.logoRemoveBtn} disabled={logoUploading} onClick={handleLogoRemove}>
+                Remove
+              </button>
+            )}
+          </div>
         </div>
+        {logoError && <p style={styles.error}>{logoError}</p>}
         <div style={styles.sectorRow}>
           <span style={styles.sectorLabel}>Sector</span>
           <span style={styles.sectorValue}>
@@ -176,6 +240,28 @@ const styles: Record<string, React.CSSProperties> = {
   },
   companyName: { fontSize: 17, fontWeight: 800, color: '#edf0ff' },
   companyEmail: { fontSize: 12, color: '#6b7fa8', marginTop: 2 },
+  logoActions: { display: 'flex', gap: 8, flexShrink: 0 },
+  logoBtn: {
+    background: 'transparent',
+    border: '1px solid #1a2540',
+    color: '#c3cbe6',
+    borderRadius: 8,
+    padding: '8px 14px',
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap' as const,
+  },
+  logoRemoveBtn: {
+    background: 'transparent',
+    border: '1px solid #1a2540',
+    color: '#fb7185',
+    borderRadius: 8,
+    padding: '8px 14px',
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
   sectorRow: {
     display: 'flex',
     justifyContent: 'space-between',

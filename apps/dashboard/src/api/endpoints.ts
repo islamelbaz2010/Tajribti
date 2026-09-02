@@ -99,6 +99,27 @@ export const companyApi = {
   getSectorFramework: (): Promise<SurveyQuestion[]> => client.get('/company/sector-framework'),
 };
 
+// Upload capability (2026-09-02): Postgres-backed asset store (see API's
+// assets.module.ts) — no third-party storage integration.
+export const assetsApi = {
+  uploadLogo: (file: File): Promise<{ logoUrl: string }> => {
+    const form = new FormData();
+    form.append('file', file);
+    return client.post('/assets/logo', form);
+  },
+  removeLogo: (): Promise<{ logoUrl: null }> => client.delete('/assets/logo'),
+  uploadCampaignProductImage: (
+    campaignId: string,
+    file: File,
+  ): Promise<{ productImage: string }> => {
+    const form = new FormData();
+    form.append('file', file);
+    return client.post(`/assets/campaign/${campaignId}/product-image`, form);
+  },
+  removeCampaignProductImage: (campaignId: string): Promise<{ productImage: null }> =>
+    client.delete(`/assets/campaign/${campaignId}/product-image`),
+};
+
 export const mediaApi = {
   list: (campaignId: string): Promise<CampaignMedia[]> =>
     client.get(`/campaigns/${campaignId}/media`),

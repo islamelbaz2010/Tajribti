@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { campaignApi, qrApi, companyApi } from '../api/endpoints';
+import { campaignApi, qrApi, companyApi, assetsApi } from '../api/endpoints';
 import type { Campaign, SurveyQuestion, BrandContact } from '../api/types';
 import SurveyEditor from '../components/SurveyEditor';
+
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 const STATUS_OPTIONS = ['draft', 'active', 'paused', 'completed', 'archived'];
 // Statuses that end a campaign's active life — confirmed before saving so a
@@ -47,6 +50,10 @@ export default function CampaignDetail() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageError, setImageError] = useState('');
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const loadFromCampaign = (c: Campaign) => {
     setCampaign(c);
@@ -147,6 +154,55 @@ export default function CampaignDetail() {
         );
       })
       .finally(() => setSaving(false));
+  };
+
+  // Product Image upload (2026-09-02): applies immediately on selection —
+  // same UX pattern as CompanyProfile's logo — rather than being staged
+  // behind the "Save Changes" button below, so a Company sees the real
+  // uploaded photo right away. The URL text field further down stays as an
+  // explicit fallback (this architecture already treats productImage as a
+  // plain URL string everywhere it's consumed — Consumer card/detail,
+  // Report — so keeping it editable doesn't risk breaking anything, it
+  // just becomes optional now that upload exists).
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !campaign) return;
+    setImageError('');
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      setImageError('Only JPEG, PNG, or WebP images are allowed.');
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setImageError('Image must be 4MB or smaller.');
+      return;
+    }
+    setImageUploading(true);
+    assetsApi
+      .uploadCampaignProductImage(campaign.id, file)
+      .then(({ productImage }) => {
+        setCampaign((prev) => (prev ? { ...prev, productImage } : prev));
+        setEditProductImage(productImage);
+      })
+      .catch((err) => {
+        setImageError(
+          err?.response?.data?.message ? String(err.response.data.message) : 'Upload failed.',
+        );
+      })
+      .finally(() => setImageUploading(false));
+  };
+
+  const handleImageRemove = () => {
+    if (!campaign || !window.confirm('Remove this product image?')) return;
+    setImageUploading(true);
+    assetsApi
+      .removeCampaignProductImage(campaign.id)
+      .then(() => {
+        setCampaign((prev) => (prev ? { ...prev, productImage: '' } : prev));
+        setEditProductImage('');
+      })
+      .catch(() => setImageError('Could not remove image.'))
+      .finally(() => setImageUploading(false));
   };
 
   const handlePrint = () => {
@@ -338,12 +394,47 @@ export default function CampaignDetail() {
           </label>
         </div>
         <label style={styles.fieldLabel}>
-          Product Image URL
+          Product Image
+          <div style={styles.productImageRow}>
+            {editProductImage ? (
+              <img
+                src={editProductImage}
+                alt="Product"
+                style={styles.productImagePreview}
+                onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }}
+              />
+            ) : (
+              <div style={styles.productImagePlaceholder}>No image</div>
+            )}
+            <div style={styles.productImageActions}>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                style={{ display: 'none' }}
+                onChange={handleImageSelect}
+              />
+              <button
+                type="button"
+                style={styles.logoBtn}
+                disabled={imageUploading}
+                onClick={() => imageInputRef.current?.click()}
+              >
+                {imageUploading ? 'Uploading…' : editProductImage ? 'Change' : 'Upload Image'}
+              </button>
+              {editProductImage && (
+                <button type="button" style={styles.logoRemoveBtn} disabled={imageUploading} onClick={handleImageRemove}>
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+          {imageError && <span style={styles.saveErr}>{imageError}</span>}
           <input
             style={styles.input}
             value={editProductImage}
             onChange={(e) => setEditProductImage(e.target.value)}
-            placeholder="https://…"
+            placeholder="Or paste an image URL directly…"
           />
         </label>
         <label style={styles.fieldLabel}>
@@ -605,6 +696,50 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontFamily: 'inherit',
     resize: 'vertical' as const,
+  },
+  productImageRow: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 },
+  productImagePreview: {
+    width: 64,
+    height: 64,
+    borderRadius: 10,
+    objectFit: 'cover' as const,
+    border: '1px solid #1a2540',
+    background: '#040812',
+  },
+  productImagePlaceholder: {
+    width: 64,
+    height: 64,
+    borderRadius: 10,
+    border: '1px dashed #1a2540',
+    color: '#2e3d5e',
+    fontSize: 10,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center' as const,
+    flexShrink: 0,
+  },
+  productImageActions: { display: 'flex', gap: 8 },
+  logoBtn: {
+    background: 'transparent',
+    border: '1px solid #1a2540',
+    color: '#c3cbe6',
+    borderRadius: 8,
+    padding: '8px 14px',
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap' as const,
+  },
+  logoRemoveBtn: {
+    background: 'transparent',
+    border: '1px solid #1a2540',
+    color: '#fb7185',
+    borderRadius: 8,
+    padding: '8px 14px',
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
   },
   surveyHint: { fontSize: 12, color: '#6b7fa8', margin: '0 0 14px', lineHeight: 1.5 },
   surveyList: {

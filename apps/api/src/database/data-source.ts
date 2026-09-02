@@ -13,6 +13,7 @@ import { AiReport } from '../entities/ai-report.entity';
 import { CampaignMedia } from '../entities/campaign-media.entity';
 import { EmailVerificationToken } from '../entities/email-verification-token.entity';
 import { CampaignVerification } from '../entities/campaign-verification.entity';
+import { Asset } from '../entities/asset.entity';
 
 config({ path: '.env' });
 
@@ -36,6 +37,7 @@ export const AppDataSource = new DataSource({
     CampaignMedia,
     EmailVerificationToken,
     CampaignVerification,
+    Asset,
   ],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,

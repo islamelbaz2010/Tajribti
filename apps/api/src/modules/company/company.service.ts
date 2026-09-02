@@ -12,9 +12,12 @@ import { getSectorFramework } from './sector-framework';
 // only (never another Company's data, enforced the same way every other
 // brand-scoped controller in this codebase already does). A Company can
 // manage its own contacts without needing an Admin round-trip for every
-// campaign; sector/logo remain Admin-set (see UpdateBrandAccountDto) since
-// they're provisioning-time facts, not something explicitly requested to
-// be self-editable in this pass.
+// campaign; sector remains Admin-set (see UpdateBrandAccountDto) as a
+// provisioning-time fact. Logo IS self-editable (Upload capability,
+// 2026-09-02) via `AssetsController`'s `POST/DELETE /assets/logo` — that
+// module writes `BrandAccount.logoUrl` directly (own repo injection) rather
+// than routing through this service, so getMe() below simply reflects
+// whatever value is currently stored.
 @Injectable()
 export class CompanyService {
   constructor(

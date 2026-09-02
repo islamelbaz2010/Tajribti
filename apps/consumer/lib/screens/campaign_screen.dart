@@ -787,28 +787,35 @@ class _BrandBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Consumer Experience Polish (2026-09-01): brand-gradient fallback for
-    // campaigns without a product image, replacing the dark-navy block —
-    // mirrors the same treatment on Home's campaign cards.
+    // Consumer Visual System (2026-09-02): the brand-gradient fallback this
+    // replaced a dark-navy block with (2026-09-01) was itself too bright/
+    // dominant — same fix as Home's _ProfileBanner/_HeroBanner/_CardBanner.
+    // Light neutral surface, brand identity kept only in the icon badge.
     return Container(
       width: double.infinity,
       height: 280,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [kBrand, kBrandSoft],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
+      color: kBackground,
       child: Center(
-        child: Text(
-          brandName,
-          style: const TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.w900,
-            color: kPrimary,
-            letterSpacing: -0.5,
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: const BoxDecoration(color: kBrandSoft, shape: BoxShape.circle),
+              child: const Icon(Icons.inventory_2_rounded, color: kBrand600, size: 28),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              brandName,
+              style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                color: kPrimary,
+                letterSpacing: -0.5,
+              ),
+            ),
+          ],
         ),
       ),
     );

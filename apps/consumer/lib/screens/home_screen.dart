@@ -356,18 +356,17 @@ class _ProfileBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Consumer Experience Polish (2026-09-01): bright brand-gradient card
-    // replacing the dark-navy one — same layout/content/tap target, only
-    // the surface and text/icon colors flip for a light-on-bright card
-    // instead of light-on-dark.
+    // Consumer Visual System (2026-09-02): the full-bleed lime gradient
+    // this replaced a dark-navy card with (2026-09-01) turned out to be its
+    // own inconsistency — a large bright-lime surface, exactly what the
+    // "too harsh/fluorescent" review named. Converted to a light card
+    // (kSurface, same treatment as Profile's header two passes ago) with
+    // the brand accent kept only as the restrained avatar ring.
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [kBrand, kBrandSoft],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+      decoration: BoxDecoration(
+        color: kSurface,
+        boxShadow: [BoxShadow(color: kCardShadow, blurRadius: 12, offset: const Offset(0, 3))],
       ),
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
       child: Row(
@@ -376,9 +375,9 @@ class _ProfileBanner extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: kBrandSoft,
               shape: BoxShape.circle,
-              border: Border.all(color: kPrimary.withOpacity(0.12), width: 2),
+              border: Border.all(color: kBrand, width: 2),
             ),
             child: const Icon(Icons.person_rounded, color: kPrimary, size: 26),
           ),
@@ -418,7 +417,7 @@ class _ProfileBanner extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: kBrandSoft,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Icon(
@@ -449,27 +448,19 @@ class _HeroBanner extends StatelessWidget {
       (Icons.rate_review_rounded, s.heroStepShare),
       (Icons.stars_rounded, s.heroStepEarn),
     ];
-    // Consumer Experience Polish (2026-09-01): bright brand-gradient hero
-    // replacing the dark-navy one that made the first thing a logged-out
-    // consumer sees feel like an admin panel. Same content/steps/tap
-    // targets — only the surface and text/icon colors flip.
+    // Consumer Visual System (2026-09-02): the bright lime-gradient hero
+    // this replaced a dark-navy one with (2026-09-01) is itself the large
+    // fluorescent surface the latest review named — first thing a
+    // logged-out consumer sees was a full lime wash. Converted to a light
+    // card (same family as the About/Profile cards) with the accent kept
+    // only in small badges/icon circles.
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [kBrand, kBrandSoft],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: kSurface,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: kBrand.withOpacity(0.35),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: kCardShadow, blurRadius: 16, offset: const Offset(0, 6))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -477,7 +468,7 @@ class _HeroBanner extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: kBrandSoft,
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.auto_awesome_rounded, color: kGold, size: 18),
@@ -536,7 +527,7 @@ class _HeroStep extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: const BoxDecoration(
-            color: Colors.white,
+            color: kBrandSoft,
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: kGold, size: 18),
@@ -823,27 +814,37 @@ class _CardBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Consumer Experience Polish (2026-09-01): brand-gradient fallback for
-    // campaigns without a product image, replacing the dark-navy block.
+    // Consumer Visual System (2026-09-02): the brand-gradient fallback this
+    // replaced a dark-navy block with (2026-09-01) was itself too bright/
+    // dominant for a campaign card — same fix direction as _ProfileBanner/
+    // _HeroBanner above. Light neutral surface, brand identity kept only
+    // in the small icon badge — matches the Company Console's own "No
+    // product image" light fallback card for cross-platform consistency.
     return Container(
       height: 140,
       width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [kBrand, kBrandSoft],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
+      color: kBackground,
       child: Center(
-        child: Text(
-          brandName,
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w900,
-            color: kPrimary,
-            letterSpacing: -0.5,
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(color: kBrandSoft, shape: BoxShape.circle),
+              child: const Icon(Icons.inventory_2_rounded, color: kBrand600, size: 20),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              brandName,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: kPrimary,
+                letterSpacing: -0.2,
+              ),
+            ),
+          ],
         ),
       ),
     );

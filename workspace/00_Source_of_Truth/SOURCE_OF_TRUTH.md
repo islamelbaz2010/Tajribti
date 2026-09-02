@@ -15,6 +15,7 @@
 | Project delivery & sprints | Master Delivery Plan | `02_Project_Management/MASTER_DELIVERY_PLAN.md` | v1.0 |
 | Development authorization status | Remediation & Re-Audit | `13_Audits/REMEDIATION_REAUDIT.md` | v1.0 |
 | Competitive intelligence | Peer Review Master Report | `12_Reviews/PEER_REVIEW_MASTER_REPORT.md` | Final |
+| **Current product reference benchmark** | **Reference Product Benchmark** | **`03_Research/REFERENCE_PRODUCT_BENCHMARK.md`** | **v1.0 ACTIVE** |
 | Prompt library | ChatGPT Prompts | `11_Prompts/CHATGPT_PROMPTS.md` | — |
 | Business concept origin | Source Video Transcript | `03_Research/SOURCE_VIDEO_TRANSCRIPT.md` | — |
 | Track 0 commercial process | Sales Playbook | `Sales_Execution_Pack/01_Sales_Playbook.md` | APPROVED (PAR 97/100) |

@@ -113,7 +113,24 @@ const stripStyles: Record<string, React.CSSProperties> = {
   },
 };
 
-function SignalHero({ count, pulse }: { count: number; pulse: boolean }) {
+// Reference Product Benchmark, Live Measurement (2026-09-02): this hero
+// already showed the raw redemption count ("consumer experiences
+// captured") but never in the context of the campaign's own target —
+// "how far has it progressed" was answerable only by opening Campaign
+// Management's card view (which now shows N/target after DL-093) or
+// doing the division in your head. `target` is optional so this
+// component's other, non-Overview-page consumers (if any are added
+// later) aren't forced to pass it.
+function SignalHero({
+  count,
+  target,
+  pulse,
+}: {
+  count: number;
+  target?: number;
+  pulse: boolean;
+}) {
+  const pct = target && target > 0 ? Math.min(100, Math.round((count / target) * 100)) : null;
   return (
     <div style={heroStyles.wrap}>
       <div style={heroStyles.headerRow}>
@@ -134,7 +151,14 @@ function SignalHero({ count, pulse }: { count: number; pulse: boolean }) {
           <span style={heroStyles.dot}>●</span>
         </div>
       </div>
-      <div style={heroStyles.sub}>consumer experiences captured</div>
+      <div style={heroStyles.sub}>
+        consumer experiences captured{target ? ` · ${count} of ${target} target` : ''}
+      </div>
+      {pct !== null && (
+        <div style={heroStyles.targetTrack}>
+          <div style={{ ...heroStyles.targetFill, width: `${pct}%` }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -217,6 +241,19 @@ const heroStyles: Record<string, React.CSSProperties> = {
     color: '#b2f24d',
     lineHeight: 1,
     paddingBottom: 8,
+  },
+  targetTrack: {
+    width: 200,
+    height: 4,
+    borderRadius: 2,
+    background: '#eef1f7',
+    overflow: 'hidden',
+    marginTop: 12,
+  },
+  targetFill: {
+    height: '100%',
+    background: '#b2f24d',
+    borderRadius: 2,
   },
   sub: {
     fontSize: 12,
@@ -437,7 +474,7 @@ export default function Overview() {
       <SignalFlowStrip />
 
       {/* 2. How is the campaign performing? */}
-      <SignalHero count={data.totalRedemptions} pulse={pulse} />
+      <SignalHero count={data.totalRedemptions} target={campaign.targetCount} pulse={pulse} />
 
       <div style={styles.metricsGrid}>
         <MetricCard label="Survey Completions" value={data.surveyCompletions} />

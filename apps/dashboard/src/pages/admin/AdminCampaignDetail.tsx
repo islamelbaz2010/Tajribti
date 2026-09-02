@@ -156,7 +156,14 @@ export default function AdminCampaignDetail() {
 
       {tab === 'overview' && overview && (
         <div style={styles.statsGrid}>
-          <StatCard label="Redemptions" value={overview.totalRedemptions} />
+          <StatCard
+            label="Redemptions"
+            value={
+              campaign.targetCount > 0
+                ? `${overview.totalRedemptions} / ${campaign.targetCount}`
+                : overview.totalRedemptions
+            }
+          />
           <StatCard label="Survey Completions" value={overview.surveyCompletions} />
           <StatCard label="Completion Rate" value={`${overview.completionRate}%`} />
           <StatCard label="Purchase Intent" value={`${overview.purchaseIntentPercent}%`} />

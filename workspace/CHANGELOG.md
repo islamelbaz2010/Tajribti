@@ -6,6 +6,30 @@
 
 ---
 
+## 2026-09-02 — Reference Product Benchmark registered
+
+### Change
+Created `workspace/03_Research/REFERENCE_PRODUCT_BENCHMARK.md` as the active product-reference benchmark for implementation alignment.
+
+The benchmark preserves current first-party evidence from Samplia, Sampl, Zamplit and ExpertVoice and translates recurring product patterns into a TAJRIBTI-specific benchmark without authorizing blind feature copying.
+
+Registered the new benchmark in `workspace/00_Source_of_Truth/SOURCE_OF_TRUTH.md` as the authoritative source for the **current product reference benchmark** domain. It supplements, and does not override, the FDD, Master PRD, Technical Architecture or other higher-authority project documents.
+
+### Why
+The project needs a permanent repository-level reference for the target product shape so future implementation sessions do not reconstruct the benchmark from chat history. This is intended to prevent further drift toward a simple dashboard/survey product and keep implementation focused on the complete campaign → consumer data → live measurement → insight → decision workflow.
+
+### Source evidence
+First-party sources reviewed 2026-09-02:
+- Samplia: https://samplia.com/en and related official service/feedback/legal pages
+- Sampl: https://www.sampltech.com/measurement-insight and https://www.sampltech.com/solutions/measure-success
+- Zamplit: https://zamplit.com/platform/ , https://zamplit.com/how-it-works/ , https://zamplit.com/market-research/ , https://zamplit.com/product-launch-testing/
+- ExpertVoice: https://resourcehub.expertvoice.com/hc/en-us/articles/5004150658450-Product-sampling-campaigns-on-ExpertVoice
+
+### Note on provenance
+This entry, and the benchmark file/registration it describes, originated on `origin/main` (commits `e4098ef`/`23841a0`/`04c736e`) while `sprint/pilot-readiness-mvp` continued as the actual working branch. The first two commits were cherry-picked onto this branch unchanged. The third (`04c736e`) is intentionally NOT cherry-picked as-is: on `main` it paired this same entry with an accidental truncation of this file from 943 lines to 104 (deleting the v6.35–v6.51+ history below), which this branch does not carry over. Only the additive changelog entry above was brought across.
+
+---
+
 ## Workspace Version History
 
 | Version | Date | Summary |

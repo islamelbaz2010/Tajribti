@@ -15,6 +15,18 @@ const STATUS_OPTIONS = ['draft', 'active', 'paused', 'completed', 'archived'];
 // transitions.
 const LIFECYCLE_ENDING_STATUSES = ['completed', 'archived'];
 
+// Operational exceptions (2026-09-02): mirrors AdminCampaignDetail.tsx's
+// own needsAttention() — an `active` campaign whose endDate has already
+// passed is already closed to new participation server-side
+// (isCampaignOpenForParticipation(), campaign.entity.ts). The Company's
+// list view (Campaigns.tsx) already flags this; this screen — the one a
+// Company actually manages a campaign's status from — didn't yet.
+function needsAttention(c: { status: string; endDate: string | null }): boolean {
+  if (c.status !== 'active' || !c.endDate) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return c.endDate < today;
+}
+
 export default function CampaignDetail() {
   const location = useLocation();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
@@ -181,6 +193,34 @@ export default function CampaignDetail() {
       .finally(() => setSaving(false));
   };
 
+  // Operational exceptions, quick action (2026-09-02): a direct status-only
+  // update for the needsAttention banner below — deliberately not routed
+  // through handleSave()/editStatus (that form state wouldn't reflect
+  // 'completed' until the next render, so calling handleSave() right after
+  // setEditStatus('completed') would still save the *old* status). Same
+  // direct PATCH pattern AdminCampaignDetail.tsx's handleStatusChange()
+  // already uses.
+  const handleMarkCompleted = () => {
+    if (!campaign) return;
+    if (
+      !window.confirm(
+        'Set this campaign to COMPLETED? It will stop appearing as an active trial to consumers. ' +
+          'This can be changed back later.',
+      )
+    ) {
+      return;
+    }
+    setSaving(true);
+    campaignApi
+      .update(campaign.id, { status: 'completed' })
+      .then((updated) => {
+        loadFromCampaign(updated);
+        setSaveSuccess(true);
+      })
+      .catch(() => setSaveError('Could not update the campaign status.'))
+      .finally(() => setSaving(false));
+  };
+
   // Product Image upload (2026-09-02): applies immediately on selection —
   // same UX pattern as CompanyProfile's logo — rather than being staged
   // behind the "Save Changes" button below, so a Company sees the real
@@ -263,6 +303,18 @@ export default function CampaignDetail() {
         </div>
       </div>
 
+      {needsAttention(campaign) && (
+        <div style={styles.attentionBanner}>
+          <span>
+            This campaign is still marked <strong>ACTIVE</strong>, but its end date ({campaign.endDate})
+            has passed — consumers can no longer join. Consider marking it Completed.
+          </span>
+          <button style={styles.attentionBannerBtn} disabled={saving} onClick={handleMarkCompleted}>
+            Mark Completed
+          </button>
+        </div>
+      )}
+
       <div style={styles.grid}>
         <div style={styles.infoCard}>
           <div style={styles.cardTitle}>Campaign Identity</div>
@@ -275,7 +327,21 @@ export default function CampaignDetail() {
             value={campaign.status.toUpperCase() + (campaign.isDemo ? ' · DEMO' : '')}
             highlight={campaign.isDemo}
           />
-          <InfoRow label="Target" value={`${campaign.targetCount} participants`} />
+          {/* Operational visibility (2026-09-02): this row used to show only
+              the static target ("50 participants") with no indication of
+              how far the campaign has actually progressed toward it — the
+              same class of gap already fixed on Overview.tsx (DL-094) and
+              Admin's campaign list/detail (DL-093/094). `campaign` here
+              comes from getSelected() -> getMyCampaigns()/
+              getMyActiveCampaign(), both of which already carry
+              participantCount (DL-093) since this is the Company's own
+              primary campaign-management screen ("Details & QR" in the
+              sidebar) — the one place a Company would most expect to see
+              this. */}
+          <InfoRow
+            label="Progress"
+            value={`${campaign.participantCount ?? 0} / ${campaign.targetCount} participants`}
+          />
           <InfoRow label="Reward" value={`${campaign.rewardPoints} points`} />
           <InfoRow label="Period" value={`${campaign.startDate} → ${campaign.endDate}`} />
           {campaign.description && (
@@ -549,6 +615,15 @@ const styles: Record<string, React.CSSProperties> = {
   muted: { color: '#7a8bab', fontSize: 14, marginTop: 32 },
   errMsg: { color: '#dc2626', fontSize: 14, marginTop: 32 },
   header: { marginBottom: 24 },
+  attentionBanner: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+    background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: '12px 16px',
+    marginBottom: 20, fontSize: 12, color: '#7f1d1d',
+  },
+  attentionBannerBtn: {
+    background: '#ffffff', border: '1px solid #dc2626', color: '#dc2626', borderRadius: 8,
+    padding: '7px 14px', fontSize: 11, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' as const,
+  },
   demoBadge: {
     display: 'inline-block',
     fontSize: 9,

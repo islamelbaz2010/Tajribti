@@ -20,6 +20,19 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'report', label: 'AI Report' },
 ];
 
+// Operational exceptions (2026-09-02): the same "active but past its own
+// end date" signal AdminCampaigns.tsx's list already flags — but until
+// now that signal vanished the moment an operator actually opened the
+// campaign it was about, which is exactly the screen it should be most
+// actionable on. Same logic, not extracted to a shared util (matches this
+// codebase's existing convention of small, explained, per-file helpers
+// rather than a new utils/ layer for three ~4-line call sites).
+function needsAttention(c: { status: string; endDate: string | null }): boolean {
+  if (c.status !== 'active' || !c.endDate) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return c.endDate < today;
+}
+
 // Founder ruling W-2 (2026-09-02): "Selected Campaign -> Participants/
 // Data -> Insights -> Report" — the final step of the required Admin
 // navigation. Reuses the exact same AnalyticsService/ReportService data
@@ -174,6 +187,22 @@ export default function AdminCampaignDetail() {
         </div>
       </div>
       {statusError && <p style={styles.statusErrorText}>{statusError}</p>}
+
+      {needsAttention(campaign) && (
+        <div style={styles.attentionBanner}>
+          <span>
+            This campaign is still marked <strong>ACTIVE</strong>, but its end date ({campaign.endDate})
+            has passed — consumers can no longer join. Consider marking it Completed.
+          </span>
+          <button
+            style={styles.attentionBannerBtn}
+            disabled={statusSaving}
+            onClick={() => handleStatusChange('completed')}
+          >
+            Mark Completed
+          </button>
+        </div>
+      )}
 
       <div style={styles.tabs}>
         {TABS.map((t) => (
@@ -424,6 +453,15 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12, fontWeight: 700, color: '#0a1120', outline: 'none', cursor: 'pointer',
   },
   statusErrorText: { fontSize: 12, color: '#dc2626', margin: '0 0 12px' },
+  attentionBanner: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+    background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: '12px 16px',
+    marginBottom: 16, fontSize: 12, color: '#7f1d1d',
+  },
+  attentionBannerBtn: {
+    background: '#ffffff', border: '1px solid #dc2626', color: '#dc2626', borderRadius: 8,
+    padding: '7px 14px', fontSize: 11, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' as const,
+  },
   title: { fontSize: 22, fontWeight: 800, color: '#0a1120', margin: '0 0 4px', letterSpacing: -0.3 },
   sub: { fontSize: 12, color: '#7a8bab', margin: 0 },
   datesLine: { fontSize: 11, color: '#a8b3c9', margin: '4px 0 0', fontWeight: 600 },

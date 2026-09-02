@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { adminCampaignsApi } from '../../api/adminEndpoints';
+import { qrApi } from '../../api/endpoints';
 import type {
   AdminCampaign,
   OverviewData,
@@ -40,6 +41,17 @@ export default function AdminCampaignDetail() {
   const [error, setError] = useState('');
   const [statusSaving, setStatusSaving] = useState(false);
   const [statusError, setStatusError] = useState('');
+  // Operational visibility (2026-09-02): before this, an Admin operator had
+  // no way to see a campaign's own QR/join link from the Admin side at
+  // all — diagnosing a Company's "Details & QR" report (the exact class of
+  // defect DL-091 fixed) meant either trusting the Company's own screenshot
+  // or logging into the Company Console itself. GET /qr/generate/:id is
+  // already @Public() (qr.controller.ts) — no new endpoint, no new
+  // authorization surface. Fetched as its own independent effect, same
+  // decoupling DL-091 already established for CampaignDetail.tsx, so a QR
+  // failure can never blank the rest of this page.
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [qrError, setQrError] = useState('');
 
   const load = useCallback(() => {
     if (!id) return;
@@ -65,6 +77,16 @@ export default function AdminCampaignDetail() {
   }, [id]);
 
   useEffect(load, [load]);
+
+  useEffect(() => {
+    if (!id) return;
+    setQrUrl(null);
+    setQrError('');
+    qrApi
+      .getQrImage(id)
+      .then((blob) => setQrUrl(URL.createObjectURL(blob)))
+      .catch(() => setQrError('Could not generate the QR code image.'));
+  }, [id]);
 
   useEffect(() => {
     if (tab === 'report' && id && !aiReport) {
@@ -125,6 +147,17 @@ export default function AdminCampaignDetail() {
             {campaign.companyName ?? 'No Company'}
             {campaign.locationName ? ` · ${campaign.locationName}` : ''}
           </p>
+          {/* Operational visibility (2026-09-02): campaign.startDate/endDate
+              were already on the AdminCampaign object this page fetches
+              (used by the campaign list's needs-attention check) but never
+              actually shown to the operator on the campaign's own page —
+              an operator scanning individual campaigns had no way to tell
+              when one opened or closes. */}
+          <p style={styles.datesLine}>
+            {campaign.startDate || campaign.endDate
+              ? `${campaign.startDate ?? 'No start date'} → ${campaign.endDate ?? 'No end date'}`
+              : 'No start/end dates set — open-ended'}
+          </p>
         </div>
         <div style={styles.statusControl}>
           <span style={styles.statusControlLabel}>Status</span>
@@ -167,6 +200,30 @@ export default function AdminCampaignDetail() {
           <StatCard label="Survey Completions" value={overview.surveyCompletions} />
           <StatCard label="Completion Rate" value={`${overview.completionRate}%`} />
           <StatCard label="Purchase Intent" value={`${overview.purchaseIntentPercent}%`} />
+        </div>
+      )}
+
+      {/* Operational visibility (2026-09-02): the exact QR/join code a
+          Company's consumers scan for this campaign, visible to Admin for
+          the first time — reuses the public GET /qr/generate/:id endpoint
+          already used by the Company Console, no new backend surface. */}
+      {tab === 'overview' && (
+        <div style={styles.qrCard}>
+          <div style={styles.cardTitle}>Campaign QR / Join Link</div>
+          {qrUrl ? (
+            <div style={styles.qrRow}>
+              <img src={qrUrl} alt="Campaign QR Code" style={styles.qrImg} />
+              <p style={styles.hint}>
+                Scanning this opens the same consumer journey a real participant would use for
+                this campaign. Useful to confirm the QR a Company reports a problem with actually
+                resolves to this campaign.
+              </p>
+            </div>
+          ) : qrError ? (
+            <p style={styles.hint}>{qrError}</p>
+          ) : (
+            <p style={styles.hint}>Generating…</p>
+          )}
         </div>
       )}
 
@@ -369,6 +426,7 @@ const styles: Record<string, React.CSSProperties> = {
   statusErrorText: { fontSize: 12, color: '#dc2626', margin: '0 0 12px' },
   title: { fontSize: 22, fontWeight: 800, color: '#0a1120', margin: '0 0 4px', letterSpacing: -0.3 },
   sub: { fontSize: 12, color: '#7a8bab', margin: 0 },
+  datesLine: { fontSize: 11, color: '#a8b3c9', margin: '4px 0 0', fontWeight: 600 },
   tabs: { display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid #e8ecf3' },
   tabBtn: {
     background: 'transparent', border: 'none', borderBottom: '2px solid transparent', color: '#7a8bab',
@@ -380,6 +438,11 @@ const styles: Record<string, React.CSSProperties> = {
   statValue: { fontSize: 28, fontWeight: 900, color: '#0a1120' },
   statLabel: { fontSize: 11, color: '#7a8bab', fontWeight: 700, marginTop: 4, letterSpacing: 0.5 },
   card: { background: '#ffffff', border: '1px solid #e8ecf3', borderRadius: 16, padding: 24 },
+  qrCard: {
+    background: '#ffffff', border: '1px solid #e8ecf3', borderRadius: 16, padding: 24, marginTop: 14,
+  },
+  qrRow: { display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' as const },
+  qrImg: { width: 140, height: 140, borderRadius: 10, border: '1px solid #e8ecf3' },
   cardTitle: { fontSize: 14, fontWeight: 800, color: '#0a1120', marginBottom: 14 },
   grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 },
   tableWrap: { overflow: 'auto', marginBottom: 12 },

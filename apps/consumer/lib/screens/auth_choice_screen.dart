@@ -84,8 +84,8 @@ class AuthChoiceScreen extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: () => context.push('/login'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: kPrimary,
-                      foregroundColor: Colors.white,
+                      backgroundColor: kBrand,
+                      foregroundColor: kPrimary,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       elevation: 0,
                     ),

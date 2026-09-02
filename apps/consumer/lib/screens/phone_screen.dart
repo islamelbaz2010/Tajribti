@@ -151,9 +151,14 @@ class _PhoneScreenState extends State<PhoneScreen> {
                   height: 56,
                   child: ElevatedButton(
                     onPressed: _requestOtp,
+                    // Consumer Visual System (2026-09-02): was the last
+                    // dark-navy CTA in the participation flow, flagged
+                    // directly from real-device screenshots — matches
+                    // every other primary CTA (Campaign Detail, Already
+                    // Participated, Thank You) now.
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: kPrimary,
-                      foregroundColor: Colors.white,
+                      backgroundColor: kBrand,
+                      foregroundColor: kPrimary,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       elevation: 0,
                     ),

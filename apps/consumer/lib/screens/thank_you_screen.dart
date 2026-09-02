@@ -37,7 +37,16 @@ class _ThankYouScreenState extends State<ThankYouScreen> with SingleTickerProvid
     return Directionality(
       textDirection: context.dir,
       child: Scaffold(
-        backgroundColor: kPrimary,
+        // Consumer Visual System (2026-09-02): this was the last full-page
+        // dark-navy surface left in the participation flow (Try Now →
+        // Verify Phone → OTP → Survey were already light) — flagged
+        // directly from real-device screenshots. Converted to the same
+        // light system as Already Participated (campaign_screen.dart):
+        // light background, white reward card, green success circle,
+        // gold points, restrained lime CTA. Reward amount/points-earned
+        // logic untouched — still the real `widget.pointsEarned` passed
+        // in, never hardcoded.
+        backgroundColor: kBackground,
         body: SafeArea(
           child: Center(
             child: FadeTransition(
@@ -53,35 +62,39 @@ class _ThankYouScreenState extends State<ThankYouScreen> with SingleTickerProvid
                         width: 110,
                         height: 110,
                         decoration: const BoxDecoration(
-                          color: kSuccess,
+                          color: Color(0xFFD1FAE5),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.check_rounded, color: Colors.white, size: 60),
+                        child: const Icon(Icons.check_rounded, color: kSuccess, size: 60),
                       ),
                     ),
                     const SizedBox(height: 36),
                     Text(
                       s.thankYou,
                       style: const TextStyle(
-                        fontSize: 36,
+                        fontSize: 32,
                         fontWeight: FontWeight.w900,
-                        color: Colors.white,
+                        color: kPrimary,
                       ),
                     ),
                     const SizedBox(height: 14),
                     Text(
                       s.feedbackSent,
                       style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 15,
+                        color: kPrimary.withOpacity(0.6),
                       ),
+                      textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 32),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 24),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: kSurface,
                         borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(color: kCardShadow, blurRadius: 16, offset: const Offset(0, 6)),
+                        ],
                       ),
                       child: Column(
                         children: [
@@ -97,7 +110,7 @@ class _ThankYouScreenState extends State<ThankYouScreen> with SingleTickerProvid
                             s.pointsAddedLabel,
                             style: TextStyle(
                               fontSize: 14,
-                              color: Colors.white.withOpacity(0.7),
+                              color: kPrimary.withOpacity(0.6),
                             ),
                           ),
                         ],
@@ -110,7 +123,7 @@ class _ThankYouScreenState extends State<ThankYouScreen> with SingleTickerProvid
                       child: ElevatedButton(
                         onPressed: () => context.go('/home'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
+                          backgroundColor: kBrand,
                           foregroundColor: kPrimary,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           elevation: 0,

@@ -168,8 +168,8 @@ class _SurveyScreenState extends State<SurveyScreen> {
                       child: ElevatedButton(
                         onPressed: () => context.go('/home'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: kPrimary,
-                          foregroundColor: Colors.white,
+                          backgroundColor: kBrand,
+                          foregroundColor: kPrimary,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           elevation: 0,
                         ),
@@ -243,13 +243,13 @@ class _SurveyScreenState extends State<SurveyScreen> {
                   child: ElevatedButton(
                     onPressed: (_canProceed() && !_submitting) ? _next : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: kPrimary,
-                      foregroundColor: Colors.white,
+                      backgroundColor: kBrand,
+                      foregroundColor: kPrimary,
                       disabledBackgroundColor: Colors.grey.shade300,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
                     child: _submitting
-                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: kPrimary, strokeWidth: 2))
                         : Text(
                             isLast ? s.submitAnswers : s.nextQuestion,
                             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),

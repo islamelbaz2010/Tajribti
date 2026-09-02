@@ -253,8 +253,8 @@ class _SignupScreenState extends State<SignupScreen> {
                   child: ElevatedButton(
                     onPressed: _loading ? null : _submit,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: kPrimary,
-                      foregroundColor: Colors.white,
+                      backgroundColor: kBrand,
+                      foregroundColor: kPrimary,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       elevation: 0,
                     ),
@@ -262,7 +262,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         ? const SizedBox(
                             width: 24,
                             height: 24,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            child: CircularProgressIndicator(color: kPrimary, strokeWidth: 2),
                           )
                         : Text(s.createAccount, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
                   ),

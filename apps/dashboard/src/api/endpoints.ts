@@ -20,13 +20,29 @@ export const authApi = {
 
 export const campaignApi = {
   getDemoActive: (): Promise<Campaign> => client.get('/campaigns/demo/active'),
-  // Returns the first campaign owned by the authenticated brand.
-  // For the demo brand this resolves to the demo campaign.
-  // For a real brand this resolves to their most recent active campaign.
+  // Default campaign every Console page falls back to when no ?campaignId=
+  // is present (Layout's sidebar, and every analytics/report page via
+  // getSelected() below). The doc comment here always claimed this
+  // resolves to "their most recent ACTIVE campaign" but the implementation
+  // used to just take list[0] — /campaigns/my orders by createdAt DESC
+  // with no status filter, so a brand-new DRAFT campaign (e.g. one being
+  // set up, or a leftover verification/test draft) silently became the
+  // default for every Console page the moment it was created, even while
+  // an older ACTIVE campaign was still collecting real consumer
+  // submissions. Root cause of a real production incident (2026-09-02):
+  // two genuine Founder-completed participations existed and were fully
+  // queryable via the API the whole time, but the Console's default
+  // selection had drifted to a newer, unrelated draft test campaign with
+  // zero data, making the real submissions invisible without an explicit
+  // ?campaignId=. Fixed to actually do what the comment always said:
+  // prefer the most recent ACTIVE campaign, falling back to the plain
+  // most-recent campaign only when the brand has no active one at all
+  // (e.g. a brand-new account with just a draft) — same fallback the
+  // caller already relied on, so that case is unchanged.
   getMyActiveCampaign: (): Promise<Campaign> =>
     (client.get('/campaigns/my') as Promise<Campaign[]>).then((list) => {
       if (!list || list.length === 0) throw new Error('No campaign found for this account');
-      return list[0];
+      return list.find((c) => c.status === 'active') ?? list[0];
     }),
   // Full campaign history for the authenticated brand — same endpoint as
   // getMyActiveCampaign, without discarding everything but the first result.

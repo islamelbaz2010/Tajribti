@@ -160,26 +160,88 @@ export default function AdminCampaignDetail() {
       )}
 
       {tab === 'insights' && demographics && survey && (
-        <div style={styles.grid2}>
-          <div style={styles.card}>
-            <div style={styles.cardTitle}>Demographics</div>
-            <DistributionList title="Age" items={demographics.ageDistribution} />
-            <DistributionList title="Gender" items={demographics.genderDistribution} />
-            <DistributionList title="City" items={demographics.cityDistribution} />
+        <>
+          <div style={styles.grid2}>
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>Demographics</div>
+              <DistributionList title="Age" items={demographics.ageDistribution} />
+              <DistributionList title="Gender" items={demographics.genderDistribution} />
+              <DistributionList title="City" items={demographics.cityDistribution} />
+            </div>
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>Survey — Purchase Intent {survey.purchaseIntentScore}%</div>
+              <DistributionList title="Purchase Intent" items={survey.purchaseIntentDistribution} />
+            </div>
           </div>
-          <div style={styles.card}>
-            <div style={styles.cardTitle}>Survey — Purchase Intent {survey.purchaseIntentScore}%</div>
-            <DistributionList title="Purchase Intent" items={survey.purchaseIntentDistribution} />
-            {survey.verbatims.length > 0 && (
-              <>
-                <div style={styles.subheading}>Verbatims</div>
-                {survey.verbatims.map((v, i) => (
+
+          {/* Product Completion Wave (2026-09-02): the full survey result —
+              not just Purchase Intent/Demographics. Q1/Q3/Q4 are part of
+              every campaign's default 5-question survey (same data
+              SurveyResults.tsx on the Company Console now also shows);
+              customQuestions are whatever a Company added beyond the
+              core 5 via Survey Builder V2. All read from the same
+              GET /admin/campaigns/:id/survey response already fetched —
+              no new endpoint. */}
+          <div style={{ ...styles.grid2, marginTop: 14 }}>
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>First Impression (Q1)</div>
+              {survey.firstImpressionScore.responseCount === 0 ? (
+                <p style={styles.hint}>No responses to this question yet.</p>
+              ) : (
+                <p style={styles.narrative}>
+                  <strong>{survey.firstImpressionScore.average} / 5</strong> average ·{' '}
+                  {survey.firstImpressionScore.responseCount} responses
+                </p>
+              )}
+            </div>
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>Product Descriptor (Q3)</div>
+              <DistributionListRaw items={survey.questionBreakdown['q3'] ?? []} />
+            </div>
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>Compared to Similar Products (Q4)</div>
+              <DistributionListRaw items={survey.questionBreakdown['q4'] ?? []} />
+            </div>
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>Open Feedback (Q5)</div>
+              {survey.verbatims.length === 0 ? (
+                <p style={styles.hint}>No open-ended responses yet.</p>
+              ) : (
+                survey.verbatims.map((v, i) => (
                   <p key={i} style={styles.verbatim}>&ldquo;{v}&rdquo;</p>
-                ))}
-              </>
-            )}
+                ))
+              )}
+            </div>
           </div>
-        </div>
+
+          {survey.customQuestions.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <div style={styles.subheading}>Campaign-Specific Questions</div>
+              <div style={styles.grid2}>
+                {survey.customQuestions.map((q) => (
+                  <div key={q.id} style={styles.card}>
+                    <div style={styles.cardTitle}>{q.text}</div>
+                    {q.responseCount === 0 ? (
+                      <p style={styles.hint}>No responses to this question yet.</p>
+                    ) : q.breakdown ? (
+                      <DistributionListRaw items={q.breakdown} />
+                    ) : q.average !== undefined ? (
+                      <p style={styles.narrative}>
+                        <strong>{q.average} / 5</strong> average · {q.responseCount} responses
+                      </p>
+                    ) : q.verbatims && q.verbatims.length > 0 ? (
+                      q.verbatims.map((v, i) => (
+                        <p key={i} style={styles.verbatim}>&ldquo;{v}&rdquo;</p>
+                      ))
+                    ) : (
+                      <p style={styles.hint}>No responses meet the display threshold yet.</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {tab === 'report' && (
@@ -216,6 +278,26 @@ function DistributionList({ title, items }: { title: string; items: { label: str
         <div key={it.label} style={styles.distRow}>
           <span style={styles.distLabel}>{it.label}</span>
           <span style={styles.distValue}>{it.count} ({it.percentage}%)</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Product Completion Wave (2026-09-02): a percentage-free counterpart to
+// DistributionList — SurveyData.questionBreakdown/CustomQuestionResult.
+// breakdown return {label,count}[] only (no precomputed percentage, since
+// analytics.service.ts never needed one there before now); this computes
+// it client-side from the same counts rather than changing that API shape.
+function DistributionListRaw({ items }: { items: { label: string; count: number }[] }) {
+  if (items.length === 0) return <p style={styles.hint}>No responses to this question yet.</p>;
+  const total = items.reduce((sum, it) => sum + it.count, 0) || 1;
+  return (
+    <div>
+      {items.map((it) => (
+        <div key={it.label} style={styles.distRow}>
+          <span style={styles.distLabel}>{it.label}</span>
+          <span style={styles.distValue}>{it.count} ({Math.round((it.count / total) * 100)}%)</span>
         </div>
       ))}
     </div>

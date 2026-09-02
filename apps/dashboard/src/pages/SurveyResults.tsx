@@ -42,6 +42,11 @@ export default function SurveyResults() {
 
   const intentData = data.purchaseIntentDistribution;
   const descriptorData = data.questionBreakdown['q3'] ?? [];
+  // Product Completion Wave (2026-09-02): q1 (first impression) and q4
+  // (compared to similar products) are part of every campaign's default
+  // survey — same as q2/q3/q5 above — and were captured all along but
+  // never rendered here. Additive only: nothing above this line changed.
+  const comparisonData = data.questionBreakdown['q4'] ?? [];
   const totalResponses = intentData.reduce((sum, item) => sum + item.count, 0);
 
   return (
@@ -97,6 +102,45 @@ export default function SurveyResults() {
       </div>
 
       <div style={styles.grid}>
+        <div style={styles.card}>
+          <div style={styles.cardTitle}>First Impression (Q1)</div>
+          {data.firstImpressionScore.responseCount === 0 ? (
+            <p style={styles.empty}>No responses to this question yet.</p>
+          ) : (
+            <div style={styles.scoreCard}>
+              <div style={styles.scoreValue}>{data.firstImpressionScore.average}</div>
+              <div style={styles.scoreMax}>/ 5 average · {data.firstImpressionScore.responseCount} responses</div>
+            </div>
+          )}
+        </div>
+
+        <div style={styles.card}>
+          <div style={styles.cardTitle}>Compared to Similar Products (Q4)</div>
+          {comparisonData.length === 0 ? (
+            <p style={styles.empty}>No responses to this question yet.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={comparisonData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 11, fill: '#3d4a6a' }}
+                  axisLine={{ stroke: '#1a2540' }}
+                  tickLine={false}
+                />
+                <YAxis tick={{ fontSize: 11, fill: '#3d4a6a' }} axisLine={false} tickLine={false} />
+                <Tooltip {...CHART_TOOLTIP} />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                  {comparisonData.map((_, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
+
+      <div style={{ ...styles.grid, marginTop: 16 }}>
         <div style={styles.card}>
           <div style={styles.cardTitle}>Product Descriptor (Q3)</div>
           <ResponsiveContainer width="100%" height={220}>

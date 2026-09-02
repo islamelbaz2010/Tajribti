@@ -1,7 +1,7 @@
 import React, { useEffect, useState, FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { adminCompaniesApi, adminCampaignsApi } from '../../api/adminEndpoints';
-import type { AdminCompany, CompanyEmployee, AdminCampaign } from '../../api/types';
+import type { AdminCompany, CompanyEmployee, AdminCampaign, BrandSector } from '../../api/types';
 import { SECTOR_LABELS } from '../../api/types';
 
 const STATUS_COLOR: Record<string, string> = {
@@ -31,6 +31,17 @@ export default function AdminCompanyDetail() {
   const [createError, setCreateError] = useState('');
   const [regenerating, setRegenerating] = useState(false);
 
+  // Product Completion Wave (2026-09-02): the Company-record edit
+  // operation — PATCH /admin/brands/:id already existed on the API
+  // (unchanged), this UI form was the missing piece. Only the fields the
+  // API already accepts (name/sector/logoUrl); no new Company fields.
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editSector, setEditSector] = useState<BrandSector | ''>('');
+  const [editLogoUrl, setEditLogoUrl] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState('');
+
   const load = () => {
     if (!id) return;
     setLoading(true);
@@ -44,12 +55,32 @@ export default function AdminCompanyDetail() {
         setCompany(c);
         setEmployees(emps);
         setCampaigns(camps.campaigns);
+        setEditName(c.name);
+        setEditSector(c.sector ?? '');
+        setEditLogoUrl(c.logoUrl ?? '');
       })
       .catch(() => setError('Failed to load company.'))
       .finally(() => setLoading(false));
   };
 
   useEffect(load, [id]);
+
+  const handleSaveEdit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!id || !editName.trim()) return;
+    setSavingEdit(true);
+    setEditError('');
+    adminCompaniesApi
+      .update(id, { name: editName.trim(), sector: editSector || undefined, logoUrl: editLogoUrl.trim() })
+      .then((updated) => {
+        setCompany((prev) => (prev ? { ...prev, ...updated } : prev));
+        setEditing(false);
+      })
+      .catch((err) => {
+        setEditError(err?.response?.data?.message ? String(err.response.data.message) : 'Could not save changes.');
+      })
+      .finally(() => setSavingEdit(false));
+  };
 
   const handleCreateEmployee = (e: FormEvent) => {
     e.preventDefault();
@@ -102,14 +133,36 @@ export default function AdminCompanyDetail() {
         ) : (
           <div style={styles.logoPlaceholder}>{company.name.charAt(0).toUpperCase()}</div>
         )}
-        <div>
+        <div style={{ flex: 1 }}>
           <h1 style={styles.title}>{company.name}</h1>
           <p style={styles.sub}>
             {company.email} · {company.sector ? SECTOR_LABELS[company.sector] : 'Sector not set'} · Joined{' '}
             {new Date(company.createdAt).toLocaleDateString()}
           </p>
         </div>
+        <button style={styles.smallBtn} onClick={() => setEditing((v) => !v)}>
+          {editing ? 'Cancel' : 'Edit'}
+        </button>
       </div>
+
+      {editing && (
+        <form onSubmit={handleSaveEdit} style={styles.editCard}>
+          <div style={styles.editGrid}>
+            <input style={styles.input} placeholder="Company name" value={editName} onChange={(e) => setEditName(e.target.value)} />
+            <select style={styles.input} value={editSector} onChange={(e) => setEditSector(e.target.value as BrandSector | '')}>
+              <option value="">Sector (not set)</option>
+              {Object.entries(SECTOR_LABELS).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </select>
+            <input style={styles.input} placeholder="Logo URL (optional)" value={editLogoUrl} onChange={(e) => setEditLogoUrl(e.target.value)} />
+          </div>
+          {editError && <p style={styles.error}>{editError}</p>}
+          <button type="submit" style={styles.addBtn} disabled={savingEdit}>
+            {savingEdit ? 'Saving…' : 'Save Changes'}
+          </button>
+        </form>
+      )}
 
       <div style={styles.grid}>
         <div style={styles.card}>
@@ -199,6 +252,8 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'transparent', border: '1px solid #dde3ee', color: '#374151', borderRadius: 8,
     padding: '8px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
   },
+  editCard: { background: '#ffffff', border: '1px solid #e8ecf3', borderRadius: 14, padding: 20, marginBottom: 20 },
+  editGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 12 },
   addForm: { display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 },
   input: {
     background: '#f7f8fb', border: '1px solid #dde3ee', borderRadius: 8, padding: '9px 12px',

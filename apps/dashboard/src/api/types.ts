@@ -54,6 +54,11 @@ export interface SurveyData {
   questionBreakdown: Record<string, { label: string; count: number }[]>;
   verbatims: string[];
   customQuestions: CustomQuestionResult[];
+  // Product Completion Wave (2026-09-02): q1's average — see
+  // analytics.service.ts's SurveyData for why this exists as a separate
+  // field rather than living in questionBreakdown (q1 is stars, an
+  // average, not a label distribution like q3/q4).
+  firstImpressionScore: { average: number; responseCount: number };
 }
 
 export interface Participant {

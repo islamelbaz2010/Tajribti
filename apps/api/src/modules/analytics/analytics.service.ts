@@ -55,6 +55,19 @@ export interface SurveyData {
   questionBreakdown: Record<string, { label: string; count: number }[]>;
   verbatims: string[];
   customQuestions: CustomQuestionResult[];
+  // Product Completion Wave (2026-09-02): q1 ("first impression", stars,
+  // 1-5) and q4 ("compared to similar products", multiple_choice) are
+  // captured on every campaign — the same default 5-question survey that
+  // has always existed — but were never computed or surfaced anywhere in
+  // the product (Company Console, Report, or Admin Control Center all
+  // stopped at q2/q3/q5). Added here, not as new upstream data collection
+  // — the answers already exist in every SurveyResponse row. q1's type
+  // (stars, protected/immutable per validateSurveyQuestionEdit) means an
+  // average is the correct summary, matching the pattern already used for
+  // custom stars/scale questions below; q4 is multiple_choice, so it fits
+  // the existing questionBreakdown shape exactly like q3 does — added as
+  // questionBreakdown.q4 rather than a new field.
+  firstImpressionScore: { average: number; responseCount: number };
 }
 
 export interface Participant {
@@ -197,6 +210,26 @@ export class AnalyticsService {
       q3Values.map((v) => String(v)),
     );
 
+    // q4 ("Compared to similar products, this is:") — multiple_choice,
+    // same shape/extraction pattern as q3 above.
+    const q4Values = surveys.map((s) => s.answers['q4']).filter(Boolean);
+    const q4Dist = this.buildStringDistribution(
+      q4Values.map((v) => String(v)),
+    );
+
+    // q1 ("What was your first impression of this product?") — stars,
+    // same average-extraction pattern already used for custom stars/scale
+    // questions further down this function.
+    const q1Values = surveys
+      .map((s) => s.answers['q1'])
+      .filter((v): v is number => typeof v === 'number');
+    const firstImpressionScore = {
+      average: q1Values.length > 0
+        ? Math.round((q1Values.reduce((a, b) => a + b, 0) / q1Values.length) * 10) / 10
+        : 0,
+      responseCount: q1Values.length,
+    };
+
     const verbatims = this.extractVerbatims(surveys, 'q5');
 
     // Survey Builder V2: generic result for every question beyond the core
@@ -235,9 +268,11 @@ export class AnalyticsService {
       purchaseIntentDistribution,
       questionBreakdown: {
         q3: q3Dist,
+        q4: q4Dist,
       },
       verbatims,
       customQuestions,
+      firstImpressionScore,
     };
   }
 

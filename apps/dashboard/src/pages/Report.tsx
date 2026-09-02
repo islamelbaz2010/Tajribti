@@ -42,6 +42,8 @@ const AR = {
   unsure: 'غير متأكد',
   intentNote: '"سيشتري" = المستجيبون الذين اختاروا 5/5 على مقياس نية الشراء. "على الأرجح" = 4/5. "غير متأكد" = ≤3/5.',
   descriptorsTitle: 'توصيفات المنتج — أكثر استجابات المستهلكين شيوعاً',
+  firstImpressionTitle: 'الانطباع الأول (متوسط التقييم)',
+  comparisonTitle: 'المقارنة بمنتجات مشابهة',
   verbatimsTitle: 'ملاحظات المستهلك المفتوحة',
   noVerbatimsDemo: 'لا توجد استجابات مفتوحة في مجموعة البيانات التجريبية. في حملة حقيقية، تظهر هنا ملاحظات المستهلكين.',
   noVerbatimsLive: 'لا توجد استجابات مفتوحة مسجلة لهذه الحملة.',
@@ -513,6 +515,41 @@ export default function Report({ mode = 'authenticated' }: { mode?: 'authenticat
 
           {/* ─── CONSUMER VOICE ─── */}
           <ReportSection title={t('Consumer Voice', AR.s04)} num="05" isAr={isAr}>
+            {/* Product Completion Wave (2026-09-02): q1 (first impression)
+                and q4 (compared to similar products) are part of every
+                campaign's default survey — same as q3/verbatims below —
+                captured all along but never rendered in this report.
+                Additive only: nothing else in this section changed, and a
+                campaign with zero q1/q4 responses renders nothing here,
+                same zero-visual-change guarantee the rest of this file
+                already follows for its own conditional blocks. */}
+            {survey.firstImpressionScore.responseCount > 0 && (
+              <div style={pg.voiceBlock}>
+                <div style={pg.chartLabel}>{t('First Impression (Average Rating)', AR.firstImpressionTitle)}</div>
+                <div style={pg.descriptorRow}>
+                  <span style={pg.descriptorLabel}>{survey.firstImpressionScore.average} / 5</span>
+                  <span style={pg.descriptorCount}>
+                    {survey.firstImpressionScore.responseCount} {t('responses', AR.responses)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {survey.questionBreakdown['q4'] && survey.questionBreakdown['q4'].length > 0 && (
+              <div style={pg.voiceBlock}>
+                <div style={pg.chartLabel}>{t('Compared to Similar Products', AR.comparisonTitle)}</div>
+                <div style={pg.descriptorList}>
+                  {survey.questionBreakdown['q4'].map((item, i) => (
+                    <div key={item.label} style={pg.descriptorRow}>
+                      <span style={pg.descriptorRank}>{i + 1}</span>
+                      <span style={pg.descriptorLabel}>{item.label}</span>
+                      <span style={pg.descriptorCount}>{item.count} {t('responses', AR.responses)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {survey.questionBreakdown['q3'] && survey.questionBreakdown['q3'].length > 0 && (
               <div style={pg.voiceBlock}>
                 <div style={pg.chartLabel}>{t('Product Descriptor — Most Common Consumer Responses', AR.descriptorsTitle)}</div>

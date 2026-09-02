@@ -48,9 +48,23 @@ export interface CustomQuestionResult {
   verbatims?: string[];
 }
 
+export interface SegmentPurchaseIntent {
+  label: string;
+  respondentCount: number;
+  positiveIntentPercent: number;
+}
+
 export interface SurveyData {
   purchaseIntentScore: number;
   purchaseIntentDistribution: DistributionItem[];
+  // Reference Product Benchmark, Insights/Segmentation (2026-09-02): see
+  // analytics.service.ts's own SurveyData for the reasoning — purchase
+  // intent broken out by the same demographic segments getDemographics()
+  // already computes separately, so the two can finally be read together.
+  purchaseIntentBySegment: {
+    byGender: SegmentPurchaseIntent[];
+    byAgeRange: SegmentPurchaseIntent[];
+  };
   questionBreakdown: Record<string, { label: string; count: number }[]>;
   verbatims: string[];
   customQuestions: CustomQuestionResult[];

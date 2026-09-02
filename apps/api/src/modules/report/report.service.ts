@@ -6,7 +6,7 @@ import { AiReport } from '../../entities/ai-report.entity';
 import { SurveyResponse } from '../../entities/survey-response.entity';
 import { Campaign } from '../../entities/campaign.entity';
 import { BrandAccount, BrandSector } from '../../entities/brand-account.entity';
-import { AnalyticsService } from '../analytics/analytics.service';
+import { AnalyticsService, SegmentPurchaseIntent } from '../analytics/analytics.service';
 
 @Injectable()
 export class ReportService {
@@ -137,6 +137,19 @@ export class ReportService {
   /** Below this response count, narrative language must hedge rather than assert. */
   private static readonly SMALL_SAMPLE_THRESHOLD = 30;
 
+  // Picks the segment whose own positiveIntentPercent is actually highest
+  // (ties broken toward more respondents) — see the evidence-accuracy
+  // comment at its call site. 'unknown' only when there are zero survey
+  // responses at all (buildPurchaseIntentBySegment always labels a
+  // consumer with no recorded demographic as 'Unknown', not absent).
+  private pickTopIntentSegmentLabel(segments: SegmentPurchaseIntent[]): string {
+    if (segments.length === 0) return 'unknown';
+    const sorted = [...segments].sort(
+      (a, b) => b.positiveIntentPercent - a.positiveIntentPercent || b.respondentCount - a.respondentCount,
+    );
+    return sorted[0].label;
+  }
+
   private async generateNarrative(
     campaignId: string,
     responseCount: number,
@@ -150,8 +163,22 @@ export class ReportService {
     const campaign = await this.campaignRepo.findOne({ where: { id: campaignId } });
     if (!campaign) throw new NotFoundException('Campaign not found');
 
-    const topDemo = demographics.ageDistribution[0]?.label ?? 'unknown';
-    const topGender = demographics.genderDistribution[0]?.label ?? 'unknown';
+    // Evidence-accuracy fix (2026-09-02): the narrative below has always
+    // asserted "[topGender] [topAgeRange] showed the highest purchase
+    // intent" — but topGender/topAgeRange were computed from
+    // demographics.*Distribution[0], which is the MOST FREQUENT segment in
+    // the sample (headcount), not the segment with the actual highest
+    // intent. Those are frequently different groups. Now that
+    // purchaseIntentBySegment exists (Reference Product Benchmark,
+    // Insights/Segmentation pass, same day), the claim can be made true
+    // rather than assumed: pick the segment whose own positiveIntentPercent
+    // is actually highest, breaking ties toward more respondents (more
+    // evidence for the same claim). topCity is unaffected — it was always
+    // honestly framed as "sample concentration, not a market claim" (see
+    // the prompt below), never a purchase-intent claim, so frequency
+    // remains the correct basis for it.
+    const topDemo = this.pickTopIntentSegmentLabel(surveyData.purchaseIntentBySegment.byAgeRange);
+    const topGender = this.pickTopIntentSegmentLabel(surveyData.purchaseIntentBySegment.byGender);
     const topCity = demographics.cityDistribution[0]?.label ?? 'Cairo';
     const topDescriptor = surveyData.questionBreakdown['q3']?.[0]?.label ?? 'positive';
     const verbatimsSample = surveyData.verbatims.slice(0, 2).join('; ');

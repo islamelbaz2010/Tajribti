@@ -49,9 +49,29 @@ export interface CustomQuestionResult {
   verbatims?: string[]; // text
 }
 
+// Reference Product Benchmark, Insights/Segmentation (2026-09-02): Sampl's
+// "review rate and purchase intent can be viewed by audience segment" and
+// Zamplit's "insights include...audience differences" — the product
+// already computed demographics (getDemographics) and purchase intent
+// (here) as two entirely separate distributions, but never the one thing
+// both references name explicitly: whether purchase intent actually
+// *differs* across the sample's own segments. `respondentCount` is always
+// shown alongside the percentage — this campaign's own evidence discipline
+// (visible sample size, no unsupported segmentation) applies here exactly
+// as it does everywhere else in the product.
+export interface SegmentPurchaseIntent {
+  label: string;
+  respondentCount: number;
+  positiveIntentPercent: number;
+}
+
 export interface SurveyData {
   purchaseIntentScore: number;
   purchaseIntentDistribution: DistributionItem[];
+  purchaseIntentBySegment: {
+    byGender: SegmentPurchaseIntent[];
+    byAgeRange: SegmentPurchaseIntent[];
+  };
   questionBreakdown: Record<string, { label: string; count: number }[]>;
   verbatims: string[];
   customQuestions: CustomQuestionResult[];
@@ -164,7 +184,11 @@ export class AnalyticsService {
   private static readonly CORE_QUESTION_IDS = new Set(['q1', 'q2', 'q3', 'q4', 'q5']);
 
   async getSurveyBreakdown(campaignId: string): Promise<SurveyData> {
-    const surveys = await this.surveyRepo.find({ where: { campaignId } });
+    // `relations: ['consumer']` added for purchaseIntentBySegment below —
+    // one join on the same query, not a second round trip; every other
+    // read in this function is unaffected (SurveyResponse.answers, used by
+    // all of them, was already being selected).
+    const surveys = await this.surveyRepo.find({ where: { campaignId }, relations: ['consumer'] });
     const campaign = await this.campaignRepo.findOne({ where: { id: campaignId } });
 
     const purchaseIntentValues = surveys
@@ -266,6 +290,10 @@ export class AnalyticsService {
     return {
       purchaseIntentScore,
       purchaseIntentDistribution,
+      purchaseIntentBySegment: {
+        byGender: this.buildPurchaseIntentBySegment(surveys, (s) => s.consumer?.gender ?? null),
+        byAgeRange: this.buildPurchaseIntentBySegment(surveys, (s) => s.consumer?.ageRange ?? null),
+      },
       questionBreakdown: {
         q3: q3Dist,
         q4: q4Dist,
@@ -274,6 +302,31 @@ export class AnalyticsService {
       customQuestions,
       firstImpressionScore,
     };
+  }
+
+  // Groups survey responses by an arbitrary demographic key (gender, age
+  // range) and reuses the existing calcPurchaseIntentPercent() — the same
+  // Top-2-Box (q2>=4) convention already used for the campaign-wide
+  // purchaseIntentPercent everywhere else — per group, rather than
+  // introducing a second definition of "positive intent". Segments with
+  // zero responses are simply absent, not shown as 0%.
+  private buildPurchaseIntentBySegment(
+    surveys: SurveyResponse[],
+    segmentOf: (s: SurveyResponse) => string | null,
+  ): SegmentPurchaseIntent[] {
+    const bySegment = new Map<string, SurveyResponse[]>();
+    for (const s of surveys) {
+      const label = segmentOf(s) ?? 'Unknown';
+      if (!bySegment.has(label)) bySegment.set(label, []);
+      bySegment.get(label)!.push(s);
+    }
+    return Array.from(bySegment.entries())
+      .map(([label, group]) => ({
+        label,
+        respondentCount: group.length,
+        positiveIntentPercent: this.calcPurchaseIntentPercent(group),
+      }))
+      .sort((a, b) => b.respondentCount - a.respondentCount);
   }
 
   // Shared quality gate for any free-text question (q5 or a custom text

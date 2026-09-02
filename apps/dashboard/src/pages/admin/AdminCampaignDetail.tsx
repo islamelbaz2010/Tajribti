@@ -309,6 +309,27 @@ export default function AdminCampaignDetail() {
             </div>
           </div>
 
+          {/* Reference Product Benchmark, Insights/Segmentation (2026-09-02):
+              demographics and purchase intent above are still two separate
+              cards — this is the first place Admin (like the Company
+              Console's SurveyResults.tsx) can see whether intent actually
+              differs by segment, matching Sampl/Zamplit's explicit
+              "purchase intent by audience segment" pattern. Same
+              GET /admin/campaigns/:id/survey response already fetched. */}
+          {(survey.purchaseIntentBySegment.byGender.length > 0 ||
+            survey.purchaseIntentBySegment.byAgeRange.length > 0) && (
+            <div style={{ ...styles.grid2, marginTop: 14 }}>
+              <div style={styles.card}>
+                <div style={styles.cardTitle}>Purchase Intent by Gender</div>
+                <SegmentIntentList items={survey.purchaseIntentBySegment.byGender} />
+              </div>
+              <div style={styles.card}>
+                <div style={styles.cardTitle}>Purchase Intent by Age</div>
+                <SegmentIntentList items={survey.purchaseIntentBySegment.byAgeRange} />
+              </div>
+            </div>
+          )}
+
           {/* Product Completion Wave (2026-09-02): the full survey result —
               not just Purchase Intent/Demographics. Q1/Q3/Q4 are part of
               every campaign's default 5-question survey (same data
@@ -424,6 +445,26 @@ function DistributionList({ title, items }: { title: string; items: { label: str
 // breakdown return {label,count}[] only (no precomputed percentage, since
 // analytics.service.ts never needed one there before now); this computes
 // it client-side from the same counts rather than changing that API shape.
+function SegmentIntentList({
+  items,
+}: {
+  items: { label: string; respondentCount: number; positiveIntentPercent: number }[];
+}) {
+  if (items.length === 0) return <p style={styles.hint}>No responses to this question yet.</p>;
+  return (
+    <div>
+      {items.map((it) => (
+        <div key={it.label} style={styles.distRow}>
+          <span style={{ ...styles.distLabel, textTransform: 'capitalize' as const }}>
+            {it.label} <span style={styles.hint}>({it.respondentCount})</span>
+          </span>
+          <span style={styles.distValue}>{it.positiveIntentPercent}%</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DistributionListRaw({ items }: { items: { label: string; count: number }[] }) {
   if (items.length === 0) return <p style={styles.hint}>No responses to this question yet.</p>;
   const total = items.reduce((sum, it) => sum + it.count, 0) || 1;

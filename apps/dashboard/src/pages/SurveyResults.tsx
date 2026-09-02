@@ -101,7 +101,25 @@ export default function SurveyResults() {
         </div>
       </div>
 
-      <div style={styles.grid}>
+      {/* Reference Product Benchmark, Insights/Segmentation (2026-09-02):
+          purchase intent and demographics were always two separate
+          screens/sections — this is the first place the product shows
+          whether intent actually differs across the sample's own
+          segments (Sampl: "purchase intent can be viewed by audience
+          segment"; Zamplit: "insights include...audience differences").
+          Respondent count always shown alongside the percentage — same
+          small-sample honesty this product already applies everywhere
+          else; a segment with e.g. 1 respondent reads as exactly that,
+          not a confident 100%/0% claim. */}
+      {(data.purchaseIntentBySegment.byGender.length > 0 ||
+        data.purchaseIntentBySegment.byAgeRange.length > 0) && (
+        <div style={{ ...styles.grid, marginTop: 16 }}>
+          <SegmentIntentCard title="Purchase Intent by Gender" segments={data.purchaseIntentBySegment.byGender} />
+          <SegmentIntentCard title="Purchase Intent by Age" segments={data.purchaseIntentBySegment.byAgeRange} />
+        </div>
+      )}
+
+      <div style={{ ...styles.grid, marginTop: 16 }}>
         <div style={styles.card}>
           <div style={styles.cardTitle}>First Impression (Q1)</div>
           {data.firstImpressionScore.responseCount === 0 ? (
@@ -243,6 +261,32 @@ export default function SurveyResults() {
   );
 }
 
+function SegmentIntentCard({
+  title,
+  segments,
+}: {
+  title: string;
+  segments: { label: string; respondentCount: number; positiveIntentPercent: number }[];
+}) {
+  if (segments.length === 0) return null;
+  return (
+    <div style={styles.card}>
+      <div style={styles.cardTitle}>{title}</div>
+      {segments.map((seg) => (
+        <div key={seg.label} style={styles.intentRow}>
+          <span style={styles.segmentLabel}>
+            {seg.label} <span style={styles.segmentCount}>({seg.respondentCount})</span>
+          </span>
+          <div style={styles.barTrack}>
+            <div style={{ ...styles.barFill, width: `${seg.positiveIntentPercent}%`, background: '#b2f24d' }} />
+          </div>
+          <span style={{ ...styles.intentPct, color: '#b2f24d' }}>{seg.positiveIntentPercent}%</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const styles: Record<string, React.CSSProperties> = {
   loading: { color: '#7a8bab', fontSize: 14, marginTop: 32 },
   error: { color: '#dc2626', fontSize: 14, marginTop: 32 },
@@ -328,6 +372,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   intentRow: { display: 'flex', alignItems: 'center', gap: 12 },
   intentLabel: { width: 90, fontSize: 12, color: '#4a5a7e', fontWeight: 500 },
+  segmentLabel: { width: 130, fontSize: 12, color: '#4a5a7e', fontWeight: 500, textTransform: 'capitalize' as const },
+  segmentCount: { color: '#7c8eb8', fontWeight: 400 },
   barTrack: {
     flex: 1,
     height: 8,

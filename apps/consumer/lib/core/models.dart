@@ -55,19 +55,41 @@ class Campaign {
         endDate: json['endDate'] as String?,
       );
 
-  // Date-only comparison in the device's local time: a campaign starting
-  // "tomorrow" should read as Coming Soon to the consumer looking at their
-  // own clock, which matters more for this label than exact synchronization
-  // with the server's UTC-based gate (the server remains the actual
-  // authority — this only affects what the app shows before that gate is
-  // even reached).
+  // Cross-surface consistency fix (2026-09-02): both getters below used to
+  // compare against `DateTime.now()` — the DEVICE's own local clock/
+  // timezone, whatever that happens to be set to — with a comment
+  // justifying it as matching "the server's UTC-based gate". That was true
+  // once, but the server side of this exact comparison was fixed in DL-085
+  // the same day these getters were written: `campaign.entity.ts`'s
+  // `todayInCairo()` now computes "today" in Africa/Cairo specifically,
+  // because a UTC-based gate rejected a same-day Cairo campaign for the
+  // first ~2 hours of every Cairo day (a real, reproduced production
+  // incident). This getter's own comment was never updated to match, so it
+  // silently reintroduced the same class of mismatch one layer up: a
+  // consumer whose phone is not set to Cairo time (traveling, a
+  // misconfigured clock, or simply a non-Cairo device timezone) could see
+  // "Coming Soon" or "Ended" for a campaign the server would actually
+  // accept right now — locking them out of the entry button before ever
+  // reaching the real, authoritative server check. Fixed the same way the
+  // server was: pin to Cairo's calendar date, not the device's own zone.
+  // Africa/Cairo has been a fixed UTC+2 offset with no DST since 2014 (the
+  // same fact DL-085's server-side fix relies on), so a full IANA timezone
+  // package isn't needed here — UTC+2 is exact, not an approximation, and
+  // this uses only Dart's built-in DateTime.
+  static DateTime _todayInCairo() {
+    final cairoNow = DateTime.now().toUtc().add(const Duration(hours: 2));
+    return DateTime(cairoNow.year, cairoNow.month, cairoNow.day);
+  }
+
+  // Presentation only — the API (isCampaignOpenForParticipation) remains
+  // the real authority; this only decides what the app shows before that
+  // gate is ever reached.
   bool get isComingSoon {
     if (status != 'active' || startDate == null || startDate!.isEmpty) return false;
     try {
       final start = DateTime.parse(startDate!);
-      final today = DateTime.now();
-      final todayDateOnly = DateTime(today.year, today.month, today.day);
-      return DateTime(start.year, start.month, start.day).isAfter(todayDateOnly);
+      final startDateOnly = DateTime(start.year, start.month, start.day);
+      return startDateOnly.isAfter(_todayInCairo());
     } catch (_) {
       return false;
     }
@@ -79,16 +101,14 @@ class Campaign {
   // "active" (no new lifecycle status; see campaign.entity.ts's
   // hasCampaignEnded on the API side, which this presentation-only getter
   // mirrors). endDate is INCLUSIVE — the campaign is still open THROUGH
-  // its end date, not before it; only "before today" counts as ended,
-  // matching the server's own >= today-UTC gate. Presentation only — the
-  // API (isCampaignOpenForParticipation) remains the real authority.
+  // its end date, not before it; only "before today" (Cairo) counts as
+  // ended. Presentation only — the API remains the real authority.
   bool get hasEnded {
     if (status != 'active' || endDate == null || endDate!.isEmpty) return false;
     try {
       final end = DateTime.parse(endDate!);
-      final today = DateTime.now();
-      final todayDateOnly = DateTime(today.year, today.month, today.day);
-      return DateTime(end.year, end.month, end.day).isBefore(todayDateOnly);
+      final endDateOnly = DateTime(end.year, end.month, end.day);
+      return endDateOnly.isBefore(_todayInCairo());
     } catch (_) {
       return false;
     }

@@ -423,7 +423,10 @@ export class AdminService {
     search?: string;
     status?: string;
     brandId?: string;
-  }): Promise<{ campaigns: Array<Campaign & { companyName: string | null }>; total: number }> {
+  }): Promise<{
+    campaigns: Array<Campaign & { companyName: string | null; participantCount: number }>;
+    total: number;
+  }> {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(100, Math.max(1, query.limit ?? 20));
 
@@ -443,8 +446,15 @@ export class AdminService {
     }
 
     const [campaigns, total] = await qb.getManyAndCount();
+    // Reference Product Benchmark, Admin Operations (2026-09-02): an
+    // operator scanning the cross-Company campaign table should be able to
+    // see participant counts without clicking into every row — reuses
+    // CampaignService's own grouped-COUNT helper (one extra query for the
+    // whole page, not per row) rather than duplicating the aggregation.
+    const withCounts = await this.campaignService.attachParticipantCounts(campaigns);
+    const companyNameById = new Map(campaigns.map((c) => [c.id, c.brandAccount?.name ?? null]));
     return {
-      campaigns: campaigns.map((c) => ({ ...c, companyName: c.brandAccount?.name ?? null })),
+      campaigns: withCounts.map((c) => ({ ...c, companyName: companyNameById.get(c.id) ?? null })),
       total,
     };
   }

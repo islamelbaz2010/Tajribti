@@ -102,9 +102,19 @@ export default function Campaigns() {
                 <div style={styles.cardBrand}>{c.brandName}</div>
                 <div style={styles.cardProduct}>{c.productName}</div>
                 <div style={styles.cardMeta}>
-                  {c.targetCount} target · {c.rewardPoints} pts
+                  {c.participantCount ?? 0} / {c.targetCount} participants · {c.rewardPoints} pts
                   {c.locationName ? ` · ${c.locationName}` : ''}
                 </div>
+                {c.targetCount > 0 && (
+                  <div style={styles.progressTrack}>
+                    <div
+                      style={{
+                        ...styles.progressFill,
+                        width: `${Math.min(100, Math.round(((c.participantCount ?? 0) / c.targetCount) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                )}
                 <div style={styles.cardActions}>
                   <Link to={`/campaign?campaignId=${c.id}`} style={styles.actionBtnPrimary}>
                     Manage
@@ -242,7 +252,19 @@ const styles: Record<string, React.CSSProperties> = {
   },
   cardBrand: { fontSize: 15, fontWeight: 800, color: '#0a1120' },
   cardProduct: { fontSize: 12, color: '#4a5a7e', fontWeight: 500 },
-  cardMeta: { fontSize: 11, color: '#7a8bab', marginTop: 4, marginBottom: 12 },
+  cardMeta: { fontSize: 11, color: '#7a8bab', marginTop: 4, marginBottom: 6 },
+  progressTrack: {
+    height: 4,
+    borderRadius: 2,
+    background: '#eef1f7',
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  progressFill: {
+    height: '100%',
+    background: '#b2f24d',
+    borderRadius: 2,
+  },
   cardActions: { display: 'flex', gap: 8, flexWrap: 'wrap' as const },
   actionBtnPrimary: {
     background: 'rgba(178, 242, 77, 0.1)',

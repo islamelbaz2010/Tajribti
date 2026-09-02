@@ -9,8 +9,11 @@ import { Repository } from 'typeorm';
 import { Campaign, CampaignStatus, SurveyQuestion } from '../../entities/campaign.entity';
 import { QrCode } from '../../entities/qr-code.entity';
 import { BrandContact } from '../../entities/brand-contact.entity';
+import { RedemptionEvent } from '../../entities/redemption-event.entity';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
+
+export type CampaignWithParticipants = Campaign & { participantCount: number };
 
 const DEFAULT_SURVEY_QUESTIONS: SurveyQuestion[] = [
   {
@@ -63,7 +66,34 @@ export class CampaignService {
     private readonly qrCodeRepo: Repository<QrCode>,
     @InjectRepository(BrandContact)
     private readonly brandContactRepo: Repository<BrandContact>,
+    @InjectRepository(RedemptionEvent)
+    private readonly redemptionRepo: Repository<RedemptionEvent>,
   ) {}
+
+  // Reference Product Benchmark, Admin/Company list views (2026-09-02):
+  // AnalyticsService.getOverview() already computes participant/redemption
+  // counts, but only per-campaign, on demand, once you're already inside
+  // a campaign's detail page — the Company's own Campaigns.tsx cards and
+  // Admin's cross-Company campaign table showed status only, with zero
+  // "how many participants / what's the progress" visibility without
+  // clicking into every single row. One grouped COUNT query (not N+1 —
+  // matters at the ~100-200 campaign scale this product targets), reused
+  // by both findByBrand() and admin.service.ts's listAllCampaigns().
+  async attachParticipantCounts(
+    campaigns: Campaign[],
+  ): Promise<CampaignWithParticipants[]> {
+    if (campaigns.length === 0) return [];
+    const ids = campaigns.map((c) => c.id);
+    const rows = await this.redemptionRepo
+      .createQueryBuilder('r')
+      .select('r.campaignId', 'campaignId')
+      .addSelect('COUNT(*)', 'count')
+      .where('r.campaignId IN (:...ids)', { ids })
+      .groupBy('r.campaignId')
+      .getRawMany<{ campaignId: string; count: string }>();
+    const countByCampaign = new Map(rows.map((r) => [r.campaignId, Number(r.count)]));
+    return campaigns.map((c) => ({ ...c, participantCount: countByCampaign.get(c.id) ?? 0 }));
+  }
 
   async createCampaign(brandAccountId: string, dto: CreateCampaignDto): Promise<Campaign> {
     this.validateDateRange(dto.startDate ?? null, dto.endDate ?? null);
@@ -94,11 +124,12 @@ export class CampaignService {
     return this.campaignRepo.save(campaign);
   }
 
-  async findByBrand(brandAccountId: string): Promise<Campaign[]> {
-    return this.campaignRepo.find({
+  async findByBrand(brandAccountId: string): Promise<CampaignWithParticipants[]> {
+    const campaigns = await this.campaignRepo.find({
       where: { brandAccountId },
       order: { createdAt: 'DESC' },
     });
+    return this.attachParticipantCounts(campaigns);
   }
 
   async findActive(): Promise<Campaign[]> {

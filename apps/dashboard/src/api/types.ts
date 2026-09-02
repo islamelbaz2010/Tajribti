@@ -101,6 +101,13 @@ export interface Campaign {
   isDemo: boolean;
   surveyQuestions: SurveyQuestion[];
   contactId?: string | null;
+  // Reference Product Benchmark, list-view progress (2026-09-02): how many
+  // consumers have actually redeemed/participated so far, out of
+  // targetCount — present on every endpoint that returns a campaign list
+  // (GET /campaigns/my, GET /admin/campaigns), absent on single-campaign
+  // detail endpoints where AnalyticsService's own richer overview already
+  // covers it. Optional so existing single-campaign call sites are unaffected.
+  participantCount?: number;
 }
 
 // Company Foundation (2026-09-01)

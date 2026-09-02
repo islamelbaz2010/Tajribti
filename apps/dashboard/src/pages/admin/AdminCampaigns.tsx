@@ -117,6 +117,7 @@ export default function AdminCampaigns() {
                   <th style={styles.th}>Product</th>
                   <th style={styles.th}>Company</th>
                   <th style={styles.th}>Status</th>
+                  <th style={styles.th}>Participants</th>
                   <th style={styles.th}>Created</th>
                 </tr>
               </thead>
@@ -145,11 +146,14 @@ export default function AdminCampaigns() {
                         </span>
                       )}
                     </td>
+                    <td style={styles.td}>
+                      {c.participantCount ?? 0} / {c.targetCount}
+                    </td>
                     <td style={styles.td}>{new Date(c.createdAt).toLocaleDateString()}</td>
                   </tr>
                 ))}
                 {campaigns.length === 0 && (
-                  <tr><td style={styles.td} colSpan={4}>No campaigns match these filters.</td></tr>
+                  <tr><td style={styles.td} colSpan={5}>No campaigns match these filters.</td></tr>
                 )}
               </tbody>
             </table>

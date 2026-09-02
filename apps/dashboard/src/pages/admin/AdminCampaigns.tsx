@@ -13,6 +13,20 @@ const STATUS_COLOR: Record<string, string> = {
 
 const PAGE_SIZE = 20;
 
+// Reference Product Benchmark, Operational Control (2026-09-02): a campaign
+// still marked `active` whose endDate has already passed is no longer
+// actually open to consumer participation — isCampaignOpenForParticipation()
+// on the API already treats it as closed (campaign.entity.ts) — but nothing
+// surfaced that to Admin as something to act on (mark it Completed). Purely
+// client-side (the row already carries `status`/`endDate`, no backend
+// change needed): a lightweight, honest "needs attention" signal computed
+// from data that already exists, not a new field or a new business rule.
+function needsAttention(c: { status: string; endDate: string | null }): boolean {
+  if (c.status !== 'active' || !c.endDate) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return c.endDate < today;
+}
+
 // Founder ruling W-2 (2026-09-02): the global, cross-Company "Admin ->
 // Campaigns" view — usable at the ~100-200 campaign scale this task
 // requires: server-side pagination, search (product/brand name), and
@@ -125,6 +139,11 @@ export default function AdminCampaigns() {
                       >
                         {c.status.toUpperCase()}
                       </span>
+                      {needsAttention(c) && (
+                        <span style={styles.attentionPill} title="Active, but its end date has already passed — consumers can no longer join. Consider marking it Completed.">
+                          NEEDS ATTENTION
+                        </span>
+                      )}
                     </td>
                     <td style={styles.td}>{new Date(c.createdAt).toLocaleDateString()}</td>
                   </tr>
@@ -184,6 +203,10 @@ const styles: Record<string, React.CSSProperties> = {
   td: { padding: '14px 16px', fontSize: 13, color: '#0a1120', borderBottom: '1px solid #f1f4f9' },
   campaignLink: { color: '#0a1120', fontWeight: 700, textDecoration: 'none' },
   statusPill: { fontSize: 9, fontWeight: 800, border: '1px solid', borderRadius: 4, padding: '3px 8px', letterSpacing: 0.5 },
+  attentionPill: {
+    fontSize: 9, fontWeight: 800, color: '#b91c1c', background: '#fef2f2', border: '1px solid #fecaca',
+    borderRadius: 4, padding: '3px 8px', letterSpacing: 0.5, marginLeft: 6,
+  },
   pagination: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 20 },
   pageBtn: {
     background: '#ffffff', border: '1px solid #e8ecf3', color: '#0a1120', borderRadius: 8,

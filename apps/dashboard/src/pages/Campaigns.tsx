@@ -26,6 +26,18 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+// Reference Product Benchmark, Operational Control (2026-09-02): mirrors the
+// same client-side "needs attention" hint added to the Admin campaign list
+// — a campaign still marked `active` whose endDate has passed is already
+// closed to new participation server-side (isCampaignOpenForParticipation(),
+// campaign.entity.ts); this just surfaces that to the Company too, from
+// data the card already has. No backend change.
+function needsAttention(c: { status: string; endDate: string | null }): boolean {
+  if (c.status !== 'active' || !c.endDate) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return c.endDate < today;
+}
+
 export default function Campaigns() {
   const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
   const [error, setError] = useState('');
@@ -79,6 +91,11 @@ export default function Campaigns() {
                 <div style={styles.cardBadgeRow}>
                   {c.isDemo && <span style={styles.demoBadge}>DEMO</span>}
                   <StatusBadge status={c.status} />
+                  {needsAttention(c) && (
+                    <span style={styles.attentionBadge} title="This campaign's end date has passed — consumers can no longer join. Consider marking it Completed.">
+                      NEEDS ATTENTION
+                    </span>
+                  )}
                 </div>
               </div>
               <div style={styles.cardBody}>
@@ -206,6 +223,16 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: 1,
     border: '1px solid',
     marginLeft: 'auto',
+  },
+  attentionBadge: {
+    fontSize: 9,
+    fontWeight: 800,
+    color: '#b91c1c',
+    background: '#fef2f2',
+    border: '1px solid #fecaca',
+    borderRadius: 3,
+    padding: '3px 8px',
+    letterSpacing: 1,
   },
   cardBody: {
     padding: 16,

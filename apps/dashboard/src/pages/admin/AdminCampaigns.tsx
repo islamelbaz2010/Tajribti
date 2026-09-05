@@ -73,7 +73,9 @@ export default function AdminCampaigns() {
   return (
     <div style={styles.root}>
       <div style={styles.header}>
-        <h1 style={styles.title}>Campaigns</h1>
+        {/* DL-107 (2026-09-06): visual harmonization — editorial badge */}
+        <span style={styles.adminBadge}>TAJRIBTI ADMIN</span>
+        <h1 style={styles.title}>All Campaigns</h1>
         <p style={styles.sub}>Every campaign across every Company — {total} total.</p>
       </div>
 
@@ -187,6 +189,18 @@ const styles: Record<string, React.CSSProperties> = {
   muted: { color: '#7a8bab', fontSize: 14 },
   errMsg: { color: '#dc2626', fontSize: 14 },
   header: { marginBottom: 20 },
+  // DL-107: admin editorial badge
+  adminBadge: {
+    display: 'inline-block',
+    fontSize: 9,
+    fontWeight: 800,
+    color: '#040812',
+    background: '#b2f24d',
+    borderRadius: 3,
+    padding: '3px 8px',
+    letterSpacing: 1.5,
+    marginBottom: 6,
+  },
   title: { fontSize: 24, fontWeight: 800, color: '#0a1120', margin: '0 0 6px', letterSpacing: -0.3 },
   sub: { fontSize: 13, color: '#4a5a7e', margin: 0 },
   filters: { display: 'flex', gap: 10, marginBottom: 16 },

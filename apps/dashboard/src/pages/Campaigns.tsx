@@ -53,7 +53,11 @@ export default function Campaigns() {
     <div>
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>Campaign Management</h1>
+          {/* DL-107 (2026-09-06): visual harmonization — editorial badge aligns
+              Campaign Management header with the premium editorial pattern used
+              on Insights, SurveyResults, and Participants. */}
+          <span style={styles.demoBadge}>CAMPAIGN MANAGEMENT</span>
+          <h1 style={styles.title}>My Campaigns</h1>
           <p style={styles.sub}>Every campaign on this account — create, edit, and manage from here.</p>
         </div>
         <Link to="/campaigns/new" style={styles.newBtn}>
@@ -216,14 +220,17 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 6,
     justifyContent: 'space-between',
   },
+  // DL-107: editorial badge — used for both the page header label and card DEMO badges
   demoBadge: {
+    display: 'inline-block',
     fontSize: 9,
     fontWeight: 800,
     color: '#040812',
     background: '#b2f24d',
     borderRadius: 3,
     padding: '3px 8px',
-    letterSpacing: 1,
+    letterSpacing: 1.5,
+    marginBottom: 4,
   },
   statusBadge: {
     fontSize: 9,

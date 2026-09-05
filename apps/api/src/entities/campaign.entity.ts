@@ -110,6 +110,32 @@ export class Campaign {
   @JoinColumn({ name: 'contact_id' })
   contact: BrandContact | null;
 
+  // Benchmark Alignment — Campaign Creation (2026-09-06, DL-101):
+  // Campaign purpose/goal — what the Company intends to learn or achieve
+  // from this trial campaign. Free text, optional — used as a
+  // planning/reporting anchor, not a runtime gate.
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  objective: string | null;
+
+  // Benchmark Alignment — Audience/Eligibility (2026-09-06, DL-101):
+  // Restricts participation to a specific gender. NULL = no restriction
+  // (all genders eligible). Only 'male' and 'female' are supported —
+  // these are the values stored in consumer.gender via the consumer
+  // onboarding flow. Enforcement is server-side; client-only enforcement
+  // is never relied upon.
+  @Column({ name: 'audience_gender', type: 'varchar', length: 20, nullable: true })
+  audienceGender: string | null;
+
+  // Benchmark Alignment — Audience/Eligibility (2026-09-06, DL-101):
+  // Restricts participation to consumers whose ageRange falls within the
+  // listed values (e.g. ['18-24', '25-34']). NULL or empty array = no
+  // restriction. Values must match the fixed ageRange strings stored in
+  // consumer.ageRange. Stored as JSONB for forward-compatibility (adding
+  // or removing ranges requires no schema migration). Server-side
+  // enforcement only.
+  @Column({ name: 'audience_age_ranges', type: 'jsonb', nullable: true })
+  audienceAgeRanges: string[] | null;
+
   @Column({ name: 'is_demo', default: false })
   isDemo: boolean;
 

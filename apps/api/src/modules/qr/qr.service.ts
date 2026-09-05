@@ -15,7 +15,9 @@ import {
   isCampaignOpenForParticipation,
   getParticipationBlockedReason,
 } from '../../entities/campaign.entity';
+import { Consumer } from '../../entities/consumer.entity';
 import { CampaignVerification } from '../../entities/campaign-verification.entity';
+import { checkCampaignEligibility } from '../campaign/campaign-eligibility.util';
 
 // B-04 remediation (2026-09-01): Postgres unique_violation SQLSTATE. TypeORM
 // wraps driver errors in QueryFailedError; node-postgres always sets `.code`
@@ -43,6 +45,8 @@ export class QrService {
     private readonly redemptionRepo: Repository<RedemptionEvent>,
     @InjectRepository(Campaign)
     private readonly campaignRepo: Repository<Campaign>,
+    @InjectRepository(Consumer)
+    private readonly consumerRepo: Repository<Consumer>,
     @InjectRepository(CampaignVerification)
     private readonly campaignVerificationRepo: Repository<CampaignVerification>,
     private readonly configService: ConfigService,
@@ -92,6 +96,21 @@ export class QrService {
     const isDemo = qrCode.status === QrCodeStatus.DEMO;
 
     if (!isDemo) {
+      // Benchmark Alignment — Audience/Eligibility (2026-09-06, DL-101):
+      // Server-side eligibility enforcement at the QR redemption gate.
+      // Demo redemptions are exempt (same exemption as existing dupe-check).
+      const consumer = await this.consumerRepo.findOne({
+        where: { id: dto.consumerId },
+      });
+      if (consumer) {
+        const eligibility = checkCampaignEligibility(campaign, consumer);
+        if (!eligibility.eligible) {
+          throw new BadRequestException(
+            eligibility.reason ?? 'You are not eligible for this campaign',
+          );
+        }
+      }
+
       const existingRedemption = await this.redemptionRepo.findOne({
         where: { consumerId: dto.consumerId, campaignId: dto.campaignId },
       });
@@ -228,6 +247,23 @@ export class QrService {
 
     if (!isCampaignOpenForParticipation(campaign)) {
       throw new BadRequestException(getParticipationBlockedReason(campaign));
+    }
+
+    // Benchmark Alignment — Audience/Eligibility (2026-09-06, DL-101):
+    // Server-side eligibility enforcement at the web entry gate.
+    // Checked after the date/status gate (which is a universal blocker)
+    // and after the already-participated check (which must always be
+    // visible even to ineligible consumers who somehow participated before
+    // an audience restriction was added). For fresh first-time
+    // participation only.
+    const consumer = await this.consumerRepo.findOne({ where: { id: consumerId } });
+    if (consumer) {
+      const eligibility = checkCampaignEligibility(campaign, consumer);
+      if (!eligibility.eligible) {
+        throw new BadRequestException(
+          eligibility.reason ?? 'You are not eligible for this campaign',
+        );
+      }
     }
 
     if (!verified) {

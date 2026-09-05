@@ -122,7 +122,15 @@ export interface Campaign {
   // detail endpoints where AnalyticsService's own richer overview already
   // covers it. Optional so existing single-campaign call sites are unaffected.
   participantCount?: number;
+  // Benchmark Alignment — Campaign Creation + Audience/Eligibility
+  // (2026-09-06, DL-101): new optional fields.
+  objective?: string | null;
+  audienceGender?: string | null;
+  audienceAgeRanges?: string[] | null;
 }
+
+// Accepted age range values — mirrors consumer onboarding options.
+export const VALID_AGE_RANGES = ['18-24', '25-34', '35-44', '45-54', '55+'];
 
 // Company Foundation (2026-09-01)
 export type BrandSector = 'fmcg' | 'beauty_personal_care' | 'pharma_otc';

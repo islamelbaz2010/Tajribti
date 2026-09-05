@@ -3,6 +3,7 @@ import {
   IsInt,
   IsOptional,
   IsUUID,
+  IsIn,
   Min,
   MaxLength,
   MinLength,
@@ -15,6 +16,7 @@ import {
 import { Type } from 'class-transformer';
 import { CampaignStatus } from '../../../entities/campaign.entity';
 import { SurveyQuestionDto } from './survey-question.dto';
+import { VALID_AGE_RANGES } from './create-campaign.dto';
 
 // Bounded edit surface for Internal Tajribti Campaign Operations (DL-055 item 1),
 // Survey Builder V2 (Company Console Product Maturation, 2026-09-01), and
@@ -93,4 +95,20 @@ export class UpdateCampaignDto {
   @ValidateNested({ each: true })
   @Type(() => SurveyQuestionDto)
   surveyQuestions?: SurveyQuestionDto[];
+
+  // Benchmark Alignment — Campaign Creation + Audience/Eligibility
+  // (2026-09-06, DL-101): editable after creation.
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  objective?: string;
+
+  @IsOptional()
+  @IsIn(['male', 'female', ''])
+  audienceGender?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsIn(VALID_AGE_RANGES, { each: true })
+  audienceAgeRanges?: string[];
 }

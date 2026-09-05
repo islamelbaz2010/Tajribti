@@ -1,5 +1,6 @@
 import {
   Controller,
+  ForbiddenException,
   Get,
   Post,
   Patch,
@@ -58,6 +59,26 @@ export class CampaignController {
   @Get('demo/active')
   findDemoActive() {
     return this.campaignService.findDemoActive();
+  }
+
+  // Benchmark Alignment — Audience/Eligibility (2026-09-06, DL-101):
+  // Consumer-facing pre-participation eligibility check. The consumer app
+  // calls this before initiating the OTP/participation flow so it can show
+  // an appropriate state (eligible → proceed, ineligible → explain why).
+  //
+  // Requires a valid consumer JWT. Returns {eligible, reason?}. The server-
+  // side participation gates (QrService, AuthService) enforce the same rule
+  // independently — this endpoint is informational (lets the app present the
+  // right UI) and does NOT replace server enforcement.
+  @Get(':id/eligibility')
+  async checkEligibility(
+    @Param('id') id: string,
+    @Request() req: RequestWithUser,
+  ) {
+    if (req.user.type !== 'consumer') {
+      throw new ForbiddenException('Only consumers can check campaign eligibility');
+    }
+    return this.campaignService.checkEligibilityForConsumer(id, req.user.id);
   }
 
   @Public()

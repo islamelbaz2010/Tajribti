@@ -102,6 +102,10 @@ export const campaignApi = {
     endDate?: string;
     contactId?: string;
     surveyQuestions?: SurveyQuestion[];
+    // Benchmark Alignment — Campaign Creation + Audience (2026-09-06, DL-101)
+    objective?: string;
+    audienceGender?: string;
+    audienceAgeRanges?: string[];
   }): Promise<Campaign> => client.post('/campaigns', body),
   // Internal Tajribti Campaign Operations (DL-055 item 1): edit + status
   // lifecycle. Ownership-enforced server-side (a brand may only update its
@@ -121,6 +125,10 @@ export const campaignApi = {
       status: string;
       contactId: string;
       surveyQuestions: SurveyQuestion[];
+      // Benchmark Alignment — Campaign Creation + Audience (2026-09-06, DL-101)
+      objective: string;
+      audienceGender: string;
+      audienceAgeRanges: string[];
     }>,
   ): Promise<Campaign> => client.patch(`/campaigns/${id}`, body),
 };

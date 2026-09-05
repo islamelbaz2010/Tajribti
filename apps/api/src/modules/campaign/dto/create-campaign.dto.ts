@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsArray,
   IsUUID,
+  IsIn,
   Min,
   MaxLength,
   MinLength,
@@ -13,6 +14,10 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { SurveyQuestionDto } from './survey-question.dto';
+
+// Accepted ageRange values — mirrors the consumer onboarding options so
+// campaign restrictions align with what profile data actually stores.
+export const VALID_AGE_RANGES = ['18-24', '25-34', '35-44', '45-54', '55+'];
 
 export class CreateCampaignDto {
   @IsString()
@@ -84,4 +89,25 @@ export class CreateCampaignDto {
   @ValidateNested({ each: true })
   @Type(() => SurveyQuestionDto)
   surveyQuestions?: SurveyQuestionDto[];
+
+  // Benchmark Alignment — Campaign Creation (2026-09-06, DL-101):
+  // Campaign objective/goal — what the Company aims to learn or validate.
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  objective?: string;
+
+  // Benchmark Alignment — Audience/Eligibility (2026-09-06, DL-101):
+  // Gender restriction. NULL/omitted = no restriction.
+  @IsOptional()
+  @IsIn(['male', 'female'])
+  audienceGender?: string;
+
+  // Benchmark Alignment — Audience/Eligibility (2026-09-06, DL-101):
+  // Age range restriction. Empty array / omitted = no restriction.
+  // Each value must match a known ageRange string.
+  @IsOptional()
+  @IsArray()
+  @IsIn(VALID_AGE_RANGES, { each: true })
+  audienceAgeRanges?: string[];
 }

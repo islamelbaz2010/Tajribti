@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../core/auth_service.dart';
 import '../core/constants.dart';
 import '../core/l10n.dart';
@@ -71,6 +72,34 @@ class SettingsScreen extends StatelessWidget {
               subtitle: 'English',
               selected: !isAr,
               onTap: () => langNotifier.setArabic(false),
+            ),
+            const SizedBox(height: 32),
+
+            // ── Support Section ───────────────────────────────────────────
+            // Consumer Support — Authorized 2026-09-06, DL-101
+            // Temporary production contact. Replace strings in l10n.dart
+            // (supportEmail / supportPhone) when permanent support channel
+            // is established. No UI change required to update the contact.
+            _SectionLabel(label: s.supportLabel),
+            const SizedBox(height: 12),
+            _SettingsTile(
+              icon: Icons.email_outlined,
+              label: s.supportEmailAction,
+              subtitle: s.supportEmail,
+              onTap: () async {
+                final uri = Uri.parse('mailto:${s.supportEmail}');
+                if (await canLaunchUrl(uri)) await launchUrl(uri);
+              },
+            ),
+            const SizedBox(height: 8),
+            _SettingsTile(
+              icon: Icons.phone_outlined,
+              label: s.supportPhoneAction,
+              subtitle: s.supportPhone,
+              onTap: () async {
+                final uri = Uri.parse('tel:${s.supportPhone}');
+                if (await canLaunchUrl(uri)) await launchUrl(uri);
+              },
             ),
             const SizedBox(height: 32),
 
@@ -194,12 +223,14 @@ class _LanguageTile extends StatelessWidget {
 class _SettingsTile extends StatelessWidget {
   final IconData icon;
   final String label;
+  final String? subtitle;
   final Color? iconColor;
   final Color? labelColor;
   final VoidCallback onTap;
   const _SettingsTile({
     required this.icon,
     required this.label,
+    this.subtitle,
     this.iconColor,
     this.labelColor,
     required this.onTap,
@@ -228,13 +259,28 @@ class _SettingsTile extends StatelessWidget {
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: labelColor ?? kPrimary,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: labelColor ?? kPrimary,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],

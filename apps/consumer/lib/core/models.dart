@@ -224,3 +224,11 @@ class ConsumerProfile {
             .toList(),
       );
 }
+
+
+// Benchmark Alignment — Audience/Eligibility (2026-09-06, DL-101)
+class EligibilityResult {
+  final bool eligible;
+  final String? reason;
+  const EligibilityResult({required this.eligible, this.reason});
+}

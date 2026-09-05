@@ -23,6 +23,7 @@ import {
   getParticipationBlockedReason,
 } from '../../entities/campaign.entity';
 import { CampaignVerification } from '../../entities/campaign-verification.entity';
+import { checkCampaignEligibility } from '../campaign/campaign-eligibility.util';
 import { EmailVerificationToken } from '../../entities/email-verification-token.entity';
 import { CompanyEmployee } from '../../entities/company-employee.entity';
 import { AdminUser } from '../../entities/admin-user.entity';
@@ -382,13 +383,32 @@ export class AuthService {
       this.pendingVerifications.delete(dto.transactionReqID);
     }
 
-    // Idempotent: verifying twice for the same (consumer, campaign) just
-    // confirms the existing verification rather than erroring — the unique
-    // constraint on (consumerId, campaignId) is the source of truth.
-    const existing = await this.campaignVerificationRepo.findOne({
+    // Benchmark Alignment — Audience/Eligibility (2026-09-06, DL-101):
+    // Server-side eligibility enforcement at the OTP verification gate.
+    // This is the earliest server-side point where both the consumer
+    // identity and campaign are known and validated — blocking here means
+    // an ineligible consumer never gets a CampaignVerification row and
+    // therefore cannot reach the redemption gate. Idempotent verification
+    // (existing row) is exempt: if the consumer already has a
+    // CampaignVerification for this campaign (e.g. re-scanning),
+    // eligibility was already checked at original verification time.
+    const existingForIdempotency = await this.campaignVerificationRepo.findOne({
       where: { consumerId, campaignId: dto.campaignId },
     });
-    if (!existing) {
+    if (!existingForIdempotency) {
+      // Fresh first-time verification: check eligibility now.
+      const [campaign, consumer] = await Promise.all([
+        this.campaignRepo.findOne({ where: { id: dto.campaignId } }),
+        this.consumerRepo.findOne({ where: { id: consumerId } }),
+      ]);
+      if (campaign && consumer) {
+        const eligibility = checkCampaignEligibility(campaign, consumer);
+        if (!eligibility.eligible) {
+          throw new BadRequestException(
+            eligibility.reason ?? 'You are not eligible for this campaign',
+          );
+        }
+      }
       await this.campaignVerificationRepo.save(
         this.campaignVerificationRepo.create({ consumerId, campaignId: dto.campaignId, phone }),
       );

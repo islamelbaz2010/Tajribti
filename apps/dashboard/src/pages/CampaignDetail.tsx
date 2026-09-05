@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { campaignApi, qrApi, companyApi, assetsApi } from '../api/endpoints';
 import type { Campaign, SurveyQuestion, BrandContact } from '../api/types';
+import { VALID_AGE_RANGES } from '../api/types';
 import SurveyEditor from '../components/SurveyEditor';
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
@@ -71,6 +72,10 @@ export default function CampaignDetail() {
   // campaign — selectable from the Company's own contacts only.
   const [editContactId, setEditContactId] = useState('');
   const [contacts, setContacts] = useState<BrandContact[]>([]);
+  // Benchmark Alignment — Objective + Audience/Eligibility (2026-09-06, DL-101)
+  const [editObjective, setEditObjective] = useState('');
+  const [editAudienceGender, setEditAudienceGender] = useState<'' | 'male' | 'female'>('');
+  const [editAudienceAgeRanges, setEditAudienceAgeRanges] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -92,6 +97,9 @@ export default function CampaignDetail() {
     setEditLocationAddress(c.locationAddress ?? '');
     setEditSurveyQuestions(c.surveyQuestions ?? []);
     setEditContactId(c.contactId ?? '');
+    setEditObjective(c.objective ?? '');
+    setEditAudienceGender((c.audienceGender as '' | 'male' | 'female') ?? '');
+    setEditAudienceAgeRanges(c.audienceAgeRanges ?? []);
   };
 
   useEffect(() => {
@@ -178,6 +186,10 @@ export default function CampaignDetail() {
         locationAddress: editLocationAddress || undefined,
         contactId: editContactId || undefined,
         surveyQuestions: editSurveyQuestions,
+        // Benchmark Alignment — Objective + Audience (2026-09-06, DL-101)
+        objective: editObjective || undefined,
+        audienceGender: editAudienceGender || '',   // empty string removes restriction
+        audienceAgeRanges: editAudienceAgeRanges,
       })
       .then((updated) => {
         loadFromCampaign(updated);
@@ -303,6 +315,40 @@ export default function CampaignDetail() {
         </div>
       </div>
 
+      {/* Draft state banner — Benchmark Alignment (2026-09-06, DL-101)
+          New campaigns are created as DRAFT so the Company reviews config
+          before consumers see the campaign. Prominent call-to-action here. */}
+      {campaign.status === 'draft' && (
+        <div style={styles.draftBanner}>
+          <div style={styles.draftBannerLeft}>
+            <span style={styles.draftChip}>DRAFT</span>
+            <span>
+              This campaign is not yet visible to consumers. Review the configuration below, then
+              launch when ready.
+            </span>
+          </div>
+          <button
+            style={styles.draftLaunchBtn}
+            disabled={saving}
+            onClick={() => {
+              if (!campaign) return;
+              if (!window.confirm('Launch this campaign? Consumers will be able to join immediately.')) return;
+              setSaving(true);
+              campaignApi
+                .update(campaign.id, { status: 'active' })
+                .then((updated) => {
+                  loadFromCampaign(updated);
+                  setSaveSuccess(true);
+                })
+                .catch(() => setSaveError('Could not launch the campaign.'))
+                .finally(() => setSaving(false));
+            }}
+          >
+            🚀 Launch Campaign
+          </button>
+        </div>
+      )}
+
       {needsAttention(campaign) && (
         <div style={styles.attentionBanner}>
           <span>
@@ -346,6 +392,24 @@ export default function CampaignDetail() {
           <InfoRow label="Period" value={`${campaign.startDate} → ${campaign.endDate}`} />
           {campaign.description && (
             <p style={styles.description}>{campaign.description}</p>
+          )}
+          {campaign.objective && (
+            <div style={styles.objectiveBlock}>
+              <span style={styles.objectiveLabel}>Objective</span>
+              <p style={styles.objectiveText}>{campaign.objective}</p>
+            </div>
+          )}
+          {(campaign.audienceGender || (campaign.audienceAgeRanges && campaign.audienceAgeRanges.length > 0)) && (
+            <div style={styles.audiencePillRow}>
+              <span style={styles.audiencePillHeading}>Audience</span>
+              {campaign.audienceGender && (
+                <span style={styles.audiencePill}>{campaign.audienceGender}</span>
+              )}
+              {campaign.audienceAgeRanges?.map((r) => (
+                <span key={r} style={styles.audiencePill}>{r}</span>
+              ))}
+              <span style={styles.audiencePillNote}>server-enforced eligibility</span>
+            </div>
           )}
 
           <div style={styles.divider} />
@@ -546,6 +610,69 @@ export default function CampaignDetail() {
             rows={3}
           />
         </label>
+
+        <label style={styles.fieldLabel}>
+          Campaign Objective
+          <textarea
+            style={styles.textarea}
+            value={editObjective}
+            onChange={(e) => setEditObjective(e.target.value)}
+            rows={2}
+            placeholder="What do you want to learn or validate? (optional)"
+          />
+        </label>
+
+        {/* Audience / Eligibility — Benchmark Alignment (2026-09-06, DL-101) */}
+        <div style={styles.audienceEditSection}>
+          <div style={{ ...styles.cardTitle, marginBottom: 12 }}>Audience &amp; Eligibility</div>
+          <p style={styles.surveyHint}>
+            Restrict participation. Leave empty for no restriction — all verified consumers eligible.
+            Changes take effect immediately on save; existing participants are unaffected.
+          </p>
+          <div style={styles.audienceEditGrid}>
+            <div>
+              <p style={styles.audienceEditLabel}>Gender</p>
+              <div style={styles.radioGroup}>
+                {([['', 'All genders'], ['female', 'Female only'], ['male', 'Male only']] as const).map(([v, lbl]) => (
+                  <label key={v} style={styles.radioLabel}>
+                    <input
+                      type="radio"
+                      name="editAudienceGender"
+                      value={v}
+                      checked={editAudienceGender === v}
+                      onChange={() => setEditAudienceGender(v as '' | 'male' | 'female')}
+                    />
+                    {lbl}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p style={styles.audienceEditLabel}>
+                Age Ranges
+                {editAudienceAgeRanges.length > 0 && (
+                  <span style={styles.audienceEditActive}> — {editAudienceAgeRanges.join(', ')}</span>
+                )}
+              </p>
+              <div style={styles.checkboxGroup}>
+                {VALID_AGE_RANGES.map((r) => (
+                  <label key={r} style={styles.radioLabel}>
+                    <input
+                      type="checkbox"
+                      checked={editAudienceAgeRanges.includes(r)}
+                      onChange={() =>
+                        setEditAudienceAgeRanges((prev) =>
+                          prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r],
+                        )
+                      }
+                    />
+                    {r}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div style={styles.divider} />
 
@@ -890,4 +1017,54 @@ const styles: Record<string, React.CSSProperties> = {
   },
   saveSuccess: { fontSize: 12, color: '#b2f24d', fontWeight: 600 },
   saveErr: { fontSize: 12, color: '#dc2626', fontWeight: 600 },
+  // Draft state banner
+  draftBanner: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+    background: 'rgba(107, 127, 232, 0.08)',
+    border: '1px solid rgba(107, 127, 232, 0.25)',
+    borderRadius: 12, padding: '14px 18px', marginBottom: 20, fontSize: 13, color: '#374151',
+  },
+  draftBannerLeft: { display: 'flex', alignItems: 'center', gap: 10 },
+  draftChip: {
+    fontSize: 9, fontWeight: 800, letterSpacing: 1.2,
+    background: '#6b7fe8', color: '#ffffff',
+    borderRadius: 4, padding: '3px 8px',
+    whiteSpace: 'nowrap' as const,
+  },
+  draftLaunchBtn: {
+    background: '#b2f24d', border: 'none', color: '#040812',
+    borderRadius: 8, padding: '10px 20px', fontSize: 12, fontWeight: 800,
+    cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0,
+  },
+  // Info card — objective + audience pills
+  objectiveBlock: {
+    marginTop: 12, background: '#f7f8fb', border: '1px solid #e8ecf3',
+    borderRadius: 8, padding: '10px 14px',
+  },
+  objectiveLabel: {
+    fontSize: 10, fontWeight: 700, color: '#7a8bab', letterSpacing: 0.4,
+    display: 'block', marginBottom: 4,
+  },
+  objectiveText: { fontSize: 12, color: '#374151', margin: 0, lineHeight: 1.5 },
+  audiencePillRow: {
+    display: 'flex', alignItems: 'center', flexWrap: 'wrap' as const, gap: 6, marginTop: 10,
+  },
+  audiencePillHeading: { fontSize: 10, fontWeight: 700, color: '#7a8bab', letterSpacing: 0.4 },
+  audiencePill: {
+    fontSize: 11, fontWeight: 700, background: 'rgba(178,242,77,0.10)',
+    color: '#7ab023', border: '1px solid rgba(178,242,77,0.3)',
+    borderRadius: 6, padding: '2px 8px',
+  },
+  audiencePillNote: { fontSize: 10, color: '#9aabb5', fontStyle: 'italic' as const },
+  // Audience edit section
+  audienceEditSection: {
+    marginTop: 16, marginBottom: 16,
+    background: '#f7f8fb', border: '1px solid #e8ecf3', borderRadius: 12, padding: 16,
+  },
+  audienceEditGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 },
+  audienceEditLabel: { fontSize: 11, fontWeight: 700, color: '#4a5a7e', margin: '0 0 8px' },
+  audienceEditActive: { fontWeight: 400, color: '#7ab023' },
+  radioGroup: { display: 'flex', flexDirection: 'column' as const, gap: 8 },
+  radioLabel: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#374151', cursor: 'pointer' },
+  checkboxGroup: { display: 'flex', flexWrap: 'wrap' as const, gap: 8 },
 };

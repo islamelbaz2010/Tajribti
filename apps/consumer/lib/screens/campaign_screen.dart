@@ -23,6 +23,10 @@ class _CampaignScreenState extends State<CampaignScreen> {
   bool _loading = true;
   bool _entering = false;
   bool _alreadyCompleted = false;
+  // Benchmark Alignment — Audience/Eligibility (2026-09-06, DL-101)
+  // Server-confirmed: consumer does not meet this campaign's audience criteria.
+  bool _ineligible = false;
+  String? _ineligibilityReason;
   String? _error;
 
   @override
@@ -52,15 +56,36 @@ class _CampaignScreenState extends State<CampaignScreen> {
       // it as completed here too, using the same profile data Home already
       // fetches — no new backend call/endpoint.
       var alreadyCompleted = false;
+      var ineligible = false;
+      String? ineligibilityReason;
       if (await AuthService.isLoggedIn()) {
         try {
           final profile = await apiClient.getConsumerProfile();
           alreadyCompleted = profile.recentCampaigns.any((r) => r.campaignId == id);
         } catch (_) {}
+        // Benchmark Alignment — Audience/Eligibility (2026-09-06, DL-101):
+        // Server-side eligibility check, only meaningful for logged-in
+        // consumers. Unknown / unauthenticated consumers see the campaign
+        // normally and are blocked at the server when they actually try to
+        // enter (auth-choice or phone verification happens first anyway).
+        if (!alreadyCompleted) {
+          try {
+            final eligibility = await apiClient.checkEligibility(id);
+            if (!eligibility.eligible) {
+              ineligible = true;
+              ineligibilityReason = eligibility.reason;
+            }
+          } catch (_) {
+            // Non-fatal: if the eligibility endpoint fails, show the campaign
+            // normally. The server will still enforce eligibility at entry time.
+          }
+        }
       }
       setState(() {
         _campaign = campaign;
         _alreadyCompleted = alreadyCompleted;
+        _ineligible = ineligible;
+        _ineligibilityReason = ineligibilityReason;
         _loading = false;
       });
     } catch (_) {
@@ -106,6 +131,20 @@ class _CampaignScreenState extends State<CampaignScreen> {
         if (!mounted) return;
         context.push('/auth-choice');
         return;
+      }
+      // Benchmark Alignment — Eligibility (2026-09-06, DL-101):
+      // A 400 from enterCampaign may be an eligibility rejection if the
+      // consumer slipped through the pre-check (race, profile update after
+      // load, or consumer profile was null at load time). Surface ineligible
+      // state cleanly rather than a generic entry error.
+      if (e is DioException && e.response?.statusCode == 400) {
+        final msg = e.response?.data?['message'] as String? ?? '';
+        final eligibilityKeywords = ['eligible', 'audience', 'profile', 'age group'];
+        final isEligibilityBlock = eligibilityKeywords.any((kw) => msg.toLowerCase().contains(kw));
+        if (isEligibilityBlock) {
+          setState(() { _entering = false; _ineligible = true; _ineligibilityReason = msg; });
+          return;
+        }
       }
       setState(() { _entering = false; _error = '_entryFail'; });
     }
@@ -434,6 +473,70 @@ class _CampaignScreenState extends State<CampaignScreen> {
                         ),
                         child: Text(s.backHome, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
                       ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Benchmark Alignment — Audience/Eligibility (2026-09-06, DL-101):
+    // Show a clear ineligibility state when the server confirmed this
+    // consumer does not meet the campaign's audience criteria.
+    // Placed before the non-active gate because eligibility is a consumer-
+    // identity concern, not a campaign-lifecycle concern.
+    if (_campaign != null && _ineligible) {
+      return Directionality(
+        textDirection: context.dir,
+        child: Scaffold(
+          backgroundColor: kBackground,
+          appBar: AppBar(
+            backgroundColor: kSurface,
+            surfaceTintColor: kSurface,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: kPrimary),
+              onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
+            ),
+            actions: const [
+              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle())),
+            ],
+          ),
+          body: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.person_off_rounded, color: Colors.orange.shade400, size: 40),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      s.notEligibleTitle,
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: kPrimary),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      _ineligibilityReason ?? s.notEligibleSub,
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade600, height: 1.5),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+                    TextButton(
+                      onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
+                      child: Text(s.backHome, style: const TextStyle(color: kPrimary)),
                     ),
                   ],
                 ),

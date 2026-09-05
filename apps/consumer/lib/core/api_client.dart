@@ -192,6 +192,20 @@ class ApiClient {
       'answers': answers,
     });
   }
+
+  // Benchmark Alignment — Audience/Eligibility (2026-09-06, DL-101):
+  // Check whether the authenticated consumer is eligible for a given
+  // campaign. Returns eligible=true when eligible, or eligible=false
+  // with a localized reason when not.
+  // Endpoint: GET /campaigns/:id/eligibility (JWT consumer auth required)
+  Future<EligibilityResult> checkEligibility(String campaignId) async {
+    final res = await _dio.get('/campaigns/$campaignId/eligibility');
+    final data = res.data as Map<String, dynamic>;
+    return EligibilityResult(
+      eligible: data['eligible'] as bool,
+      reason: data['reason'] as String?,
+    );
+  }
 }
 
 final apiClient = ApiClient();

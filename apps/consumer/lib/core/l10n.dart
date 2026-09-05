@@ -243,6 +243,19 @@ class AppStr {
   String get signOutConfirm  => ar ? 'هل تريد تسجيل الخروج؟'    : 'Sign out of your account?';
   String get cancel          => ar ? 'إلغاء'                      : 'Cancel';
 
+  // ── Consumer Support (Authorized 2026-09-06, DL-101) ─────────────────────
+  // Temporary production contact — easy to replace later.
+  // Authorized verbatim: islam.elbaz2010@gmail.com / 01090677722
+  String get supportLabel     => ar ? 'الدعم والمساعدة'           : 'Support';
+  String get supportEmail     => 'islam.elbaz2010@gmail.com';
+  String get supportPhone     => '01090677722';
+  String get supportEmailAction => ar ? 'تواصل عبر البريد الإلكتروني' : 'Email Support';
+  String get supportPhoneAction => ar ? 'اتصل بنا'                : 'Call Support';
+
+  // ── Eligibility Messaging (Benchmark Alignment, 2026-09-06, DL-101) ─────
+  String get notEligibleTitle => ar ? 'هذه الحملة غير متاحة لك'  : 'Not Available for You';
+  String get notEligibleSub   => ar ? 'هذه الحملة مخصصة لفئة محددة من المستهلكين ولا تنطبق عليك.' : 'This campaign is targeted to a specific audience and is not available for your profile.';
+
   // ── Activity ──────────────────────────────────────────────────────────────
   String get activityTitle   => ar ? 'نشاطاتي'                   : 'My Activity';
   String get noActivity      => ar ? 'لا يوجد نشاط بعد'          : 'No activity yet';

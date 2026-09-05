@@ -7,11 +7,13 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Campaign, CampaignStatus, SurveyQuestion } from '../../entities/campaign.entity';
+import { Consumer } from '../../entities/consumer.entity';
 import { QrCode } from '../../entities/qr-code.entity';
 import { BrandContact } from '../../entities/brand-contact.entity';
 import { RedemptionEvent } from '../../entities/redemption-event.entity';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
+import { checkCampaignEligibility, EligibilityResult } from './campaign-eligibility.util';
 
 export type CampaignWithParticipants = Campaign & { participantCount: number };
 
@@ -62,6 +64,8 @@ export class CampaignService {
   constructor(
     @InjectRepository(Campaign)
     private readonly campaignRepo: Repository<Campaign>,
+    @InjectRepository(Consumer)
+    private readonly consumerRepo: Repository<Consumer>,
     @InjectRepository(QrCode)
     private readonly qrCodeRepo: Repository<QrCode>,
     @InjectRepository(BrandContact)
@@ -118,8 +122,20 @@ export class CampaignService {
       // this campaign's sector/product, otherwise the existing standard
       // 5-question trial survey — same shape either way, no builder.
       surveyQuestions: dto.surveyQuestions ?? DEFAULT_SURVEY_QUESTIONS,
-      status: CampaignStatus.ACTIVE,
+      // Benchmark Alignment — Campaign Creation (2026-09-06, DL-101):
+      // New campaigns start as DRAFT (not immediately ACTIVE). The Company
+      // reviews/configures the campaign before launching it. ExpertVoice
+      // benchmark pattern: "preview/save-before-launch is part of the
+      // workflow." The Company explicitly promotes DRAFT → ACTIVE via the
+      // Campaign Detail status control.
+      status: CampaignStatus.DRAFT,
       isDemo: false,
+      // Benchmark Alignment — Audience/Eligibility (2026-09-06, DL-101)
+      objective: dto.objective ?? null,
+      audienceGender: dto.audienceGender ?? null,
+      audienceAgeRanges: dto.audienceAgeRanges && dto.audienceAgeRanges.length > 0
+        ? dto.audienceAgeRanges
+        : null,
     });
     return this.campaignRepo.save(campaign);
   }
@@ -228,12 +244,45 @@ export class CampaignService {
       this.validateSurveyQuestionEdit(campaign.surveyQuestions, dto.surveyQuestions);
       campaign.surveyQuestions = dto.surveyQuestions;
     }
+    // Benchmark Alignment — Campaign Creation + Audience/Eligibility
+    // (2026-09-06, DL-101): objective and audience fields are editable
+    // after creation. Empty string for audienceGender means "remove
+    // restriction"; empty array means "remove restriction".
+    if (dto.objective !== undefined) campaign.objective = dto.objective || null;
+    if (dto.audienceGender !== undefined) campaign.audienceGender = dto.audienceGender || null;
+    if (dto.audienceAgeRanges !== undefined) {
+      campaign.audienceAgeRanges =
+        dto.audienceAgeRanges && dto.audienceAgeRanges.length > 0 ? dto.audienceAgeRanges : null;
+    }
     // Validated against the campaign's resulting state (not just the DTO),
     // so this correctly catches e.g. only endDate being edited to before
     // an unchanged, already-stored startDate.
     this.validateDateRange(campaign.startDate, campaign.endDate);
 
     return this.campaignRepo.save(campaign);
+  }
+
+  // Benchmark Alignment — Audience/Eligibility (2026-09-06, DL-101):
+  // Consumer-facing eligibility check. Used by GET /campaigns/:id/eligibility
+  // (consumer app pre-participation check) and also called server-side
+  // inside every participation entry point (QrService, AuthService).
+  // Returns null when campaign or consumer is not found (safe default:
+  // missing data doesn't block participation — the actual entry points
+  // do their own NotFoundException checks before calling this).
+  async checkEligibilityForConsumer(
+    campaignId: string,
+    consumerId: string,
+  ): Promise<EligibilityResult> {
+    const [campaign, consumer] = await Promise.all([
+      this.campaignRepo.findOne({ where: { id: campaignId } }),
+      this.consumerRepo.findOne({ where: { id: consumerId } }),
+    ]);
+    if (!campaign || !consumer) {
+      // Missing records are handled by the callers' own NotFoundException
+      // paths — here we return eligible so we don't double-404.
+      return { eligible: true };
+    }
+    return checkCampaignEligibility(campaign, consumer);
   }
 
   // Company Foundation (2026-09-01): a campaign may only reference a

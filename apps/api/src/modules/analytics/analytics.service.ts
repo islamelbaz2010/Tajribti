@@ -5,6 +5,7 @@ import { RedemptionEvent } from '../../entities/redemption-event.entity';
 import { SurveyResponse } from '../../entities/survey-response.entity';
 import { Consumer } from '../../entities/consumer.entity';
 import { Campaign } from '../../entities/campaign.entity';
+import { CampaignVerification } from '../../entities/campaign-verification.entity';
 
 export interface DistributionItem {
   label: string;
@@ -22,6 +23,11 @@ export interface LiveFeedEntry {
 
 export interface OverviewData {
   totalRedemptions: number;
+  // DL-104 (2026-09-06): Sampl benchmark — "Journey completion/drop-off is
+  // measurable by stage." verificationCount is stage 1 (OTP verified);
+  // totalRedemptions is stage 2 (QR redeemed); surveyCompletions is stage 3.
+  // All three numbers exist in the current DB — no new migration needed.
+  verificationCount: number;
   surveyCompletions: number;
   completionRate: number;
   purchaseIntentPercent: number;
@@ -110,6 +116,8 @@ export class AnalyticsService {
     private readonly consumerRepo: Repository<Consumer>,
     @InjectRepository(Campaign)
     private readonly campaignRepo: Repository<Campaign>,
+    @InjectRepository(CampaignVerification)
+    private readonly verificationRepo: Repository<CampaignVerification>,
   ) {}
 
   async assertBrandOwnership(campaignId: string, brandId: string): Promise<void> {
@@ -119,13 +127,18 @@ export class AnalyticsService {
   }
 
   async getOverview(campaignId: string): Promise<OverviewData> {
-    const redemptions = await this.redemptionRepo.find({
-      where: { campaignId },
-      relations: ['consumer'],
-      order: { redeemedAt: 'DESC' },
-    });
-
-    const surveys = await this.surveyRepo.find({ where: { campaignId } });
+    const [redemptions, surveys, verificationCount] = await Promise.all([
+      this.redemptionRepo.find({
+        where: { campaignId },
+        relations: ['consumer'],
+        order: { redeemedAt: 'DESC' },
+      }),
+      this.surveyRepo.find({ where: { campaignId } }),
+      // DL-104: stage 1 of the journey funnel — consumers who completed OTP
+      // verification for this campaign. Loaded as a count to avoid pulling
+      // full rows for a number we only display as a metric.
+      this.verificationRepo.count({ where: { campaignId } }),
+    ]);
 
     const totalRedemptions = redemptions.length;
     const surveyCompletions = surveys.length;
@@ -146,6 +159,7 @@ export class AnalyticsService {
 
     return {
       totalRedemptions,
+      verificationCount,
       surveyCompletions,
       completionRate,
       purchaseIntentPercent,

@@ -482,6 +482,22 @@ export default function Overview() {
         <MetricCard label="Purchase Intent" value={`${data.purchaseIntentPercent}%`} accent />
       </div>
 
+      {/* DL-104 (2026-09-06): Journey Funnel — Sampl benchmark: "Journey
+          completion/drop-off is measurable by stage." Three stages come
+          from three existing tables: campaign_verifications (OTP verified),
+          redemption_events (QR redeemed/trial completed), survey_responses
+          (survey submitted). Drop-off between each stage is shown as a
+          percentage so the brand can see where consumers exit. Only rendered
+          when there is at least one verification so the section is
+          meaningfully populated. */}
+      {data.verificationCount > 0 && (
+        <JourneyFunnel
+          verified={data.verificationCount}
+          redeemed={data.totalRedemptions}
+          surveyed={data.surveyCompletions}
+        />
+      )}
+
       {/* 3. Who participated? */}
       <div style={styles.feedSection}>
         <div style={styles.feedHeader}>
@@ -511,6 +527,102 @@ export default function Overview() {
     </div>
   );
 }
+
+// DL-104: Journey Funnel — three stages drawn from the existing DB tables.
+// Drop-off rate between adjacent stages is shown only when the denominator
+// stage has participants (otherwise "N/A" rather than a misleading 0%).
+function JourneyFunnel({
+  verified,
+  redeemed,
+  surveyed,
+}: {
+  verified: number;
+  redeemed: number;
+  surveyed: number;
+}) {
+  const stages = [
+    { label: 'Verified', sub: 'Passed OTP', count: verified, color: '#7c8eb8' },
+    { label: 'Redeemed', sub: 'Completed trial', count: redeemed, color: '#5b8cff' },
+    { label: 'Surveyed', sub: 'Submitted feedback', count: surveyed, color: '#b2f24d' },
+  ];
+
+  // drop-off % going from stage i to stage i+1 (how many fell off)
+  const dropoff = (from: number, to: number): string => {
+    if (from === 0) return 'N/A';
+    const lost = from - to;
+    return `${Math.round((lost / from) * 100)}% drop-off`;
+  };
+
+  return (
+    <div style={funnelStyles.wrap}>
+      <div style={funnelStyles.header}>
+        <h2 style={funnelStyles.title}>Journey Funnel</h2>
+        <p style={funnelStyles.sub}>Where consumers are in the campaign journey</p>
+      </div>
+      <div style={funnelStyles.row}>
+        {stages.map((s, i) => (
+          <React.Fragment key={s.label}>
+            <div style={funnelStyles.stage}>
+              <div style={{ ...funnelStyles.count, color: s.color }}>{s.count}</div>
+              <div style={funnelStyles.stageLabel}>{s.label}</div>
+              <div style={funnelStyles.stageSub}>{s.sub}</div>
+            </div>
+            {i < stages.length - 1 && (
+              <div style={funnelStyles.arrow}>
+                <div style={funnelStyles.arrowLine}>→</div>
+                <div style={funnelStyles.dropoff}>{dropoff(stages[i].count, stages[i + 1].count)}</div>
+              </div>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const funnelStyles: Record<string, React.CSSProperties> = {
+  wrap: {
+    background: '#ffffff',
+    border: '1px solid #e8ecf3',
+    borderRadius: 16,
+    padding: '20px 24px',
+    marginTop: 16,
+  },
+  header: { marginBottom: 16 },
+  title: { fontSize: 13, fontWeight: 700, color: '#0a1120', margin: '0 0 2px', letterSpacing: 0.3 },
+  sub: { fontSize: 11, color: '#7a8bab', margin: 0 },
+  row: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap' as const,
+  },
+  stage: {
+    flex: 1,
+    minWidth: 80,
+    textAlign: 'center' as const,
+    padding: '12px 8px',
+    background: '#f7f9fd',
+    borderRadius: 12,
+  },
+  count: {
+    fontSize: 28,
+    fontWeight: 800,
+    lineHeight: 1,
+    marginBottom: 4,
+  },
+  stageLabel: { fontSize: 12, fontWeight: 700, color: '#0a1120', marginBottom: 2 },
+  stageSub: { fontSize: 10, color: '#7a8bab' },
+  arrow: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    gap: 2,
+    flexShrink: 0,
+  },
+  arrowLine: { fontSize: 18, color: '#c2cfe0', lineHeight: 1 },
+  dropoff: { fontSize: 9, color: '#7a8bab', whiteSpace: 'nowrap' as const },
+};
 
 const STATUS_COLOR: Record<string, string> = {
   active: '#b2f24d',

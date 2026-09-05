@@ -17,6 +17,9 @@ export interface LiveFeedEntry {
 
 export interface OverviewData {
   totalRedemptions: number;
+  // DL-104 (2026-09-06): verified consumers who passed OTP for this campaign
+  // — the first measurable stage in the journey funnel before QR redemption.
+  verificationCount: number;
   surveyCompletions: number;
   completionRate: number;
   purchaseIntentPercent: number;

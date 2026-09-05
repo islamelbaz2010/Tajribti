@@ -12,7 +12,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { analyticsApi, campaignApi } from '../api/endpoints';
-import type { DemographicsData } from '../api/types';
+import type { DemographicsData, SurveyData } from '../api/types';
 
 const COLORS = ['#b2f24d', '#38bdf8', '#fb7185', '#a78bfa', '#fbbf24'];
 
@@ -32,36 +32,147 @@ const CHART_TOOLTIP = {
 const AXIS_TICK = { fontSize: 11, fill: '#3d4a6a' };
 const AXIS_LINE = { stroke: '#1a2540' };
 
+// DL-106 (2026-09-06): signal cards — top-line survey quality signals
+// displayed at the head of the Insights page so WHO connects immediately
+// to WHAT THEY THINK and WHAT THEY INTEND, closing the benchmark's
+// Insight Model chain on a single page rather than requiring navigation
+// across Demographics → Survey Results → AI Insights.
+function SignalCard({ label, value, sub, accent }: {
+  label: string;
+  value: string;
+  sub?: string;
+  accent?: boolean;
+}) {
+  return (
+    <div style={{ ...styles.signalCard, ...(accent ? styles.signalCardAccent : {}) }}>
+      <div style={styles.signalLabel}>{label}</div>
+      <div style={{ ...styles.signalValue, ...(accent ? { color: '#b2f24d' } : {}) }}>{value}</div>
+      {sub && <div style={styles.signalSub}>{sub}</div>}
+    </div>
+  );
+}
+
+// DL-106: star display for q1 first impression average.
+function StarRating({ average }: { average: number }) {
+  const full = Math.floor(average);
+  const half = average - full >= 0.4;
+  return (
+    <span style={{ fontSize: 13, letterSpacing: 1 }}>
+      {Array.from({ length: 5 }, (_, i) => {
+        if (i < full) return <span key={i} style={{ color: '#fbbf24' }}>★</span>;
+        if (i === full && half) return <span key={i} style={{ color: '#fbbf24', opacity: 0.55 }}>★</span>;
+        return <span key={i} style={{ color: '#d0d7e6' }}>★</span>;
+      })}
+    </span>
+  );
+}
+
+// DL-106: purchase intent by segment — one row per label/gender/age group.
+// respondentCount is always shown so the brand can assess confidence.
+// Only rendered when the segment has ≥1 respondent.
+function SegmentTable({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: { label: string; respondentCount: number; positiveIntentPercent: number }[];
+}) {
+  const validRows = rows.filter((r) => r.respondentCount > 0);
+  if (validRows.length === 0) return null;
+
+  return (
+    <div style={styles.segmentTableWrap}>
+      <div style={styles.segmentTableTitle}>{title}</div>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid #e8ecf3' }}>
+            <th style={{ textAlign: 'left', padding: '5px 8px', color: '#7a8bab', fontWeight: 600 }}>Segment</th>
+            <th style={{ textAlign: 'right', padding: '5px 8px', color: '#7a8bab', fontWeight: 600 }}>Purchase Intent</th>
+            <th style={{ textAlign: 'right', padding: '5px 8px', color: '#7a8bab', fontWeight: 600 }}>Respondents</th>
+          </tr>
+        </thead>
+        <tbody>
+          {validRows.map((r) => (
+            <tr key={r.label} style={{ borderBottom: '1px solid #f0f3fa' }}>
+              <td style={{ padding: '7px 8px', color: '#0a1120', fontWeight: 600 }}>{r.label}</td>
+              <td style={{ padding: '7px 8px', textAlign: 'right' }}>
+                <span style={{
+                  fontWeight: 800,
+                  color: r.positiveIntentPercent >= 60 ? '#b2f24d' :
+                         r.positiveIntentPercent >= 40 ? '#fbbf24' : '#fb7185',
+                }}>
+                  {r.positiveIntentPercent}%
+                </span>
+              </td>
+              <td style={{ padding: '7px 8px', textAlign: 'right', color: '#7a8bab' }}>
+                n={r.respondentCount}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {validRows.some((r) => r.respondentCount < 10) && (
+        <p style={{ fontSize: 10, color: '#7a8bab', margin: '6px 0 0', fontStyle: 'italic' }}>
+          Segments with fewer than 10 respondents should be interpreted with caution.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function Insights() {
   const location = useLocation();
-  const [data, setData] = useState<DemographicsData | null>(null);
+  const [demo, setDemo] = useState<DemographicsData | null>(null);
+  // DL-106: survey data loaded in parallel for signal cards + segment table.
+  const [survey, setSurvey] = useState<SurveyData | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     // Re-resolves whenever ?campaignId= changes — this route doesn't
     // remount on a query-string change alone (same fix as Overview.tsx/
     // Gallery.tsx/CampaignDetail.tsx).
-    setData(null);
+    setDemo(null);
+    setSurvey(null);
     setError('');
     campaignApi
       .getSelected()
-      .then((c) => analyticsApi.getDemographics(c.id))
-      .then(setData)
-      .catch(() => setError('Failed to load demographics.'));
+      .then((c) =>
+        Promise.all([
+          analyticsApi.getDemographics(c.id),
+          analyticsApi.getSurvey(c.id),
+        ]),
+      )
+      .then(([d, s]) => {
+        setDemo(d);
+        setSurvey(s);
+      })
+      .catch(() => setError('Failed to load insights.'));
   }, [location.search]);
 
   if (error) return <div style={styles.error}>{error}</div>;
-  if (!data) return <div style={styles.loading}>Loading demographic signals…</div>;
+  if (!demo) return <div style={styles.loading}>Loading demographic signals…</div>;
 
-  const totalParticipants = data.ageDistribution.reduce((s, r) => s + r.count, 0);
+  const totalParticipants = demo.ageDistribution.reduce((s, r) => s + r.count, 0);
+
+  // DL-106: survey signals — only surface when there are respondents.
+  // firstImpressionScore comes from q1 (stars, avg 1-5); purchaseIntentScore
+  // is the % of respondents who answered 4-5 on the 1-5 purchase intent scale.
+  const hasSurveySignals = survey && survey.firstImpressionScore?.responseCount > 0;
+  const surveyCompletions = hasSurveySignals ? survey!.firstImpressionScore.responseCount : 0;
+  const completionRate = totalParticipants > 0
+    ? Math.round((surveyCompletions / totalParticipants) * 100)
+    : 0;
+
+  const hasByGender = survey?.purchaseIntentBySegment?.byGender?.some((r) => r.respondentCount > 0);
+  const hasByAge = survey?.purchaseIntentBySegment?.byAgeRange?.some((r) => r.respondentCount > 0);
 
   return (
     <div>
       <div style={styles.header}>
         <span style={styles.demoBadge}>CONSUMER INSIGHTS</span>
-        <h1 style={styles.title}>Demographics</h1>
+        <h1 style={styles.title}>Demographics &amp; Signals</h1>
         <p style={styles.sub}>
-          Who tried this campaign — demographic profile of {totalParticipants} consumers
+          Who tried this campaign, what they thought, and what they intend to do next
         </p>
       </div>
 
@@ -75,11 +186,36 @@ export default function Insights() {
         </div>
       ) : (
       <>
+        {/* DL-106: Signal cards — top-line quality signals connecting WHO to
+            WHAT THEY THINK (first impression) and WHAT THEY INTEND (purchase
+            intent). Survey completion rate shown so the brand can assess
+            whether the signal sample is representative. */}
+        {hasSurveySignals && (
+          <div style={styles.signalRow}>
+            <SignalCard
+              label="First Impression"
+              value={survey!.firstImpressionScore.average.toFixed(1)}
+              sub={<><StarRating average={survey!.firstImpressionScore.average} /> avg rating (q1)</> as any}
+            />
+            <SignalCard
+              label="Purchase Intent"
+              value={`${survey!.purchaseIntentScore}%`}
+              sub="likely to buy (q2 scores 4-5)"
+              accent
+            />
+            <SignalCard
+              label="Survey Completion"
+              value={`${completionRate}%`}
+              sub={`${surveyCompletions} of ${totalParticipants} participants responded`}
+            />
+          </div>
+        )}
+
       <div style={styles.chartsGrid}>
         <div style={styles.card}>
           <div style={styles.cardTitle}>Age Distribution</div>
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={data.ageDistribution} margin={{ top: 5, right: 10, left: -10, bottom: 5 }} barCategoryGap="30%">
+            <BarChart data={demo.ageDistribution} margin={{ top: 5, right: 10, left: -10, bottom: 5 }} barCategoryGap="30%">
               <XAxis dataKey="label" tick={AXIS_TICK} axisLine={AXIS_LINE} tickLine={false} />
               <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} />
               <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v ?? 0}`, 'Participants']} />
@@ -93,7 +229,7 @@ export default function Insights() {
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie
-                data={data.genderDistribution}
+                data={demo.genderDistribution}
                 dataKey="count"
                 nameKey="label"
                 cx="50%"
@@ -104,7 +240,7 @@ export default function Insights() {
                 }
                 labelLine={{ stroke: '#1a2540' }}
               >
-                {data.genderDistribution.map((_, index) => (
+                {demo.genderDistribution.map((_, index) => (
                   <Cell key={index} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
@@ -112,7 +248,7 @@ export default function Insights() {
             </PieChart>
           </ResponsiveContainer>
           <div style={styles.legend}>
-            {data.genderDistribution.map((d, i) => (
+            {demo.genderDistribution.map((d, i) => (
               <div key={d.label} style={styles.legendItem}>
                 <div style={{ ...styles.legendDot, background: COLORS[i % COLORS.length] }} />
                 <span style={styles.legendLabel}>{d.label}</span>
@@ -125,7 +261,7 @@ export default function Insights() {
         <div style={{ ...styles.card, ...styles.cardWide }}>
           <div style={styles.cardTitle}>City Distribution</div>
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={data.cityDistribution} margin={{ top: 5, right: 10, left: -10, bottom: 5 }} barCategoryGap="35%">
+            <BarChart data={demo.cityDistribution} margin={{ top: 5, right: 10, left: -10, bottom: 5 }} barCategoryGap="35%">
               <XAxis dataKey="label" tick={AXIS_TICK} axisLine={AXIS_LINE} tickLine={false} />
               <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} />
               <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v ?? 0}`, 'Participants']} />
@@ -135,23 +271,23 @@ export default function Insights() {
         </div>
       </div>
 
-      {data.ageDistribution.length > 0 && data.genderDistribution.length > 0 && (
+      {demo.ageDistribution.length > 0 && demo.genderDistribution.length > 0 && (
         <div style={styles.segmentCard}>
           <div style={styles.segmentRow}>
             <div style={styles.segmentStat}>
               <div style={styles.segmentLabel}>LARGEST AGE GROUP</div>
               <div style={styles.segmentValue}>
-                {data.ageDistribution[0]?.label}
+                {demo.ageDistribution[0]?.label}
               </div>
               <div style={styles.segmentDesc}>
-                {data.ageDistribution[0]?.count} participants · {data.ageDistribution[0]?.percentage}% of trial cohort
+                {demo.ageDistribution[0]?.count} participants · {demo.ageDistribution[0]?.percentage}% of trial cohort
               </div>
             </div>
             <div style={styles.segmentDivider} />
             <div style={styles.segmentStat}>
               <div style={styles.segmentLabel}>GENDER SPLIT</div>
               <div style={styles.segmentValue}>
-                {data.genderDistribution.map((g, i) => (
+                {demo.genderDistribution.map((g, i) => (
                   <span key={g.label}>
                     {i > 0 && <span style={styles.segmentSep}> · </span>}
                     {g.percentage}% {g.label}
@@ -162,6 +298,35 @@ export default function Insights() {
                 Independent distributions — not cross-tabulated
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* DL-106: Purchase Intent by Segment — Sampl benchmark: "Review rate
+          and purchase intent can be viewed by audience segment." Zamplit:
+          "Insights include...audience differences." Only rendered when the
+          segment data from the API carries at least one respondent per group;
+          caution note added for segments with n<10 to preserve the product's
+          existing evidence-discipline rules. */}
+      {(hasByGender || hasByAge) && (
+        <div style={styles.card}>
+          <div style={styles.cardTitle}>Purchase Intent by Segment</div>
+          <p style={{ fontSize: 11, color: '#7a8bab', margin: '0 0 16px' }}>
+            How purchase intent (q2 scores 4-5) differs across audience groups in this campaign.
+          </p>
+          <div style={styles.segmentTablesRow}>
+            {hasByGender && (
+              <SegmentTable
+                title="By Gender"
+                rows={survey!.purchaseIntentBySegment.byGender}
+              />
+            )}
+            {hasByAge && (
+              <SegmentTable
+                title="By Age Range"
+                rows={survey!.purchaseIntentBySegment.byAgeRange}
+              />
+            )}
           </div>
         </div>
       )}
@@ -202,6 +367,39 @@ const styles: Record<string, React.CSSProperties> = {
   },
   emptyTitle: { fontSize: 15, fontWeight: 700, color: '#0a1120', marginBottom: 8 },
   emptyBody: { fontSize: 13, color: '#4a5a7e', lineHeight: 1.6, margin: 0, maxWidth: 480 },
+  // DL-106: signal cards row
+  signalRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr 1fr',
+    gap: 12,
+    marginBottom: 16,
+  },
+  signalCard: {
+    background: '#ffffff',
+    border: '1px solid #e8ecf3',
+    borderRadius: 14,
+    padding: '16px 20px',
+  },
+  signalCardAccent: {
+    background: 'rgba(178,242,77,0.06)',
+    border: '1px solid rgba(178,242,77,0.2)',
+  },
+  signalLabel: {
+    fontSize: 9,
+    fontWeight: 800,
+    color: '#7a8bab',
+    letterSpacing: 2,
+    textTransform: 'uppercase' as const,
+    marginBottom: 8,
+  },
+  signalValue: {
+    fontSize: 28,
+    fontWeight: 800,
+    color: '#0a1120',
+    lineHeight: 1,
+    marginBottom: 4,
+  },
+  signalSub: { fontSize: 10, color: '#7a8bab', lineHeight: 1.5 },
   chartsGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
@@ -213,6 +411,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #e8ecf3',
     borderRadius: 14,
     padding: '20px 24px',
+    marginBottom: 16,
   },
   cardWide: { gridColumn: '1 / -1' },
   cardTitle: {
@@ -233,6 +432,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid rgba(178, 242, 77, 0.15)',
     borderRadius: 14,
     padding: '20px 24px',
+    marginBottom: 16,
   },
   segmentRow: {
     display: 'flex',
@@ -264,4 +464,23 @@ const styles: Record<string, React.CSSProperties> = {
   },
   segmentSep: { color: '#94a3b8' },
   segmentDesc: { fontSize: 11, color: '#4a5a7e', lineHeight: 1.6 },
+  // DL-106: purchase intent by segment tables
+  segmentTablesRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 16,
+  },
+  segmentTableWrap: {
+    background: '#f7f9fd',
+    borderRadius: 10,
+    padding: '14px 16px',
+  },
+  segmentTableTitle: {
+    fontSize: 10,
+    fontWeight: 800,
+    color: '#7a8bab',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase' as const,
+    marginBottom: 10,
+  },
 };

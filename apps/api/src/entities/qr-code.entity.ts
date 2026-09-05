@@ -38,6 +38,12 @@ export class QrCode {
   })
   status: QrCodeStatus;
 
+  // DL-105: source label — e.g. "Mall Entrance", "Social Media Poster".
+  // NULL for the original auto-generated primary QR; only explicitly
+  // created source QRs carry a label.
+  @Column({ type: 'varchar', nullable: true, length: 100, default: null })
+  label: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

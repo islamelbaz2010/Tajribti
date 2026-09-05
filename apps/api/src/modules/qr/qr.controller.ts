@@ -16,7 +16,8 @@ import { Response } from 'express';
 import { QrService } from './qr.service';
 import { JwtAuthGuard, IS_PUBLIC_KEY } from '../auth/guards/jwt.guard';
 import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
-import { IsString, IsUUID } from 'class-validator';
+import { IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { resolveCompanyId } from '../auth/company-scope.util';
 
 const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 
@@ -26,6 +27,14 @@ class RedeemQrDto {
 
   @IsUUID()
   campaignId: string;
+}
+
+// DL-105: body for creating a named source QR for a campaign placement.
+class CreateSourceQrDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  label: string;
 }
 
 interface RequestWithUser extends Request {
@@ -68,5 +77,22 @@ export class QrController {
       'Cache-Control': 'public, max-age=86400',
     });
     res.send(buffer);
+  }
+
+  // DL-105: Create a labeled source QR for a specific campaign placement.
+  // Brand-authenticated only. Each call creates a new independent QR code
+  // that consumers can scan to enter the campaign — the label is stored so
+  // source attribution analytics can show how many redemptions each
+  // placement generated (GET /analytics/:id/qr-sources).
+  @Post('campaign/:campaignId/sources')
+  @HttpCode(HttpStatus.CREATED)
+  async createSourceQr(
+    @Param('campaignId') campaignId: string,
+    @Body() dto: CreateSourceQrDto,
+    @Request() req: RequestWithUser,
+  ) {
+    // resolveCompanyId throws ForbiddenException for non-brand/employee users
+    const brandAccountId = resolveCompanyId(req.user);
+    return this.qrService.generateLabeledQr(campaignId, dto.label, brandAccountId);
   }
 }

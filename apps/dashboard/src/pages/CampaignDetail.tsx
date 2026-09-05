@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { campaignApi, qrApi, companyApi, assetsApi } from '../api/endpoints';
-import type { Campaign, SurveyQuestion, BrandContact } from '../api/types';
+import { campaignApi, qrApi, companyApi, assetsApi, analyticsApi } from '../api/endpoints';
+import type { Campaign, SurveyQuestion, BrandContact, QrSourceData } from '../api/types';
 import { VALID_AGE_RANGES } from '../api/types';
 import SurveyEditor from '../components/SurveyEditor';
 
@@ -34,6 +34,11 @@ export default function CampaignDetail() {
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // DL-105: QR source attribution state
+  const [qrSources, setQrSources] = useState<QrSourceData[]>([]);
+  const [newSourceLabel, setNewSourceLabel] = useState('');
+  const [sourceQrSaving, setSourceQrSaving] = useState(false);
+  const [sourceQrError, setSourceQrError] = useState('');
   // QR image generation is a second, independent network call after the
   // campaign itself has already loaded — previously a QR-fetch failure
   // (transient network blip, slow response, etc.) rejected the same promise
@@ -132,6 +137,8 @@ export default function CampaignDetail() {
           .catch(() =>
             setQrError('Could not generate the QR code image. Refresh this page to retry.'),
           );
+        // DL-105: load QR source breakdown alongside the campaign
+        analyticsApi.getQrSources(c.id).then(setQrSources).catch(() => {});
       })
       .catch(() => {
         setError(
@@ -469,6 +476,85 @@ export default function CampaignDetail() {
           </div>
         </div>
       </div>
+
+      {/* DL-105: QR Source Attribution — Zamplit benchmark: "QR codes and
+          campaign sources can be tracked." Brand can create additional named
+          QR codes for different placements (e.g. "Mall Entrance", "Social
+          Media") and see how many redemptions each source generated.
+          Only shown for non-demo campaigns where attribution is meaningful. */}
+      {!campaign.isDemo && (
+        <div style={styles.manageCard}>
+          <div style={styles.cardTitle}>QR Sources</div>
+          <p style={{ fontSize: 12, color: '#7a8bab', margin: '0 0 14px' }}>
+            Generate a separate QR code for each placement location. Track which source drives the most trials.
+          </p>
+
+          {/* Existing source QRs table */}
+          {qrSources.length > 0 && (
+            <div style={{ overflowX: 'auto', marginBottom: 16 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #e8ecf3' }}>
+                    <th style={{ textAlign: 'left', padding: '6px 10px', color: '#7a8bab', fontWeight: 600 }}>Source Label</th>
+                    <th style={{ textAlign: 'right', padding: '6px 10px', color: '#7a8bab', fontWeight: 600 }}>Redemptions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {qrSources.map((src) => (
+                    <tr key={src.qrId} style={{ borderBottom: '1px solid #f0f3fa' }}>
+                      <td style={{ padding: '8px 10px', color: '#0a1120', fontWeight: src.label ? 700 : 400 }}>
+                        {src.label ?? <span style={{ color: '#7a8bab', fontStyle: 'italic' }}>Primary QR (unlabelled)</span>}
+                      </td>
+                      <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: src.redemptionCount > 0 ? '#5b8cff' : '#b0bec5' }}>
+                        {src.redemptionCount}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Add new source QR */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <input
+              style={{ ...styles.input, flex: 1, minWidth: 180 }}
+              type="text"
+              placeholder="e.g. Mall Entrance, Street Poster, Instagram Bio"
+              maxLength={100}
+              value={newSourceLabel}
+              onChange={(e) => setNewSourceLabel(e.target.value)}
+            />
+            <button
+              style={{
+                ...styles.saveBtn,
+                opacity: sourceQrSaving || !newSourceLabel.trim() ? 0.6 : 1,
+                cursor: sourceQrSaving || !newSourceLabel.trim() ? 'not-allowed' : 'pointer',
+                flexShrink: 0,
+              }}
+              disabled={sourceQrSaving || !newSourceLabel.trim()}
+              onClick={async () => {
+                if (!newSourceLabel.trim() || !campaign) return;
+                setSourceQrSaving(true);
+                setSourceQrError('');
+                try {
+                  await qrApi.createSourceQr(campaign.id, newSourceLabel.trim());
+                  setNewSourceLabel('');
+                  const updated = await analyticsApi.getQrSources(campaign.id);
+                  setQrSources(updated);
+                } catch {
+                  setSourceQrError('Could not create source QR. Please try again.');
+                } finally {
+                  setSourceQrSaving(false);
+                }
+              }}
+            >
+              {sourceQrSaving ? 'Creating…' : '+ Add Source QR'}
+            </button>
+          </div>
+          {sourceQrError && <p style={{ color: '#e05252', fontSize: 11, margin: '6px 0 0' }}>{sourceQrError}</p>}
+        </div>
+      )}
 
       <div style={styles.manageCard}>
         <div style={styles.cardTitle}>Edit Campaign</div>

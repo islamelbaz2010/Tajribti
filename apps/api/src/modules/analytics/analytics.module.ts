@@ -5,11 +5,12 @@ import { SurveyResponse } from '../../entities/survey-response.entity';
 import { Consumer } from '../../entities/consumer.entity';
 import { Campaign } from '../../entities/campaign.entity';
 import { CampaignVerification } from '../../entities/campaign-verification.entity';
+import { QrCode } from '../../entities/qr-code.entity';
 import { AnalyticsController } from './analytics.controller';
 import { AnalyticsService } from './analytics.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([RedemptionEvent, SurveyResponse, Consumer, Campaign, CampaignVerification])],
+  imports: [TypeOrmModule.forFeature([RedemptionEvent, SurveyResponse, Consumer, Campaign, CampaignVerification, QrCode])],
   controllers: [AnalyticsController],
   providers: [AnalyticsService],
   exports: [AnalyticsService],

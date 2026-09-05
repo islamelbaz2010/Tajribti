@@ -13,6 +13,7 @@ import type {
   BrandContact,
   CompanyEmployee,
   EmployeeSignupCompany,
+  QrSourceData,
 } from './types';
 
 export const authApi = {
@@ -193,11 +194,18 @@ export const analyticsApi = {
     client.get(`/analytics/${campaignId}/survey`),
   getParticipants: (campaignId: string, page: number): Promise<ParticipantsResponse> =>
     client.get(`/analytics/${campaignId}/participants`, { params: { page } }),
+  // DL-105: QR source attribution — each QR code for this campaign with
+  // its label and redemption count.
+  getQrSources: (campaignId: string): Promise<QrSourceData[]> =>
+    client.get(`/analytics/${campaignId}/qr-sources`),
 };
 
 export const qrApi = {
   getQrImage: (campaignId: string): Promise<Blob> =>
     client.get(`/qr/generate/${campaignId}`, { responseType: 'blob' }),
+  // DL-105: create a named source QR for a specific placement.
+  createSourceQr: (campaignId: string, label: string): Promise<{ qrId: string; code: string; label: string }> =>
+    client.post(`/qr/campaign/${campaignId}/sources`, { label }),
 };
 
 export const reportApi = {

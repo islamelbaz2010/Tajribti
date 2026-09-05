@@ -26,6 +26,16 @@ export interface OverviewData {
   liveFeed: LiveFeedEntry[];
 }
 
+// DL-105 (2026-09-06): one QR code per row, with its source label and
+// how many redemptions it has generated. label is null for the primary
+// unlabelled QR; all explicitly created source QRs carry a label.
+export interface QrSourceData {
+  qrId: string;
+  label: string | null;
+  code: string;
+  redemptionCount: number;
+}
+
 export interface DistributionItem {
   label: string;
   count: number;

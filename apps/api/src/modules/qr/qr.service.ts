@@ -366,4 +366,34 @@ export class QrService {
 
     return buffer;
   }
+
+  // DL-105: Generate a new labeled source QR for a campaign placement.
+  // Each source QR is an independent ACTIVE QR code — consumers can scan
+  // any of them to enter the campaign.  The label (e.g. "Mall Entrance",
+  // "Social Media") is stored on the QR row so getQrSources() can surface
+  // redemption counts per placement.
+  async generateLabeledQr(
+    campaignId: string,
+    label: string,
+    brandAccountId: string,
+  ): Promise<{ qrId: string; code: string; label: string }> {
+    const campaign = await this.campaignRepo.findOne({ where: { id: campaignId } });
+    if (!campaign) throw new NotFoundException(`Campaign ${campaignId} not found`);
+    if (campaign.brandAccountId !== brandAccountId)
+      throw new ForbiddenException('Access denied');
+
+    const trimmedLabel = label.trim().slice(0, 100);
+    const code = `tajribti:${campaignId}:src:${Date.now()}`;
+
+    const qrCode = await this.qrRepo.save(
+      this.qrRepo.create({
+        campaignId,
+        code,
+        status: campaign.isDemo ? QrCodeStatus.DEMO : QrCodeStatus.ACTIVE,
+        label: trimmedLabel,
+      }),
+    );
+
+    return { qrId: qrCode.id, code: qrCode.code, label: qrCode.label ?? trimmedLabel };
+  }
 }

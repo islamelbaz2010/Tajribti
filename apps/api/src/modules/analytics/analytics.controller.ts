@@ -61,4 +61,15 @@ export class AnalyticsController {
     await this.assertOwnership(req, campaignId);
     return this.analyticsService.getParticipants(campaignId, +page, +limit);
   }
+
+  // DL-105: QR source attribution — each active/demo QR for the campaign
+  // with its label and how many redemptions it has generated.
+  @Get(':campaignId/qr-sources')
+  async getQrSources(
+    @Param('campaignId') campaignId: string,
+    @Request() req: RequestWithUser,
+  ) {
+    await this.assertOwnership(req, campaignId);
+    return this.analyticsService.getQrSources(campaignId);
+  }
 }

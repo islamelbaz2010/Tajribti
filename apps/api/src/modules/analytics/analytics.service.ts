@@ -6,6 +6,7 @@ import { SurveyResponse } from '../../entities/survey-response.entity';
 import { Consumer } from '../../entities/consumer.entity';
 import { Campaign } from '../../entities/campaign.entity';
 import { CampaignVerification } from '../../entities/campaign-verification.entity';
+import { QrCode, QrCodeStatus } from '../../entities/qr-code.entity';
 
 export interface DistributionItem {
   label: string;
@@ -96,6 +97,15 @@ export interface SurveyData {
   firstImpressionScore: { average: number; responseCount: number };
 }
 
+// DL-105 (2026-09-06): QR source attribution — one row per distinct QR code
+// for this campaign, with how many redemptions came through each.
+export interface QrSourceData {
+  qrId: string;
+  label: string | null;
+  code: string;
+  redemptionCount: number;
+}
+
 export interface Participant {
   id: string;
   ageRange: string | null;
@@ -118,6 +128,8 @@ export class AnalyticsService {
     private readonly campaignRepo: Repository<Campaign>,
     @InjectRepository(CampaignVerification)
     private readonly verificationRepo: Repository<CampaignVerification>,
+    @InjectRepository(QrCode)
+    private readonly qrCodeRepo: Repository<QrCode>,
   ) {}
 
   async assertBrandOwnership(campaignId: string, brandId: string): Promise<void> {
@@ -418,5 +430,45 @@ export class AnalyticsService {
     return Object.entries(counts)
       .sort(([, a], [, b]) => b - a)
       .map(([label, count]) => ({ label, count }));
+  }
+
+  // DL-105: QR source attribution — Zamplit benchmark: "QR codes and
+  // campaign sources can be tracked." Returns one row per non-voided QR
+  // code for the campaign, with the label (NULL for the primary unlabelled
+  // QR) and how many redemptions each QR has generated.
+  async getQrSources(campaignId: string): Promise<QrSourceData[]> {
+    const qrCodes = await this.qrCodeRepo.find({
+      where: [
+        { campaignId, status: QrCodeStatus.ACTIVE },
+        { campaignId, status: QrCodeStatus.DEMO },
+      ],
+      order: { createdAt: 'ASC' },
+    });
+
+    if (qrCodes.length === 0) return [];
+
+    // Count redemptions per QR code via a lightweight aggregate query.
+    const redemptionCounts: { qr_code_id: string; cnt: string }[] =
+      await this.redemptionRepo
+        .createQueryBuilder('r')
+        .select('r.qr_code_id', 'qr_code_id')
+        .addSelect('COUNT(r.id)', 'cnt')
+        .where('r.campaign_id = :campaignId', { campaignId })
+        .andWhere('r.qr_code_id IN (:...ids)', {
+          ids: qrCodes.map((q) => q.id),
+        })
+        .groupBy('r.qr_code_id')
+        .getRawMany();
+
+    const countMap = new Map(
+      redemptionCounts.map((row) => [row.qr_code_id, parseInt(row.cnt, 10)]),
+    );
+
+    return qrCodes.map((q) => ({
+      qrId: q.id,
+      label: q.label ?? null,
+      code: q.code,
+      redemptionCount: countMap.get(q.id) ?? 0,
+    }));
   }
 }

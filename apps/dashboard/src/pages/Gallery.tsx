@@ -90,7 +90,9 @@ export default function Gallery() {
   return (
     <div>
       <div style={styles.header}>
-        <h1 style={styles.title}>Media / Gallery</h1>
+        {/* DL-109 (2026-09-06): visual harmonization — editorial badge */}
+        <span style={styles.pageBadge}>MEDIA & GALLERY</span>
+        <h1 style={styles.title}>Campaign Media</h1>
         <p style={styles.sub}>
           {campaign.brandName} · {campaign.productName}
         </p>
@@ -158,6 +160,7 @@ export default function Gallery() {
 const styles: Record<string, React.CSSProperties> = {
   loading: { color: '#7a8bab', fontSize: 16, marginTop: 40 },
   header: { marginBottom: 20 },
+  pageBadge: { display: 'inline-block', fontSize: 9, fontWeight: 800, color: '#040812', background: '#b2f24d', borderRadius: 3, padding: '3px 8px', letterSpacing: 1.5, marginBottom: 6 },
   title: { fontSize: 24, fontWeight: 800, color: '#0a1120', margin: '0 0 4px', letterSpacing: -0.3 },
   sub: { fontSize: 13, color: '#4a5a7e', margin: 0 },
   form: {

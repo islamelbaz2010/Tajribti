@@ -49,6 +49,8 @@ export default function Employees() {
   return (
     <div style={styles.root}>
       <div style={styles.header}>
+        {/* DL-109 (2026-09-06): visual harmonization — editorial badge */}
+        <span style={styles.pageBadge}>TEAM</span>
         <h1 style={styles.title}>Company Employees</h1>
         <p style={styles.sub}>
           Real, authenticated TAJRIBTI accounts scoped to your Company — not campaign contacts.
@@ -102,6 +104,7 @@ const styles: Record<string, React.CSSProperties> = {
   muted: { color: '#7a8bab', fontSize: 14, marginTop: 32 },
   errMsg: { color: '#dc2626', fontSize: 14, marginTop: 32 },
   header: { marginBottom: 24 },
+  pageBadge: { display: 'inline-block', fontSize: 9, fontWeight: 800, color: '#040812', background: '#b2f24d', borderRadius: 3, padding: '3px 8px', letterSpacing: 1.5, marginBottom: 6 },
   title: { fontSize: 24, fontWeight: 800, color: '#0a1120', margin: '0 0 6px', letterSpacing: -0.3 },
   sub: { fontSize: 13, color: '#4a5a7e', margin: 0, lineHeight: 1.5 },
   codeCard: {

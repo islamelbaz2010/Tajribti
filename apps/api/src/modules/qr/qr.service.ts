@@ -52,22 +52,6 @@ export class QrService {
     private readonly configService: ConfigService,
   ) {}
 
-  // A valid account JWT (i.e. reaching this service at all) proves Consumer
-  // identity - it does NOT by itself prove fresh Campaign-specific
-  // participation verification. Every NEW redemption requires a matching
-  // CampaignVerification row (created by AuthService.verifyOtp for this
-  // exact consumer+campaign). Pre-existing redemptions are unaffected:
-  // callers check for those first and return "already completed" before
-  // this gate is ever reached, so no backfill is required for legacy data.
-  private async assertCampaignVerified(consumerId: string, campaignId: string): Promise<void> {
-    const verified = await this.campaignVerificationRepo.findOne({
-      where: { consumerId, campaignId },
-    });
-    if (!verified) {
-      throw new ForbiddenException('Campaign verification required before participation');
-    }
-  }
-
   async redeemQr(dto: RedeemQrDto): Promise<{
     success: boolean;
     redemptionId: string;
@@ -96,12 +80,25 @@ export class QrService {
     const isDemo = qrCode.status === QrCodeStatus.DEMO;
 
     if (!isDemo) {
+      // B-04 performance pass 3 (2026-09-06, DL-108): parallelize the three
+      // independent DB reads (consumer eligibility, duplicate check, OTP
+      // verification) that were previously sequential. Each read depends only
+      // on dto.consumerId / dto.campaignId — both known after the QR lookup
+      // above — so they can safely run concurrently. This mirrors the same
+      // optimization already applied to enterCampaignWeb below.
+      // Sequential cost: 3 × ~RTT. Parallel cost: 1 × max(RTT_x3).
+      const [consumer, existingRedemption, verified] = await Promise.all([
+        this.consumerRepo.findOne({ where: { id: dto.consumerId } }),
+        this.redemptionRepo.findOne({
+          where: { consumerId: dto.consumerId, campaignId: dto.campaignId },
+        }),
+        this.campaignVerificationRepo.findOne({
+          where: { consumerId: dto.consumerId, campaignId: dto.campaignId },
+        }),
+      ]);
+
       // Benchmark Alignment — Audience/Eligibility (2026-09-06, DL-101):
       // Server-side eligibility enforcement at the QR redemption gate.
-      // Demo redemptions are exempt (same exemption as existing dupe-check).
-      const consumer = await this.consumerRepo.findOne({
-        where: { id: dto.consumerId },
-      });
       if (consumer) {
         const eligibility = checkCampaignEligibility(campaign, consumer);
         if (!eligibility.eligible) {
@@ -111,23 +108,17 @@ export class QrService {
         }
       }
 
-      const existingRedemption = await this.redemptionRepo.findOne({
-        where: { consumerId: dto.consumerId, campaignId: dto.campaignId },
-      });
-
       if (existingRedemption) {
         throw new BadRequestException('You have already redeemed this campaign');
       }
-    }
 
-    // Mirrors the pre-existing duplicate-check exemption immediately above:
-    // this function already treats demo QR codes as exempt from
-    // participation limits (for live walkthrough/demo scanning), so
-    // Campaign verification follows the same exemption rather than
-    // introducing an inconsistent partial gate. Unused by the Consumer app
-    // today (enterCampaignWeb below is the active entry path).
-    if (!isDemo) {
-      await this.assertCampaignVerified(dto.consumerId, dto.campaignId);
+      // Mirrors the pre-existing duplicate-check exemption: demo QR codes
+      // are exempt from the OTP-verification gate (same as the dupe-check
+      // above). Unused by the Consumer app today (enterCampaignWeb is the
+      // active entry path), but kept for the physical-QR scan path.
+      if (!verified) {
+        throw new ForbiddenException('Campaign verification required before participation');
+      }
     }
 
     // B-04 remediation: the existingRedemption check above is a

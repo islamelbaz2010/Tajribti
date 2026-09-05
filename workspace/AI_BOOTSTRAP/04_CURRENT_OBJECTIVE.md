@@ -1,13 +1,13 @@
 # Current Objective — One Page
 
 **This file describes EXACTLY what we are trying to accomplish RIGHT NOW.**  
-**Last updated:** 2026-08-14
+**Last updated:** 2026-09-06 (DL-103 — Campaign Creation Benchmark + Audience Eligibility + Consumer Support IMPLEMENTED AND VERIFIED; sprint/pilot-readiness-mvp pushed to origin; three Founder deployment actions outstanding — see What Success Looks Like below)
 
 ---
 
 ## The One Sentence
 
-Activate the deployed Real Pilot MVP — unblock OTP and create the first real brand account — so one real brand can run one real campaign with real consumers.
+Close Track 0 governance/commercial readiness after the bounded V0.5 consumer foundation, without starting broad V1 engineering.
 
 *Source: Deployment Session 2026-08-13; `AI_BOOTSTRAP/02_PROJECT_STATE.md`*
 
@@ -15,66 +15,55 @@ Activate the deployed Real Pilot MVP — unblock OTP and create the first real b
 
 ## What "Right Now" Means
 
-**The Real Pilot MVP is deployed. Infrastructure is live.**
+**The V0.5 bounded consumer foundation is closed. The deployed pilot infrastructure exists, but production field activation is not established by this documentation update.**
 
 Railway API: https://api-production-266c.up.railway.app/api/v1  
 Vercel Dashboard: https://dashboard-six-flame-wsaixia9cm.vercel.app  
-PostgreSQL: ONLINE (tajribti-pilot project, 8 tables, zero data)
+PostgreSQL: ONLINE (tajribti-pilot project, 8 tables); demo/seed data may exist; no real field-pilot consumer data evidenced
 
-Two blockers remain before a real consumer can complete the journey:
-
-1. **Akedly Template ID not yet set** — OTP code generation works; WhatsApp delivery requires AKEDLY_TEMPLATE_ID (currently in review with Akedly). AKEDLY_API_KEY and AKEDLY_PIPELINE_ID are available now.
-2. **No real brand account** — The database is clean. No brand can log in until the first account is created.
+The current Track 0 structure is: ≥3 signed pilot brand LOIs was the commercial success/kill criterion feeding B-01; B-01 is the formal written IC/Founder GO/NO-GO decision — **CLOSED 2026-09-01** by direct Project Director/Founder authorization (DL-082, `FOUNDER_DECISIONS.md`/`DECISION_LOG.md`), not via the LOI-count path. B-02 (LLC)/B-03 (PDPL) remain OPEN with no repository evidence of closure. B-04 (QR load test) was executed 2026-09-01 across two passes: the duplicate-issuance race condition it exists to test was found real and is now fixed and re-verified in every test round, but the documented <1s response-time criterion is still not met after two rounds of performance work, and the fix has not yet been applied to Railway production (no viable network path from this environment), so B-04 is REMEDIATED TWICE, not CLOSED (DL-083, DL-084, `16_Reports/B04_QR_CONCURRENCY_LOAD_TEST_2026-09-01.md`). **Broad V1/Track 1 engineering remains gated** — closing B-01 alone does not authorize it; B-02, B-03, and B-04 must all close first. D-028 (Intelligence Report quality) is CLOSED (2026-08-26, DL-056) and was never a fifth authorization blocker. Existing provider/configuration notes conflict and are externally unverified; they do not authorize source changes or consumer-foundation rebuilds.
 
 Commercial demo: FROZEN at commit `0209b9a` on `sprint/meos-production-build`. Do not touch.
 
----
+Current commercial execution constraint (RESOLVED 2026-08-27): customer outreach was NOT
+AUTHORIZED until a truthful client-ready version existed with the Flutter-first path,
+safe runtime, required report-quality acceptance, identifiable artifact, and
+known limitations documented. All five are now PASS — see below. Target preparation
+(Edita/Rimon Sami) remains READY / NOT SENT; this reconciliation does not itself send it.
 
-## The 2 Remaining Activation Steps
-
-### 1. Set Akedly Credentials in Railway (WhatsApp OTP — Founder sets when Template ID is approved)
-
-In Railway dashboard: set these on the `api` service in the `tajribti-pilot` project:
-
-```
-AKEDLY_API_KEY=d53379cf4b992b6684fedf9d0d367f194f6b89438710b63774e0e68fc26a715f
-AKEDLY_PIPELINE_ID=6a7db76861a103e7b2a0b7ec
-AKEDLY_TEMPLATE_ID=<approved-template-id>      ← SET THIS WHEN AKEDLY APPROVES IT
-AKEDLY_OTP_VAR=otp                             ← default; change only if template uses different var name
-```
-
-Railway auto-redeploys after env var change. WhatsApp OTP goes live immediately.
-The integration code is complete and soft-fails gracefully until Template ID is set.
-
-⚠️ OTP is currently blocked only by AKEDLY_TEMPLATE_ID being in review. API key and Pipeline ID are ready.
-
-### 2. Create First Real Brand Account (Founder provides: name, email, password)
-
-Claude will:
-- Generate bcrypt hash of the password
-- Open Railway Postgres TCP proxy
-- Insert the brand account via SQL
-- Test login via API
-- Close proxy
-
-After this the brand can log in at the Vercel dashboard URL and create their first campaign.
+DL-048 Option B is FULLY VALIDATED: PATH C isolated E2E (2026-08-23) confirmed
+16/16 steps PASS with real Akedly OTP, full participation, and completed-campaign
+protection on device TKINR8IJ5D9DSKQK. Production unchanged. D-028 is CLOSED
+(2026-08-26, DL-056). Safe runtime dry-run EXECUTED AND PASSED (2026-08-27) —
+`16_Reports/SAFE_RUNTIME_DRY_RUN_2026-08-27.md`. Client-ready gate: 5/5 MET.
+Per the conditional rule stated above, customer outreach is therefore AUTHORIZED
+(not yet sent).
 
 ---
 
-## After Both Blockers Are Cleared
+## Post-V0.5 Position
 
 ```
-Brand logs in at https://dashboard-six-flame-wsaixia9cm.vercel.app
-→ POST /api/v1/campaigns   (create campaign)
-→ GET  /api/v1/qr/generate/:campaignId  (download QR PNG)
-→ Print QR on sample product packaging
-→ Distribute to real consumers at field location
-→ Consumer scans QR → phone camera opens:
-     https://dashboard-six-flame-wsaixia9cm.vercel.app/join/:campaignId
-→ OTP → registration → survey → real signal in DB
-→ Brand analytics dashboard reflects real data
-→ AI report generated (Anthropic/OpenAI if key set, fallback narrative otherwise)
-→   REAL FIELD PILOT: RUNNING
+V0.5 CLOSED FOR BOUNDED SCOPE
+→ Track 0 / governance, commercial, legal, and technical readiness
+→ written GO / NO-GO
+→ only after authorization: V1 product contract
+→ first V1 engineering priority: brand campaign operating workflow
+```
+
+The V0.5 consumer foundation is not to be rebuilt. No Campaign B/C creation, database mutation, deployment, or direct API/SQL bypass is authorized by this objective.
+
+---
+
+## After Track 0 Authorization
+
+```
+V1 product contract
+→ approved brand onboarding/campaign operating workflow
+→ reporting/data-quality acceptance
+→ consumer production hardening
+→ technical hardening and private-beta gates
+→ controlled field pilot
 ```
 
 ---
@@ -83,38 +72,38 @@ Brand logs in at https://dashboard-six-flame-wsaixia9cm.vercel.app
 
 ```
 ✅  Railway API: LIVE                          (done)
-✅  PostgreSQL: ONLINE, clean schema           (done)
+✅  PostgreSQL: ONLINE, schema exists          (demo/seed state may exist; no real field-pilot data evidenced)
 ✅  Vercel Dashboard: LIVE                     (done)
 ✅  CORS: correctly configured                 (done)
 ✅  Consumer web deep links: working           (done)
 ✅  Admin endpoints: protected                 (done)
-✅  Akedly OTP integration: code complete      (done — soft-fail until Template ID set)
-⬜  Akedly Template ID: SET IN RAILWAY         (blocker 1 — Template ID in review)
-⬜  Real brand account: CREATED               (blocker 2)
-⬜  Real campaign: CREATED                    (requires brand account)
-⬜  Real QR: GENERATED                        (requires campaign)
-⬜  Real consumer completes journey           (requires all above)
-⬜  Real signal in dashboard                  (requires consumer journey)
-→   REAL FIELD PILOT: NOT YET VERIFIED
+✅  V0.5 consumer foundation: CLOSED          (Founder-confirmed; PATH C isolated E2E 16/16 PASS 2026-08-23)
+✅  Intelligence Report quality: CLOSED        (D-028, 2026-08-26 — DL-056)
+✅  Track 0 GO/NO-GO: CLOSED                  (B-01, 2026-09-01 — DL-082)
+⬜  LLC / PDPL gates: OPEN                    (B-02/B-03 — no repository evidence)
+⚠️  QR load test: REMEDIATED TWICE, not closed (B-04, 2026-09-01 — DL-083/DL-084; race fixed, <1s criterion unmet, migration not applied)
+✅  Campaign creation benchmark alignment: DONE (DL-103, 2026-09-06 — DRAFT workflow, audience targeting, objective field)
+✅  Audience/eligibility enforcement: DONE (DL-103 — server-side at verifyOtp/redeemQr/enterCampaignWeb, E2E verified 5×5 matrix)
+✅  Consumer support contact: DONE (DL-103 — islam.elbaz2010@gmail.com / 01090677722, tappable in Settings)
+⬜  Founder deployment actions PENDING: (1) npm run migration:run on Railway production DB; (2) flutter pub get + APK rebuild + install; (3) Vercel dashboard redeploy
+⬜  Broad V1 engineering authorization: OPEN  (blocked on B-02/B-03/B-04 — B-01 alone does not authorize it)
+→   REAL FIELD PILOT: NOT YET AUTHORIZED / NOT VERIFIED
 ```
 
 ---
 
 ## What an AI Should Help With Right Now
 
-- Setting Akedly env vars in Railway when Template ID is approved (AKEDLY_TEMPLATE_ID)
-- Creating first real brand account via Railway Postgres when Founder provides name/email/password
-- Verifying brand login works after account creation
-- Helping brand create first campaign via API (curl commands)
-- Generating QR code for the first campaign
-- Verifying consumer journey end-to-end (real OTP requires Template ID to be approved first)
+- Reconcile current-state/governance documentation without changing historical reports
+- Prepare Track 0 commercial, legal, and technical readiness evidence
+- Preserve the V0.5 closure and prevent duplicate consumer-foundation work
+- Prepare a V1 product contract only after written authorization
 
 ## What an AI Should NOT Help With Right Now
 
-- P1 features (brand self-registration, campaign management UI) — not yet authorized
-- P2 features (PDPL consent screen, consumer data deletion) — not yet authorized
+- Broad V1 features — not yet authorized
 - New dashboard screens or API endpoints
-- Track 1 full engineering — still gated on B-01/B-02/B-03/B-04
+- Track 1 full engineering — still gated on B-02/B-03/B-04 (B-01 closed 2026-09-01, DL-082; B-04 remediated twice but still open, DL-083/DL-084 — none of this by itself authorizes Track 1)
 - Modifying the commercial demo (FROZEN)
 - Rebuilding the deployment infrastructure (it's live and working)
 

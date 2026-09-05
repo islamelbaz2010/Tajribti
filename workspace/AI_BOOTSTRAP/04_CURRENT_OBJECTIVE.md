@@ -85,7 +85,10 @@ V1 product contract
 ✅  Campaign creation benchmark alignment: DONE (DL-103, 2026-09-06 — DRAFT workflow, audience targeting, objective field)
 ✅  Audience/eligibility enforcement: DONE (DL-103 — server-side at verifyOtp/redeemQr/enterCampaignWeb, E2E verified 5×5 matrix)
 ✅  Consumer support contact: DONE (DL-103 — islam.elbaz2010@gmail.com / 01090677722, tappable in Settings)
-⬜  Founder deployment actions PENDING: (1) npm run migration:run on Railway production DB; (2) flutter pub get + APK rebuild + install; (3) Vercel dashboard redeploy
+✅  Journey funnel analytics: DONE (DL-104, 2026-09-06 — verificationCount in overview + JourneyFunnel component; Sampl benchmark)
+✅  QR source attribution: DONE (DL-105, 2026-09-06 — label column on qr_codes; POST /qr/campaign/:id/sources; GET /analytics/:id/qr-sources; CampaignDetail QR Sources panel; migration run locally)
+✅  Insights page enriched: DONE (DL-106, 2026-09-06 — signal cards + purchase intent by segment tables; full benchmark Insight Model chain on one page)
+⬜  Founder deployment actions PENDING: (1) npm run migration:run on Railway production DB (TWO migrations: AddCampaignAudienceAndObjective + AddQrCodeLabel); (2) flutter pub get + APK rebuild + install; (3) Vercel dashboard redeploy from sprint/pilot-readiness-mvp
 ⬜  Broad V1 engineering authorization: OPEN  (blocked on B-02/B-03/B-04 — B-01 alone does not authorize it)
 →   REAL FIELD PILOT: NOT YET AUTHORIZED / NOT VERIFIED
 ```

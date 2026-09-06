@@ -168,11 +168,15 @@ export default function Insights() {
 
   return (
     <div>
+      {/* DL-113 (2026-09-06): page title aligned with nav label "Insights"
+          and the full benchmark chain: WHO → THINK → INTEND → SEGMENTS.
+          The sub clarifies scope without the misleading "Demographics" framing
+          that understated what this page now covers post-DL-106. */}
       <div style={styles.header}>
         <span style={styles.demoBadge}>CONSUMER INSIGHTS</span>
-        <h1 style={styles.title}>Demographics &amp; Signals</h1>
+        <h1 style={styles.title}>Insights</h1>
         <p style={styles.sub}>
-          Who tried this campaign, what they thought, and what they intend to do next
+          WHO tried this — what they think, what they intend, and how segments differ
         </p>
       </div>
 
@@ -330,6 +334,45 @@ export default function Insights() {
           </div>
         </div>
       )}
+
+      {/* DL-113 (2026-09-06): Consumer Voice — Q3 descriptor word distribution.
+          This is the most memorable consumer signal: the single word they chose
+          to describe the product. Shown on the Insights page (not only Survey
+          Results) so the brand sees WHO + WHAT THEY SAID on one screen.
+          Only shown when the survey has Q3 responses. No new API call —
+          survey is already fetched above. */}
+      {(() => {
+        const q3 = survey?.questionBreakdown?.['q3'];
+        if (!q3 || q3.length === 0) return null;
+        const total = q3.reduce((s, r) => s + r.count, 0);
+        if (total === 0) return null;
+        const sorted = [...q3].sort((a, b) => b.count - a.count);
+        return (
+          <div style={styles.voiceCard}>
+            <div style={styles.cardTitle}>Consumer Voice</div>
+            <p style={{ fontSize: 11, color: '#7a8bab', margin: '0 0 16px' }}>
+              The word consumers chose to describe this product (q3, n={total})
+            </p>
+            <div style={styles.voiceRow}>
+              {sorted.map((r, i) => {
+                const pct = Math.round((r.count / total) * 100);
+                const isTop = i === 0;
+                return (
+                  <div key={r.label} style={{ ...styles.voiceWord, ...(isTop ? styles.voiceWordTop : {}) }}>
+                    <span style={{ ...styles.voiceLabel, ...(isTop ? { color: '#040812' } : {}) }}>
+                      {r.label}
+                    </span>
+                    <span style={{ ...styles.voicePct, ...(isTop ? { color: '#040812', fontWeight: 800 } : {}) }}>
+                      {pct}%
+                    </span>
+                    <span style={styles.voiceCount}>n={r.count}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
       </>
       )}
     </div>
@@ -482,5 +525,46 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: 1.5,
     textTransform: 'uppercase' as const,
     marginBottom: 10,
+  },
+  // DL-113: Consumer Voice card — Q3 word descriptor distribution
+  voiceCard: {
+    background: '#ffffff',
+    border: '1px solid #e8ecf3',
+    borderRadius: 14,
+    padding: '20px 24px',
+    marginBottom: 16,
+  },
+  voiceRow: {
+    display: 'flex',
+    flexWrap: 'wrap' as const,
+    gap: 10,
+  },
+  voiceWord: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    gap: 2,
+    background: '#f7f9fd',
+    borderRadius: 10,
+    padding: '10px 16px',
+    minWidth: 80,
+  },
+  voiceWordTop: {
+    background: '#b2f24d',
+  },
+  voiceLabel: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: '#0a1120',
+  },
+  voicePct: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: '#4a5a7e',
+    lineHeight: 1,
+  },
+  voiceCount: {
+    fontSize: 9,
+    color: '#7a8bab',
   },
 };

@@ -445,16 +445,39 @@ export default function Overview() {
 
   return (
     <div>
-      {/* 1. What campaign am I looking at? */}
+      {/* 1. What campaign am I looking at? (WHAT + WHY + WHO + STATUS)
+          DL-113 (2026-09-06): campaign objective and audience targeting now
+          shown in the header so the workspace immediately answers:
+          WHAT  — brand + product
+          WHY   — objective text
+          WHO   — audience restrictions (gender, age)
+          STATUS — live badge + progress is below */}
       <div style={styles.campaignHeader}>
         <div style={styles.headerLeft}>
           {campaign.isDemo && <span style={styles.demoBadge}>DEMO CAMPAIGN</span>}
           <h1 style={styles.brandName}>{campaign.brandName}</h1>
           <p style={styles.campaignSub}>
             {campaign.productName}
-            <span style={styles.sep}>·</span>
-            {campaign.locationName}
+            {campaign.locationName && (
+              <><span style={styles.sep}>·</span>{campaign.locationName}</>
+            )}
           </p>
+          {/* WHY: campaign objective */}
+          {campaign.objective && (
+            <p style={styles.objectiveText}>{campaign.objective}</p>
+          )}
+          {/* WHO: audience targeting pills */}
+          {(campaign.audienceGender || (campaign.audienceAgeRanges && campaign.audienceAgeRanges.length > 0)) && (
+            <div style={styles.audiencePills}>
+              <span style={styles.audiencePillLabel}>WHO</span>
+              {campaign.audienceGender && (
+                <span style={styles.audiencePill}>{campaign.audienceGender}</span>
+              )}
+              {campaign.audienceAgeRanges?.map((r) => (
+                <span key={r} style={styles.audiencePill}>{r}</span>
+              ))}
+            </div>
+          )}
         </div>
         <div
           style={{
@@ -779,11 +802,44 @@ const styles: Record<string, React.CSSProperties> = {
   campaignSub: {
     fontSize: 13,
     color: '#7a8bab',
-    margin: 0,
+    margin: '0 0 6px',
   },
   sep: {
     margin: '0 6px',
     color: '#94a3b8',
+  },
+  // DL-113: objective text — the campaign's WHY, shown beneath product/location
+  objectiveText: {
+    fontSize: 12,
+    color: '#4a5a7e',
+    margin: '2px 0 6px',
+    maxWidth: 520,
+    lineHeight: 1.4,
+    fontStyle: 'italic' as const,
+  },
+  // DL-113: audience pills — WHO this campaign targets
+  audiencePills: {
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'wrap' as const,
+    gap: 6,
+    marginTop: 2,
+  },
+  audiencePillLabel: {
+    fontSize: 9,
+    fontWeight: 800,
+    color: '#7a8bab',
+    letterSpacing: 1.5,
+    marginRight: 2,
+  },
+  audiencePill: {
+    fontSize: 10,
+    fontWeight: 700,
+    color: '#4a5a7e',
+    background: '#eef1f7',
+    borderRadius: 4,
+    padding: '2px 8px',
+    textTransform: 'capitalize' as const,
   },
   statusBadge: {
     display: 'flex',

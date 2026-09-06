@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { campaignApi } from '../api/endpoints';
 import type { Campaign } from '../api/types';
 
@@ -41,6 +41,12 @@ function needsAttention(c: { status: string; endDate: string | null }): boolean 
 export default function Campaigns() {
   const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
   const [error, setError] = useState('');
+  const location = useLocation();
+  // Preserve the currently-active campaign context when the user navigates to
+  // the campaign list (e.g., from the "All Campaigns" nav link while working
+  // in a campaign workspace). The selected campaignId is passed via ?campaignId=
+  // so we can visually indicate which campaign they were last working on.
+  const activeCampaignId = new URLSearchParams(location.search).get('campaignId');
 
   useEffect(() => {
     campaignApi
@@ -85,7 +91,15 @@ export default function Campaigns() {
       {campaigns !== null && campaigns.length > 0 && (
         <div style={styles.grid}>
           {campaigns.map((c) => (
-            <div key={c.id} style={styles.card}>
+            <div
+              key={c.id}
+              style={{
+                ...styles.card,
+                // Highlight the campaign that was last selected so the user
+                // can find it immediately when returning to the list.
+                ...(activeCampaignId === c.id ? styles.cardActive : {}),
+              }}
+            >
               <div style={styles.cardImageWrap}>
                 {c.productImage ? (
                   <img src={c.productImage} alt={c.productName} style={styles.cardImage} />
@@ -93,6 +107,9 @@ export default function Campaigns() {
                   <div style={styles.cardImagePlaceholder}>No product image</div>
                 )}
                 <div style={styles.cardBadgeRow}>
+                  {activeCampaignId === c.id && (
+                    <span style={styles.activeCampaignBadge}>● WORKING ON</span>
+                  )}
                   {c.isDemo && <span style={styles.demoBadge}>DEMO</span>}
                   <StatusBadge status={c.status} />
                   {needsAttention(c) && (
@@ -200,6 +217,10 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column' as const,
   },
+  cardActive: {
+    border: '2px solid #b2f24d',
+    boxShadow: '0 0 0 3px rgba(178,242,77,0.12)',
+  },
   cardImageWrap: {
     position: 'relative' as const,
     height: 140,
@@ -226,6 +247,18 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'space-between',
   },
   // DL-107: editorial badge — used for both the page header label and card DEMO badges
+  activeCampaignBadge: {
+    display: 'inline-block',
+    fontSize: 9,
+    fontWeight: 800,
+    color: '#166534',
+    background: 'rgba(178,242,77,0.18)',
+    border: '1px solid rgba(178,242,77,0.5)',
+    borderRadius: 3,
+    padding: '3px 8px',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
   demoBadge: {
     display: 'inline-block',
     fontSize: 9,

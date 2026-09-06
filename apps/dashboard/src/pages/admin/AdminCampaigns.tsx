@@ -131,7 +131,18 @@ export default function AdminCampaigns() {
                         {c.productName}
                       </Link>
                     </td>
-                    <td style={styles.td}>{c.companyName ?? '—'}</td>
+                    <td style={styles.td}>
+                      {c.brandAccountId ? (
+                        <Link
+                          to={`/admin/companies/${c.brandAccountId}`}
+                          style={styles.companyLink}
+                        >
+                          {c.companyName ?? c.brandAccountId}
+                        </Link>
+                      ) : (
+                        c.companyName ?? '—'
+                      )}
+                    </td>
                     <td style={styles.td}>
                       <span
                         style={{
@@ -220,6 +231,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   td: { padding: '14px 16px', fontSize: 13, color: '#0a1120', borderBottom: '1px solid #f1f4f9' },
   campaignLink: { color: '#0a1120', fontWeight: 700, textDecoration: 'none' },
+  companyLink: { color: '#5b8cff', fontWeight: 600, textDecoration: 'none', fontSize: 12 },
   statusPill: { fontSize: 9, fontWeight: 800, border: '1px solid', borderRadius: 4, padding: '3px 8px', letterSpacing: 0.5 },
   attentionPill: {
     fontSize: 9, fontWeight: 800, color: '#b91c1c', background: '#fef2f2', border: '1px solid #fecaca',

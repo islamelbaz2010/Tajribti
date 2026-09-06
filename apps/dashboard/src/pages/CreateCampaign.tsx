@@ -109,6 +109,13 @@ export default function CreateCampaign() {
   useEffect(() => {
     companyApi.getContacts().then(setContacts).catch(() => setContacts([]));
     companyApi.getSectorFramework().then(setFramework).catch(() => setFramework([]));
+    // Pre-fill Brand Name from the authenticated Company's own account name
+    // so a Company does not have to manually type their own name, and so the
+    // campaign is always correctly associated with the current Company account.
+    // brandName is still editable in case the campaign uses a sub-brand name.
+    companyApi.getMe().then((company) => {
+      if (company?.name) setBrandName(company.name);
+    }).catch(() => { /* non-fatal — user can still type it */ });
   }, []);
 
   const toggleAgeRange = (range: string) => {

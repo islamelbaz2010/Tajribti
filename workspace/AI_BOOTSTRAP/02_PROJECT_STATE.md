@@ -7,6 +7,18 @@
 
 ---
 
+## CURRENT SESSION DELTA — 2026-09-06 (Reference Blueprint Continuation / DL-116)
+
+- **CreateCampaign.tsx**: `brandName` field now pre-populated from `companyApi.getMe()` in `useEffect` — Company users no longer have to type their own company name. Server-side JWT isolation unchanged.
+- **Campaigns.tsx**: Active campaign context preserved on list navigation — `?campaignId=X` in URL now triggers lime border + `● WORKING ON` badge on the matching campaign card.
+- **AdminCampaigns.tsx**: Company column in Campaign Pipeline table is now a clickable `<Link>` to `/admin/companies/:brandAccountId` — completing the reverse-direction Admin navigation circuit.
+- **Build**: `tsc --noEmit` clean; `CI=true npm run build` clean. Committed `087eeb8`. Dashboard deployed to Vercel (auto-deploy on push). No API change.
+- **Runtime acceptance**: All four admin routes (`/admin/stats`, `/admin/brands`, `/admin/campaigns`, `/admin/auth/me`) return HTTP 401 (not 404) — Railway DL-115 deploy confirmed. QR endpoint returns `image/png` binary. Consumer demo campaign `GET /campaigns/demo/active` returns 200.
+
+Full detail: `DECISION_LOG.md` DL-116.
+
+---
+
 ## CURRENT SESSION DELTA — 2026-09-06 (Reference Blueprint Product Rebuild / DL-115)
 
 - **Reference Blueprint gap closed**: Admin landing page (`/admin`) now redirects to `/admin/dashboard` (was `/admin/companies`) — the "DASHBOARD / OPERATIONS OVERVIEW" first-level node required by `REFERENCE_BLUEPRINT_TAJRIBTI_RECONCILIATION_2026-09-02.md` now exists as a real product surface.

@@ -7,6 +7,17 @@
 
 ---
 
+## CURRENT SESSION DELTA — 2026-09-06 (Reference Blueprint Continuation / DL-117)
+
+- **Overview.tsx**: `Recent Activity` empty-state message is now campaign-status-aware — archived/completed campaigns no longer show "Share QR code to get your first participant" (factually wrong for a closed campaign). Three branches: active/draft → share QR; paused → resume prompt; all other → campaign has ended.
+- **admin.service.ts seedDemo()**: Demo campaign now seeded with `objective`, `audienceGender: 'all'`, and `audienceAgeRanges: ['18-24','25-34']` — future reseeds will showcase the Overview WHY/WHO sections that were silently absent.
+- **Build**: `tsc --noEmit` clean; `CI=true npm run build` clean. Committed `7b740a7`. Dashboard and API both deployed to Vercel/Railway (auto-deploy on push).
+- **Pending**: Existing production demo campaign (9c370244) still lacks objective/audience in DB — must be updated manually via the Company Console Configure page.
+
+Full detail: `DECISION_LOG.md` DL-117.
+
+---
+
 ## CURRENT SESSION DELTA — 2026-09-06 (Reference Blueprint Continuation / DL-116)
 
 - **CreateCampaign.tsx**: `brandName` field now pre-populated from `companyApi.getMe()` in `useEffect` — Company users no longer have to type their own company name. Server-side JWT isolation unchanged.

@@ -1,7 +1,7 @@
 # Current Objective — One Page
 
 **This file describes EXACTLY what we are trying to accomplish RIGHT NOW.**  
-**Last updated:** 2026-09-06 (DL-109 — Visual harmonization final pass complete; all 11 section pages carry editorial badge; FINAL V1 HANDOFF produced; three Founder deployment actions outstanding — see What Success Looks Like below)
+**Last updated:** 2026-09-06 (DL-110 — PRODUCTION RECOVERY COMPLETE: both migrations applied via Railway SSH; Vercel dashboard redeployed; production API confirmed operational; APK rebuild pending macOS 14+ hardware)
 
 ---
 
@@ -93,8 +93,11 @@ V1 product contract
 ✅  B-04 pass 3: redeemQr hot-path parallelized (DL-108, 2026-09-06 — 3 sequential reads → Promise.all; API build clean; B-04 performance criterion <1s still Railway-gated)
 ✅  Full V1 Acceptance verified (DL-108, 2026-09-06 — all 15 benchmark capabilities PASS; all 20 verification areas checked; employee mobile verified)
 ✅  Visual harmonization final pass: DONE (DL-109, 2026-09-06 — Gallery, CompanyProfile, Employees; all 11 section pages carry editorial badge; commit 68d834a)
-✅  FINAL V1 HANDOFF: PRODUCED (2026-09-06 — STATE A: PRODUCT FUNCTIONALLY COMPLETE; all engineering done; 3 Founder deployment actions remain)
-⬜  Founder deployment actions PENDING: (1) npm run migration:run on Railway production DB (TWO migrations: AddCampaignAudienceAndObjective + AddQrCodeLabel); (2) flutter pub get + APK rebuild + install; (3) Vercel dashboard redeploy from sprint/pilot-readiness-mvp
+✅  PRODUCTION RECOVERY: COMPLETE (DL-110, 2026-09-06 — both migrations applied via `railway ssh --service api npm run migration:run`; production API returning HTTP 200 on GET /campaigns and GET /campaigns/demo/active with new objective/audience columns present)
+✅  Vercel dashboard: REDEPLOYED (DL-110 — bundle main.946ddf0a.js live at dashboard-six-flame-wsaixia9cm.vercel.app; includes DL-103 through DL-109)
+⬜  Consumer APK STALE — DL-103 changes (eligibility UI, support contact) NOT in the Aug 17 APK; rebuild requires macOS 14+ hardware (this machine is macOS 13)
+⬜  B-04 QR write-path production benchmark: CANNOT RUN without polluting production data — read-path p95=0.686s at N=10 concurrent confirms <1s on production; write-path parallelized (DL-108) but QR redemption test not executed against production
+⬜  Broad V1 engineering authorization: OPEN  (blocked on B-02/B-03/B-04 — B-01 alone does not authorize it)
 ⬜  Broad V1 engineering authorization: OPEN  (blocked on B-02/B-03/B-04 — B-01 alone does not authorize it)
 →   REAL FIELD PILOT: NOT YET AUTHORIZED / NOT VERIFIED
 ```

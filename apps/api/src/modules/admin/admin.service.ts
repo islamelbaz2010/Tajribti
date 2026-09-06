@@ -524,6 +524,83 @@ export class AdminService {
     return !!admin;
   }
 
+  // Admin Operations Overview — aggregate stats for the dashboard landing.
+  // All queries are simple COUNT/GROUP-BY on existing tables; no new
+  // entities, no schema change, no heavy joins beyond what the campaign list
+  // already does.
+  async getOperationalStats(): Promise<{
+    totalCompanies: number;
+    campaignsByStatus: Record<string, number>;
+    needsAttention: Array<{ id: string; productName: string; companyName: string | null; endDate: string; participantCount: number }>;
+    recentCampaigns: Array<{ id: string; productName: string; companyName: string | null; status: string; createdAt: string }>;
+  }> {
+    const today = new Date().toISOString().slice(0, 10);
+
+    const [totalCompanies, allStatusCounts, attentionRows, recentRows] = await Promise.all([
+      this.brandRepo.count(),
+
+      // Campaign counts grouped by status — one query, no N+1
+      this.campaignRepo
+        .createQueryBuilder('c')
+        .select('c.status', 'status')
+        .addSelect('COUNT(*)', 'count')
+        .groupBy('c.status')
+        .getRawMany() as Promise<{ status: string; count: string }[]>,
+
+      // Active campaigns whose end date has already passed — operational
+      // exceptions list (mirrors client-side needsAttention() already in
+      // AdminCampaigns.tsx / AdminCampaignDetail.tsx)
+      this.campaignRepo
+        .createQueryBuilder('c')
+        .leftJoinAndSelect('c.brandAccount', 'b')
+        .where('c.status = :status', { status: 'active' })
+        .andWhere('c.endDate IS NOT NULL')
+        .andWhere('c.endDate < :today', { today })
+        .orderBy('c.endDate', 'ASC')
+        .limit(20)
+        .getMany(),
+
+      // 10 most recently created campaigns — activity feed
+      this.campaignRepo
+        .createQueryBuilder('c')
+        .leftJoinAndSelect('c.brandAccount', 'b')
+        .orderBy('c.createdAt', 'DESC')
+        .limit(10)
+        .getMany(),
+    ]);
+
+    // Participant counts for the attention list
+    const attentionIds = attentionRows.map((c) => c.id);
+    const recentIds = recentRows.map((c) => c.id);
+    const countMap = await this.campaignService.attachParticipantCounts(
+      [...attentionRows, ...recentRows.filter((c) => !attentionIds.includes(c.id))],
+    ).then((rows) => new Map(rows.map((r) => [r.id, (r as { participantCount?: number }).participantCount ?? 0])));
+
+    const campaignsByStatus: Record<string, number> = {};
+    for (const row of allStatusCounts) {
+      campaignsByStatus[row.status] = Number(row.count);
+    }
+
+    return {
+      totalCompanies,
+      campaignsByStatus,
+      needsAttention: attentionRows.map((c) => ({
+        id: c.id,
+        productName: c.productName,
+        companyName: c.brandAccount?.name ?? null,
+        endDate: c.endDate ?? '',
+        participantCount: countMap.get(c.id) ?? 0,
+      })),
+      recentCampaigns: recentRows.map((c) => ({
+        id: c.id,
+        productName: c.productName,
+        companyName: c.brandAccount?.name ?? null,
+        status: c.status,
+        createdAt: c.createdAt.toISOString(),
+      })),
+    };
+  }
+
   async getAdminUser(adminId: string): Promise<{ id: string; name: string; email: string } | null> {
     const admin = await this.adminUserRepo.findOne({ where: { id: adminId } });
     if (!admin) return null;

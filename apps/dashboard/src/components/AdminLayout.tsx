@@ -10,9 +10,14 @@ import { useAdminAuth } from '../context/AdminAuthContext';
 // cross-Company) — the "Admin -> Company -> Campaigns -> Selected
 // Campaign -> Participants/Data -> Insights -> Report" hierarchy this
 // ruling requires.
+// Reference Blueprint: "DASHBOARD / OPERATIONS OVERVIEW → COMPANIES →
+// CAMPAIGN PIPELINE" — Dashboard is now the Admin landing page, giving the
+// operator a cross-Company operational health view before drilling into
+// Companies or the Campaign Pipeline.
 const NAV_ITEMS = [
+  { to: '/admin/dashboard', label: 'Overview' },
   { to: '/admin/companies', label: 'Companies' },
-  { to: '/admin/campaigns', label: 'Campaigns' },
+  { to: '/admin/campaigns', label: 'Campaign Pipeline' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

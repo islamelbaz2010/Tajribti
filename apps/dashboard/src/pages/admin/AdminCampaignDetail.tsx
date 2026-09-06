@@ -11,13 +11,20 @@ import type {
   AiReport,
 } from '../../api/types';
 
-type Tab = 'overview' | 'participants' | 'insights' | 'report';
+// Reference Blueprint: Admin → Campaign → [Overview | Participants |
+// Survey Operations | Insights | Report] — "Insights & Survey" was a
+// single tab; split here into two distinct operational views so Survey
+// Operations (what did consumers say?) is clearly separate from Insights
+// (who said it, and what does the data mean?). No new API calls — the
+// existing getSurvey + getDemographics responses power both tabs.
+type Tab = 'overview' | 'participants' | 'survey' | 'insights' | 'report';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'participants', label: 'Participants' },
-  { id: 'insights', label: 'Insights & Survey' },
-  { id: 'report', label: 'AI Report' },
+  { id: 'survey', label: 'Survey Results' },
+  { id: 'insights', label: 'Insights' },
+  { id: 'report', label: 'Report' },
 ];
 
 // Operational exceptions (2026-09-02): the same "active but past its own
@@ -232,6 +239,53 @@ export default function AdminCampaignDetail() {
         </div>
       )}
 
+      {/* Campaign Configuration summary — objective, audience, dates,
+          reward. Allows Admin to verify what a Company configured without
+          asking them to send screenshots. Additive to the metrics; shown
+          even when overview data hasn't loaded yet. */}
+      {tab === 'overview' && (
+        <div style={{ ...styles.card, marginTop: 14 }}>
+          <div style={styles.cardTitle}>Campaign Configuration</div>
+          <div style={styles.configGrid}>
+            {campaign.objective && (
+              <div style={styles.configItem}>
+                <div style={styles.configLabel}>Objective</div>
+                <div style={styles.configValue}>{campaign.objective}</div>
+              </div>
+            )}
+            <div style={styles.configItem}>
+              <div style={styles.configLabel}>Target</div>
+              <div style={styles.configValue}>{campaign.targetCount} participants</div>
+            </div>
+            <div style={styles.configItem}>
+              <div style={styles.configLabel}>Reward</div>
+              <div style={styles.configValue}>{campaign.rewardPoints} pts</div>
+            </div>
+            {(campaign.audienceGender || (campaign.audienceAgeRanges && campaign.audienceAgeRanges.length > 0)) && (
+              <div style={styles.configItem}>
+                <div style={styles.configLabel}>Audience</div>
+                <div style={styles.configValue}>
+                  {[
+                    campaign.audienceGender,
+                    campaign.audienceAgeRanges?.join(', '),
+                  ].filter(Boolean).join(' · ')}
+                </div>
+              </div>
+            )}
+            {campaign.locationName && (
+              <div style={styles.configItem}>
+                <div style={styles.configLabel}>Location</div>
+                <div style={styles.configValue}>{campaign.locationName}</div>
+              </div>
+            )}
+            <div style={styles.configItem}>
+              <div style={styles.configLabel}>Type</div>
+              <div style={styles.configValue}>{campaign.isDemo ? 'Demo' : 'Live'}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Operational visibility (2026-09-02): the exact QR/join code a
           Company's consumers scan for this campaign, visible to Admin for
           the first time — reuses the public GET /qr/generate/:id endpoint
@@ -294,55 +348,23 @@ export default function AdminCampaignDetail() {
         </div>
       )}
 
-      {tab === 'insights' && demographics && survey && (
+      {/* Survey Operations tab — what did consumers say? Raw question-by-
+          question breakdown; separate from demographic Insights so operators
+          can find survey data without scrolling past analytics cards. */}
+      {tab === 'survey' && survey && (
         <>
-          <div style={styles.grid2}>
-            <div style={styles.card}>
-              <div style={styles.cardTitle}>Demographics</div>
-              <DistributionList title="Age" items={demographics.ageDistribution} />
-              <DistributionList title="Gender" items={demographics.genderDistribution} />
-              <DistributionList title="City" items={demographics.cityDistribution} />
+          <div style={styles.card}>
+            <div style={styles.cardTitle}>
+              Purchase Intent — {survey.purchaseIntentScore}% positive
             </div>
-            <div style={styles.card}>
-              <div style={styles.cardTitle}>Survey — Purchase Intent {survey.purchaseIntentScore}%</div>
-              <DistributionList title="Purchase Intent" items={survey.purchaseIntentDistribution} />
-            </div>
+            <DistributionList title="Likely to buy" items={survey.purchaseIntentDistribution} />
           </div>
 
-          {/* Reference Product Benchmark, Insights/Segmentation (2026-09-02):
-              demographics and purchase intent above are still two separate
-              cards — this is the first place Admin (like the Company
-              Console's SurveyResults.tsx) can see whether intent actually
-              differs by segment, matching Sampl/Zamplit's explicit
-              "purchase intent by audience segment" pattern. Same
-              GET /admin/campaigns/:id/survey response already fetched. */}
-          {(survey.purchaseIntentBySegment.byGender.length > 0 ||
-            survey.purchaseIntentBySegment.byAgeRange.length > 0) && (
-            <div style={{ ...styles.grid2, marginTop: 14 }}>
-              <div style={styles.card}>
-                <div style={styles.cardTitle}>Purchase Intent by Gender</div>
-                <SegmentIntentList items={survey.purchaseIntentBySegment.byGender} />
-              </div>
-              <div style={styles.card}>
-                <div style={styles.cardTitle}>Purchase Intent by Age</div>
-                <SegmentIntentList items={survey.purchaseIntentBySegment.byAgeRange} />
-              </div>
-            </div>
-          )}
-
-          {/* Product Completion Wave (2026-09-02): the full survey result —
-              not just Purchase Intent/Demographics. Q1/Q3/Q4 are part of
-              every campaign's default 5-question survey (same data
-              SurveyResults.tsx on the Company Console now also shows);
-              customQuestions are whatever a Company added beyond the
-              core 5 via Survey Builder V2. All read from the same
-              GET /admin/campaigns/:id/survey response already fetched —
-              no new endpoint. */}
           <div style={{ ...styles.grid2, marginTop: 14 }}>
             <div style={styles.card}>
-              <div style={styles.cardTitle}>First Impression (Q1)</div>
+              <div style={styles.cardTitle}>First Impression (Q1 — stars)</div>
               {survey.firstImpressionScore.responseCount === 0 ? (
-                <p style={styles.hint}>No responses to this question yet.</p>
+                <p style={styles.hint}>No responses yet.</p>
               ) : (
                 <p style={styles.narrative}>
                   <strong>{survey.firstImpressionScore.average} / 5</strong> average ·{' '}
@@ -359,7 +381,7 @@ export default function AdminCampaignDetail() {
               <DistributionListRaw items={survey.questionBreakdown['q4'] ?? []} />
             </div>
             <div style={styles.card}>
-              <div style={styles.cardTitle}>Open Feedback (Q5)</div>
+              <div style={styles.cardTitle}>Open Feedback / Verbatims (Q5)</div>
               {survey.verbatims.length === 0 ? (
                 <p style={styles.hint}>No open-ended responses yet.</p>
               ) : (
@@ -394,6 +416,41 @@ export default function AdminCampaignDetail() {
                     )}
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Insights tab — who are the participants, and what patterns emerge
+          across audience segments? Separate from Survey Results so operators
+          can quickly reach demographic breakdowns without scrolling past
+          raw question data. */}
+      {tab === 'insights' && demographics && survey && (
+        <>
+          <div style={styles.grid2}>
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>Demographics</div>
+              <DistributionList title="Age" items={demographics.ageDistribution} />
+              <DistributionList title="Gender" items={demographics.genderDistribution} />
+              <DistributionList title="City" items={demographics.cityDistribution} />
+            </div>
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>Purchase Intent — {survey.purchaseIntentScore}%</div>
+              <DistributionList title="Response breakdown" items={survey.purchaseIntentDistribution} />
+            </div>
+          </div>
+
+          {(survey.purchaseIntentBySegment.byGender.length > 0 ||
+            survey.purchaseIntentBySegment.byAgeRange.length > 0) && (
+            <div style={{ ...styles.grid2, marginTop: 14 }}>
+              <div style={styles.card}>
+                <div style={styles.cardTitle}>Purchase Intent by Gender</div>
+                <SegmentIntentList items={survey.purchaseIntentBySegment.byGender} />
+              </div>
+              <div style={styles.card}>
+                <div style={styles.cardTitle}>Purchase Intent by Age</div>
+                <SegmentIntentList items={survey.purchaseIntentBySegment.byAgeRange} />
               </div>
             </div>
           )}
@@ -537,6 +594,14 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
   },
   pageLabel: { fontSize: 12, color: '#7a8bab', fontWeight: 600 },
+  configGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+    gap: 14,
+  },
+  configItem: {},
+  configLabel: { fontSize: 10, fontWeight: 700, color: '#7a8bab', letterSpacing: 0.5, marginBottom: 3, textTransform: 'uppercase' as const },
+  configValue: { fontSize: 13, color: '#0a1120', fontWeight: 600 },
   subheading: { fontSize: 11, fontWeight: 800, color: '#7a8bab', letterSpacing: 0.5, marginBottom: 6, textTransform: 'uppercase' as const },
   distRow: { display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#374151', padding: '4px 0' },
   distLabel: { fontWeight: 600 },

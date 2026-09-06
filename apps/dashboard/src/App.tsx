@@ -28,6 +28,7 @@ import RegisterPage from './pages/consumer/RegisterPage';
 import SurveyPage from './pages/consumer/SurveyPage';
 import ThankYouPage from './pages/consumer/ThankYouPage';
 import AdminLogin from './pages/admin/AdminLogin';
+import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminCompanies from './pages/admin/AdminCompanies';
 import AdminCompanyDetail from './pages/admin/AdminCompanyDetail';
 import AdminCampaigns from './pages/admin/AdminCampaigns';
@@ -79,7 +80,10 @@ export default function App() {
               a deliberately separate route tree/auth context from the
               Company Console above. */}
           <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin" element={<Navigate to="/admin/companies" replace />} />
+          {/* /admin → /admin/dashboard: the Operations Overview landing page
+              (Reference Blueprint: "DASHBOARD / OPERATIONS OVERVIEW") */}
+          <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/admin/dashboard" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
           <Route path="/admin/companies" element={<AdminProtectedRoute><AdminCompanies /></AdminProtectedRoute>} />
           <Route path="/admin/companies/:id" element={<AdminProtectedRoute><AdminCompanyDetail /></AdminProtectedRoute>} />
           <Route path="/admin/campaigns" element={<AdminProtectedRoute><AdminCampaigns /></AdminProtectedRoute>} />

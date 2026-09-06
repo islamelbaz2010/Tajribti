@@ -52,6 +52,17 @@ export const adminCompaniesApi = {
     adminClient.post(`/admin/brands/${id}/employee-code/regenerate`, {}),
 };
 
+export const adminStatsApi = {
+  // Admin Operations Overview — aggregate stats for the dashboard landing
+  // page (Reference Blueprint: "DASHBOARD / OPERATIONS OVERVIEW").
+  getStats: (): Promise<{
+    totalCompanies: number;
+    campaignsByStatus: Record<string, number>;
+    needsAttention: Array<{ id: string; productName: string; companyName: string | null; endDate: string; participantCount: number }>;
+    recentCampaigns: Array<{ id: string; productName: string; companyName: string | null; status: string; createdAt: string }>;
+  }> => adminClient.get('/admin/stats'),
+};
+
 export const adminCampaignsApi = {
   list: (query: {
     page?: number;

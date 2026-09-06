@@ -360,4 +360,18 @@ export class AdminController {
     await this.checkAdminAuth(secret, authHeader);
     return this.adminService.getCampaignReportForAdmin(id);
   }
+
+  // Admin Operations Overview (Reference Blueprint — "DASHBOARD / OPERATIONS
+  // OVERVIEW"). Returns aggregate stats so the Admin landing page can show
+  // cross-Company operational health at a glance without fetching every
+  // campaign individually.  Single additional endpoint; no new entities, no
+  // schema change.
+  @Get('stats')
+  async getStats(
+    @Headers('x-admin-secret') secret: string | undefined,
+    @Headers('authorization') authHeader: string | undefined,
+  ) {
+    await this.checkAdminAuth(secret, authHeader);
+    return this.adminService.getOperationalStats();
+  }
 }

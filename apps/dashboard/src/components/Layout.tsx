@@ -12,25 +12,30 @@ const STATUS_LABEL_COLOR: Record<string, string> = {
   archived: '#4a5a7e',
 };
 
-// Company Console IA (Product Transformation, 2026-09-01): two groups —
-// operate campaigns vs. understand consumers — replacing the previous five
-// flat MEOS-demo-inherited groups. Routes are unchanged (URL stability);
-// only grouping and labels changed. See DL-062.
+// Company Console IA (Product Transformation, 2026-09-01 → DL-112 2026-09-06):
+// Campaign Workspace — Overview is the natural landing for any selected campaign:
+// it immediately answers WHAT IS THIS / STATUS / JOURNEY / SIGNALS / INTENT.
+// Configure (formerly "Details & QR") is the setup/edit screen — reached after
+// understanding what the campaign is doing, not before. All routes unchanged;
+// only grouping, order, and labels changed.
+// Consumer Data group: "Demographics" → "Insights" (page now covers the full
+// insight model: WHO → THINK → INTEND → SEGMENTS). "CONSUMER INSIGHTS" →
+// "CONSUMER DATA" (data-forward framing consistent with platform positioning).
 const NAV_SECTIONS = [
   {
     group: 'CAMPAIGN',
     items: [
-      { to: '/campaigns', label: 'Campaigns' },
-      { to: '/campaign', label: 'Details & QR' },
+      { to: '/campaigns', label: 'All Campaigns' },
+      { to: '/overview', label: 'Overview' },
+      { to: '/campaign', label: 'Configure' },
       { to: '/gallery', label: 'Media' },
     ],
   },
   {
-    group: 'CONSUMER INSIGHTS',
+    group: 'CONSUMER DATA',
     items: [
-      { to: '/overview', label: 'Overview' },
       { to: '/participants', label: 'Participants' },
-      { to: '/insights', label: 'Demographics' },
+      { to: '/insights', label: 'Insights' },
       { to: '/survey', label: 'Survey Results' },
       { to: '/summary', label: 'AI Insights' },
       { to: '/report', label: 'Report' },

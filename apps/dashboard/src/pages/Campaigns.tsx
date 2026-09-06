@@ -119,12 +119,17 @@ export default function Campaigns() {
                     />
                   </div>
                 )}
+                {/* DL-112 (2026-09-06): primary action is now "View Campaign" →
+                    campaign Overview (signals, journey, purchase intent, live feed).
+                    "Configure" is the secondary action for the setup/edit page.
+                    Benchmark: the first thing a brand does when working on a
+                    campaign is understand it, not edit it. */}
                 <div style={styles.cardActions}>
-                  <Link to={`/campaign?campaignId=${c.id}`} style={styles.actionBtnPrimary}>
-                    Manage
+                  <Link to={`/overview?campaignId=${c.id}`} style={styles.actionBtnPrimary}>
+                    View Campaign
                   </Link>
-                  <Link to={`/overview?campaignId=${c.id}`} style={styles.actionBtn}>
-                    Overview
+                  <Link to={`/campaign?campaignId=${c.id}`} style={styles.actionBtn}>
+                    Configure
                   </Link>
                   <Link to={`/gallery?campaignId=${c.id}`} style={styles.actionBtn}>
                     Media

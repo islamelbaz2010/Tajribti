@@ -88,6 +88,8 @@
 | OD-04 | Whether external funding is sought or bootstrapped | Founder | OPEN |
 | OD-05 | Revenue-mix percentages | Pending validation sprint | OPEN |
 | OD-06 | Track 0 GO decision | Founder / IC | OPEN — BLOCKING |
+
+| DL-048 | Flutter-first operational path | Founder | CLOSED — OPTION B FULLY VALIDATED 2026-08-23; PATH C isolated E2E 16/16 PASS; Run #14 APK SHA-256 `4e76a3c…`; real Akedly OTP; full participation + already-participated protection confirmed on TKINR8IJ5D9DSKQK; production unchanged |
 | OD-07 | Egyptian LLC incorporation | Founder | OPEN — BLOCKING |
 | OD-08 | PDPL legal review sign-off | Legal counsel | OPEN — BLOCKING |
 | OD-09 | QR concurrency load test | Engineering | OPEN — BLOCKING |

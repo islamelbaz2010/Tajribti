@@ -24,7 +24,7 @@ This is not a consumer product that can grow virally. Consumer-side marketing ex
 
 | Stage | Focus | Success Gate |
 |---|---|---|
-| Stage 1 — Brand Supply | Secure first 3–5 signed brand pilots before building anything | 3 paid pilots committed |
+| Stage 1 — Brand Supply | Secure first 3–5 signed brand pilots before building anything | ≥3 signed pilot brand LOIs — Track 0 commercial criterion feeding B-01; paid pilot commitment is a subsequent commercial step |
 | Stage 2 — First Campaigns | Run first campaigns in Cairo with the 3–5 pilot brands | First usable campaign report delivered |
 | Stage 3 — Consumer Panel | Build consumer panel through targeted Cairo consumer acquisition | Statistical minimum panel size achieved |
 | Stage 4 — Data Flywheel | Panel grows → data quality improves → brand WTP increases → reinvest | First brand renewal |

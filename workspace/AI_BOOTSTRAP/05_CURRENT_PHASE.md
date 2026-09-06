@@ -1,23 +1,24 @@
 # Current Phase
 
-**Last updated:** 2026-08-14
+**Last updated:** 2026-08-23
 
 ---
 
 ## Current Phase
 
-### Track 0 — Commercial Validation Sprint (with authorized Pilot Engineering)
+### Track 0 — Commercial / Governance Closure after bounded V0.5
 
 **Status:** Authorized by IC (Conditional GO — pending Track 0 outcomes)  
 **Budget:** $15,000–$25,000  
 **Duration:** 60 days  
-**Engineering:** Founder-authorized Pilot Readiness Sprint (within Track 0 scope) — COMPLETE  
-**Authorization level:** Activity authorized, full GO not yet confirmed
+**Engineering:** Bounded V0.5 Product Completion exception — COMPLETE and CLOSED
+**Authorization level:** No broad V1 engineering authorization; Track 1 remains gated
 **Client-ready execution:** DL-048 Option B and the exact Run #14 APK are verified and installed; D-028 is CLOSED (2026-08-26, DL-056); safe runtime dry-run EXECUTED AND PASSED (2026-08-27) — `scripts/demo.sh` proven local/isolated (`tajribti_demo` on localhost, distinct from the Railway production database), MEOS untouched; see `16_Reports/SAFE_RUNTIME_DRY_RUN_2026-08-27.md`. All five client-ready prerequisites now PASS.
 
-⚠️ **Engineering authorization note (2026-08-14):** The original IC guidance said "ZERO engineering." The Founder authorized two engineering sprints as Pilot Readiness work within Track 0, not Track 1:
+⚠️ **Historical bounded exception:** The original IC guidance said "ZERO engineering." DL-051 authorized the bounded V0.5 completion work within Track 0, not Track 1:
 - Sprint 1 (2026-08-13): Real Pilot MVP — NestJS API + Vercel dashboard + mobile web consumer journey — DEPLOYED to Railway + Vercel
-- Sprint 2 (2026-08-14): Flutter consumer app (bilingual AR/EN) + Intelligence Report (bilingual) — committed, APK pending CI build
+- Sprint 2 (2026-08-14): Flutter consumer app (bilingual AR/EN) + Intelligence Report (bilingual) — committed
+- V0.5 completion (2026-08-23): Discovery-First Home, history, reward presentation, completed-campaign protection, and post-auth routing — closed after Founder-confirmed device validation
 
 Track 1 Full Engineering (Sprint 0–6 per delivery plan) remains BLOCKED on B-01/B-02/B-03/B-04.
 
@@ -67,9 +68,16 @@ Track 1 Full Engineering (Sprint 0–6 per delivery plan) remains BLOCKED on B-0
 
 ---
 
-## Exit Criteria — What Must Be True to Leave Track 0
+## Track 0 Decision Structure and Exit
 
-These are the conditions that trigger Track 1 authorization:
+The commercial threshold and the formal B-01 decision are related but not identical:
+
+- **Commercial outcome:** ≥3 signed pilot brand LOIs within the Track 0 window is the locked commercial success criterion. Fewer than 3 produces the locked NO-GO outcome.
+- **B-01:** the formal written IC/Founder Track 0 GO/NO-GO decision that records the commercial-validation outcome. The LOI count informs B-01; B-01 is not the LOI count itself.
+- **Track 0 exit / Track 1 authorization:** requires written B-01 GO plus B-02, B-03, and B-04 closure. These are the four authorization blockers tracked in the repository.
+- **D-028:** the Intelligence Report quality decision. CLOSED 2026-08-26 (DL-056) — was never a fifth B blocker and does not independently authorize Track 1.
+
+The four authorization blockers are:
 
 | Criterion | What "Met" Looks Like |
 |---|---|
@@ -77,11 +85,10 @@ These are the conditions that trigger Track 1 authorization:
 | B-02: LLC incorporated | Commercial register number OR confirmed formation date |
 | B-03: PDPL legal sign-off | Written memo from Egyptian data-privacy lawyer |
 | B-04: QR load test | Load test report showing idempotency holds at target load |
-| Commercial gate | ≥3 brand LOIs signed (kill criterion) |
 
-**All 5 conditions must be met.** Meeting 4 of 5 is not sufficient.
+The ≥3 signed-LOI commercial criterion is necessary input to a B-01 GO recommendation; it is not counted as a separate fifth authorization blocker.
 
-*Source: `15_Decisions/OPEN_DECISIONS_TRACKER.md`; `04_Investment/IC_MEMO_v1.0.md` Conditional GO Requirements*
+*Source: `00_FOUNDER_INTENT/03_NON_NEGOTIABLE_RULES.md`; `00_FOUNDER_INTENT/05_PROJECT_NORTH_STAR.md`; `15_Decisions/OPEN_DECISIONS_TRACKER.md` B-01 and D-028*
 
 ---
 
@@ -92,8 +99,8 @@ PAST                           NOW                    FUTURE (blocked)
 ────────────────────────────────────────────────────────────────────────
 [Investment Analysis]  →  [Track 0 Validation]  →  [Track 1 Full Build]
   ~18 phases, ~19K           60 days / $15-25K        ~24 weeks / ~$90-120K
-  words documented           NO ENGINEERING            post-GO
-  COMPLETE                   IN PROGRESS               BLOCKED
+  words documented           NO BROAD V1 ENGINEERING  post-GO
+  COMPLETE                   GOVERNANCE CLOSURE        BLOCKED
 ```
 
 *Source: `04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md`; `13_Audits/REMEDIATION_REAUDIT.md`; `02_Project_Management/MASTER_DELIVERY_PLAN.md`*
@@ -106,7 +113,7 @@ PAST                           NOW                    FUTURE (blocked)
 |---|---|
 | No team except Founder | Hire CTO, 2 Backend Engineers, Head of Brand, Ops Manager |
 | No AWS / no infra | Provision AWS org, Terraform, CI/CD pipeline |
-| No code | Engineering begins (Sprint 1) |
+| No new product engineering; V0.5 is closed | Engineering begins only after written GO |
 | Provisional PDPL compliance design | Confirmed PDPL design based on legal opinion |
 | Illustrative pricing | Real pricing negotiated from Track 0 brand conversations |
 | Projected unit economics | First real data from pilot brand campaigns |

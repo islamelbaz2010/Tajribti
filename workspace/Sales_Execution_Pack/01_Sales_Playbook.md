@@ -456,7 +456,7 @@ STAGE IN PIPELINE: [Stage 0 / 1 / 2 / 3 / 4 / 5]
 
 **Kill criterion:** 5 named brands at Stage 2 (interested/engaged). If this is not reached by Day 45, reassess targeting and messaging before Day 60.
 
-**Success gate:** 3 signed LOIs = Track 0 GO. Engineering begins.
+**Success gate:** 3 signed LOIs = the Track 0 commercial success criterion and input to the formal B-01 IC/Founder GO/NO-GO. Engineering remains gated by written B-01 GO plus B-02, B-03, and B-04 closure.
 
 ---
 *Source of Truth: `07_Product/GO_TO_MARKET.md` · `15_Decisions/FOUNDER_DECISIONS.md` · `04_Investment/IC_MEMO_v1.0.md` · `04_Investment/INVESTMENT_DUE_DILIGENCE_REPORT_v2.md` · `08_PRD/MASTER_PRD_v1.0.md`*

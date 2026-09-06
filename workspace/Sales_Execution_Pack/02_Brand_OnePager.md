@@ -23,7 +23,7 @@ Here is how it works:
 
 Your product is placed at a physical retail location in Cairo. A consumer picks it up, tries it, and completes a short survey on their phone. Their profile — demographic, purchase intent, product feedback — is captured at the moment of first experience, before any purchase decision.
 
-Within 24 hours of the campaign, you receive a data report.
+Within 24 hours of campaign end, you receive a data report.
 
 ---
 
@@ -31,7 +31,7 @@ Within 24 hours of the campaign, you receive a data report.
 
 **A consumer intelligence report containing:**
 
-- **Who tried your product** — age, gender, area, income segment
+- **Who tried your product** — age, gender, and area-based demographic segments
 - **What they thought** — ratings on taste, packaging, value, and attributes specific to your product
 - **Purchase intent** — how likely they are to buy after the trial
 - **Open feedback** — in their own words, in Arabic, unfiltered

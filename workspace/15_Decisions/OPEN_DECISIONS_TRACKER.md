@@ -1,7 +1,7 @@
 # Open Decisions Tracker
 
 **Purpose:** Live tracker for all unresolved decisions. Update this file as decisions are made.  
-**Last reviewed:** 2026-08-26
+**Last reviewed:** 2026-09-01 (B-04 Final Closure pass, DL-084 — second remediation attempt, still OPEN; on top of the Governance Recovery + Track 0 Gate Closure pass — B-01 closed, B-02/B-03 re-verified still open with exact missing evidence recorded)
 **Owner:** Founder / CEO  
 
 ---
@@ -13,9 +13,9 @@
 |---|---|
 | **Decision required** | Confirm that the $15,000–$25,000 commercial validation sprint has concluded with a GO decision |
 | **Owner** | Founder / Investment Committee |
-| **Impact** | All Track 1 engineering is blocked. This is the master gate for the entire project. |
+| **Impact** | Was the master gate for the entire project; now closed (see below). Track 1 remains gated by B-02/B-03/B-04, which are independent of this decision. |
 | **What proves it closed** | Written GO confirmation from the IC or founder with date and sprint outcome summary |
-| **Status** | ⬜ OPEN |
+| **Status** | ✅ **CLOSED — 2026-09-01.** Formal GO decision issued by the Project Director/Founder: `15_Decisions/FOUNDER_DECISIONS.md` / `DECISION_LOG.md` DL-082. Closes B-01 only — does not close, and is not evidence toward, B-02/B-03/B-04. |
 
 ### B-02 — Egyptian LLC Incorporation
 | Field | Value |
@@ -24,7 +24,7 @@
 | **Owner** | Founder |
 | **Impact** | Cannot sign vendor contracts in Sprint 0 (SMS, WhatsApp BSP, cloud, payment providers) |
 | **What proves it closed** | Commercial register number, or signed formation agreement with a specific date |
-| **Status** | ⬜ OPEN |
+| **Status** | ⬜ **OPEN — verified 2026-09-01, no evidence exists in the repository.** `Sales_Execution_Pack/04_Legal/Egyptian_LLC_Checklist.md` remains an unfilled template — every checklist item unchecked, and its own closure block is still blank placeholders (`Commercial Register number: [NUMBER]`, `Date of registration: [DATE]`, `Legal entity name: [NAME]`). **Exact missing evidence:** a commercial register (Sijil Tijari) number and date, OR a signed formation agreement with a confirmed date. Neither can be produced by engineering — this is a Founder/external-counsel action. |
 
 ### B-03 — PDPL Legal Sign-Off
 | Field | Value |
@@ -33,16 +33,16 @@
 | **Owner** | Legal counsel (to be engaged) |
 | **Impact** | Cannot ship any data-collecting feature without this. FDD states privacy-by-design is non-negotiable. |
 | **What proves it closed** | Written legal memo from Egyptian counsel scoping PDPL obligations for this platform |
-| **Status** | ⬜ OPEN |
+| **Status** | ⬜ **OPEN — verified 2026-09-01, no evidence exists in the repository.** `Sales_Execution_Pack/04_Legal/PDPL_Lawyer_Brief.md` is an engagement brief meant to be *sent to* counsel, not a received opinion — its own contact fields are still placeholders (`[Founder Full Name]`, `[Phone/WhatsApp]`, `[Email]`), confirming it has not yet been used to engage a lawyer. **Exact missing evidence:** a written, signed legal memo on law-firm letterhead from Egyptian counsel addressing the brief's 4 questions (consent mechanism, permissible data categories, data residency, cross-brand data usage). This is a Founder/external-counsel action, not an engineering one. |
 
 ### B-04 — QR Concurrency Load Test
 | Field | Value |
 |---|---|
 | **Decision required** | Engineering team executes the QR redemption load test defined in the Delivery Plan Risk Register (R-03) |
 | **Owner** | Engineering (CTO — not yet hired) |
-| **Impact** | Highest identified technical risk. Race condition under concurrent load is unproven. Cannot authorize Private Beta without this. |
-| **What proves it closed** | Load test report showing idempotency holds at target concurrent redemption volume |
-| **Status** | ⬜ OPEN |
+| **Impact** | Highest identified technical risk. Race condition under concurrent load was proven real and is now fixed; response-time criterion at target concurrency is not yet met. Cannot authorize Private Beta until closed. |
+| **What proves it closed** | Load test report showing idempotency holds AND response time stays under the documented <1s target (MASTER_DELIVERY_PLAN.md TJ-005) at target concurrent redemption volume |
+| **Status** | ⬜ **OPEN — remediated twice, not closed (2026-09-01, two passes: DL-083, DL-084).** Load test executed against the real `POST /qr/enter/:campaignId` path (local, non-production DB) across both passes. **Correctness/idempotency criterion: MET** and re-verified in every test round of both passes — a real, previously-unmitigated duplicate-issuance race condition (governance docs had claimed a DB-level unique constraint already existed; it did not) was found and fixed: 50 concurrent identical requests consistently produce exactly 1 redemption row. **Response-time criterion (<1s): NOT MET.** DL-083 fixed the connection pool (default 10 → 20; p95 ≈4.6s → ≈2.1s). DL-084 additionally parallelized 3 independent DB reads in `enterCampaignWeb()` (p95 best clean result 1634ms, a further ~22% improvement over DL-083's cleanest run) and confirmed via a controlled diagnostic that the pool size is no longer the limiting factor (raising it further to 40 made results worse, reverted to 20). Still over the <1s target in every measured attempt; one later re-test was confounded by severe unrelated host load (`uptime` load average 185.89 at the time) and is reported as unreliable rather than used to claim regression or improvement. **Production migration NOW APPLIED** (DL-110, 2026-09-06 — `railway ssh --service api npm run migration:run` executed inside the API service container; both migrations 1788600000000 and 1788610000000 committed in single COMMIT transaction). Production API `GET /campaigns` → 200 confirmed post-migration. Full evidence: `16_Reports/B04_QR_CONCURRENCY_LOAD_TEST_2026-09-01.md`; decision records: `DECISION_LOG.md`/`FOUNDER_DECISIONS.md` DL-083, DL-084, DL-108, DL-110. **Exact remaining gap:** response time at "hundreds of consumers" concurrent QR *write-path* (POST /qr/enter) still unverified at production — cannot be safely benchmarked without polluting production data. A safe QR write-path test mechanism (disposable test campaign + test consumer) does not currently exist. This is B-04's only remaining open criterion. |
 
 ---
 

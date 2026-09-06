@@ -49,11 +49,11 @@ Upon campaign completion, Tajribti will deliver to [BRAND NAME]:
 | Deliverable | Detail |
 |---|---|
 | Consumer Intelligence Report | PDF report delivered within 24 hours of campaign end |
-| Demographic breakdown | Respondent profile: age, gender, area, income segment |
+| Demographic breakdown | Respondent profile: age, gender, and area |
 | Purchase intent score | Per demographic segment |
 | Product attribute ratings | Agreed attributes rated by consumers |
 | Verbatim feedback | Open-ended consumer responses in Arabic, translated to English on request |
-| Raw data export | CSV of anonymised survey responses |
+| Raw data export | Optional anonymised response export, subject to written campaign scope and technical confirmation |
 
 All data is specific to [BRAND NAME]'s campaign. Data will not be shared with any other brand.
 

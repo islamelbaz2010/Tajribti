@@ -1,6 +1,6 @@
 # Decision Status Board — Live Tracker
 
-**Last updated:** 2026-07-27  
+**Last updated:** 2026-09-01 (B-04 Final Closure pass, DL-084 — still OPEN; on top of Governance Recovery + Track 0 Gate Closure pass — B-01 closed)
 **Source of truth:** `15_Decisions/FOUNDER_DECISIONS.md`  
 **Full index:** `_navigator/DECISION_INDEX.md`
 
@@ -8,12 +8,13 @@
 
 ## ❌ BLOCKING — Development cannot proceed
 
-| ID | Decision Required | Owner | Impact if Delayed |
-|---|---|---|---|
-| B-01 | Track 0 commercial sprint GO/NO-GO confirmation | Founder / IC | All Track 1 activity remains unauthorized |
-| B-02 | Egyptian LLC incorporation confirmed (or formation date set) | Founder | Cannot sign vendor contracts in Sprint 0 |
-| B-03 | PDPL legal sign-off from qualified Egyptian counsel | Legal counsel | Cannot ship any data-collecting feature |
-| B-04 | QR concurrency load test executed | Engineering (not yet hired) | Highest technical risk unproven before beta |
+| ID | Decision Required | Owner | Impact if Delayed | Status |
+|---|---|---|---|---|
+| B-02 | Egyptian LLC incorporation confirmed (or formation date set) | Founder | Cannot sign vendor contracts in Sprint 0 | ⬜ OPEN — no evidence in repository |
+| B-03 | PDPL legal sign-off from qualified Egyptian counsel | Legal counsel | Cannot ship any data-collecting feature | ⬜ OPEN — no evidence in repository |
+| B-04 | QR concurrency load test executed | Engineering (not yet hired) | Highest technical risk unproven before beta | ⚠️ REMEDIATED TWICE 2026-09-01 — duplicate-issuance race fixed and verified (DL-083, DL-084); <1s response-time criterion still unmet after two rounds of performance fixes; production migration also not yet applied, not closed |
+
+**B-01** — Track 0 commercial sprint GO/NO-GO confirmation — **CLOSED 2026-09-01** (Founder/Project Director formal GO decision, DL-082). Moved out of the blocking table; does not by itself authorize Track 1, which remains gated on B-02/B-03/B-04 above.
 
 ---
 
@@ -26,6 +27,12 @@
 | OD-03 | Final cloud hosting region (provisionally AWS me-south-1 Bahrain) | Founder + Legal | Provisionally resolved in Remediation doc |
 | OD-04 | Whether external funding is sought or company remains bootstrapped | Founder | Affects go-to-market timeline |
 | OD-05 | Revenue-mix percentages | Founder + validation sprint | Pending Track 0 pricing discovery |
+
+## 🟡 RESOLVED DECISION — EXECUTION EVIDENCE PENDING
+
+| ID | Decision | Owner | Notes |
+|---|---|---|---|
+| DL-048 | Flutter-first operational path = CI / distribution | Founder | Option B FULLY VALIDATED 2026-08-23; PATH C isolated E2E confirmed all 16 steps PASS on TKINR8IJ5D9DSKQK (Run #14 APK SHA-256 `4e76a3c…`; disposable E2E APK SHA-256 `d32abec…`; real Akedly OTP; +201118000472 authenticated; 50-pt reward; "شاركت سابقاً" protection confirmed; production unchanged) |
 
 ---
 
@@ -88,7 +95,7 @@
 
 | Status | Count |
 |---|---|
-| ❌ Blocking (must resolve before development) | **4** |
+| ❌ Blocking (must resolve before development) | **3** (B-02/B-03/B-04; B-01 closed 2026-09-01) |
 | ⚠️ Open non-blocking | **5** |
-| ✅ Locked final | **27+** |
+| ✅ Locked final | **30+** (includes DL-082/DL-083/DL-084) |
 | **Total tracked** | **36+** |

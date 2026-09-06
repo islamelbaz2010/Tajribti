@@ -243,7 +243,7 @@ Source: `_navigator/DOCUMENT_INDEX.md`, `MASTER_INDEX.md`, direct workspace know
 | `PORTFOLIO_ASSESSMENT_2026-08-17.md` | Independent portfolio assessment; 16 sections; 12 scored dimensions; Stage-Gate: VALIDATE |
 | `AKEDLY_V1_2_HARDENING_ACCEPTANCE_2026-08-17.md` | 12-step hardening & acceptance report; DEFECT-01 fixed; verdict B — ACCEPTED WITH KNOWN LIMITATIONS |
 | `OTP_FLOW_FIX_SESSION_F_2026-08-18.md` | Root cause analysis + fix report for OTP "Could not reach verification service" bug; Flutter null-cast + backend pre-check; verdict PASS |
-| `PRODUCT_COMPLETION_V0_5_EXECUTION_REPORT_2026-08-23.md` | Session I — V0.5 Product Completion: CONFLICT-D resolved, Discovery-First implemented, 17 files changed, CI triggered, device validation pending |
+| `PRODUCT_COMPLETION_V0_5_EXECUTION_REPORT_2026-08-23.md` | Historical Session I V0.5 report: CONFLICT-D resolved, Discovery-First implemented, 17 files changed; its pending CI/device status was superseded by later CI Runs #11/#13/#14 and Founder-confirmed V0.5 closure |
 
 ---
 

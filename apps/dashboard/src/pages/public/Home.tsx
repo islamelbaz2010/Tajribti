@@ -121,10 +121,10 @@ export default function PublicHome() {
       <section style={s.hero}>
         <div style={s.heroInner}>
           <div style={s.heroEyebrow}>CONSUMER INSIGHTS &amp; FEEDBACK</div>
-          <h1 style={s.heroTitle}>We turn product trial into key data.</h1>
+          <h1 style={s.heroTitle}>Verified consumer intelligence — from first trial to final decision.</h1>
           <p style={s.heroSub}>
-            We listen to consumers to optimize your marketing strategy — turning a real,
-            in-hand product trial into structured, decision-ready Consumer Insights.
+            TAJRIBTI captures what consumers actually think at the moment of first experience —
+            structured, segmented, and ready for brand decisions.
           </p>
           <div style={s.heroCtas}>
             <Link to="/sample-report" className="tj-cta-hover" style={s.ctaPrimary}>View a Sample Report &rarr;</Link>

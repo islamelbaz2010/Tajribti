@@ -399,7 +399,25 @@ export default function Report({ mode = 'authenticated' }: { mode?: 'authenticat
           </ReportSection>
 
           {/* ─── RESEARCH OBJECTIVE ─── */}
+          {/* DL-114 (2026-09-06): campaign.objective is the brand's specific
+              research question — "Measure purchase intent for X among women 18–34"
+              — set at campaign creation and stored as a free-text nullable field.
+              When present it must lead the section; the standard TAJRIBTI
+              methodology description follows as "Approach" context. When absent,
+              only the methodology paragraph renders — behaviour identical to
+              pre-DL-114. This closes the Objective → Result traceability gap
+              identified in the PRODUCT RECOMPOSITION pass: without it the Report
+              never answered "WHY did this brand run this campaign?", only
+              "how does TAJRIBTI work in general." */}
           <ReportSection title={t('Research Objective', AR.s0Objective)} num="02" isAr={isAr}>
+            {campaign.objective && (
+              <div style={pg.objectiveCallout}>
+                <div style={pg.objectiveCalloutLabel}>
+                  {t('Campaign Research Question', 'السؤال البحثي للحملة')}
+                </div>
+                <p style={pg.objectiveCalloutText}>{campaign.objective}</p>
+              </div>
+            )}
             <p style={pg.sectionIntro}>
               {t(
                 `This study was designed to capture real-time, in-moment consumer response to ${campaign.productName} from ${campaign.brandName} during an actual physical product trial — not a recall survey conducted after the fact. It measures whether consumers who tried the product would purchase it at retail, how they describe the product in their own words, and their demographic profile. This is the standard consumer-intelligence objective for every Tajribti campaign: converting the moment of first experience into structured, decision-ready data.`,
@@ -1220,6 +1238,32 @@ const pg: Record<string, React.CSSProperties> = {
     color: '#555',
     lineHeight: '1.7',
     margin: '0 0 20px',
+  },
+
+  /* DL-114: campaign-specific research question callout in Research Objective */
+  objectiveCallout: {
+    background: '#f0fdf0',
+    border: '1px solid #b2f24d',
+    borderLeft: '4px solid #b2f24d',
+    borderRadius: '0 8px 8px 0' as const,
+    padding: '14px 18px',
+    marginBottom: 18,
+  },
+  objectiveCalloutLabel: {
+    fontSize: 9,
+    fontWeight: 800,
+    color: '#3a6b00',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase' as const,
+    marginBottom: 6,
+  },
+  objectiveCalloutText: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#1a2e00',
+    lineHeight: '1.5',
+    margin: 0,
+    fontStyle: 'italic' as const,
   },
 
   /* Narrative */

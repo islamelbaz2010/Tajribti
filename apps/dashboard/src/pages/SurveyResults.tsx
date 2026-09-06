@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import { analyticsApi, campaignApi } from '../api/endpoints';
-import type { SurveyData } from '../api/types';
+import type { Campaign, SurveyData } from '../api/types';
 
 const COLORS = ['#b2f24d', '#38bdf8', '#fb7185', '#a78bfa', '#fbbf24'];
 
@@ -21,18 +21,39 @@ const CHART_TOOLTIP = {
   cursor: { fill: 'rgba(10,17,32,0.04)' },
 };
 
+// DL-114 (2026-09-06): resolve the actual question text for a canonical
+// question id from the campaign's own surveyQuestions definition.
+// Falls back to the hardcoded semantic label when the campaign is not yet
+// loaded — identical visual result to pre-DL-114 until the campaign resolves.
+// This closes the question-identity traceability gap: a brand viewing Survey
+// Results now sees the exact question text their consumers saw, not a generic
+// category label like "First Impression (Q1)".
+function qLabel(campaign: Campaign | null, id: string, fallback: string): string {
+  if (!campaign) return fallback;
+  const q = campaign.surveyQuestions?.find((q) => q.id === id);
+  return q ? q.text : fallback;
+}
+
 export default function SurveyResults() {
   const location = useLocation();
+  const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [data, setData] = useState<SurveyData | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // DL-114: load campaign alongside survey analytics so we can resolve
+    // actual question text for Q1–Q5. Campaign is loaded once per
+    // ?campaignId= change — same trigger as the analytics call below.
     // Re-resolves whenever ?campaignId= changes — see CampaignDetail.tsx.
+    setCampaign(null);
     setData(null);
     setError('');
     campaignApi
       .getSelected()
-      .then((c) => analyticsApi.getSurvey(c.id))
+      .then((c) => {
+        setCampaign(c);
+        return analyticsApi.getSurvey(c.id);
+      })
       .then(setData)
       .catch(() => setError('Failed to load survey data.'));
   }, [location.search]);
@@ -49,6 +70,13 @@ export default function SurveyResults() {
   const comparisonData = data.questionBreakdown['q4'] ?? [];
   const totalResponses = intentData.reduce((sum, item) => sum + item.count, 0);
 
+  // DL-114: actual question text from campaign definition for each core question.
+  const q1Label = qLabel(campaign, 'q1', 'First Impression');
+  const q2Label = qLabel(campaign, 'q2', 'Purchase Intent');
+  const q3Label = qLabel(campaign, 'q3', 'Product Descriptor');
+  const q4Label = qLabel(campaign, 'q4', 'Compared to Similar Products');
+  const q5Label = qLabel(campaign, 'q5', 'Open Feedback');
+
   return (
     <div>
       <div style={styles.header}>
@@ -56,6 +84,16 @@ export default function SurveyResults() {
         <h1 style={styles.title}>Survey Results</h1>
         <p style={styles.sub}>What consumers said — purchase intent, product perception, and open feedback</p>
       </div>
+
+      {/* DL-114: campaign objective as research context — closes the
+          Objective → Evidence traceability gap. Only shown when the campaign
+          has a set objective; omitted silently when null/empty. */}
+      {campaign?.objective && (
+        <div style={styles.objectiveBar}>
+          <span style={styles.objectiveBarLabel}>RESEARCH OBJECTIVE</span>
+          <span style={styles.objectiveBarText}>{campaign.objective}</span>
+        </div>
+      )}
 
       {totalResponses === 0 ? (
         <div style={styles.emptyState}>
@@ -69,9 +107,10 @@ export default function SurveyResults() {
       <>
       <div style={styles.scoreRow}>
         <div style={styles.scoreCard}>
-          <div style={styles.scoreLabel}>Purchase Intent Score</div>
+          {/* DL-114: show actual q2 question text under score card label */}
+          <div style={styles.scoreLabel}>{q2Label}</div>
           <div style={styles.scoreValue}>{data.purchaseIntentScore}</div>
-          <div style={styles.scoreMax}>/100</div>
+          <div style={styles.scoreMax}>/100 score</div>
         </div>
 
         <div style={styles.intentBars}>
@@ -120,8 +159,11 @@ export default function SurveyResults() {
       )}
 
       <div style={{ ...styles.grid, marginTop: 16 }}>
+        {/* DL-114: cardTitle now shows actual campaign question text (q1Label)
+            resolved from campaign.surveyQuestions. Falls back to "First Impression"
+            when campaign is not yet loaded — same display as pre-DL-114. */}
         <div style={styles.card}>
-          <div style={styles.cardTitle}>First Impression (Q1)</div>
+          <div style={styles.cardTitle}>{q1Label}</div>
           {data.firstImpressionScore.responseCount === 0 ? (
             <p style={styles.empty}>No responses to this question yet.</p>
           ) : (
@@ -132,8 +174,9 @@ export default function SurveyResults() {
           )}
         </div>
 
+        {/* DL-114: actual q4 question text from campaign.surveyQuestions */}
         <div style={styles.card}>
-          <div style={styles.cardTitle}>Compared to Similar Products (Q4)</div>
+          <div style={styles.cardTitle}>{q4Label}</div>
           {comparisonData.length === 0 ? (
             <p style={styles.empty}>No responses to this question yet.</p>
           ) : (
@@ -159,8 +202,9 @@ export default function SurveyResults() {
       </div>
 
       <div style={{ ...styles.grid, marginTop: 16 }}>
+        {/* DL-114: actual q3 question text */}
         <div style={styles.card}>
-          <div style={styles.cardTitle}>Product Descriptor (Q3)</div>
+          <div style={styles.cardTitle}>{q3Label}</div>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={descriptorData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
               <XAxis
@@ -184,8 +228,9 @@ export default function SurveyResults() {
           </ResponsiveContainer>
         </div>
 
+        {/* DL-114: actual q5 question text */}
         <div style={styles.card}>
-          <div style={styles.cardTitle}>Open Feedback (Q5)</div>
+          <div style={styles.cardTitle}>{q5Label}</div>
           {data.verbatims.length === 0 ? (
             <div style={styles.emptyWrap}>
               <p style={styles.empty}>No open-ended responses yet.</p>
@@ -290,7 +335,35 @@ function SegmentIntentCard({
 const styles: Record<string, React.CSSProperties> = {
   loading: { color: '#7a8bab', fontSize: 14, marginTop: 32 },
   error: { color: '#dc2626', fontSize: 14, marginTop: 32 },
-  header: { marginBottom: 24 },
+  header: { marginBottom: 16 },
+  // DL-114: campaign research objective shown between page header and first data card
+  objectiveBar: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: 10,
+    background: '#f7fff0',
+    border: '1px solid #d4f09a',
+    borderLeft: '3px solid #b2f24d',
+    borderRadius: '0 8px 8px 0',
+    padding: '10px 16px',
+    marginBottom: 20,
+    flexWrap: 'wrap' as const,
+  },
+  objectiveBarLabel: {
+    fontSize: 9,
+    fontWeight: 800,
+    color: '#3a6b00',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase' as const,
+    flexShrink: 0,
+  },
+  objectiveBarText: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#1a3a00',
+    fontStyle: 'italic' as const,
+    lineHeight: 1.4,
+  },
   demoBadge: {
     display: 'inline-block',
     fontSize: 9,

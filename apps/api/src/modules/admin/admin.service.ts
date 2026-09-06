@@ -144,6 +144,9 @@ export class AdminService {
         startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         surveyQuestions: DEMO_SURVEY_QUESTIONS,
+        objective: 'Understand purchase intent and brand perception for our product among Cairo young adults through a free trial experience at point of sale.',
+        audienceGender: 'all',
+        audienceAgeRanges: ['18-24', '25-34'],
         isDemo: true,
       }),
     );

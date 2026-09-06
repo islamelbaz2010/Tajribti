@@ -529,7 +529,11 @@ export default function Overview() {
         </div>
         {data.liveFeed.length === 0 ? (
           <p style={styles.empty}>
-            No activity yet. Share this campaign&rsquo;s QR code to get your first participant.
+            {campaign.status === 'active' || campaign.status === 'draft'
+              ? "No activity yet. Share this campaign’s QR code to get your first participant."
+              : campaign.status === 'paused'
+              ? 'Campaign is paused — no new participants are joining. Resume it to continue collecting.'
+              : 'This campaign has ended — no new participants can join.'}
           </p>
         ) : (
           data.liveFeed.map((entry) => <FeedRow key={entry.id} entry={entry} />)

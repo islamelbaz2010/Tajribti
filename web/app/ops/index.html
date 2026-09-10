@@ -100,6 +100,7 @@
 
     <div class="tabs">
       <button class="tab-btn active" data-ctab="readiness">Readiness</button>
+      <button class="tab-btn" data-ctab="qr">QR / Journey</button>
       <button class="tab-btn" data-ctab="participants">Participants</button>
       <button class="tab-btn" data-ctab="live">Live Monitoring</button>
       <button class="tab-btn" data-ctab="issues">Operational Issues</button>
@@ -109,6 +110,7 @@
     </div>
 
     <div class="card ctab-panel" id="ctab-readiness"><h2>Readiness</h2><div id="readiness-content"></div></div>
+    <div class="card ctab-panel hidden" id="ctab-qr"><h2>QR / Journey operations</h2><div id="qr-ops-content"></div></div>
     <div class="card ctab-panel hidden" id="ctab-participants"><h2>Participants</h2><div id="participants-content"></div></div>
     <div class="card ctab-panel hidden" id="ctab-live"><h2>Live monitoring</h2><div id="live-content"></div></div>
     <div class="card ctab-panel hidden" id="ctab-issues">
@@ -129,6 +131,7 @@
 const API = '/api';
 let token = localStorage.getItem('tj_ops_token') || null;
 let currentCampaignId = null;
+let currentCampaign = null;
 
 function authHeaders() { return token ? { Authorization: 'Bearer ' + token } : {}; }
 async function api(path, opts = {}) {
@@ -218,7 +221,7 @@ document.querySelectorAll('#view-campaign .tab-btn').forEach(btn => {
     btn.classList.add('active');
     document.querySelectorAll('.ctab-panel').forEach(p => p.classList.add('hidden'));
     document.getElementById('ctab-' + btn.dataset.ctab).classList.remove('hidden');
-    const loaders = { readiness: loadReadiness, participants: loadParticipants, live: loadLive, issues: loadIssues, survey: loadSurveyOps, insights: loadOpsInsights, report: loadOpsReport };
+    const loaders = { readiness: loadReadiness, qr: loadQrOps, participants: loadParticipants, live: loadLive, issues: loadIssues, survey: loadSurveyOps, insights: loadOpsInsights, report: loadOpsReport };
     loaders[btn.dataset.ctab]();
   };
 });
@@ -226,6 +229,7 @@ document.querySelectorAll('#view-campaign .tab-btn').forEach(btn => {
 async function openCampaign(id) {
   currentCampaignId = id;
   const c = await api('/ops/campaigns/' + id);
+  currentCampaign = c;
   document.getElementById('cc-status').textContent = c.status;
   document.getElementById('cc-name').textContent = c.name;
   document.getElementById('cc-meta').textContent = c.company.name + (c.product ? ' · ' + c.product.name : '');
@@ -255,6 +259,19 @@ async function loadReadiness() {
   document.getElementById('readiness-content').innerHTML =
     '<p><strong>' + (r.ready ? 'Ready to launch' : 'Not yet ready') + '</strong></p><ul>' +
     r.checks.map(c => '<li class="' + (c.ok ? 'check-ok' : 'check-bad') + '">' + (c.ok ? '✓' : '✗') + ' ' + c.label + '</li>').join('') + '</ul>';
+}
+
+// QR / Journey Operations (Benchmark §4 OPERATIONS "QR / Journey
+// Operations"). QR/source data is already returned by GET
+// /ops/campaigns/:id — this only surfaces it, without inventing any new
+// endpoint or operational-control behavior.
+function loadQrOps() {
+  const sources = (currentCampaign && currentCampaign.qrSources) || [];
+  document.getElementById('qr-ops-content').innerHTML = sources.length ?
+    '<table><tr><th>Label</th><th>Code</th><th>Active window</th></tr>' +
+    sources.map(s => '<tr><td>' + s.label + '</td><td>' + s.code + '</td><td>' +
+      new Date(s.activeFrom).toLocaleDateString() + ' – ' + new Date(s.activeTo).toLocaleDateString() + '</td></tr>').join('') + '</table>'
+    : '<p style="color:var(--muted)">No QR/sources configured for this campaign.</p>';
 }
 
 async function loadParticipants() {

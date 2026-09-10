@@ -90,6 +90,28 @@
       <input id="np-name" />
       <button class="secondary small" id="btn-add-product">Add product</button>
     </div>
+
+    <div class="card">
+      <h2>Company profile</h2>
+      <div class="grid2">
+        <div><label>Company name</label><input id="cp-name" /></div>
+        <div><label>Industry</label><input id="cp-industry" /></div>
+      </div>
+      <button class="small" id="btn-save-profile">Save</button>
+      <div class="msg" id="cp-msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Employees</h2>
+      <div id="employee-list"></div>
+      <div id="employee-add-form">
+        <label>Name</label><input id="ne-name" />
+        <label>Email</label><input id="ne-email" />
+        <label>Password</label><input id="ne-password" type="password" />
+        <button class="secondary small" id="btn-add-employee">Add employee</button>
+      </div>
+      <p class="msg" id="employee-msg"></p>
+    </div>
   </div>
 
   <div id="view-campaign-detail" class="hidden">
@@ -182,6 +204,7 @@
 const API = '/api';
 let token = localStorage.getItem('tj_company_token') || null;
 let currentCampaignId = null;
+let currentRole = localStorage.getItem('tj_company_role') || null;
 
 function authHeaders() { return token ? { Authorization: 'Bearer ' + token } : {}; }
 async function api(path, opts = {}) {
@@ -206,7 +229,9 @@ document.getElementById('btn-login').onclick = async () => {
       password: document.getElementById('login-password').value,
     }});
     token = r.token;
+    currentRole = r.employee.role;
     localStorage.setItem('tj_company_token', token);
+    localStorage.setItem('tj_company_role', r.employee.role);
     document.getElementById('who').textContent = r.employee.name + ' · ' + r.employee.role;
     await loadCampaigns();
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
@@ -241,8 +266,53 @@ async function loadCampaigns() {
     list.appendChild(div);
   });
   await loadProducts(document.getElementById('nc-product'));
+  await loadProfile();
+  await loadEmployees();
   show('view-campaigns');
 }
+
+// --- Company Profile (Benchmark §4 COMPANY "Company Profile") --------------
+async function loadProfile() {
+  const c = await api('/company/profile');
+  document.getElementById('cp-name').value = c.name || '';
+  document.getElementById('cp-industry').value = c.industry || '';
+}
+document.getElementById('btn-save-profile').onclick = async () => {
+  const msg = document.getElementById('cp-msg');
+  try {
+    await api('/company/profile', { method: 'PATCH', body: {
+      name: document.getElementById('cp-name').value.trim(),
+      industry: document.getElementById('cp-industry').value.trim() || undefined,
+    }});
+    msg.textContent = 'Saved.'; msg.className = 'msg ok';
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+};
+
+// --- Employees (Benchmark §4 COMPANY "Employees") ---------------------------
+async function loadEmployees() {
+  const employees = await api('/company/employees');
+  document.getElementById('employee-list').innerHTML = employees.length ?
+    '<table><tr><th>Name</th><th>Email</th><th>Role</th></tr>' +
+    employees.map(e => '<tr><td>' + e.name + '</td><td>' + e.email + '</td><td>' + e.role + '</td></tr>').join('') + '</table>'
+    : '<p style="color:var(--muted)">No employees yet.</p>';
+  // Only an OWNER can add employees (server-enforced; hidden here for clarity).
+  document.getElementById('employee-add-form').classList.toggle('hidden', currentRole !== 'OWNER');
+}
+document.getElementById('btn-add-employee').onclick = async () => {
+  const msg = document.getElementById('employee-msg');
+  try {
+    await api('/company/employees', { method: 'POST', body: {
+      name: document.getElementById('ne-name').value.trim(),
+      email: document.getElementById('ne-email').value.trim(),
+      password: document.getElementById('ne-password').value,
+    }});
+    document.getElementById('ne-name').value = '';
+    document.getElementById('ne-email').value = '';
+    document.getElementById('ne-password').value = '';
+    msg.textContent = 'Employee added.'; msg.className = 'msg ok';
+    await loadEmployees();
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+};
 
 document.getElementById('btn-new-campaign').onclick = () => document.getElementById('new-campaign-card').classList.toggle('hidden');
 
@@ -415,7 +485,7 @@ async function loadReport() {
 
 (async () => {
   if (token) {
-    try { await loadCampaigns(); return; } catch { localStorage.removeItem('tj_company_token'); token = null; }
+    try { await loadCampaigns(); return; } catch { localStorage.removeItem('tj_company_token'); localStorage.removeItem('tj_company_role'); token = null; currentRole = null; }
   }
   show('view-login');
 })();

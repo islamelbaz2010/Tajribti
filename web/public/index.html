@@ -118,11 +118,10 @@
     border-radius: 22px;
     padding: 40px;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 28px;
     border: 1px solid #f1e6dc;
   }
-  @media (max-width: 860px) { .metrics { grid-template-columns: repeat(2, 1fr); } }
   .metric-num { font-size: 1.9rem; font-weight: 800; color: var(--primary); }
   .metric-label { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
 
@@ -243,13 +242,12 @@
 <section id="journey">
   <div class="section-eyebrow">Live measurement</div>
   <h2 class="section-title">Understand a campaign while it's still running.</h2>
-  <p class="section-lead">Every number below is computed live from this build's own database —
-    not a mockup. Numbers will read zero until a real campaign is seeded and run.</p>
+  <p class="section-lead">Funnel progress, source attribution and purchase intent update live from
+    persisted participation and survey data as a campaign runs — visible to the Company and
+    TAJRIBTI Operations workspaces for that campaign, not fabricated or pre-filled here.</p>
   <div class="metrics" id="metrics">
-    <div><div class="metric-num" id="m-entered">—</div><div class="metric-label">Consumers entered</div></div>
-    <div><div class="metric-num" id="m-trial">—</div><div class="metric-label">Trials redeemed</div></div>
-    <div><div class="metric-num" id="m-survey">—</div><div class="metric-label">Surveys completed</div></div>
-    <div><div class="metric-num" id="m-intent">—</div><div class="metric-label">Avg. purchase intent /5</div></div>
+    <div><div class="metric-num">Company</div><div class="metric-label">Live Results tab, per campaign</div></div>
+    <div><div class="metric-num">Operations</div><div class="metric-label">Live Monitoring tab, per campaign</div></div>
   </div>
 </section>
 

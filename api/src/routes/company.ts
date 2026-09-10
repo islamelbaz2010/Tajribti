@@ -229,7 +229,13 @@ router.delete("/campaigns/:id/questions/:qid", async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
   if (!assertConfigurable(campaign, res)) return;
-  await prisma.question.delete({ where: { id: req.params.qid } }).catch(() => null);
+  // Company isolation (Benchmark §10 "must preserve" foundation): the
+  // delete must be scoped to this campaign, not just any question id —
+  // otherwise an employee of Company A could delete a question belonging
+  // to Company B's campaign by supplying a campaign id they own alongside
+  // a guessed/observed foreign question id.
+  const result = await prisma.question.deleteMany({ where: { id: req.params.qid, campaignId: campaign.id } });
+  if (result.count === 0) return res.status(404).json({ error: "Question not found" });
   res.status(204).end();
 });
 

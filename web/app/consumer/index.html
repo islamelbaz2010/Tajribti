@@ -46,6 +46,8 @@
 </header>
 <main>
 
+  <div class="msg" id="qr-banner" style="margin: 0 0 4px;"></div>
+
   <div id="view-auth" class="card">
     <h2>Enter your phone number</h2>
     <div id="phone-step">
@@ -118,7 +120,12 @@
 
 <script>
 const API = '/api';
-let state = { token: localStorage.getItem('tj_consumer_token') || null, campaign: null, participation: null, eligibilityQuestions: [] };
+// QR / Journey entry (Benchmark §4 CONSUMER "QR / Journey"; §10 "QR
+// lifecycle/date gating" must be preserved). The API already implements
+// GET /consumer/qr/:code with date-gating — this just wires an existing,
+// already-scoped endpoint into the consumer entry point via ?qr=CODE.
+const qrCodeParam = new URLSearchParams(window.location.search).get('qr');
+let state = { token: localStorage.getItem('tj_consumer_token') || null, campaign: null, participation: null, eligibilityQuestions: [], qrSourceId: null };
 
 function show(id) {
   ['view-auth','view-discover','view-campaign'].forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
@@ -159,7 +166,7 @@ document.getElementById('btn-verify-otp').onclick = async () => {
     const r = await api('/consumer/auth/otp/verify', { method: 'POST', body: { phone, code, name: name || undefined } });
     state.token = r.token;
     localStorage.setItem('tj_consumer_token', r.token);
-    await loadDiscover();
+    if (qrCodeParam) { await enterViaQr(qrCodeParam); } else { await loadDiscover(); }
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };
 
@@ -175,6 +182,21 @@ async function loadDiscover() {
     list.appendChild(div);
   });
   show('view-discover');
+}
+
+async function enterViaQr(code) {
+  const banner = document.getElementById('qr-banner');
+  try {
+    const r = await api('/consumer/qr/' + encodeURIComponent(code));
+    state.qrSourceId = r.sourceId;
+    banner.textContent = 'Entered via QR/source: ' + r.sourceLabel;
+    banner.className = 'msg ok';
+    await openCampaign(r.campaignId);
+  } catch (e) {
+    banner.textContent = 'QR/source code: ' + e.message;
+    banner.className = 'msg error';
+    await loadDiscover();
+  }
 }
 
 async function openCampaign(id) {
@@ -211,7 +233,7 @@ async function openCampaign(id) {
   show('view-campaign');
 }
 
-document.getElementById('btn-back-discover').onclick = (e) => { e.preventDefault(); loadDiscover(); };
+document.getElementById('btn-back-discover').onclick = (e) => { e.preventDefault(); state.qrSourceId = null; loadDiscover(); };
 
 document.getElementById('btn-submit-eligibility').onclick = async () => {
   const msg = document.getElementById('eligibility-msg');
@@ -232,7 +254,7 @@ document.getElementById('btn-submit-eligibility').onclick = async () => {
 
   try {
     const r = await api('/consumer/campaigns/' + state.campaign.id + '/eligibility', {
-      method: 'POST', body: { age, gender, city, answers },
+      method: 'POST', body: { age, gender, city, answers, qrSourceId: state.qrSourceId || undefined },
     });
     state.participation = r.participation;
     if (r.eligible) {
@@ -305,7 +327,14 @@ document.getElementById('btn-submit-survey').onclick = async () => {
 // Bootstrap
 (async () => {
   if (state.token) {
-    try { await loadDiscover(); return; } catch { localStorage.removeItem('tj_consumer_token'); state.token = null; }
+    try {
+      if (qrCodeParam) { await enterViaQr(qrCodeParam); } else { await loadDiscover(); }
+      return;
+    } catch { localStorage.removeItem('tj_consumer_token'); state.token = null; }
+  }
+  if (qrCodeParam) {
+    document.getElementById('qr-banner').textContent = 'Scanned QR/source: ' + qrCodeParam + '. Verify your phone to continue.';
+    document.getElementById('qr-banner').className = 'msg ok';
   }
   show('view-auth');
 })();

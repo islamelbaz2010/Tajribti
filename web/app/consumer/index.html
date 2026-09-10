@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TAJRIBTI — Consumer</title>
+<style>
+  :root { --primary:#EB6B45; --bg:#FAF1EB; --ink:#241914; --muted:#7a6a61; --card:#fff; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:16px 5vw; display:flex; justify-content:space-between; align-items:center; }
+  .logo { font-weight:800; }
+  .logo span { color: var(--primary); }
+  main { max-width: 520px; margin: 0 auto; padding: 10px 20px 60px; }
+  .card { background: var(--card); border-radius: 16px; padding: 22px; margin-bottom: 16px; border:1px solid #f1e6dc; }
+  h2 { margin-top:0; font-size:1.2rem; }
+  label { display:block; font-size:0.85rem; color:var(--muted); margin:12px 0 4px; font-weight:600; }
+  input, select, textarea {
+    width:100%; padding:11px 12px; border-radius:10px; border:1px solid #e6d9cf; font-size:0.95rem; background:#fff;
+  }
+  button {
+    background: var(--primary); color:#fff; border:none; padding:12px 20px; border-radius:999px;
+    font-weight:700; cursor:pointer; margin-top:16px; font-size:0.95rem;
+  }
+  button.secondary { background:#fff; color:var(--ink); border:1px solid #e6d9cf; }
+  button:disabled { opacity:0.5; cursor:not-allowed; }
+  .msg { font-size:0.88rem; margin-top:10px; }
+  .msg.error { color:#b23b1e; }
+  .msg.ok { color:#1e7a3d; }
+  .campaign-item { padding:14px; border:1px solid #f1e6dc; border-radius:12px; margin-bottom:10px; cursor:pointer; }
+  .campaign-item:hover { border-color: var(--primary); }
+  .campaign-item h3 { margin:0 0 4px; font-size:1rem; }
+  .campaign-item p { margin:0; color:var(--muted); font-size:0.85rem; }
+  .pill { display:inline-block; background:var(--bg); color:var(--primary); font-size:0.72rem; font-weight:700; padding:3px 10px; border-radius:999px; margin-bottom:6px; }
+  .hidden { display:none !important; }
+  .q-block { margin-bottom: 18px; }
+  .opt-row { display:flex; align-items:center; gap:8px; margin:6px 0; }
+  .opt-row input { width:auto; }
+  .muted { color: var(--muted); font-size: 0.85rem; }
+  a.back { color: var(--muted); font-size: 0.85rem; text-decoration:none; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/" class="logo">TAJRIBTI<span>.</span> <span style="font-weight:400;color:var(--muted);font-size:0.8rem;">Consumer</span></a>
+</header>
+<main>
+
+  <div id="view-auth" class="card">
+    <h2>Enter your phone number</h2>
+    <div id="phone-step">
+      <label>Phone number</label>
+      <input id="phone" placeholder="e.g. 01012345678" />
+      <button id="btn-request-otp">Send verification code</button>
+      <div class="msg" id="phone-msg"></div>
+    </div>
+    <div id="otp-step" class="hidden">
+      <p class="muted">No SMS gateway is connected in this build — the code is shown below for testing.</p>
+      <label>Verification code</label>
+      <input id="otp" maxlength="6" />
+      <label>Your name (optional)</label>
+      <input id="name" />
+      <button id="btn-verify-otp">Verify &amp; continue</button>
+      <div class="msg" id="otp-msg"></div>
+    </div>
+  </div>
+
+  <div id="view-discover" class="hidden">
+    <div class="card">
+      <h2>Active campaigns</h2>
+      <div id="campaign-list"></div>
+    </div>
+  </div>
+
+  <div id="view-campaign" class="hidden">
+    <a href="#" id="btn-back-discover" class="back">← Back to campaigns</a>
+    <div class="card">
+      <span class="pill" id="c-company"></span>
+      <h2 id="c-name"></h2>
+      <p class="muted" id="c-objective"></p>
+      <p class="muted" id="c-product"></p>
+    </div>
+
+    <div class="card" id="eligibility-card">
+      <h2>Eligibility</h2>
+      <label>Your age</label>
+      <input id="e-age" type="number" />
+      <label>Gender</label>
+      <select id="e-gender"><option value="ANY">Prefer not to say</option><option value="MALE">Male</option><option value="FEMALE">Female</option></select>
+      <label>City</label>
+      <input id="e-city" />
+      <div id="eligibility-questions"></div>
+      <button id="btn-submit-eligibility">Check eligibility</button>
+      <div class="msg" id="eligibility-msg"></div>
+    </div>
+
+    <div class="card hidden" id="redeem-card">
+      <h2>Trial / Redemption</h2>
+      <p class="muted">You're eligible. Redeem your trial to continue.</p>
+      <button id="btn-redeem">Redeem trial</button>
+      <div class="msg" id="redeem-msg"></div>
+    </div>
+
+    <div class="card hidden" id="survey-card">
+      <h2>Feedback survey</h2>
+      <div id="survey-questions"></div>
+      <button id="btn-submit-survey">Submit feedback</button>
+      <div class="msg" id="survey-msg"></div>
+    </div>
+
+    <div class="card hidden" id="done-card">
+      <h2>Thank you 🎉</h2>
+      <p class="muted">Your feedback has been recorded for this campaign.</p>
+    </div>
+  </div>
+
+</main>
+
+<script>
+const API = '/api';
+let state = { token: localStorage.getItem('tj_consumer_token') || null, campaign: null, participation: null, eligibilityQuestions: [] };
+
+function show(id) {
+  ['view-auth','view-discover','view-campaign'].forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
+}
+function authHeaders() {
+  return state.token ? { 'Authorization': 'Bearer ' + state.token } : {};
+}
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', ...authHeaders(), ...(opts.headers || {}) },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+  return data;
+}
+
+document.getElementById('btn-request-otp').onclick = async () => {
+  const phone = document.getElementById('phone').value.trim();
+  const msg = document.getElementById('phone-msg');
+  msg.textContent = ''; msg.className = 'msg';
+  if (!phone) { msg.textContent = 'Enter a phone number.'; msg.className = 'msg error'; return; }
+  try {
+    const r = await api('/consumer/auth/otp/request', { method: 'POST', body: { phone } });
+    document.getElementById('otp-step').classList.remove('hidden');
+    document.getElementById('otp').value = r.devOnlyCode || '';
+    msg.textContent = 'Code sent (dev mode: pre-filled below).'; msg.className = 'msg ok';
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+};
+
+document.getElementById('btn-verify-otp').onclick = async () => {
+  const phone = document.getElementById('phone').value.trim();
+  const code = document.getElementById('otp').value.trim();
+  const name = document.getElementById('name').value.trim();
+  const msg = document.getElementById('otp-msg');
+  try {
+    const r = await api('/consumer/auth/otp/verify', { method: 'POST', body: { phone, code, name: name || undefined } });
+    state.token = r.token;
+    localStorage.setItem('tj_consumer_token', r.token);
+    await loadDiscover();
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+};
+
+async function loadDiscover() {
+  const campaigns = await api('/consumer/campaigns');
+  const list = document.getElementById('campaign-list');
+  list.innerHTML = campaigns.length ? '' : '<p class="muted">No active campaigns right now.</p>';
+  campaigns.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'campaign-item';
+    div.innerHTML = '<h3>' + c.name + '</h3><p>' + c.company.name + (c.product ? ' · ' + c.product.name : '') + '</p>';
+    div.onclick = () => openCampaign(c.id);
+    list.appendChild(div);
+  });
+  show('view-discover');
+}
+
+async function openCampaign(id) {
+  const c = await api('/consumer/campaigns/' + id);
+  state.campaign = c;
+  state.eligibilityQuestions = c.questions || [];
+  document.getElementById('c-company').textContent = c.company.name;
+  document.getElementById('c-name').textContent = c.name;
+  document.getElementById('c-objective').textContent = c.objective;
+  document.getElementById('c-product').textContent = c.product ? ('Product: ' + c.product.name) : '';
+
+  const qDiv = document.getElementById('eligibility-questions');
+  qDiv.innerHTML = '';
+  state.eligibilityQuestions.forEach(q => {
+    const block = document.createElement('div');
+    block.className = 'q-block';
+    let inner = '<label>' + q.text + (q.required ? ' *' : '') + '</label>';
+    if (q.type === 'SINGLE_CHOICE' || q.type === 'MULTI_CHOICE') {
+      const opts = JSON.parse(q.options || '[]');
+      inner += opts.map(o =>
+        '<div class="opt-row"><input type="' + (q.type === 'SINGLE_CHOICE' ? 'radio' : 'checkbox') + '" name="q_' + q.id + '" value="' + o.id + '" /> <span>' + o.label + '</span></div>'
+      ).join('');
+    } else {
+      inner += '<input data-qid="' + q.id + '" class="q-text-input" />';
+    }
+    block.innerHTML = inner;
+    qDiv.appendChild(block);
+  });
+
+  document.getElementById('eligibility-card').classList.remove('hidden');
+  document.getElementById('redeem-card').classList.add('hidden');
+  document.getElementById('survey-card').classList.add('hidden');
+  document.getElementById('done-card').classList.add('hidden');
+  show('view-campaign');
+}
+
+document.getElementById('btn-back-discover').onclick = (e) => { e.preventDefault(); loadDiscover(); };
+
+document.getElementById('btn-submit-eligibility').onclick = async () => {
+  const msg = document.getElementById('eligibility-msg');
+  const age = Number(document.getElementById('e-age').value) || undefined;
+  const gender = document.getElementById('e-gender').value;
+  const city = document.getElementById('e-city').value.trim() || undefined;
+
+  const answers = [];
+  state.eligibilityQuestions.forEach(q => {
+    if (q.type === 'SINGLE_CHOICE' || q.type === 'MULTI_CHOICE') {
+      const checked = Array.from(document.querySelectorAll('input[name="q_' + q.id + '"]:checked')).map(el => el.value);
+      if (checked.length) answers.push({ questionId: q.id, valueOptions: checked });
+    } else {
+      const el = document.querySelector('.q-text-input[data-qid="' + q.id + '"]');
+      if (el && el.value.trim()) answers.push({ questionId: q.id, valueText: el.value.trim() });
+    }
+  });
+
+  try {
+    const r = await api('/consumer/campaigns/' + state.campaign.id + '/eligibility', {
+      method: 'POST', body: { age, gender, city, answers },
+    });
+    state.participation = r.participation;
+    if (r.eligible) {
+      msg.textContent = 'You are eligible!'; msg.className = 'msg ok';
+      document.getElementById('redeem-card').classList.remove('hidden');
+    } else {
+      msg.textContent = 'Sorry, you are not eligible for this campaign.'; msg.className = 'msg error';
+    }
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+};
+
+document.getElementById('btn-redeem').onclick = async () => {
+  const msg = document.getElementById('redeem-msg');
+  try {
+    state.participation = await api('/consumer/campaigns/' + state.campaign.id + '/redeem', { method: 'POST' });
+    msg.textContent = 'Trial redeemed!'; msg.className = 'msg ok';
+    await loadSurvey();
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+};
+
+async function loadSurvey() {
+  const questions = await api('/consumer/campaigns/' + state.campaign.id + '/survey');
+  const qDiv = document.getElementById('survey-questions');
+  qDiv.innerHTML = '';
+  questions.forEach(q => {
+    const block = document.createElement('div');
+    block.className = 'q-block';
+    let inner = '<label>' + q.text + (q.required ? ' *' : '') + '</label>';
+    if (q.type === 'SINGLE_CHOICE' || q.type === 'MULTI_CHOICE') {
+      const opts = JSON.parse(q.options || '[]');
+      inner += opts.map(o =>
+        '<div class="opt-row"><input type="' + (q.type === 'SINGLE_CHOICE' ? 'radio' : 'checkbox') + '" name="sq_' + q.id + '" value="' + o.id + '" /> <span>' + o.label + '</span></div>'
+      ).join('');
+    } else if (q.type === 'RATING_1_5' || q.type === 'PURCHASE_INTENT_1_5') {
+      inner += '<div class="opt-row">' + [1,2,3,4,5].map(n =>
+        '<label style="font-weight:400;display:flex;align-items:center;gap:4px;"><input type="radio" name="sq_' + q.id + '" value="' + n + '" style="width:auto;" />' + n + '</label>'
+      ).join('') + '</div>';
+    } else {
+      inner += '<textarea data-qid="' + q.id + '" rows="3"></textarea>';
+    }
+    block.innerHTML = inner;
+    qDiv.appendChild(block);
+  });
+  document.getElementById('survey-card').classList.remove('hidden');
+}
+
+document.getElementById('btn-submit-survey').onclick = async () => {
+  const msg = document.getElementById('survey-msg');
+  const questions = await api('/consumer/campaigns/' + state.campaign.id + '/survey').catch(() => []);
+  const answers = [];
+  questions.forEach(q => {
+    if (q.type === 'SINGLE_CHOICE' || q.type === 'MULTI_CHOICE') {
+      const checked = Array.from(document.querySelectorAll('input[name="sq_' + q.id + '"]:checked')).map(el => el.value);
+      if (checked.length) answers.push({ questionId: q.id, valueOptions: checked });
+    } else if (q.type === 'RATING_1_5' || q.type === 'PURCHASE_INTENT_1_5') {
+      const checked = document.querySelector('input[name="sq_' + q.id + '"]:checked');
+      if (checked) answers.push({ questionId: q.id, valueNumber: Number(checked.value) });
+    } else {
+      const el = document.querySelector('textarea[data-qid="' + q.id + '"]');
+      if (el && el.value.trim()) answers.push({ questionId: q.id, valueText: el.value.trim() });
+    }
+  });
+  try {
+    await api('/consumer/campaigns/' + state.campaign.id + '/survey', { method: 'POST', body: { answers } });
+    document.getElementById('survey-card').classList.add('hidden');
+    document.getElementById('done-card').classList.remove('hidden');
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+};
+
+// Bootstrap
+(async () => {
+  if (state.token) {
+    try { await loadDiscover(); return; } catch { localStorage.removeItem('tj_consumer_token'); state.token = null; }
+  }
+  show('view-auth');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TAJRIBTI — Operations</title>
+<style>
+  :root { --primary:#EB6B45; --bg:#FAF1EB; --ink:#241914; --muted:#7a6a61; --card:#fff; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:16px 5vw; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1e6dc; }
+  .logo { font-weight:800; text-decoration:none; color:var(--ink); }
+  .logo span { color: var(--primary); }
+  main { max-width: 1000px; margin: 0 auto; padding: 24px 20px 60px; }
+  .card { background: var(--card); border-radius: 16px; padding: 22px; margin-bottom: 16px; border:1px solid #f1e6dc; }
+  h2 { margin-top:0; font-size:1.2rem; }
+  label { display:block; font-size:0.85rem; color:var(--muted); margin:12px 0 4px; font-weight:600; }
+  input, select, textarea { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6d9cf; font-size:0.92rem; background:#fff; }
+  button { background: var(--primary); color:#fff; border:none; padding:10px 18px; border-radius:999px; font-weight:700; cursor:pointer; margin-top:14px; font-size:0.9rem; }
+  button.secondary { background:#fff; color:var(--ink); border:1px solid #e6d9cf; }
+  button.small { padding:6px 12px; font-size:0.8rem; margin-top:0; margin-right:6px; }
+  button.danger { background:#b23b1e; }
+  .msg { font-size:0.85rem; margin-top:8px; } .msg.error { color:#b23b1e; } .msg.ok { color:#1e7a3d; }
+  .hidden { display:none !important; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  table { width:100%; border-collapse:collapse; font-size:0.88rem; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid #f1e6dc; }
+  .pill { display:inline-block; background:var(--bg); color:var(--primary); font-size:0.72rem; font-weight:700; padding:3px 10px; border-radius:999px; }
+  .item { padding:14px; border:1px solid #f1e6dc; border-radius:12px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+  .item:hover { border-color: var(--primary); }
+  .tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+  .tab-btn { padding:8px 14px; border-radius:999px; border:1px solid #e6d9cf; background:#fff; color:var(--ink); cursor:pointer; font-size:0.85rem; font-weight:600; }
+  .tab-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+  .check-ok { color:#1e7a3d; } .check-bad { color:#b23b1e; }
+  .metric { text-align:center; } .metric-num { font-size:1.5rem; font-weight:800; color:var(--primary); } .metric-label { font-size:0.75rem; color:var(--muted); }
+  .metrics-row { display:flex; gap:20px; flex-wrap:wrap; margin-bottom: 10px; }
+  .verbatim { padding:10px; border-left:3px solid var(--primary); background:var(--bg); margin-bottom:8px; font-size:0.88rem; border-radius:6px; }
+  a.back { color: var(--muted); font-size: 0.85rem; text-decoration:none; display:inline-block; margin-bottom:10px; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/" class="logo">TAJRIBTI<span>.</span> <span style="font-weight:400;color:var(--muted);font-size:0.8rem;">Operations</span></a>
+  <div id="who"></div>
+</header>
+<main>
+
+  <div id="view-login" class="card">
+    <h2>Operations sign in</h2>
+    <label>Email</label><input id="login-email" value="ops@tajribti.internal" />
+    <label>Password</label><input id="login-password" type="password" value="OpsPass123!" />
+    <button id="btn-login">Sign in</button>
+    <div class="msg" id="login-msg"></div>
+  </div>
+
+  <div id="view-home" class="hidden">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="pipeline">Campaign Pipeline</button>
+      <button class="tab-btn" data-tab="companies">Companies</button>
+    </div>
+
+    <div class="card tab-panel" id="tab-pipeline">
+      <h2>Campaign pipeline</h2>
+      <div class="row">
+        <select id="pipeline-filter">
+          <option value="">All statuses</option>
+          <option value="DRAFT">Draft</option>
+          <option value="READY">Ready</option>
+          <option value="ACTIVE">Active</option>
+          <option value="PAUSED">Paused</option>
+          <option value="COMPLETED">Completed</option>
+        </select>
+      </div>
+      <div id="pipeline-list"></div>
+    </div>
+
+    <div class="card tab-panel hidden" id="tab-companies">
+      <h2>Companies</h2>
+      <div id="company-list"></div>
+      <h3 style="font-size:0.95rem;">Onboard new company</h3>
+      <label>Company name</label><input id="nco-name" />
+      <label>Industry</label><input id="nco-industry" />
+      <label>Owner name</label><input id="nco-owner-name" />
+      <label>Owner email</label><input id="nco-owner-email" />
+      <label>Owner password</label><input id="nco-owner-password" type="password" />
+      <button id="btn-create-company">Create company</button>
+      <div class="msg" id="nco-msg"></div>
+    </div>
+  </div>
+
+  <div id="view-campaign" class="hidden">
+    <a href="#" id="btn-back" class="back">← Back to pipeline</a>
+    <div class="card">
+      <span class="pill" id="cc-status"></span>
+      <h2 id="cc-name"></h2>
+      <p id="cc-meta" style="color:var(--muted);"></p>
+      <div class="row" id="cc-actions"></div>
+      <div class="msg" id="cc-msg"></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-ctab="readiness">Readiness</button>
+      <button class="tab-btn" data-ctab="participants">Participants</button>
+      <button class="tab-btn" data-ctab="live">Live Monitoring</button>
+      <button class="tab-btn" data-ctab="issues">Operational Issues</button>
+      <button class="tab-btn" data-ctab="survey">Survey Ops</button>
+      <button class="tab-btn" data-ctab="insights">Insights</button>
+      <button class="tab-btn" data-ctab="report">Report</button>
+    </div>
+
+    <div class="card ctab-panel" id="ctab-readiness"><h2>Readiness</h2><div id="readiness-content"></div></div>
+    <div class="card ctab-panel hidden" id="ctab-participants"><h2>Participants</h2><div id="participants-content"></div></div>
+    <div class="card ctab-panel hidden" id="ctab-live"><h2>Live monitoring</h2><div id="live-content"></div></div>
+    <div class="card ctab-panel hidden" id="ctab-issues">
+      <h2>Operational issues</h2>
+      <div id="issues-content"></div>
+      <label>Type</label><input id="issue-type" placeholder="e.g. low-participation" />
+      <label>Description</label><input id="issue-desc" />
+      <button id="btn-add-issue">Log issue</button>
+    </div>
+    <div class="card ctab-panel hidden" id="ctab-survey"><h2>Survey operations</h2><div id="survey-content"></div></div>
+    <div class="card ctab-panel hidden" id="ctab-insights"><h2>Insights</h2><div id="ops-insights-content"></div></div>
+    <div class="card ctab-panel hidden" id="ctab-report"><h2>Final report</h2><div id="ops-report-content"></div></div>
+  </div>
+
+</main>
+
+<script>
+const API = '/api';
+let token = localStorage.getItem('tj_ops_token') || null;
+let currentCampaignId = null;
+
+function authHeaders() { return token ? { Authorization: 'Bearer ' + token } : {}; }
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', ...authHeaders(), ...(opts.headers || {}) },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+  return data;
+}
+function show(id) { ['view-login','view-home','view-campaign'].forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id)); }
+
+document.getElementById('btn-login').onclick = async () => {
+  const msg = document.getElementById('login-msg');
+  try {
+    const r = await api('/ops/auth/login', { method: 'POST', body: {
+      email: document.getElementById('login-email').value.trim(),
+      password: document.getElementById('login-password').value,
+    }});
+    token = r.token; localStorage.setItem('tj_ops_token', token);
+    document.getElementById('who').textContent = r.opsUser.name;
+    await loadHome();
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+};
+
+document.querySelectorAll('#view-home .tab-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('#view-home .tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('#view-home .tab-panel').forEach(p => p.classList.add('hidden'));
+    document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
+    if (btn.dataset.tab === 'companies') loadCompanies();
+  };
+});
+
+async function loadHome() {
+  await loadPipeline();
+  show('view-home');
+}
+
+document.getElementById('pipeline-filter').onchange = loadPipeline;
+
+async function loadPipeline() {
+  const status = document.getElementById('pipeline-filter').value;
+  const campaigns = await api('/ops/campaigns' + (status ? '?status=' + status : ''));
+  const list = document.getElementById('pipeline-list');
+  list.innerHTML = campaigns.length ? '' : '<p style="color:var(--muted)">No campaigns.</p>';
+  campaigns.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'item';
+    div.innerHTML = '<div><strong>' + c.name + '</strong><div style="color:var(--muted);font-size:0.85rem;">' + c.company.name + '</div></div><span class="pill">' + c.status + '</span>';
+    div.onclick = () => openCampaign(c.id);
+    list.appendChild(div);
+  });
+}
+
+async function loadCompanies() {
+  const companies = await api('/ops/companies');
+  document.getElementById('company-list').innerHTML = companies.length ?
+    '<table><tr><th>Name</th><th>Industry</th><th>Employees</th><th>Campaigns</th></tr>' +
+    companies.map(c => '<tr><td>' + c.name + '</td><td>' + (c.industry || '—') + '</td><td>' + c._count.employees + '</td><td>' + c._count.campaigns + '</td></tr>').join('') + '</table>'
+    : '<p style="color:var(--muted)">No companies yet.</p>';
+}
+
+document.getElementById('btn-create-company').onclick = async () => {
+  const msg = document.getElementById('nco-msg');
+  try {
+    await api('/ops/companies', { method: 'POST', body: {
+      name: document.getElementById('nco-name').value.trim(),
+      industry: document.getElementById('nco-industry').value.trim() || undefined,
+      ownerName: document.getElementById('nco-owner-name').value.trim(),
+      ownerEmail: document.getElementById('nco-owner-email').value.trim(),
+      ownerPassword: document.getElementById('nco-owner-password').value,
+    }});
+    msg.textContent = 'Company created.'; msg.className = 'msg ok';
+    await loadCompanies();
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+};
+
+document.getElementById('btn-back').onclick = (e) => { e.preventDefault(); loadHome(); };
+
+document.querySelectorAll('#view-campaign .tab-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('#view-campaign .tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.ctab-panel').forEach(p => p.classList.add('hidden'));
+    document.getElementById('ctab-' + btn.dataset.ctab).classList.remove('hidden');
+    const loaders = { readiness: loadReadiness, participants: loadParticipants, live: loadLive, issues: loadIssues, survey: loadSurveyOps, insights: loadOpsInsights, report: loadOpsReport };
+    loaders[btn.dataset.ctab]();
+  };
+});
+
+async function openCampaign(id) {
+  currentCampaignId = id;
+  const c = await api('/ops/campaigns/' + id);
+  document.getElementById('cc-status').textContent = c.status;
+  document.getElementById('cc-name').textContent = c.name;
+  document.getElementById('cc-meta').textContent = c.company.name + (c.product ? ' · ' + c.product.name : '');
+
+  const actions = document.getElementById('cc-actions');
+  actions.innerHTML = '';
+  const mkBtn = (label, fn, cls) => { const b = document.createElement('button'); b.className = 'small ' + (cls||''); b.textContent = label; b.onclick = fn; return b; };
+  const msg = document.getElementById('cc-msg');
+  const act = async (path) => {
+    try { await api('/ops/campaigns/' + id + '/' + path, { method: 'POST' }); openCampaign(id); }
+    catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+  };
+  if (c.status === 'READY') actions.appendChild(mkBtn('Launch', () => act('launch')));
+  if (c.status === 'ACTIVE') { actions.appendChild(mkBtn('Pause', () => act('pause'), 'secondary')); actions.appendChild(mkBtn('Close', () => act('close'), 'danger')); }
+  if (c.status === 'PAUSED') { actions.appendChild(mkBtn('Resume', () => act('resume'))); actions.appendChild(mkBtn('Close', () => act('close'), 'danger')); }
+
+  document.querySelectorAll('#view-campaign .tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('#view-campaign .tab-btn[data-ctab="readiness"]').classList.add('active');
+  document.querySelectorAll('.ctab-panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById('ctab-readiness').classList.remove('hidden');
+  await loadReadiness();
+  show('view-campaign');
+}
+
+async function loadReadiness() {
+  const r = await api('/ops/campaigns/' + currentCampaignId + '/readiness');
+  document.getElementById('readiness-content').innerHTML =
+    '<p><strong>' + (r.ready ? 'Ready to launch' : 'Not yet ready') + '</strong></p><ul>' +
+    r.checks.map(c => '<li class="' + (c.ok ? 'check-ok' : 'check-bad') + '">' + (c.ok ? '✓' : '✗') + ' ' + c.label + '</li>').join('') + '</ul>';
+}
+
+async function loadParticipants() {
+  const list = await api('/ops/campaigns/' + currentCampaignId + '/participants');
+  document.getElementById('participants-content').innerHTML = list.length ?
+    '<table><tr><th>Consumer</th><th>Status</th><th>Source</th><th>Entered</th></tr>' +
+    list.map(p => '<tr><td>' + (p.consumer.name || p.consumer.phone) + '</td><td>' + p.status + '</td><td>' + (p.qrSource ? p.qrSource.label : '—') + '</td><td>' + new Date(p.enteredAt).toLocaleString() + '</td></tr>').join('') + '</table>'
+    : '<p style="color:var(--muted)">No participants yet.</p>';
+}
+
+function metric(n, label) { return '<div class="metric"><div class="metric-num">' + n + '</div><div class="metric-label">' + label + '</div></div>'; }
+
+async function loadLive() {
+  const data = await api('/ops/campaigns/' + currentCampaignId + '/live');
+  document.getElementById('live-content').innerHTML =
+    '<div class="metrics-row">' + metric(data.funnel.entered, 'Entered') + metric(data.funnel.eligible, 'Eligible') +
+    metric(data.funnel.trialRedeemed, 'Trial redeemed') + metric(data.funnel.surveyComplete, 'Survey complete') + '</div>' +
+    '<p>Purchase intent avg: ' + (data.purchaseIntent.averageScore ?? '—') + '/5 · Satisfaction avg: ' + (data.satisfaction.averageScore ?? '—') + '/5</p>';
+}
+
+async function loadIssues() {
+  const issues = await api('/ops/campaigns/' + currentCampaignId + '/issues');
+  document.getElementById('issues-content').innerHTML = issues.length ?
+    issues.map(i => '<div class="item" style="cursor:default;"><div><strong>' + i.type + '</strong><div style="color:var(--muted);font-size:0.85rem;">' + i.description + '</div></div>' +
+      (i.status === 'OPEN' ? '<button class="small secondary" onclick="resolveIssue(\'' + i.id + '\')">Resolve</button>' : '<span class="pill">RESOLVED</span>') + '</div>').join('')
+    : '<p style="color:var(--muted)">No issues logged.</p>';
+}
+async function resolveIssue(id) { await api('/ops/issues/' + id + '/resolve', { method: 'PATCH' }); loadIssues(); }
+
+document.getElementById('btn-add-issue').onclick = async () => {
+  await api('/ops/campaigns/' + currentCampaignId + '/issues', { method: 'POST', body: {
+    type: document.getElementById('issue-type').value.trim(),
+    description: document.getElementById('issue-desc').value.trim(),
+  }});
+  document.getElementById('issue-type').value = ''; document.getElementById('issue-desc').value = '';
+  loadIssues();
+};
+
+async function loadSurveyOps() {
+  const data = await api('/ops/campaigns/' + currentCampaignId + '/survey');
+  document.getElementById('survey-content').innerHTML =
+    '<table><tr><th>Stage</th><th>Type</th><th>Text</th></tr>' +
+    data.questions.map(q => '<tr><td>' + q.stage + '</td><td>' + q.type + '</td><td>' + q.text + '</td></tr>').join('') + '</table>' +
+    '<h3 style="font-size:0.95rem;">Choice-question aggregates</h3>' +
+    (data.aggregates.length ? data.aggregates.map(a => '<p><strong>' + a.text + '</strong> (' + a.responses + ' responses)<br/>' + a.breakdown.map(b => b.label + ': ' + b.count).join(' · ') + '</p>').join('') : '<p style="color:var(--muted)">No choice-question responses yet.</p>');
+}
+
+async function loadOpsInsights() {
+  const data = await api('/ops/campaigns/' + currentCampaignId + '/insights');
+  document.getElementById('ops-insights-content').innerHTML =
+    '<p style="color:var(--muted);font-size:0.85rem;">Evidence level: <strong>' + data.evidence.level + '</strong> (n=' + data.evidence.sampleSize + ')</p>' +
+    '<p>Purchase intent: ' + (data.purchaseIntent.averageScore ?? '—') + '/5 · Satisfaction: ' + (data.satisfaction.averageScore ?? '—') + '/5</p>' +
+    '<h3 style="font-size:0.95rem;">Consumer voice</h3>' +
+    (data.verbatims.length ? data.verbatims.map(v => '<div class="verbatim">"' + v.response + '"</div>').join('') : '<p style="color:var(--muted)">No verbatims yet.</p>');
+}
+
+async function loadOpsReport() {
+  const r = await api('/ops/campaigns/' + currentCampaignId + '/report');
+  document.getElementById('ops-report-content').innerHTML =
+    '<h3 style="font-size:0.95rem;">Findings</h3><ul>' + r.findings.map(f => '<li>' + f + '</li>').join('') + '</ul>' +
+    '<h3 style="font-size:0.95rem;">Recommendations</h3><ul>' + (r.recommendations.length ? r.recommendations.map(f => '<li>' + f + '</li>').join('') : '<li>None yet.</li>') + '</ul>' +
+    '<h3 style="font-size:0.95rem;">Limitations</h3><ul>' + r.limitations.map(l => '<li>' + l + '</li>').join('') + '</ul>';
+}
+
+(async () => {
+  if (token) {
+    try { await loadHome(); return; } catch { localStorage.removeItem('tj_ops_token'); token = null; }
+  }
+  show('view-login');
+})();
+</script>
+</body>
+</html>

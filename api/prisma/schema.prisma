@@ -1,0 +1,266 @@
+// TAJRIBTI Benchmark Edition — Data Model
+//
+// Derived exclusively from governance/REFERENCE_PRODUCT_BENCHMARK.md.
+// Campaign is the central operating object (Benchmark §5). Every entity here
+// maps to a Benchmark-named capability node (§4) or an explicitly-cited
+// "must preserve" foundation (§10: verified participation / already-
+// participated protection, QR lifecycle/date gating, company isolation,
+// employee company isolation, report/insight ownership scoping).
+//
+// No field was added because a previous implementation had it. Where the
+// Benchmark names a capability without defining its exact shape, the
+// smallest coherent structure was chosen (see BENCHMARK-AMBIGUOUS notes
+// inline and in the final report).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// TAJRIBTI OPERATIONS (internal actor surface — Benchmark §4 "TAJRIBTI OPERATIONS")
+// ---------------------------------------------------------------------------
+
+model OpsUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+
+  issuesOpened OperationalIssue[]
+}
+
+// ---------------------------------------------------------------------------
+// COMPANY (Benchmark §4 "COMPANY" — Company Profile, Employees)
+// ---------------------------------------------------------------------------
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  industry  String?
+  createdAt DateTime @default(now())
+
+  employees Employee[]
+  products  Product[]
+  campaigns Campaign[]
+}
+
+model Employee {
+  id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id])
+  email        String   @unique
+  passwordHash String
+  name         String
+  // "OWNER" | "MEMBER". SQLite has no native enum support in Prisma, so
+  // this is validated at the application layer (see src/middleware, zod
+  // schemas) — a technical implementation detail, not a product decision.
+  role         String   @default("MEMBER")
+  createdAt    DateTime @default(now())
+
+  @@index([companyId])
+}
+
+// Benchmark §4 COMPANY "Product / Assets"
+model Product {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  name        String
+  description String?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+
+  campaigns Campaign[]
+
+  @@index([companyId])
+}
+
+// ---------------------------------------------------------------------------
+// CONSUMER (Benchmark §4 "CONSUMER"; §10 "consumer authentication / OTP/JWT flow")
+// ---------------------------------------------------------------------------
+
+model Consumer {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+
+  otpCodes      OtpCode[]
+  participations Participation[]
+}
+
+model OtpCode {
+  id         String   @id @default(cuid())
+  phone      String
+  consumerId String?
+  consumer   Consumer? @relation(fields: [consumerId], references: [id])
+  code       String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([phone])
+}
+
+// ---------------------------------------------------------------------------
+// CAMPAIGN — the core operating object (Benchmark §5)
+// ---------------------------------------------------------------------------
+
+// Benchmark §2.4 / §13(user directive): Configure -> Review/Ready ->
+// Launch/Active -> Monitor -> Complete. No competing state machine invented;
+// PAUSED is the minimal addition explicitly named in the product-surface
+// list (§10 "Launch / Pause / Close").
+// Valid values: "DRAFT" | "READY" | "ACTIVE" | "PAUSED" | "COMPLETED"
+// (String, not a native enum — SQLite/Prisma limitation; enforced in code).
+
+model Campaign {
+  id        String         @id @default(cuid())
+  companyId String
+  company   Company        @relation(fields: [companyId], references: [id])
+  productId String?
+  product   Product?       @relation(fields: [productId], references: [id])
+
+  name      String
+  // Benchmark §2.4/§3: "Campaign has a clear purpose, not only product/date
+  // fields". Kept as free text — no taxonomy of objective types is defined
+  // by the Benchmark, so none is invented (BENCHMARK-AMBIGUOUS: objective
+  // taxonomy).
+  objective String
+
+  // Audience / Eligibility (Benchmark §3 "Audience/qualification").
+  // Minimal demographic filter fields; screening beyond these is expressed
+  // as ELIGIBILITY-stage Questions below.
+  audienceAgeMin  Int?
+  audienceAgeMax  Int?
+  audienceGender  String? // "ANY" | "MALE" | "FEMALE"
+  audienceCity    String?
+
+  startDate DateTime
+  endDate   DateTime
+  status    String   @default("DRAFT")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  questions      Question[]
+  qrSources      QrSource[]
+  participations Participation[]
+  issues         OperationalIssue[]
+
+  @@index([companyId])
+}
+
+// Benchmark §4 "Journey / Survey"; §2.3 screening/claim/trial/feedback stages
+// stage: "ELIGIBILITY" | "POST_TRIAL"
+// type: "SINGLE_CHOICE" | "MULTI_CHOICE" | "TEXT" | "RATING_1_5" |
+//       "PURCHASE_INTENT_1_5" (Benchmark §3: purchase intent is a
+//       first-class signal)
+model Question {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  stage      String
+  type       String
+  text       String
+  // JSON array of {id, label} for choice types; null otherwise.
+  options    String?
+  order      Int
+  required   Boolean  @default(true)
+
+  answers Answer[]
+
+  @@index([campaignId])
+}
+
+// Benchmark §3 "QR/source attribution"; §10 "QR lifecycle/date gating"
+model QrSource {
+  id         String    @id @default(cuid())
+  campaignId String
+  campaign   Campaign  @relation(fields: [campaignId], references: [id])
+  code       String    @unique
+  label      String
+  activeFrom DateTime
+  activeTo   DateTime
+  createdAt  DateTime  @default(now())
+
+  participations Participation[]
+
+  @@index([campaignId])
+}
+
+// Benchmark §10 "Already-Participated protection" (unique campaign+consumer);
+// §3 "Verified participation"; funnel stages from §11 desired product shape.
+// status: "ENTERED" | "ELIGIBLE" | "INELIGIBLE" | "TRIAL_REDEEMED" |
+//         "SURVEY_COMPLETE" | "DROPPED"
+model Participation {
+  id         String    @id @default(cuid())
+  campaignId String
+  campaign   Campaign  @relation(fields: [campaignId], references: [id])
+  consumerId String
+  consumer   Consumer  @relation(fields: [consumerId], references: [id])
+  qrSourceId String?
+  qrSource   QrSource? @relation(fields: [qrSourceId], references: [id])
+
+  status String @default("ENTERED")
+
+  // Demographic snapshot captured at eligibility time (Benchmark §7 report
+  // requirement "demographics"). Stored per-participation, not on the
+  // global Consumer record, since the Benchmark does not define a
+  // persistent consumer profile model (BENCHMARK-AMBIGUOUS).
+  ageAtEntry    Int?
+  genderAtEntry String?
+  cityAtEntry   String?
+
+  enteredAt          DateTime  @default(now())
+  eligibilityAt      DateTime?
+  trialRedeemedAt    DateTime?
+  surveyCompletedAt  DateTime?
+
+  answers Answer[]
+
+  @@unique([campaignId, consumerId]) // Already-Participated protection
+  @@index([campaignId])
+  @@index([qrSourceId])
+}
+
+model Answer {
+  id              String         @id @default(cuid())
+  participationId String
+  participation   Participation  @relation(fields: [participationId], references: [id])
+  questionId      String
+  question        Question       @relation(fields: [questionId], references: [id])
+
+  valueText    String?
+  valueNumber  Float?
+  valueOptions String? // JSON array of selected option ids for choice types
+
+  createdAt DateTime @default(now())
+
+  @@unique([participationId, questionId])
+  @@index([questionId])
+}
+
+// Benchmark §4 OPERATIONS "Operational Issues" — minimal issue log.
+// No automated detection algorithm is invented (Benchmark §17 user
+// directive: do not silently invent analytics/detection methodology).
+// status: "OPEN" | "RESOLVED"
+model OperationalIssue {
+  id          String    @id @default(cuid())
+  campaignId  String
+  campaign    Campaign  @relation(fields: [campaignId], references: [id])
+  openedById  String
+  openedBy    OpsUser   @relation(fields: [openedById], references: [id])
+  type        String
+  description String
+  status      String    @default("OPEN")
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  @@index([campaignId])
+}

@@ -72,6 +72,21 @@
       <h2>Active campaigns</h2>
       <div id="campaign-list"></div>
     </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h2 style="margin:0;">Your activity</h2>
+        <a href="#" id="btn-view-history" class="back">Post-trial history →</a>
+      </div>
+      <p class="muted" style="margin:8px 0 0;">Campaigns you've entered, and where each stands.</p>
+    </div>
+  </div>
+
+  <div id="view-history" class="hidden">
+    <a href="#" id="btn-back-history" class="back">← Back to campaigns</a>
+    <div class="card">
+      <h2>Post-trial history</h2>
+      <div id="history-list"></div>
+    </div>
   </div>
 
   <div id="view-campaign" class="hidden">
@@ -128,7 +143,7 @@ const qrCodeParam = new URLSearchParams(window.location.search).get('qr');
 let state = { token: localStorage.getItem('tj_consumer_token') || null, campaign: null, participation: null, eligibilityQuestions: [], qrSourceId: null };
 
 function show(id) {
-  ['view-auth','view-discover','view-campaign'].forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
+  ['view-auth','view-discover','view-campaign','view-history'].forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
 }
 function authHeaders() {
   return state.token ? { 'Authorization': 'Bearer ' + state.token } : {};
@@ -183,6 +198,29 @@ async function loadDiscover() {
   });
   show('view-discover');
 }
+
+// Post-Trial (Benchmark §4 CONSUMER "Post-Trial"). The API already
+// implements GET /consumer/participations (participation history,
+// scoped to the authenticated consumer) — this only surfaces it, with
+// no new endpoint or invented behavior.
+async function loadHistory() {
+  const participations = await api('/consumer/participations');
+  const list = document.getElementById('history-list');
+  list.innerHTML = participations.length ? '' : '<p class="muted">No campaign participation yet.</p>';
+  participations.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'campaign-item';
+    div.style.cursor = 'default';
+    div.innerHTML = '<span class="pill">' + p.status.replace(/_/g, ' ') + '</span>' +
+      '<h3>' + p.campaign.name + '</h3>' +
+      '<p>Entered ' + new Date(p.enteredAt).toLocaleDateString() +
+      (p.surveyCompletedAt ? ' · Feedback completed ' + new Date(p.surveyCompletedAt).toLocaleDateString() : '') + '</p>';
+    list.appendChild(div);
+  });
+  show('view-history');
+}
+document.getElementById('btn-view-history').onclick = (e) => { e.preventDefault(); loadHistory(); };
+document.getElementById('btn-back-history').onclick = (e) => { e.preventDefault(); loadDiscover(); };
 
 async function enterViaQr(code) {
   const banner = document.getElementById('qr-banner');

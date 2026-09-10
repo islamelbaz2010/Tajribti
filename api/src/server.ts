@@ -1,3 +1,4 @@
+import "./lib/asyncSafety"; // must patch Router before any route file registers handlers
 import express from "express";
 import cors from "cors";
 import path from "path";

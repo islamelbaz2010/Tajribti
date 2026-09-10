@@ -99,6 +99,7 @@
     </div>
 
     <div class="tabs">
+      <button class="tab-btn" data-ctab="config">Campaign Configuration</button>
       <button class="tab-btn active" data-ctab="readiness">Readiness</button>
       <button class="tab-btn" data-ctab="qr">QR / Journey</button>
       <button class="tab-btn" data-ctab="participants">Participants</button>
@@ -109,6 +110,7 @@
       <button class="tab-btn" data-ctab="report">Report</button>
     </div>
 
+    <div class="card ctab-panel hidden" id="ctab-config"><h2>Campaign configuration</h2><div id="config-content"></div></div>
     <div class="card ctab-panel" id="ctab-readiness"><h2>Readiness</h2><div id="readiness-content"></div></div>
     <div class="card ctab-panel hidden" id="ctab-qr"><h2>QR / Journey operations</h2><div id="qr-ops-content"></div></div>
     <div class="card ctab-panel hidden" id="ctab-participants"><h2>Participants</h2><div id="participants-content"></div></div>
@@ -221,7 +223,7 @@ document.querySelectorAll('#view-campaign .tab-btn').forEach(btn => {
     btn.classList.add('active');
     document.querySelectorAll('.ctab-panel').forEach(p => p.classList.add('hidden'));
     document.getElementById('ctab-' + btn.dataset.ctab).classList.remove('hidden');
-    const loaders = { readiness: loadReadiness, qr: loadQrOps, participants: loadParticipants, live: loadLive, issues: loadIssues, survey: loadSurveyOps, insights: loadOpsInsights, report: loadOpsReport };
+    const loaders = { config: loadConfig, readiness: loadReadiness, qr: loadQrOps, participants: loadParticipants, live: loadLive, issues: loadIssues, survey: loadSurveyOps, insights: loadOpsInsights, report: loadOpsReport };
     loaders[btn.dataset.ctab]();
   };
 });
@@ -252,6 +254,28 @@ async function openCampaign(id) {
   document.getElementById('ctab-readiness').classList.remove('hidden');
   await loadReadiness();
   show('view-campaign');
+}
+
+// Campaign Configuration (Benchmark §4 OPERATIONS "Campaign
+// Configuration" — a distinct node from "Readiness"). The campaign's
+// objective/product/audience/dates are already returned by GET
+// /ops/campaigns/:id (fetched into currentCampaign by openCampaign);
+// this only surfaces that existing data for internal visibility, with no
+// new endpoint, edit action, or invented business rule.
+function loadConfig() {
+  const c = currentCampaign;
+  if (!c) return;
+  const audienceParts = [];
+  if (c.audienceAgeMin != null || c.audienceAgeMax != null) {
+    audienceParts.push('Age ' + (c.audienceAgeMin ?? '—') + '–' + (c.audienceAgeMax ?? '—'));
+  }
+  if (c.audienceGender) audienceParts.push(c.audienceGender);
+  if (c.audienceCity) audienceParts.push(c.audienceCity);
+  document.getElementById('config-content').innerHTML =
+    '<p><strong>Objective</strong><br/>' + (c.objective || '—') + '</p>' +
+    '<p><strong>Product</strong><br/>' + (c.product ? c.product.name : 'No product linked') + '</p>' +
+    '<p><strong>Dates</strong><br/>' + new Date(c.startDate).toLocaleDateString() + ' – ' + new Date(c.endDate).toLocaleDateString() + '</p>' +
+    '<p><strong>Audience</strong><br/>' + (audienceParts.length ? audienceParts.join(' · ') : 'No audience filter set') + '</p>';
 }
 
 async function loadReadiness() {

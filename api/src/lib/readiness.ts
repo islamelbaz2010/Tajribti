@@ -1,9 +1,14 @@
 import { prisma } from "./prisma";
 
-// Readiness (Benchmark §2.4 / user-directive §13): a guided
-// Configure -> Review/Ready -> Launch distinction, based on
-// Benchmark-supported campaign requirements only. No approval hierarchy,
-// approval chain, or compliance engine is invented (user-directive §8).
+// Readiness. The Benchmark (§2.4, via the ExpertVoice reference) supports
+// a general guided pre-launch review stage ("Preview/save-before-launch
+// is part of the workflow"; "Configure -> Review/Ready -> Launch/Active
+// -> Monitor -> Complete") but does not enumerate the exact checklist
+// items a campaign must satisfy before launch. The specific checks below
+// are an engineering interpretation of that general requirement, not a
+// one-to-one Benchmark specification — BENCHMARK-AMBIGUOUS at the item
+// level. No approval hierarchy, approval chain, or compliance engine is
+// invented; the Benchmark does not describe one.
 export interface ReadinessCheck {
   key: string;
   label: string;

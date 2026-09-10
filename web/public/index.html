@@ -275,9 +275,10 @@ async function loadDemo() {
     // Public preview uses consumer-visible campaign; live/report figures
     // require authenticated company/ops access, so this section shows the
     // funnel only when a demo endpoint is reachable without auth. Since
-    // funnel/report are authorization-protected by design (Benchmark §20),
-    // the public site does not attempt to bypass that — it links out
-    // instead once real credentials are used in Company/Ops.
+    // funnel/report are authorization-protected by design (Benchmark §10
+    // "report/insight ownership scoping" must-preserve foundation), the
+    // public site does not attempt to bypass that — it links out instead
+    // once real credentials are used in Company/Ops.
     document.getElementById('report-preview').innerHTML =
       '<div class="report-row"><span class="k">Active campaign</span><span class="v">' + campaigns[0].name + '</span></div>' +
       '<div class="report-row"><span class="k">Company</span><span class="v">' + campaigns[0].company.name + '</span></div>' +

@@ -112,10 +112,16 @@ model OtpCode {
 // CAMPAIGN — the core operating object (Benchmark §5)
 // ---------------------------------------------------------------------------
 
-// Benchmark §2.4 / §13(user directive): Configure -> Review/Ready ->
-// Launch/Active -> Monitor -> Complete. No competing state machine invented;
-// PAUSED is the minimal addition explicitly named in the product-surface
-// list (§10 "Launch / Pause / Close").
+// Benchmark §2.4 (via the ExpertVoice reference) supports a campaign
+// progression around Configure -> Review/Ready -> Launch/Active -> Monitor
+// -> Complete, and explicitly defers exact naming: "The exact status names
+// must use TAJRIBTI's existing lifecycle model rather than introducing a
+// competing state machine." §4 OPERATIONS separately names "Launch / Pause
+// / Close" as an action set. Neither passage specifies exact state names
+// or transitions, so the five values below (and PAUSED in particular) are
+// an engineering state machine built to satisfy that general progression
+// and action set — BENCHMARK-AMBIGUOUS at the exact-name/transition level,
+// not a literal Benchmark specification.
 // Valid values: "DRAFT" | "READY" | "ACTIVE" | "PAUSED" | "COMPLETED"
 // (String, not a native enum — SQLite/Prisma limitation; enforced in code).
 
@@ -247,8 +253,10 @@ model Answer {
 }
 
 // Benchmark §4 OPERATIONS "Operational Issues" — minimal issue log.
-// No automated detection algorithm is invented (Benchmark §17 user
-// directive: do not silently invent analytics/detection methodology).
+// No automated detection algorithm is invented (Benchmark §9 explicitly
+// excludes "automated fraud detection"; nothing in the Benchmark
+// specifies an issue-detection methodology, so none is fabricated here —
+// issues are opened/resolved manually by TAJRIBTI Operations).
 // status: "OPEN" | "RESOLVED"
 model OperationalIssue {
   id          String    @id @default(cuid())

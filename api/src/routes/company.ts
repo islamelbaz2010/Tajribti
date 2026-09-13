@@ -52,23 +52,27 @@ router.get("/employees", async (req, res) => {
   const { companyId } = asEmployee(req);
   const employees = await prisma.employee.findMany({
     where: { companyId },
-    select: { id: true, name: true, email: true, role: true, createdAt: true },
+    select: { id: true, name: true, email: true, createdAt: true },
   });
   res.json(employees);
 });
 
+// No role gate on invitation: Benchmark §4 COMPANY names only "Employees"
+// as a capability, with no permission tier defined (see schema.prisma
+// Employee model comment). Any authenticated employee of this company —
+// company-level isolation is what Benchmark §10 actually names — may add
+// another employee to it.
 router.post("/employees", async (req, res) => {
-  const { companyId, role } = asEmployee(req);
-  if (role !== "OWNER") return res.status(403).json({ error: "Only an OWNER can add employees" });
+  const { companyId } = asEmployee(req);
   const schema = z.object({ name: z.string().min(1), email: z.string().email(), password: z.string().min(8) });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
   try {
     const employee = await prisma.employee.create({
-      data: { companyId, name: parsed.data.name, email: parsed.data.email, passwordHash, role: "MEMBER" },
+      data: { companyId, name: parsed.data.name, email: parsed.data.email, passwordHash },
     });
-    res.status(201).json({ id: employee.id, name: employee.name, email: employee.email, role: employee.role });
+    res.status(201).json({ id: employee.id, name: employee.name, email: employee.email });
   } catch {
     res.status(409).json({ error: "Email already in use" });
   }
@@ -186,13 +190,10 @@ router.post("/campaigns/:id/submit-for-review", async (req, res) => {
   res.json({ campaign: updated, readiness });
 });
 
-router.post("/campaigns/:id/revert-to-draft", async (req, res) => {
-  const campaign = await loadOwnedCampaign(req, res);
-  if (!campaign) return;
-  if (campaign.status !== "READY") return res.status(409).json({ error: "Only a READY campaign can revert to draft" });
-  const updated = await prisma.campaign.update({ where: { id: campaign.id }, data: { status: "DRAFT" } });
-  res.json(updated);
-});
+// No "revert to draft" action: Benchmark §2.4 names the Company chain as
+// Configure -> Review/Ready -> Launch/Active -> Monitor -> Complete with
+// no reverse transition. Inventing an undo action here is the same class
+// of over-reach as inferring Resume from Pause (Benchmark §35 caution).
 
 // --- Journey / Survey questions --------------------------------------------
 const questionSchema = z.object({

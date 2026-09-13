@@ -50,6 +50,15 @@ model Company {
   campaigns Campaign[]
 }
 
+// No OWNER/MEMBER (or any other) role tier: Benchmark §4 COMPANY names
+// only "Employees" as a capability, with no permission-tier language
+// anywhere in the document. A prior pass carried a `role` column here
+// and gated employee invitation on it — that is a PRODUCT PERMISSION
+// decision (this prompt's own §4 worked example), not a technical
+// detail, and it had no Benchmark support. Removed. Every employee of a
+// company has equal capability within that company; the only boundary
+// Benchmark actually names is company-level "employee company isolation"
+// (§10), which is enforced by scoping every query to companyId.
 model Employee {
   id           String   @id @default(cuid())
   companyId    String
@@ -57,10 +66,6 @@ model Employee {
   email        String   @unique
   passwordHash String
   name         String
-  // "OWNER" | "MEMBER". SQLite has no native enum support in Prisma, so
-  // this is validated at the application layer (see src/middleware, zod
-  // schemas) — a technical implementation detail, not a product decision.
-  role         String   @default("MEMBER")
   createdAt    DateTime @default(now())
 
   @@index([companyId])
@@ -112,16 +117,20 @@ model OtpCode {
 // CAMPAIGN — the core operating object (Benchmark §5)
 // ---------------------------------------------------------------------------
 
-// Benchmark §2.4 (via the ExpertVoice reference) supports a campaign
-// progression around Configure -> Review/Ready -> Launch/Active -> Monitor
-// -> Complete, and explicitly defers exact naming: "The exact status names
-// must use TAJRIBTI's existing lifecycle model rather than introducing a
-// competing state machine." §4 OPERATIONS separately names "Launch / Pause
-// / Close" as an action set. Neither passage specifies exact state names
-// or transitions, so the five values below (and PAUSED in particular) are
-// an engineering state machine built to satisfy that general progression
-// and action set — BENCHMARK-AMBIGUOUS at the exact-name/transition level,
-// not a literal Benchmark specification.
+// Benchmark §2.4 names the Company chain Configure -> Review/Ready ->
+// Launch/Active -> Monitor -> Complete, and §4 OPERATIONS separately
+// names the action set "Launch / Pause / Close". Together these two
+// passages support the five states below (DRAFT~Configure,
+// READY~Review/Ready, ACTIVE~Launch/Active, PAUSED from the named Pause
+// action, COMPLETED~Complete) — exact naming is still an engineering
+// choice (§2.4 explicitly defers it: "must use TAJRIBTI's existing
+// lifecycle model rather than introducing a competing state machine"),
+// but the existence of each state is Benchmark-traceable. What is NOT
+// traceable, and therefore intentionally absent, is a "resume" action:
+// naming Pause does not itself authorize Resume, Restart, Extend, Clone,
+// or Rollback (Benchmark's own worked caution). A PAUSED campaign can
+// only be closed. Likewise no "revert to draft" exists on the Company
+// side — no reverse transition is named in the §2.4 chain.
 // Valid values: "DRAFT" | "READY" | "ACTIVE" | "PAUSED" | "COMPLETED"
 // (String, not a native enum — SQLite/Prisma limitation; enforced in code).
 

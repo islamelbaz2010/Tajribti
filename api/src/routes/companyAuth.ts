@@ -22,11 +22,10 @@ router.post("/login", async (req, res) => {
     kind: "employee",
     employeeId: employee.id,
     companyId: employee.companyId,
-    role: employee.role as "OWNER" | "MEMBER",
   });
   res.json({
     token,
-    employee: { id: employee.id, name: employee.name, email: employee.email, role: employee.role, companyId: employee.companyId },
+    employee: { id: employee.id, name: employee.name, email: employee.email, companyId: employee.companyId },
   });
 });
 

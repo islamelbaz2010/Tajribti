@@ -36,33 +36,36 @@ router.get("/companies", async (_req, res) => {
   res.json(companies);
 });
 
+// Field names are neutral ("employee...", not "owner...") on purpose —
+// see schema.prisma Employee model comment: Benchmark defines no
+// permission tier, so this is simply the company's first employee.
 const createCompanySchema = z.object({
   name: z.string().min(1),
   industry: z.string().optional(),
-  ownerName: z.string().min(1),
-  ownerEmail: z.string().email(),
-  ownerPassword: z.string().min(8),
+  employeeName: z.string().min(1),
+  employeeEmail: z.string().email(),
+  employeePassword: z.string().min(8),
 });
 
 router.post("/companies", async (req, res) => {
   const parsed = createCompanySchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
   const d = parsed.data;
-  const passwordHash = await bcrypt.hash(d.ownerPassword, 10);
+  const passwordHash = await bcrypt.hash(d.employeePassword, 10);
   try {
     const company = await prisma.company.create({
       data: {
         name: d.name,
         industry: d.industry,
         employees: {
-          create: { name: d.ownerName, email: d.ownerEmail, passwordHash, role: "OWNER" },
+          create: { name: d.employeeName, email: d.employeeEmail, passwordHash },
         },
       },
       include: { employees: true },
     });
     res.status(201).json(company);
   } catch {
-    res.status(409).json({ error: "Owner email already in use" });
+    res.status(409).json({ error: "Employee email already in use" });
   }
 });
 
@@ -112,14 +115,11 @@ router.post("/campaigns/:id/pause", async (req, res) => {
   res.json(updated);
 });
 
-router.post("/campaigns/:id/resume", async (req, res) => {
-  const campaign = await loadCampaignOrNotFound(req, res);
-  if (!campaign) return;
-  if (campaign.status !== "PAUSED") return res.status(409).json({ error: "Only a PAUSED campaign can be resumed" });
-  const updated = await prisma.campaign.update({ where: { id: campaign.id }, data: { status: "ACTIVE" } });
-  res.json(updated);
-});
-
+// No "resume" action: Benchmark §4 OPERATIONS names exactly
+// "Launch / Pause / Close" as the action set. Resume is not named, and
+// naming Pause does not itself authorize Resume (Benchmark §35 caution).
+// A PAUSED campaign can only be closed — not reactivated — until the
+// Benchmark explicitly authorizes a resume action.
 router.post("/campaigns/:id/close", async (req, res) => {
   const campaign = await loadCampaignOrNotFound(req, res);
   if (!campaign) return;

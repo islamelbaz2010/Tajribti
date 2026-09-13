@@ -105,18 +105,26 @@ export async function getVerbatims(campaignId: string, limit = 50) {
 
 export interface EvidenceLevel {
   sampleSize: number;
-  level: "ZERO_DATA" | "SMALL_SAMPLE" | "SUFFICIENT";
+  level: "ZERO_DATA" | "HAS_DATA";
 }
 
-// Evidence discipline (Benchmark §6): sample size must be visible, small
-// samples require cautious language, zero-data must remain honest. The
-// n=20 threshold is an engineering default for "small sample" labeling —
-// not a Benchmark-specified statistical threshold — and is reported as
-// such rather than presented as a validated cutoff.
+// Evidence discipline (Benchmark §6): "sample size must be visible" and
+// "small samples require appropriately cautious language" are the only
+// two rules the Benchmark actually states here — it defines no numeric
+// threshold for what counts as "small," and nowhere authorizes a claim
+// that a sample has become statistically sufficient. A prior pass used
+// n<20 as a "small sample" cutoff and labeled n>=20 "SUFFICIENT" — both
+// are fabricated methodology (an invented threshold, and an invented
+// statistical-adequacy claim §6 never grants). Removed. This function
+// now does only what Benchmark actually requires: expose the real
+// sample size, and distinguish "no data at all" (an honest, non-invented
+// distinction) from "some data" — every non-zero sample is treated as
+// requiring the same cautious, directional language, because Benchmark
+// defines no point at which that caution should stop applying.
+// BLOCKED — BENCHMARK DOES NOT SPECIFY THE REQUIRED SAMPLE-SUFFICIENCY
+// THRESHOLD OR METHODOLOGY.
 export function classifySample(n: number): EvidenceLevel {
-  if (n === 0) return { sampleSize: n, level: "ZERO_DATA" };
-  if (n < 20) return { sampleSize: n, level: "SMALL_SAMPLE" };
-  return { sampleSize: n, level: "SUFFICIENT" };
+  return { sampleSize: n, level: n === 0 ? "ZERO_DATA" : "HAS_DATA" };
 }
 
 export async function getCampaignQuestions(campaignId: string) {

@@ -204,7 +204,6 @@
 const API = '/api';
 let token = localStorage.getItem('tj_company_token') || null;
 let currentCampaignId = null;
-let currentRole = localStorage.getItem('tj_company_role') || null;
 
 function authHeaders() { return token ? { Authorization: 'Bearer ' + token } : {}; }
 async function api(path, opts = {}) {
@@ -229,10 +228,8 @@ document.getElementById('btn-login').onclick = async () => {
       password: document.getElementById('login-password').value,
     }});
     token = r.token;
-    currentRole = r.employee.role;
     localStorage.setItem('tj_company_token', token);
-    localStorage.setItem('tj_company_role', r.employee.role);
-    document.getElementById('who').textContent = r.employee.name + ' · ' + r.employee.role;
+    document.getElementById('who').textContent = r.employee.name;
     await loadCampaigns();
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };
@@ -292,11 +289,11 @@ document.getElementById('btn-save-profile').onclick = async () => {
 async function loadEmployees() {
   const employees = await api('/company/employees');
   document.getElementById('employee-list').innerHTML = employees.length ?
-    '<table><tr><th>Name</th><th>Email</th><th>Role</th></tr>' +
-    employees.map(e => '<tr><td>' + e.name + '</td><td>' + e.email + '</td><td>' + e.role + '</td></tr>').join('') + '</table>'
+    '<table><tr><th>Name</th><th>Email</th></tr>' +
+    employees.map(e => '<tr><td>' + e.name + '</td><td>' + e.email + '</td></tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No employees yet.</p>';
-  // Only an OWNER can add employees (server-enforced; hidden here for clarity).
-  document.getElementById('employee-add-form').classList.toggle('hidden', currentRole !== 'OWNER');
+  // No role gate: Benchmark defines no employee permission tier — any
+  // employee of this company may add another (see api/src/routes/company.ts).
 }
 document.getElementById('btn-add-employee').onclick = async () => {
   const msg = document.getElementById('employee-msg');
@@ -368,9 +365,8 @@ async function openCampaign(id) {
     };
     actions.appendChild(b);
   } else if (c.status === 'READY') {
-    const b = document.createElement('button'); b.className='small secondary'; b.textContent = 'Revert to draft';
-    b.onclick = async () => { await api('/company/campaigns/' + id + '/revert-to-draft', { method: 'POST' }); openCampaign(id); };
-    actions.appendChild(b);
+    // No "revert to draft" action — Benchmark names no reverse transition
+    // in the Configure -> Review/Ready chain (see api/src/routes/company.ts).
     const note = document.createElement('span'); note.style.cssText='color:var(--muted);font-size:0.85rem;'; note.textContent = 'Ready — awaiting TAJRIBTI Operations launch.';
     actions.appendChild(note);
   }
@@ -485,7 +481,7 @@ async function loadReport() {
 
 (async () => {
   if (token) {
-    try { await loadCampaigns(); return; } catch { localStorage.removeItem('tj_company_token'); localStorage.removeItem('tj_company_role'); token = null; currentRole = null; }
+    try { await loadCampaigns(); return; } catch { localStorage.removeItem('tj_company_token'); token = null; }
   }
   show('view-login');
 })();

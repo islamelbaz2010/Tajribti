@@ -16,7 +16,6 @@ export interface EmployeeClaims {
   kind: "employee";
   employeeId: string;
   companyId: string;
-  role: "OWNER" | "MEMBER";
 }
 
 export interface OpsClaims {

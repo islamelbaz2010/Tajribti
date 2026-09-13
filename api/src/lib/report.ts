@@ -67,11 +67,13 @@ export async function buildReport(campaignId: string) {
     findings.push("No completed post-trial survey responses have been recorded for this campaign yet.");
     recommendations.push("Do not draw conclusions until survey responses are collected.");
   } else {
-    if (evidence.level === "SMALL_SAMPLE") {
-      findings.push(
-        `Only ${evidence.sampleSize} completed survey response(s) are available. Findings below should be treated as directional, not conclusive.`
-      );
-    }
+    // Benchmark §6 requires cautious language for small samples but
+    // defines no threshold for "small" — so this caution is applied to
+    // every non-zero sample rather than inventing a cutoff (see
+    // classifySample in lib/measurement.ts).
+    findings.push(
+      `${evidence.sampleSize} completed survey response(s) are available. Findings below should be treated as directional, not conclusive, until a Benchmark-defined sufficiency threshold exists.`
+    );
     if (purchaseIntent.averageScore != null) {
       findings.push(
         `Average purchase intent across ${purchaseIntent.responses} response(s) is ${purchaseIntent.averageScore}/5.`
@@ -117,9 +119,10 @@ export async function buildReport(campaignId: string) {
     limitations: [
       "Purchase intent and satisfaction reflect self-reported survey responses only.",
       "Segment-level (audience-difference) breakdowns are limited to source/QR attribution and the demographic snapshot captured at eligibility; no additional segmentation is fabricated.",
-      evidence.level !== "SUFFICIENT"
-        ? "Sample size is below a robust threshold for this campaign; treat findings as directional."
-        : "Sample size supports the findings above at a basic descriptive level; no statistical significance testing is applied.",
+      // No sample-sufficiency claim is made at any size — Benchmark §6
+      // requires cautious language for small samples but never defines a
+      // point at which a sample becomes statistically sufficient.
+      "No statistical significance testing is applied, and no sample-size threshold for sufficiency is asserted; all figures should be read alongside the stated sample size.",
     ],
     generatedAt: new Date().toISOString(),
   };

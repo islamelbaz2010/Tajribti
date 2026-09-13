@@ -80,9 +80,9 @@
       <h3 style="font-size:0.95rem;">Onboard new company</h3>
       <label>Company name</label><input id="nco-name" />
       <label>Industry</label><input id="nco-industry" />
-      <label>Owner name</label><input id="nco-owner-name" />
-      <label>Owner email</label><input id="nco-owner-email" />
-      <label>Owner password</label><input id="nco-owner-password" type="password" />
+      <label>Employee name</label><input id="nco-owner-name" />
+      <label>Employee email</label><input id="nco-owner-email" />
+      <label>Employee password</label><input id="nco-owner-password" type="password" />
       <button id="btn-create-company">Create company</button>
       <div class="msg" id="nco-msg"></div>
     </div>
@@ -206,9 +206,9 @@ document.getElementById('btn-create-company').onclick = async () => {
     await api('/ops/companies', { method: 'POST', body: {
       name: document.getElementById('nco-name').value.trim(),
       industry: document.getElementById('nco-industry').value.trim() || undefined,
-      ownerName: document.getElementById('nco-owner-name').value.trim(),
-      ownerEmail: document.getElementById('nco-owner-email').value.trim(),
-      ownerPassword: document.getElementById('nco-owner-password').value,
+      employeeName: document.getElementById('nco-owner-name').value.trim(),
+      employeeEmail: document.getElementById('nco-owner-email').value.trim(),
+      employeePassword: document.getElementById('nco-owner-password').value,
     }});
     msg.textContent = 'Company created.'; msg.className = 'msg ok';
     await loadCompanies();
@@ -246,7 +246,10 @@ async function openCampaign(id) {
   };
   if (c.status === 'READY') actions.appendChild(mkBtn('Launch', () => act('launch')));
   if (c.status === 'ACTIVE') { actions.appendChild(mkBtn('Pause', () => act('pause'), 'secondary')); actions.appendChild(mkBtn('Close', () => act('close'), 'danger')); }
-  if (c.status === 'PAUSED') { actions.appendChild(mkBtn('Resume', () => act('resume'))); actions.appendChild(mkBtn('Close', () => act('close'), 'danger')); }
+  // No Resume action: Benchmark §4 OPERATIONS names only "Launch / Pause
+  // / Close" — Pause does not imply Resume (Benchmark §35 caution). A
+  // paused campaign can only be closed.
+  if (c.status === 'PAUSED') { actions.appendChild(mkBtn('Close', () => act('close'), 'danger')); }
 
   document.querySelectorAll('#view-campaign .tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelector('#view-campaign .tab-btn[data-ctab="readiness"]').classList.add('active');

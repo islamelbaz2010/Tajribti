@@ -24,7 +24,6 @@ async function main() {
           name: "Layla Hassan",
           email: "layla@nilefresh.example",
           passwordHash: ownerPasswordHash,
-          role: "OWNER",
         },
       },
     },

@@ -21,7 +21,7 @@ export async function checkReadiness(campaignId: string): Promise<{
 }> {
   const campaign = await prisma.campaign.findUniqueOrThrow({
     where: { id: campaignId },
-    include: { questions: true, qrSources: true },
+    include: { questions: true },
   });
 
   const checks: ReadinessCheck[] = [
@@ -37,11 +37,12 @@ export async function checkReadiness(campaignId: string): Promise<{
       label: "At least one post-trial survey question is configured",
       ok: campaign.questions.some((q) => q.stage === "POST_TRIAL"),
     },
-    {
-      key: "qrSource",
-      label: "At least one QR/source is configured",
-      ok: campaign.qrSources.length > 0,
-    },
+    // No mandatory QR/source check: Benchmark §3 describes QR/source
+    // attribution as operationally visible "where applicable" — not as a
+    // universal requirement — and the consumer discovery flow
+    // (GET /consumer/campaigns) already works without one. Requiring at
+    // least one QR/source before every launch would overspecify a
+    // condition Benchmark itself hedges.
   ];
 
   return { ready: checks.every((c) => c.ok), checks };

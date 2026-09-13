@@ -127,6 +127,7 @@ export async function buildReport(campaignId: string) {
       "All figures are computed live from persisted participation, eligibility, redemption and survey-response records for this campaign. No figure is estimated, modeled, or AI-generated.",
     limitations: [
       "Purchase intent and satisfaction reflect self-reported survey responses only.",
+      "The 1-5 scale for purchase intent and satisfaction is a platform characteristic, not a defined product standard; treat the reported average alongside its scale rather than as a validated index.",
       "Segment-level (audience-difference) breakdowns are limited to source/QR attribution and the demographic snapshot captured at eligibility; no additional segmentation is fabricated.",
       // No sample-sufficiency claim is made at any size — Benchmark §6
       // requires cautious language for small samples but never defines a

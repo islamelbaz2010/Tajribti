@@ -41,17 +41,26 @@ export async function getSourceBreakdown(campaignId: string) {
   }));
 }
 
-// Scale disclosure: Benchmark §3 requires purchase intent to exist as "a
-// first-class insight signal" and lists satisfaction as an insight
-// category (§2.3), but specifies no numeric range, scoring, or
-// aggregation method for either. A numeric rating cannot be captured or
-// averaged at all without *some* bound — the 1-5 range here is that
-// unavoidable minimal technical choice (comparable to bounding age
-// 0-120), not an asserted Benchmark scale. No interpretive threshold is
-// applied to the resulting average anywhere downstream (see
-// lib/report.ts — a prior pass had done so and it was removed as
-// fabricated methodology); only the raw mean and per-response count are
-// exposed.
+// Scale classification: BENCHMARK-AMBIGUOUS, not technical-only. §3
+// requires purchase intent to exist as "a first-class insight signal"
+// and §2.3 lists satisfaction as an insight category — those are
+// BENCHMARK-EXPLICIT. The numeric range (1-5) is not: the Benchmark
+// specifies no scale, and a prior pass called 1-5 an "unavoidable
+// minimal technical choice" — that framing was itself wrong. The scale
+// has real product meaning (what a consumer is offered as answer
+// options; the "/5" a company reads in its report) and 1-5 is not
+// established as Product Truth by anything in the Benchmark text. It is
+// retained here only as existing technical infrastructure carrying an
+// unresolved product characteristic — not represented as
+// Benchmark-defined — because building an alternative (e.g. a
+// per-question configurable range) would itself be inventing a new,
+// equally unauthorized scale mechanism rather than resolving the
+// ambiguity. See lib/report.ts for the corresponding disclosure shown
+// to report readers. BLOCKED — BENCHMARK DOES NOT SPECIFY THE REQUIRED
+// SCALE. No interpretive threshold is applied to the resulting average
+// anywhere downstream (a prior pass had done so in lib/report.ts and it
+// was removed as fabricated methodology); only the raw mean and
+// per-response count are exposed.
 export interface PurchaseIntentSummary {
   responses: number;
   averageScore: number | null;

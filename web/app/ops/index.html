@@ -259,12 +259,19 @@ async function openCampaign(id) {
   show('view-campaign');
 }
 
-// Campaign Configuration (Benchmark §4 OPERATIONS "Campaign
-// Configuration" — a distinct node from "Readiness"). The campaign's
-// objective/product/audience/dates are already returned by GET
-// /ops/campaigns/:id (fetched into currentCampaign by openCampaign);
-// this only surfaces that existing data for internal visibility, with no
-// new endpoint, edit action, or invented business rule.
+// Campaign Configuration (Benchmark §4 OPERATIONS names this as a
+// distinct node from "Readiness", without defining what it authorizes —
+// BENCHMARK-AMBIGUOUS at the edit/read-only level, exactly like the
+// naming itself gives no permission either way). What IS
+// BENCHMARK-DERIVABLE is that Ops must be able to see a campaign's
+// objective/product/audience/dates to perform the separately-named
+// Campaign Pipeline, Readiness, and Launch/Pause/Close capabilities —
+// none of those can function without seeing what the campaign is. This
+// view reuses that same already-authorized read (GET
+// /ops/campaigns/:id, fetched into currentCampaign by openCampaign) and
+// adds no new endpoint, no edit action, and no additional business
+// rule — so it stays within the derivable read, without resolving (or
+// needing to resolve) what "Campaign Configuration" itself authorizes.
 function loadConfig() {
   const c = currentCampaign;
   if (!c) return;

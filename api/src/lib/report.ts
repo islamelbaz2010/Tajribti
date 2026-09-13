@@ -78,11 +78,6 @@ export async function buildReport(campaignId: string) {
       findings.push(
         `Average purchase intent across ${purchaseIntent.responses} response(s) is ${purchaseIntent.averageScore}/5.`
       );
-      if (purchaseIntent.averageScore >= 4) {
-        recommendations.push("Purchase intent is strong in the collected sample — consider proceeding toward the next campaign/launch decision, subject to sample size.");
-      } else if (purchaseIntent.averageScore <= 2.5) {
-        recommendations.push("Purchase intent is weak in the collected sample — consider reviewing product/messaging before a broader launch decision.");
-      }
     }
     if (satisfaction.averageScore != null) {
       findings.push(`Average satisfaction rating across ${satisfaction.responses} response(s) is ${satisfaction.averageScore}/5.`);
@@ -91,6 +86,20 @@ export async function buildReport(campaignId: string) {
       const completionRate = Math.round((funnel.surveyComplete / funnel.entered) * 100);
       findings.push(`Journey completion rate (entered → survey complete) is ${completionRate}% (${funnel.surveyComplete}/${funnel.entered}).`);
     }
+    // No threshold-triggered recommendation ("average >= 4 => strong",
+    // "<= 2.5 => weak", etc.) is generated: Benchmark §7 requires a
+    // "recommendations" evidence category to exist, but nowhere defines
+    // a cutoff at which a purchase-intent/satisfaction average becomes
+    // "strong," "weak," or actionable. A prior pass invented 4 and 2.5
+    // as such cutoffs and prescribed launch/messaging advice from them —
+    // that is fabricated scoring methodology (Benchmark §12/§22
+    // prohibition on inventing thresholds), not a Benchmark requirement.
+    // BLOCKED — BENCHMARK DOES NOT SPECIFY THE REQUIRED RECOMMENDATION
+    // METHODOLOGY. The category is still populated honestly rather than
+    // left silently empty:
+    recommendations.push(
+      "No Benchmark-defined threshold exists for turning purchase intent or satisfaction averages into a specific recommendation — review the reported figures and sample size directly."
+    );
   }
 
   return {

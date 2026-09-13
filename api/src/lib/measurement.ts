@@ -41,6 +41,17 @@ export async function getSourceBreakdown(campaignId: string) {
   }));
 }
 
+// Scale disclosure: Benchmark §3 requires purchase intent to exist as "a
+// first-class insight signal" and lists satisfaction as an insight
+// category (§2.3), but specifies no numeric range, scoring, or
+// aggregation method for either. A numeric rating cannot be captured or
+// averaged at all without *some* bound — the 1-5 range here is that
+// unavoidable minimal technical choice (comparable to bounding age
+// 0-120), not an asserted Benchmark scale. No interpretive threshold is
+// applied to the resulting average anywhere downstream (see
+// lib/report.ts — a prior pass had done so and it was removed as
+// fabricated methodology); only the raw mean and per-response count are
+// exposed.
 export interface PurchaseIntentSummary {
   responses: number;
   averageScore: number | null;

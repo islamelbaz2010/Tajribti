@@ -53,6 +53,11 @@ router.post("/companies", async (req, res) => {
   const d = parsed.data;
   const passwordHash = await bcrypt.hash(d.employeePassword, 10);
   try {
+    // Security hardening: select only safe fields for the response. The
+    // previous `include: { employees: true }` returned the full Employee
+    // row, including the bcrypt passwordHash, to the calling Ops client.
+    // No response should ever carry credential material — this changes
+    // only the response shape, not what is created or how it is created.
     const company = await prisma.company.create({
       data: {
         name: d.name,
@@ -61,7 +66,13 @@ router.post("/companies", async (req, res) => {
           create: { name: d.employeeName, email: d.employeeEmail, passwordHash },
         },
       },
-      include: { employees: true },
+      select: {
+        id: true,
+        name: true,
+        industry: true,
+        createdAt: true,
+        employees: { select: { id: true, name: true, email: true, createdAt: true } },
+      },
     });
     res.status(201).json(company);
   } catch {

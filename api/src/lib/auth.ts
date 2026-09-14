@@ -1,6 +1,19 @@
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
+// Security hardening: JWT_SECRET must never silently fall back to a known
+// default. A hardcoded fallback (formerly "dev-secret") would let anyone
+// forge valid Consumer/Company/Operations tokens for a deployment that
+// omitted this env var. Fail fast and loudly at startup instead — this is
+// a pure operational-safety fix, not a change to the auth model itself.
+// The secret value itself is never logged.
+const rawSecret = process.env.JWT_SECRET;
+if (!rawSecret) {
+  throw new Error(
+    "JWT_SECRET environment variable is required and must not be empty. " +
+      "Refusing to start with an insecure default signing key."
+  );
+}
+const JWT_SECRET: string = rawSecret;
 
 // Three distinct actor surfaces per Benchmark §4 (CONSUMER / COMPANY /
 // TAJRIBTI OPERATIONS). Tokens are scoped and never interchangeable —

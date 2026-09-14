@@ -135,6 +135,18 @@ let token = localStorage.getItem('tj_ops_token') || null;
 let currentCampaignId = null;
 let currentCampaign = null;
 
+// Security hardening: company/product/campaign names, question text,
+// option labels, QR labels, consumer names/phones and consumer survey
+// verbatims all originate from user input (Company or Consumer) and are
+// persisted, unsanitized, at write time. esc() HTML-entity-escapes every
+// dynamic value before it is placed into an innerHTML string; static
+// markup around it is untouched.
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[ch]));
+}
+
 function authHeaders() { return token ? { Authorization: 'Bearer ' + token } : {}; }
 async function api(path, opts = {}) {
   const res = await fetch(API + path, {
@@ -186,7 +198,7 @@ async function loadPipeline() {
   campaigns.forEach(c => {
     const div = document.createElement('div');
     div.className = 'item';
-    div.innerHTML = '<div><strong>' + c.name + '</strong><div style="color:var(--muted);font-size:0.85rem;">' + c.company.name + '</div></div><span class="pill">' + c.status + '</span>';
+    div.innerHTML = '<div><strong>' + esc(c.name) + '</strong><div style="color:var(--muted);font-size:0.85rem;">' + esc(c.company.name) + '</div></div><span class="pill">' + c.status + '</span>';
     div.onclick = () => openCampaign(c.id);
     list.appendChild(div);
   });
@@ -196,7 +208,7 @@ async function loadCompanies() {
   const companies = await api('/ops/companies');
   document.getElementById('company-list').innerHTML = companies.length ?
     '<table><tr><th>Name</th><th>Industry</th><th>Employees</th><th>Campaigns</th></tr>' +
-    companies.map(c => '<tr><td>' + c.name + '</td><td>' + (c.industry || '—') + '</td><td>' + c._count.employees + '</td><td>' + c._count.campaigns + '</td></tr>').join('') + '</table>'
+    companies.map(c => '<tr><td>' + esc(c.name) + '</td><td>' + (c.industry ? esc(c.industry) : '—') + '</td><td>' + c._count.employees + '</td><td>' + c._count.campaigns + '</td></tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No companies yet.</p>';
 }
 
@@ -280,10 +292,10 @@ function loadConfig() {
     audienceParts.push('Age ' + (c.audienceAgeMin ?? '—') + '–' + (c.audienceAgeMax ?? '—'));
   }
   if (c.audienceGender) audienceParts.push(c.audienceGender);
-  if (c.audienceCity) audienceParts.push(c.audienceCity);
+  if (c.audienceCity) audienceParts.push(esc(c.audienceCity));
   document.getElementById('config-content').innerHTML =
-    '<p><strong>Objective</strong><br/>' + (c.objective || '—') + '</p>' +
-    '<p><strong>Product</strong><br/>' + (c.product ? c.product.name : 'No product linked') + '</p>' +
+    '<p><strong>Objective</strong><br/>' + esc(c.objective || '—') + '</p>' +
+    '<p><strong>Product</strong><br/>' + (c.product ? esc(c.product.name) : 'No product linked') + '</p>' +
     '<p><strong>Dates</strong><br/>' + new Date(c.startDate).toLocaleDateString() + ' – ' + new Date(c.endDate).toLocaleDateString() + '</p>' +
     '<p><strong>Audience</strong><br/>' + (audienceParts.length ? audienceParts.join(' · ') : 'No audience filter set') + '</p>';
 }
@@ -292,7 +304,7 @@ async function loadReadiness() {
   const r = await api('/ops/campaigns/' + currentCampaignId + '/readiness');
   document.getElementById('readiness-content').innerHTML =
     '<p><strong>' + (r.ready ? 'Ready to launch' : 'Not yet ready') + '</strong></p><ul>' +
-    r.checks.map(c => '<li class="' + (c.ok ? 'check-ok' : 'check-bad') + '">' + (c.ok ? '✓' : '✗') + ' ' + c.label + '</li>').join('') + '</ul>';
+    r.checks.map(c => '<li class="' + (c.ok ? 'check-ok' : 'check-bad') + '">' + (c.ok ? '✓' : '✗') + ' ' + esc(c.label) + '</li>').join('') + '</ul>';
 }
 
 // QR / Journey Operations (Benchmark §4 OPERATIONS "QR / Journey
@@ -303,7 +315,7 @@ function loadQrOps() {
   const sources = (currentCampaign && currentCampaign.qrSources) || [];
   document.getElementById('qr-ops-content').innerHTML = sources.length ?
     '<table><tr><th>Label</th><th>Code</th><th>Active window</th></tr>' +
-    sources.map(s => '<tr><td>' + s.label + '</td><td>' + s.code + '</td><td>' +
+    sources.map(s => '<tr><td>' + esc(s.label) + '</td><td>' + esc(s.code) + '</td><td>' +
       new Date(s.activeFrom).toLocaleDateString() + ' – ' + new Date(s.activeTo).toLocaleDateString() + '</td></tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No QR/sources configured for this campaign.</p>';
 }
@@ -312,7 +324,7 @@ async function loadParticipants() {
   const list = await api('/ops/campaigns/' + currentCampaignId + '/participants');
   document.getElementById('participants-content').innerHTML = list.length ?
     '<table><tr><th>Consumer</th><th>Status</th><th>Source</th><th>Entered</th></tr>' +
-    list.map(p => '<tr><td>' + (p.consumer.name || p.consumer.phone) + '</td><td>' + p.status + '</td><td>' + (p.qrSource ? p.qrSource.label : '—') + '</td><td>' + new Date(p.enteredAt).toLocaleString() + '</td></tr>').join('') + '</table>'
+    list.map(p => '<tr><td>' + esc(p.consumer.name || p.consumer.phone) + '</td><td>' + p.status + '</td><td>' + (p.qrSource ? esc(p.qrSource.label) : '—') + '</td><td>' + new Date(p.enteredAt).toLocaleString() + '</td></tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No participants yet.</p>';
 }
 
@@ -329,7 +341,7 @@ async function loadLive() {
 async function loadIssues() {
   const issues = await api('/ops/campaigns/' + currentCampaignId + '/issues');
   document.getElementById('issues-content').innerHTML = issues.length ?
-    issues.map(i => '<div class="item" style="cursor:default;"><div><strong>' + i.type + '</strong><div style="color:var(--muted);font-size:0.85rem;">' + i.description + '</div></div>' +
+    issues.map(i => '<div class="item" style="cursor:default;"><div><strong>' + esc(i.type) + '</strong><div style="color:var(--muted);font-size:0.85rem;">' + esc(i.description) + '</div></div>' +
       (i.status === 'OPEN' ? '<button class="small secondary" onclick="resolveIssue(\'' + i.id + '\')">Resolve</button>' : '<span class="pill">RESOLVED</span>') + '</div>').join('')
     : '<p style="color:var(--muted)">No issues logged.</p>';
 }
@@ -348,9 +360,9 @@ async function loadSurveyOps() {
   const data = await api('/ops/campaigns/' + currentCampaignId + '/survey');
   document.getElementById('survey-content').innerHTML =
     '<table><tr><th>Stage</th><th>Type</th><th>Text</th></tr>' +
-    data.questions.map(q => '<tr><td>' + q.stage + '</td><td>' + q.type + '</td><td>' + q.text + '</td></tr>').join('') + '</table>' +
+    data.questions.map(q => '<tr><td>' + q.stage + '</td><td>' + q.type + '</td><td>' + esc(q.text) + '</td></tr>').join('') + '</table>' +
     '<h3 style="font-size:0.95rem;">Choice-question aggregates</h3>' +
-    (data.aggregates.length ? data.aggregates.map(a => '<p><strong>' + a.text + '</strong> (' + a.responses + ' responses)<br/>' + a.breakdown.map(b => b.label + ': ' + b.count).join(' · ') + '</p>').join('') : '<p style="color:var(--muted)">No choice-question responses yet.</p>');
+    (data.aggregates.length ? data.aggregates.map(a => '<p><strong>' + esc(a.text) + '</strong> (' + a.responses + ' responses)<br/>' + a.breakdown.map(b => esc(b.label) + ': ' + b.count).join(' · ') + '</p>').join('') : '<p style="color:var(--muted)">No choice-question responses yet.</p>');
 }
 
 async function loadOpsInsights() {
@@ -359,15 +371,15 @@ async function loadOpsInsights() {
     '<p style="color:var(--muted);font-size:0.85rem;">Evidence level: <strong>' + data.evidence.level + '</strong> (n=' + data.evidence.sampleSize + ')</p>' +
     '<p>Purchase intent: ' + (data.purchaseIntent.averageScore ?? '—') + '/5 · Satisfaction: ' + (data.satisfaction.averageScore ?? '—') + '/5</p>' +
     '<h3 style="font-size:0.95rem;">Consumer voice</h3>' +
-    (data.verbatims.length ? data.verbatims.map(v => '<div class="verbatim">"' + v.response + '"</div>').join('') : '<p style="color:var(--muted)">No verbatims yet.</p>');
+    (data.verbatims.length ? data.verbatims.map(v => '<div class="verbatim">"' + esc(v.response) + '"</div>').join('') : '<p style="color:var(--muted)">No verbatims yet.</p>');
 }
 
 async function loadOpsReport() {
   const r = await api('/ops/campaigns/' + currentCampaignId + '/report');
   document.getElementById('ops-report-content').innerHTML =
-    '<h3 style="font-size:0.95rem;">Findings</h3><ul>' + r.findings.map(f => '<li>' + f + '</li>').join('') + '</ul>' +
-    '<h3 style="font-size:0.95rem;">Recommendations</h3><ul>' + (r.recommendations.length ? r.recommendations.map(f => '<li>' + f + '</li>').join('') : '<li>None yet.</li>') + '</ul>' +
-    '<h3 style="font-size:0.95rem;">Limitations</h3><ul>' + r.limitations.map(l => '<li>' + l + '</li>').join('') + '</ul>';
+    '<h3 style="font-size:0.95rem;">Findings</h3><ul>' + r.findings.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul>' +
+    '<h3 style="font-size:0.95rem;">Recommendations</h3><ul>' + (r.recommendations.length ? r.recommendations.map(f => '<li>' + esc(f) + '</li>').join('') : '<li>None yet.</li>') + '</ul>' +
+    '<h3 style="font-size:0.95rem;">Limitations</h3><ul>' + r.limitations.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>';
 }
 
 (async () => {

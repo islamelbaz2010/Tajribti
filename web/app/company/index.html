@@ -205,6 +205,18 @@ const API = '/api';
 let token = localStorage.getItem('tj_company_token') || null;
 let currentCampaignId = null;
 
+// Security hardening: company/product/campaign/employee names, question
+// text, option labels, QR labels and consumer survey verbatims all
+// originate from user input (Company or Consumer) and are persisted,
+// unsanitized, at write time. esc() HTML-entity-escapes every dynamic
+// value before it is placed into an innerHTML string; static markup
+// around it is untouched.
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[ch]));
+}
+
 function authHeaders() { return token ? { Authorization: 'Bearer ' + token } : {}; }
 async function api(path, opts = {}) {
   const res = await fetch(API + path, {
@@ -236,9 +248,9 @@ document.getElementById('btn-login').onclick = async () => {
 
 async function loadProducts(selectEl) {
   const products = await api('/company/products');
-  document.getElementById('product-list').innerHTML = products.map(p => '<div>• ' + p.name + '</div>').join('') || '<p style="color:var(--muted)">No products yet.</p>';
+  document.getElementById('product-list').innerHTML = products.map(p => '<div>• ' + esc(p.name) + '</div>').join('') || '<p style="color:var(--muted)">No products yet.</p>';
   if (selectEl) {
-    selectEl.innerHTML = '<option value="">— none —</option>' + products.map(p => '<option value="' + p.id + '">' + p.name + '</option>').join('');
+    selectEl.innerHTML = '<option value="">— none —</option>' + products.map(p => '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>').join('');
   }
   return products;
 }
@@ -258,7 +270,7 @@ async function loadCampaigns() {
   campaigns.forEach(c => {
     const div = document.createElement('div');
     div.className = 'campaign-item';
-    div.innerHTML = '<div><strong>' + c.name + '</strong><div style="color:var(--muted);font-size:0.85rem;">' + (c.product ? c.product.name : 'No product linked') + '</div></div><span class="pill">' + c.status + '</span>';
+    div.innerHTML = '<div><strong>' + esc(c.name) + '</strong><div style="color:var(--muted);font-size:0.85rem;">' + (c.product ? esc(c.product.name) : 'No product linked') + '</div></div><span class="pill">' + c.status + '</span>';
     div.onclick = () => openCampaign(c.id);
     list.appendChild(div);
   });
@@ -290,7 +302,7 @@ async function loadEmployees() {
   const employees = await api('/company/employees');
   document.getElementById('employee-list').innerHTML = employees.length ?
     '<table><tr><th>Name</th><th>Email</th></tr>' +
-    employees.map(e => '<tr><td>' + e.name + '</td><td>' + e.email + '</td></tr>').join('') + '</table>'
+    employees.map(e => '<tr><td>' + esc(e.name) + '</td><td>' + esc(e.email) + '</td></tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No employees yet.</p>';
   // No role gate: Benchmark defines no employee permission tier — any
   // employee of this company may add another (see api/src/routes/company.ts).
@@ -398,7 +410,7 @@ document.getElementById('btn-save-setup').onclick = async () => {
 function renderQuestions(questions) {
   const list = document.getElementById('question-list');
   list.innerHTML = questions.length ? '<table><tr><th>Stage</th><th>Type</th><th>Text</th><th></th></tr>' +
-    questions.map(q => '<tr><td>' + q.stage + '</td><td>' + q.type + '</td><td>' + q.text + '</td></tr>').join('') + '</table>'
+    questions.map(q => '<tr><td>' + q.stage + '</td><td>' + q.type + '</td><td>' + esc(q.text) + '</td></tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No questions yet.</p>';
 }
 
@@ -423,7 +435,7 @@ document.getElementById('btn-add-question').onclick = async () => {
 function renderQrSources(sources) {
   const list = document.getElementById('qr-list');
   list.innerHTML = sources.length ? '<table><tr><th>Label</th><th>Code</th><th>Active window</th></tr>' +
-    sources.map(s => '<tr><td>' + s.label + '</td><td>' + s.code + '</td><td>' + new Date(s.activeFrom).toLocaleDateString() + ' – ' + new Date(s.activeTo).toLocaleDateString() + '</td></tr>').join('') + '</table>'
+    sources.map(s => '<tr><td>' + esc(s.label) + '</td><td>' + esc(s.code) + '</td><td>' + new Date(s.activeFrom).toLocaleDateString() + ' – ' + new Date(s.activeTo).toLocaleDateString() + '</td></tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No QR/sources yet.</p>';
 }
 
@@ -452,7 +464,7 @@ async function loadLive() {
     '<h3 style="font-size:0.95rem;">Purchase intent</h3><p>' + (data.purchaseIntent.averageScore ?? '—') + ' / 5 (' + data.purchaseIntent.responses + ' responses)</p>' +
     '<h3 style="font-size:0.95rem;">Satisfaction</h3><p>' + (data.satisfaction.averageScore ?? '—') + ' / 5 (' + data.satisfaction.responses + ' responses)</p>' +
     '<h3 style="font-size:0.95rem;">Sources</h3><table><tr><th>Source</th><th>Entered</th><th>Trial redeemed</th><th>Survey complete</th></tr>' +
-    data.sources.map(s => '<tr><td>' + s.label + '</td><td>' + s.entered + '</td><td>' + s.trialRedeemed + '</td><td>' + s.surveyComplete + '</td></tr>').join('') + '</table>';
+    data.sources.map(s => '<tr><td>' + esc(s.label) + '</td><td>' + s.entered + '</td><td>' + s.trialRedeemed + '</td><td>' + s.surveyComplete + '</td></tr>').join('') + '</table>';
 }
 function metric(n, label) { return '<div class="metric"><div class="metric-num">' + n + '</div><div class="metric-label">' + label + '</div></div>'; }
 
@@ -463,20 +475,20 @@ async function loadInsights() {
     '<h3 style="font-size:0.95rem;">Purchase intent</h3><p>' + (data.purchaseIntent.averageScore ?? '—') + ' / 5</p>' +
     '<h3 style="font-size:0.95rem;">Satisfaction</h3><p>' + (data.satisfaction.averageScore ?? '—') + ' / 5</p>' +
     '<h3 style="font-size:0.95rem;">Campaign-specific questions</h3>' +
-    data.questionAggregates.map(q => '<p><strong>' + q.text + '</strong><br/>' + q.breakdown.map(b => b.label + ': ' + b.count).join(' · ') + '</p>').join('') +
+    data.questionAggregates.map(q => '<p><strong>' + esc(q.text) + '</strong><br/>' + q.breakdown.map(b => esc(b.label) + ': ' + b.count).join(' · ') + '</p>').join('') +
     '<h3 style="font-size:0.95rem;">Consumer voice</h3>' +
-    (data.verbatims.length ? data.verbatims.map(v => '<div class="verbatim">"' + v.response + '"<br/><span style="color:var(--muted);font-size:0.78rem;">' + v.question + '</span></div>').join('') : '<p style="color:var(--muted)">No open-text responses yet.</p>');
+    (data.verbatims.length ? data.verbatims.map(v => '<div class="verbatim">"' + esc(v.response) + '"<br/><span style="color:var(--muted);font-size:0.78rem;">' + esc(v.question) + '</span></div>').join('') : '<p style="color:var(--muted)">No open-text responses yet.</p>');
 }
 
 async function loadReport() {
   const r = await api('/company/campaigns/' + currentCampaignId + '/report');
   document.getElementById('report-content').innerHTML =
     '<p style="color:var(--muted);font-size:0.85rem;">Generated ' + new Date(r.generatedAt).toLocaleString() + '</p>' +
-    '<h3 style="font-size:0.95rem;">Findings</h3><ul>' + r.findings.map(f => '<li>' + f + '</li>').join('') + '</ul>' +
-    '<h3 style="font-size:0.95rem;">Recommendations</h3><ul>' + (r.recommendations.length ? r.recommendations.map(f => '<li>' + f + '</li>').join('') : '<li>None yet — insufficient evidence.</li>') + '</ul>' +
+    '<h3 style="font-size:0.95rem;">Findings</h3><ul>' + r.findings.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul>' +
+    '<h3 style="font-size:0.95rem;">Recommendations</h3><ul>' + (r.recommendations.length ? r.recommendations.map(f => '<li>' + esc(f) + '</li>').join('') : '<li>None yet — insufficient evidence.</li>') + '</ul>' +
     '<h3 style="font-size:0.95rem;">Demographics</h3><p>Sample size: ' + r.demographics.sampleSize + ', average age: ' + (r.demographics.averageAge ?? '—') + '</p>' +
-    '<h3 style="font-size:0.95rem;">Methodology</h3><p style="color:var(--muted);font-size:0.85rem;">' + r.methodology + '</p>' +
-    '<h3 style="font-size:0.95rem;">Limitations</h3><ul>' + r.limitations.map(l => '<li>' + l + '</li>').join('') + '</ul>';
+    '<h3 style="font-size:0.95rem;">Methodology</h3><p style="color:var(--muted);font-size:0.85rem;">' + esc(r.methodology) + '</p>' +
+    '<h3 style="font-size:0.95rem;">Limitations</h3><ul>' + r.limitations.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>';
 }
 
 (async () => {

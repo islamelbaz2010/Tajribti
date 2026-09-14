@@ -267,6 +267,16 @@
 </footer>
 
 <script>
+// Security hardening: campaign/company names originate from Company input
+// (persisted, unsanitized at write time) and this page is rendered for any
+// unauthenticated visitor — they must never be interpreted as HTML. esc()
+// HTML-entity-escapes every dynamic value before it is placed into an
+// innerHTML string; static markup around it is untouched.
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[ch]));
+}
 async function loadDemo() {
   try {
     const campaigns = await fetch('/api/consumer/campaigns').then(r => r.json());
@@ -280,8 +290,8 @@ async function loadDemo() {
     // public site does not attempt to bypass that — it links out instead
     // once real credentials are used in Company/Ops.
     document.getElementById('report-preview').innerHTML =
-      '<div class="report-row"><span class="k">Active campaign</span><span class="v">' + campaigns[0].name + '</span></div>' +
-      '<div class="report-row"><span class="k">Company</span><span class="v">' + campaigns[0].company.name + '</span></div>' +
+      '<div class="report-row"><span class="k">Active campaign</span><span class="v">' + esc(campaigns[0].name) + '</span></div>' +
+      '<div class="report-row"><span class="k">Company</span><span class="v">' + esc(campaigns[0].company.name) + '</span></div>' +
       '<div class="report-row"><span class="k">Full live results &amp; report</span><span class="v">Sign in at Company or Operations</span></div>';
   } catch (e) {
     // Public page must degrade honestly if the API is unreachable.

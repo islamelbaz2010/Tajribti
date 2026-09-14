@@ -265,9 +265,12 @@ async function openCampaign(id) {
     let inner = '<label>' + esc(q.text) + (q.required ? ' *' : '') + '</label>';
     if (q.type === 'SINGLE_CHOICE' || q.type === 'MULTI_CHOICE') {
       const opts = JSON.parse(q.options || '[]');
-      inner += opts.map(o =>
+      // A choice question with no configured options has no way to be
+      // answered — say so plainly instead of silently rendering an empty
+      // gap that looks like a loading/rendering failure.
+      inner += opts.length ? opts.map(o =>
         '<div class="opt-row"><input type="' + (q.type === 'SINGLE_CHOICE' ? 'radio' : 'checkbox') + '" name="q_' + esc(q.id) + '" value="' + esc(o.id) + '" /> <span>' + esc(o.label) + '</span></div>'
-      ).join('');
+      ).join('') : '<p class="muted" style="margin:4px 0 0;">No answer options are configured for this question yet.</p>';
     } else {
       inner += '<input data-qid="' + esc(q.id) + '" class="q-text-input" />';
     }
@@ -334,9 +337,12 @@ async function loadSurvey() {
     let inner = '<label>' + esc(q.text) + (q.required ? ' *' : '') + '</label>';
     if (q.type === 'SINGLE_CHOICE' || q.type === 'MULTI_CHOICE') {
       const opts = JSON.parse(q.options || '[]');
-      inner += opts.map(o =>
+      // Same defensive rendering as the eligibility screener above: an
+      // option-less choice question has no way to be answered, so say so
+      // rather than leaving a silent gap where the controls would be.
+      inner += opts.length ? opts.map(o =>
         '<div class="opt-row"><input type="' + (q.type === 'SINGLE_CHOICE' ? 'radio' : 'checkbox') + '" name="sq_' + esc(q.id) + '" value="' + esc(o.id) + '" /> <span>' + esc(o.label) + '</span></div>'
-      ).join('');
+      ).join('') : '<p class="muted" style="margin:4px 0 0;">No answer options are configured for this question yet.</p>';
     } else if (q.type === 'RATING_1_5' || q.type === 'PURCHASE_INTENT_1_5') {
       inner += '<div class="opt-row">' + [1,2,3,4,5].map(n =>
         '<label style="font-weight:400;display:flex;align-items:center;gap:4px;"><input type="radio" name="sq_' + esc(q.id) + '" value="' + n + '" style="width:auto;" />' + n + '</label>'

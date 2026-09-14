@@ -196,21 +196,52 @@ router.post("/campaigns/:id/submit-for-review", async (req, res) => {
 // of over-reach as inferring Resume from Pause (Benchmark §35 caution).
 
 // --- Journey / Survey questions --------------------------------------------
-const questionSchema = z.object({
-  stage: z.enum(["ELIGIBILITY", "POST_TRIAL"]),
-  type: z.enum(["SINGLE_CHOICE", "MULTI_CHOICE", "TEXT", "RATING_1_5", "PURCHASE_INTENT_1_5"]),
-  text: z.string().min(1),
-  options: z.array(z.object({ id: z.string(), label: z.string() })).optional(),
-  order: z.number().int().default(0),
-  required: z.boolean().default(true),
-});
+// A SINGLE_CHOICE/MULTI_CHOICE question with no (or fewer than two) options
+// is not a data-shape the Consumer app can ever render an answer control
+// for — this is not an invented business rule, it is what "choice question"
+// already means. Previously `options` was optional for every type, which
+// let a choice-type question be created with none; the Consumer survey then
+// rendered only the question label with zero selectable controls, silently
+// making that question unanswerable while still allowing the survey to be
+// submitted and the participation to reach SURVEY_COMPLETE. Rejecting the
+// malformed shape at creation time is the smallest fix that closes the
+// entire chain (see governance acceptance pass, Survey investigation).
+const questionSchema = z
+  .object({
+    stage: z.enum(["ELIGIBILITY", "POST_TRIAL"]),
+    type: z.enum(["SINGLE_CHOICE", "MULTI_CHOICE", "TEXT", "RATING_1_5", "PURCHASE_INTENT_1_5"]),
+    text: z.string().min(1),
+    options: z.array(z.object({ id: z.string(), label: z.string() })).optional(),
+    order: z.number().int().default(0),
+    required: z.boolean().default(true),
+  })
+  .superRefine((d, ctx) => {
+    if (d.type === "SINGLE_CHOICE" || d.type === "MULTI_CHOICE") {
+      const labeled = (d.options ?? []).filter((o) => o.label.trim().length > 0);
+      if (labeled.length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["options"],
+          message: "Single/multiple choice questions need at least 2 answer options.",
+        });
+      }
+    }
+  });
 
 router.post("/campaigns/:id/questions", async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
   if (!assertConfigurable(campaign, res)) return;
   const parsed = questionSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
+  if (!parsed.success) {
+    // Surface the specific validation message (e.g. the choice-options
+    // check above) rather than a generic "Invalid input" — the existing
+    // Company UI already displays whatever `error` string comes back
+    // (web/app/company/index.html's api() throws on data.error), so this
+    // is enough for the tester to see exactly what to fix.
+    const message = parsed.error.issues[0]?.message || "Invalid input";
+    return res.status(400).json({ error: message, details: parsed.error.flatten() });
+  }
   const d = parsed.data;
   const question = await prisma.question.create({
     data: {

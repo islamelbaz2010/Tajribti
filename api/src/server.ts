@@ -13,7 +13,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get("/api/health", (_req, res) => res.json({ ok: true, service: "tajribti-benchmark-api" }));
+// `dev` reflects the standard NODE_ENV convention already implied by this
+// package's own scripts (dev: ts-node-dev, start: node dist/server.js after
+// build). It is read by the Consumer web client only to decide whether to
+// render a pilot-testing-only "Change consumer" control (see
+// web/app/consumer/index.html); it grants no capability and the endpoint
+// itself is unauthenticated and non-privileged either way.
+app.get("/api/health", (_req, res) =>
+  res.json({ ok: true, service: "tajribti-benchmark-api", dev: process.env.NODE_ENV !== "production" })
+);
 
 app.use("/api/consumer/auth", consumerAuthRoutes);
 app.use("/api/consumer", consumerRoutes);

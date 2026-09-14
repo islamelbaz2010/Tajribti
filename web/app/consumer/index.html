@@ -43,6 +43,7 @@
 <body>
 <header>
   <a href="/" class="logo">TAJRIBTI<span>.</span> <span style="font-weight:400;color:var(--muted);font-size:0.8rem;">Consumer</span></a>
+  <span id="dev-consumer-switch"></span>
 </header>
 <main>
 
@@ -372,8 +373,59 @@ document.getElementById('btn-submit-survey').onclick = async () => {
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };
 
+// Pilot-testing affordance only — NOT a product feature (Benchmark §4
+// CONSUMER has no Profile/Login/Logout/account-management node). Manual
+// pilot testing needs to exercise the Consumer flow as multiple distinct
+// phone numbers in one browser, and there is currently no way to do that
+// without editing localStorage by hand. This adds a "Change consumer"
+// control, visible only when the API reports it is not a production
+// build (GET /api/health -> { dev: true }, driven by the standard
+// NODE_ENV convention). Clicking it does exactly one thing: it clears
+// this browser's own Consumer auth token (localStorage key
+// 'tj_consumer_token') and returns to the normal phone-entry screen.
+// It does not call any server endpoint, does not touch Company/Ops
+// tokens (separate localStorage keys), does not delete or alter any
+// campaign/participation/survey data, and does not let one consumer
+// impersonate another — the next identity still has to complete the
+// same OTP verification as any Consumer would.
+function resetConsumerSession() {
+  localStorage.removeItem('tj_consumer_token');
+  state.token = null;
+  state.campaign = null;
+  state.participation = null;
+  state.eligibilityQuestions = [];
+  state.qrSourceId = null;
+  document.getElementById('phone').value = '';
+  document.getElementById('otp').value = '';
+  document.getElementById('name').value = '';
+  document.getElementById('otp-step').classList.add('hidden');
+  const phoneMsg = document.getElementById('phone-msg');
+  phoneMsg.textContent = ''; phoneMsg.className = 'msg';
+  const banner = document.getElementById('qr-banner');
+  banner.textContent = ''; banner.className = 'msg';
+  show('view-auth');
+}
+
+async function initDevConsumerSwitch() {
+  try {
+    const res = await fetch(API + '/health');
+    const data = await res.json().catch(() => ({}));
+    if (!data || !data.dev) return; // not a dev/pilot build — control stays absent, not just hidden
+    const host = document.getElementById('dev-consumer-switch');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'secondary';
+    btn.style.cssText = 'margin:0;padding:6px 14px;font-size:0.75rem;';
+    btn.textContent = 'Change consumer (dev)';
+    btn.title = 'Development-only: clears this browser’s current Consumer session so a different phone number can be tested. Does not delete any data.';
+    btn.onclick = resetConsumerSession;
+    host.appendChild(btn);
+  } catch { /* health check unavailable; dev control simply does not appear */ }
+}
+
 // Bootstrap
 (async () => {
+  initDevConsumerSwitch();
   if (state.token) {
     try {
       if (qrCodeParam) { await enterViaQr(qrCodeParam); } else { await loadDiscover(); }

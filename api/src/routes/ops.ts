@@ -81,10 +81,20 @@ router.post("/companies", async (req, res) => {
 });
 
 // --- Campaign Pipeline (Benchmark §4 OPERATIONS "Campaign Pipeline") -------
+// Benchmark §4 OPERATIONS names "Companies" and "Campaign Pipeline" as
+// separate nodes, and §13/§14 of the current completion pass require the
+// two to be functionally connected — an ops user viewing a company had no
+// way to see just that company's campaigns. `companyId` is an additional,
+// optional filter alongside the existing `status` one: same pattern, no
+// new authorization model, no new business rule.
 router.get("/campaigns", async (req, res) => {
   const status = typeof req.query.status === "string" ? req.query.status : undefined;
+  const companyId = typeof req.query.companyId === "string" ? req.query.companyId : undefined;
   const campaigns = await prisma.campaign.findMany({
-    where: status ? { status: status as any } : undefined,
+    where: {
+      ...(status ? { status: status as any } : {}),
+      ...(companyId ? { companyId } : {}),
+    },
     include: { company: { select: { name: true } }, product: { select: { name: true } } },
     orderBy: { createdAt: "desc" },
   });

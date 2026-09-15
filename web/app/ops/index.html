@@ -61,6 +61,15 @@
 
     <div class="card tab-panel" id="tab-pipeline">
       <h2>Campaign pipeline</h2>
+      <!-- Benchmark §4 OPERATIONS names "Companies" and "Campaign
+           Pipeline" as separate nodes; clicking a company below filters
+           this same pipeline by companyId (GET /ops/campaigns?companyId=)
+           so the two nodes are actually connected for an ops user, not
+           just two independent lists. -->
+      <div class="row" id="pipeline-company-filter-row" style="display:none;">
+        <span class="pill">Company: <span id="pipeline-company-name"></span></span>
+        <button class="small secondary" id="btn-clear-company-filter">Show all companies</button>
+      </div>
       <div class="row">
         <select id="pipeline-filter">
           <option value="">All statuses</option>
@@ -190,9 +199,21 @@ async function loadHome() {
 
 document.getElementById('pipeline-filter').onchange = loadPipeline;
 
+// Set when a company row (Companies tab) is clicked; cleared by "Show all
+// companies". Kept as page state, not a URL param — this console has no
+// router — same pattern as currentCampaignId elsewhere in this file.
+let pipelineCompanyFilter = null; // { id, name } | null
+
 async function loadPipeline() {
   const status = document.getElementById('pipeline-filter').value;
-  const campaigns = await api('/ops/campaigns' + (status ? '?status=' + status : ''));
+  const params = [];
+  if (status) params.push('status=' + encodeURIComponent(status));
+  if (pipelineCompanyFilter) params.push('companyId=' + encodeURIComponent(pipelineCompanyFilter.id));
+  const campaigns = await api('/ops/campaigns' + (params.length ? '?' + params.join('&') : ''));
+
+  document.getElementById('pipeline-company-filter-row').style.display = pipelineCompanyFilter ? 'flex' : 'none';
+  if (pipelineCompanyFilter) document.getElementById('pipeline-company-name').textContent = pipelineCompanyFilter.name;
+
   const list = document.getElementById('pipeline-list');
   list.innerHTML = campaigns.length ? '' : '<p style="color:var(--muted)">No campaigns.</p>';
   campaigns.forEach(c => {
@@ -204,12 +225,34 @@ async function loadPipeline() {
   });
 }
 
+document.getElementById('btn-clear-company-filter').onclick = () => {
+  pipelineCompanyFilter = null;
+  loadPipeline();
+};
+
+// Drills a Companies-tab row into the Campaign Pipeline tab, filtered to
+// that company — connects the two Benchmark §4 OPERATIONS nodes
+// ("Companies", "Campaign Pipeline") instead of leaving them as two
+// independent lists with no relationship a user can act on.
+function showCampaignsForCompany(id, name) {
+  pipelineCompanyFilter = { id, name };
+  document.querySelectorAll('#view-home .tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('#view-home .tab-btn[data-tab="pipeline"]').classList.add('active');
+  document.querySelectorAll('#view-home .tab-panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById('tab-pipeline').classList.remove('hidden');
+  loadPipeline();
+}
+
 async function loadCompanies() {
   const companies = await api('/ops/companies');
-  document.getElementById('company-list').innerHTML = companies.length ?
+  const list = document.getElementById('company-list');
+  list.innerHTML = companies.length ?
     '<table><tr><th>Name</th><th>Industry</th><th>Employees</th><th>Campaigns</th></tr>' +
-    companies.map(c => '<tr><td>' + esc(c.name) + '</td><td>' + (c.industry ? esc(c.industry) : '—') + '</td><td>' + c._count.employees + '</td><td>' + c._count.campaigns + '</td></tr>').join('') + '</table>'
+    companies.map(c => '<tr class="company-row" style="cursor:pointer;" data-id="' + esc(c.id) + '" data-name="' + esc(c.name) + '"><td>' + esc(c.name) + '</td><td>' + (c.industry ? esc(c.industry) : '—') + '</td><td>' + c._count.employees + '</td><td>' + c._count.campaigns + '</td></tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No companies yet.</p>';
+  list.querySelectorAll('.company-row').forEach(row => {
+    row.onclick = () => showCampaignsForCompany(row.dataset.id, row.dataset.name);
+  });
 }
 
 document.getElementById('btn-create-company').onclick = async () => {

@@ -86,8 +86,19 @@
     <div class="card">
       <h2>Products</h2>
       <div id="product-list"></div>
+      <!-- POST /company/products already accepts description/imageUrl
+           (see api/src/routes/company.ts, api/prisma/schema.prisma
+           Product model) — this form previously exposed only name,
+           leaving Benchmark §4 COMPANY "Product / Assets" only
+           partially usable. imageUrl is a plain URL string field, not
+           a file-upload mechanism: the Benchmark names no upload
+           methodology, so none is invented here. -->
       <label>New product name</label>
       <input id="np-name" />
+      <label>Description (optional)</label>
+      <textarea id="np-description" rows="2"></textarea>
+      <label>Image URL (optional)</label>
+      <input id="np-image" placeholder="https://…" />
       <button class="secondary small" id="btn-add-product">Add product</button>
     </div>
 
@@ -134,7 +145,26 @@
     </div>
 
     <div class="card tab-panel" id="tab-setup">
-      <h2>Audience &amp; setup</h2>
+      <h2>Campaign setup</h2>
+      <!-- Benchmark §5 names Objective, Product, Audience and Dates as core
+           Campaign components, and §2.4 requires a real "Configure" stage
+           before Launch/Active — not a create-once record. PATCH
+           /company/campaigns/:id already accepts name/objective/productId/
+           dates (see api/src/routes/company.ts), gated to DRAFT/READY by
+           the same assertConfigurable() lock as every other setup action
+           on this tab; only the UI previously exposed audience fields
+           here, leaving the rest of Configure editable only at creation
+           time. No new backend behavior — this only wires the existing
+           endpoint's already-accepted fields into the Setup tab. -->
+      <label>Campaign name</label><input id="s-name" />
+      <label>Objective</label><textarea id="s-objective" rows="2"></textarea>
+      <div class="grid2">
+        <div><label>Start date</label><input id="s-start" type="date" /></div>
+        <div><label>End date</label><input id="s-end" type="date" /></div>
+      </div>
+      <label>Product</label>
+      <select id="s-product"></select>
+      <h3 style="font-size:0.95rem;">Audience</h3>
       <div class="grid2">
         <div><label>Min age</label><input id="s-agemin" type="number" /></div>
         <div><label>Max age</label><input id="s-agemax" type="number" /></div>
@@ -248,7 +278,9 @@ document.getElementById('btn-login').onclick = async () => {
 
 async function loadProducts(selectEl) {
   const products = await api('/company/products');
-  document.getElementById('product-list').innerHTML = products.map(p => '<div>• ' + esc(p.name) + '</div>').join('') || '<p style="color:var(--muted)">No products yet.</p>';
+  document.getElementById('product-list').innerHTML = products.map(p =>
+    '<div>• ' + esc(p.name) + (p.description ? ' <span style="color:var(--muted);font-size:0.85rem;">— ' + esc(p.description) + '</span>' : '') + '</div>'
+  ).join('') || '<p style="color:var(--muted)">No products yet.</p>';
   if (selectEl) {
     selectEl.innerHTML = '<option value="">— none —</option>' + products.map(p => '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>').join('');
   }
@@ -258,8 +290,14 @@ async function loadProducts(selectEl) {
 document.getElementById('btn-add-product').onclick = async () => {
   const name = document.getElementById('np-name').value.trim();
   if (!name) return;
-  await api('/company/products', { method: 'POST', body: { name } });
+  await api('/company/products', { method: 'POST', body: {
+    name,
+    description: document.getElementById('np-description').value.trim() || undefined,
+    imageUrl: document.getElementById('np-image').value.trim() || undefined,
+  }});
   document.getElementById('np-name').value = '';
+  document.getElementById('np-description').value = '';
+  document.getElementById('np-image').value = '';
   await loadProducts(document.getElementById('nc-product'));
 };
 
@@ -361,6 +399,12 @@ async function openCampaign(id) {
   document.getElementById('cd-status').textContent = c.status;
   document.getElementById('cd-name').textContent = c.name;
   document.getElementById('cd-objective').textContent = c.objective;
+  document.getElementById('s-name').value = c.name || '';
+  document.getElementById('s-objective').value = c.objective || '';
+  document.getElementById('s-start').value = c.startDate ? c.startDate.slice(0, 10) : '';
+  document.getElementById('s-end').value = c.endDate ? c.endDate.slice(0, 10) : '';
+  await loadProducts(document.getElementById('s-product'));
+  document.getElementById('s-product').value = c.productId || '';
   document.getElementById('s-agemin').value = c.audienceAgeMin || '';
   document.getElementById('s-agemax').value = c.audienceAgeMax || '';
   document.getElementById('s-gender').value = c.audienceGender || 'ANY';
@@ -397,12 +441,19 @@ async function openCampaign(id) {
 document.getElementById('btn-save-setup').onclick = async () => {
   const msg = document.getElementById('setup-msg');
   try {
-    await api('/company/campaigns/' + currentCampaignId, { method: 'PATCH', body: {
+    const updated = await api('/company/campaigns/' + currentCampaignId, { method: 'PATCH', body: {
+      name: document.getElementById('s-name').value.trim() || undefined,
+      objective: document.getElementById('s-objective').value.trim() || undefined,
+      startDate: document.getElementById('s-start').value || undefined,
+      endDate: document.getElementById('s-end').value || undefined,
+      productId: document.getElementById('s-product').value || undefined,
       audienceAgeMin: Number(document.getElementById('s-agemin').value) || undefined,
       audienceAgeMax: Number(document.getElementById('s-agemax').value) || undefined,
       audienceGender: document.getElementById('s-gender').value,
       audienceCity: document.getElementById('s-city').value.trim() || undefined,
     }});
+    document.getElementById('cd-name').textContent = updated.name;
+    document.getElementById('cd-objective').textContent = updated.objective;
     msg.textContent = 'Saved.'; msg.className = 'msg ok';
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };

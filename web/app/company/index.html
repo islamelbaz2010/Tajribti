@@ -259,6 +259,7 @@ const API = '/api';
 let token = localStorage.getItem('tj_company_token') || null;
 let currentCampaignId = null;
 let currentCampaignStudyType = '';
+let currentCampaignLocked = false; // status !== DRAFT/READY — see UI/UX lock fix in openCampaign()
 let studyTemplates = []; // cached from GET /company/study-templates
 
 // Security hardening: company/product/campaign/employee names, question
@@ -464,26 +465,41 @@ async function openCampaign(id) {
   document.getElementById('s-gender').value = c.audienceGender || 'ANY';
   document.getElementById('s-city').value = c.audienceCity || '';
 
-  // UI/UX lock fix: PATCH /company/campaigns/:id has always correctly
-  // rejected edits once a campaign leaves DRAFT/READY (assertConfigurable
-  // in api/src/routes/company.ts — verified: 409, zero DB change) and the
-  // Setup form has always correctly surfaced that rejection's error
-  // message on Save. What was missing is any visual indication *before*
-  // the attempt — every field rendered as a normal, enabled input for an
-  // ACTIVE/PAUSED/COMPLETED campaign, indistinguishable from an editable
-  // DRAFT/READY one. This only toggles `disabled` on the same fields and
-  // hides Save; it does not change what the backend already enforces.
-  const setupLocked = c.status !== 'DRAFT' && c.status !== 'READY';
+  // UI/UX lock fix: assertConfigurable() (api/src/routes/company.ts) has
+  // always correctly rejected edits once a campaign leaves DRAFT/READY on
+  // every one of these routes — PATCH /campaigns/:id, POST .../questions,
+  // POST .../questions/apply-template, POST .../qr-sources — verified:
+  // 409, zero DB change on each. What was missing is any visual
+  // indication *before* the attempt: every field on every one of these
+  // three forms (Setup, Add question, Add QR/source) rendered as a
+  // normal, enabled input for an ACTIVE/PAUSED/COMPLETED campaign,
+  // indistinguishable from an editable DRAFT/READY one. Originally fixed
+  // for the Setup form alone; extended here to the other two forms
+  // guarded by the exact same backend lock, found missing during a later
+  // forensic pass. This only toggles `disabled`/hidden on existing
+  // fields and buttons; it does not change what the backend enforces.
+  const campaignLocked = c.status !== 'DRAFT' && c.status !== 'READY';
+  currentCampaignLocked = campaignLocked;
   ['s-name', 's-objective', 's-start', 's-end', 's-product', 's-studytype', 's-agemin', 's-agemax', 's-gender', 's-city']
-    .forEach(id => { document.getElementById(id).disabled = setupLocked; });
-  document.getElementById('btn-save-setup').classList.toggle('hidden', setupLocked);
+    .forEach(id => { document.getElementById(id).disabled = campaignLocked; });
+  document.getElementById('btn-save-setup').classList.toggle('hidden', campaignLocked);
   const setupMsg = document.getElementById('setup-msg');
-  if (setupLocked) {
+  if (campaignLocked) {
     setupMsg.textContent = 'Configuration is locked once launched — view only.';
     setupMsg.className = 'msg';
   } else {
     setupMsg.textContent = ''; setupMsg.className = 'msg';
   }
+  ['q-stage', 'q-type', 'q-text', 'q-options'].forEach(id => { document.getElementById(id).disabled = campaignLocked; });
+  document.getElementById('btn-add-question').classList.toggle('hidden', campaignLocked);
+  const questionMsg = document.getElementById('question-msg');
+  if (campaignLocked) { questionMsg.textContent = 'Locked once launched — view only.'; questionMsg.className = 'msg'; }
+  else { questionMsg.textContent = ''; questionMsg.className = 'msg'; }
+  ['qr-label', 'qr-code', 'qr-from', 'qr-to'].forEach(id => { document.getElementById(id).disabled = campaignLocked; });
+  document.getElementById('btn-add-qr').classList.toggle('hidden', campaignLocked);
+  const qrMsg = document.getElementById('qr-msg');
+  if (campaignLocked) { qrMsg.textContent = 'Locked once launched — view only.'; qrMsg.className = 'msg'; }
+  else { qrMsg.textContent = ''; qrMsg.className = 'msg'; }
 
   const actions = document.getElementById('cd-actions');
   actions.innerHTML = '';
@@ -566,6 +582,16 @@ function renderTemplateApplyRow() {
   // does, and that's a POST with the full server-side catalog behind it.
   // Reading `tpl.questions.length` here (an earlier version's bug) throws
   // because `tpl.questions` is undefined on this response shape.
+  if (currentCampaignLocked) {
+    // Same lock as Setup/Add question/Add QR-source — the button would
+    // only 409 once clicked (assertConfigurable), and its count reflects
+    // the live catalog, not necessarily what this already-launched
+    // campaign was actually configured with (the catalog can gain
+    // content after a campaign launches — see studyTemplates.ts history
+    // — without retroactively changing an already-running campaign).
+    row.innerHTML = '<strong>' + esc(tpl.label) + '</strong> — ' + esc(tpl.decision) + ' <span style="color:var(--muted);">(locked once launched — view only)</span>';
+    return;
+  }
   row.innerHTML = '<strong>' + esc(tpl.label) + '</strong> — ' + esc(tpl.decision) +
     ' <button class="small secondary" id="btn-apply-template" style="margin-left:8px;">Apply recommended questions (' + tpl.questionCount + ')</button>';
   document.getElementById('btn-apply-template').onclick = async () => {

@@ -17,12 +17,15 @@ void main() {
     expect(find.byType(TajribtiApp), findsOneWidget);
 
     // SplashScreen schedules a 1.6s navigation Timer (fake-clock, since
-    // testWidgets runs in a FakeAsync zone). Advancing past it and then
-    // disposing the tree keeps that timer (and HomeScreen's own campaign
-    // poll timer once navigation lands there) accounted for — otherwise
-    // either is still pending at binding teardown and flutter_test fails
-    // the test with "A Timer is still pending".
+    // testWidgets runs in a FakeAsync zone). Advancing past it lands on
+    // HomeScreen, whose initState fires a real ApiClient/Dio call; Dio
+    // itself schedules further fake-clock timers internally even though
+    // flutter_test intercepts the actual HTTP request, so pumpAndSettle()
+    // (not a single pump()) is needed to fully drain those before the tree
+    // is disposed — otherwise flutter_test's teardown check fails with "A
+    // Timer is still pending".
     await tester.pump(const Duration(milliseconds: 1700));
+    await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });
@@ -35,14 +38,14 @@ void main() {
   //
   // getActiveCampaigns()/getParticipations() do fire real ApiClient calls
   // here, but flutter_test overrides HttpOverrides for the whole binding so
-  // every HTTP request completes immediately with a synthetic 400 response
-  // instead of touching the network or a real timeout Timer — so this needs
-  // only ordinary fake-clock pumps, not tester.runAsync().
+  // every HTTP request completes with a synthetic 400 response instead of
+  // touching the network — pumpAndSettle() drains the fake-clock timers Dio
+  // still schedules internally around that fake response.
   testWidgets('HomeScreen survives background/foreground lifecycle transitions without throwing',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
 
     // Background: polling must stop cleanly.
@@ -53,7 +56,7 @@ void main() {
     // Foreground again: must trigger an immediate refresh and restart
     // polling without throwing.
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
 
     // Unmount before the test ends so the periodic Timer is cancelled in

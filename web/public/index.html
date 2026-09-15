@@ -68,6 +68,56 @@
     white-space: nowrap;
   }
   nav a.navlink.secondary { color: var(--muted); font-weight: 600; }
+
+  /* ---------- unified login menu ---------- */
+  .login-menu { position: relative; }
+  .login-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 6px 2px;
+  }
+  .login-toggle:hover { color: var(--ink); }
+  .login-toggle:focus-visible, .login-item:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  .login-toggle .caret { font-size: 0.7em; transition: transform 0.18s ease; }
+  .login-toggle[aria-expanded="true"] .caret { transform: rotate(180deg); }
+  .login-panel {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    min-width: 260px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 20px 46px -18px rgba(60, 30, 10, 0.32);
+    padding: 8px;
+    z-index: 30;
+  }
+  .login-item {
+    display: block;
+    padding: 12px 14px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--ink);
+  }
+  .login-item:hover, .login-item:focus-visible { background: var(--bg); }
+  .login-item-label { display: block; font-weight: 700; font-size: 0.94rem; }
+  .login-item-desc { display: block; color: var(--muted); font-size: 0.8rem; margin-top: 2px; }
+  @media (max-width: 760px) {
+    .login-panel { left: 0; right: auto; }
+  }
+
   .cta {
     background: var(--primary);
     color: #fff !important;
@@ -81,6 +131,9 @@
   .cta:hover { background: var(--primary-ink); }
   @media (max-width: 760px) {
     nav a.navlink:not(.cta) { display: none; }
+  }
+  @media (max-width: 420px) {
+    .cta { font-size: 0.84rem; padding: 9px 16px; }
   }
 
   /* ---------- hero ---------- */
@@ -145,6 +198,7 @@
     border: 2px solid var(--primary);
   }
   .stage-icon svg { width: 24px; height: 24px; stroke: var(--primary); }
+  .stage-icon svg.product-icon { width: 26px; height: 26px; }
   .stage-label { font-weight: 700; font-size: 0.85rem; }
   .stage-arrow { flex: none; align-self: center; color: #e6d9cf; font-size: 1.3rem; padding: 0 2px; }
   @media (max-width: 700px) { .stage-arrow { display: none; } .stage { min-width: 88px; } }
@@ -178,9 +232,17 @@
     border: 1px solid var(--line);
     text-align: center;
   }
-  .sector-icon { width: 56px; height: 56px; margin: 0 auto 16px; stroke: var(--primary); }
+  .sector-icon { width: 64px; height: 78px; margin: 0 auto 18px; }
   .sector-card h3 { margin: 0 0 8px; font-size: 1.05rem; }
   .sector-card p { margin: 0; color: var(--muted); font-size: 0.88rem; }
+
+  /* ---------- product illustrations (unbranded, category-recognizable) ---------- */
+  .pi-fill { fill: var(--bg-alt); stroke: var(--primary); stroke-width: 1.6; }
+  .pi-band { fill: var(--primary); }
+  .pi-cap { fill: var(--ink); opacity: 0.72; }
+  .pi-rim { fill: #efe4da; stroke: var(--ink); stroke-opacity: 0.32; stroke-width: 1; }
+  .pi-detail { stroke: var(--ink); stroke-opacity: 0.4; stroke-width: 1.1; fill: none; }
+  .product-icon-solid { fill: var(--primary); }
   .sector-note { text-align: center; color: var(--muted); font-size: 0.85rem; max-width: 60ch; margin: 0 auto; }
   .study-pills { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 18px 0 22px; }
   .study-pill {
@@ -299,8 +361,21 @@
     <a class="navlink" href="#journey">Journey</a>
     <a class="navlink" href="#sectors">Sectors</a>
     <a class="navlink" href="#report">Sample report</a>
-    <a class="navlink secondary" href="/app/company">Company Login</a>
-    <a class="navlink secondary" href="/app/ops">Operations Console</a>
+    <div class="login-menu">
+      <button type="button" class="login-toggle" id="login-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="login-panel">
+        Log in <span class="caret" aria-hidden="true">▾</span>
+      </button>
+      <div class="login-panel" id="login-panel" role="menu" aria-labelledby="login-toggle" hidden>
+        <a class="login-item" href="/app/company" role="menuitem">
+          <span class="login-item-label">Company</span>
+          <span class="login-item-desc">Access your company workspace</span>
+        </a>
+        <a class="login-item" href="/app/ops" role="menuitem">
+          <span class="login-item-label">TAJRIBTI Operations</span>
+          <span class="login-item-desc">Manage campaigns and operations</span>
+        </a>
+      </div>
+    </div>
     <a class="cta" href="#contact">Discuss your next product trial</a>
   </nav>
 </header>
@@ -321,7 +396,7 @@
 <div class="stage-strip-wrap">
   <div class="stage-strip" id="stage-strip">
     <div class="stage" data-stage="0">
-      <div class="stage-icon"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8h10v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V8z"/><path d="M7 8V6a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v2"/><path d="M9.5 5V4h5v1"/></svg></div>
+      <div class="stage-icon"><svg class="product-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path class="product-icon-solid" d="M9,2 C9,3.2 10,3 10.4,4.1 L11,5.7 A2,2 0 0 1 11.2,6.4 L11.2,20 a2,2 0 0 1 -2,2 L9,22 a2,2 0 0 1 -2,-2 L7,6.4 A2,2 0 0 1 7.2,5.7 L7.8,4.1 C8.2,3 9,3.2 9,2 Z" transform="translate(4,0)"/></svg></div>
       <div class="stage-label">Product</div>
     </div>
     <div class="stage-arrow">→</div>
@@ -389,17 +464,34 @@
   <p class="section-lead">Consumer research isn't one-size-fits-all. The questions and evidence a trial produces are structured around the product category.</p>
   <div class="sector-grid">
     <div class="sector-card">
-      <svg class="sector-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8h10v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V8z"/><path d="M7 8V6a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v2"/><path d="M9.5 5V4h5v1"/></svg>
+      <svg class="sector-icon" viewBox="0 0 44 60" aria-hidden="true" focusable="false">
+        <ellipse class="pi-rim" cx="22" cy="10" rx="12" ry="3.2"/>
+        <rect class="pi-fill" x="10" y="10" width="24" height="42" rx="4"/>
+        <rect class="pi-band" x="10" y="26" width="24" height="10" opacity="0.92"/>
+        <ellipse class="pi-detail" cx="22" cy="10" rx="3" ry="1.3"/>
+      </svg>
       <h3>Food &amp; Beverage</h3>
       <p>Trial-based repeat-purchase and taste/experience response.</p>
     </div>
     <div class="sector-card">
-      <svg class="sector-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4v3.5l1.6 2.4A3 3 0 0 1 16 9.7V20a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V9.7a3 3 0 0 1 .4-1.8L10 5.5V2z"/><path d="M8 13h8"/></svg>
+      <svg class="sector-icon" viewBox="0 0 44 60" aria-hidden="true" focusable="false">
+        <rect class="pi-cap" x="17" y="4" width="10" height="7" rx="2"/>
+        <rect class="pi-cap" x="25" y="6.5" width="7" height="3" rx="1.4"/>
+        <rect class="pi-fill" x="18" y="11" width="8" height="6"/>
+        <path class="pi-fill" d="M14,17 C14,14.5 16,17 18,17 L26,17 C28,17 30,14.5 30,17 L30,49 a5,5 0 0 1 -5,5 L19,54 a5,5 0 0 1 -5,-5 Z"/>
+        <rect class="pi-band" x="12" y="31" width="20" height="9" opacity="0.92"/>
+      </svg>
       <h3>Beauty &amp; Personal Care</h3>
       <p>Did it perform as expected — and would they buy it again.</p>
     </div>
     <div class="sector-card">
-      <svg class="sector-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h5l3 3v3H8V3z"/><path d="M6 9h12v11a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V9z"/><path d="M6 14h12"/></svg>
+      <svg class="sector-icon" viewBox="0 0 44 60" aria-hidden="true" focusable="false">
+        <rect class="pi-cap" x="14" y="4" width="9" height="6" rx="1.5"/>
+        <rect class="pi-fill" x="16" y="10" width="6" height="5"/>
+        <rect class="pi-fill" x="8" y="15" width="22" height="38" rx="6"/>
+        <path class="pi-detail" d="M30,21 C36,21 36,31 30,31"/>
+        <rect class="pi-band" x="8" y="33" width="22" height="9" opacity="0.92"/>
+      </svg>
       <h3>Home Care / Household</h3>
       <p>Ease of use and repeat-purchase after real household use.</p>
     </div>
@@ -569,6 +661,33 @@
       });
     }, { threshold: 0.12 });
     revealEls.forEach(function (el) { revealObserver.observe(el); });
+  }
+
+  // Unified Login menu: accessible disclosure (toggle, Escape, outside click).
+  var loginToggle = document.getElementById('login-toggle');
+  var loginPanel = document.getElementById('login-panel');
+  if (loginToggle && loginPanel) {
+    function closeLoginMenu(focusToggle) {
+      loginPanel.hidden = true;
+      loginToggle.setAttribute('aria-expanded', 'false');
+      if (focusToggle) loginToggle.focus();
+    }
+    function openLoginMenu() {
+      loginPanel.hidden = false;
+      loginToggle.setAttribute('aria-expanded', 'true');
+    }
+    loginToggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (loginPanel.hidden) openLoginMenu(); else closeLoginMenu(false);
+    });
+    document.addEventListener('click', function (e) {
+      if (!loginPanel.hidden && !loginPanel.contains(e.target) && e.target !== loginToggle) {
+        closeLoginMenu(false);
+      }
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !loginPanel.hidden) closeLoginMenu(true);
+    });
   }
 
   // Journey stage strip: highlight the stage in view as the visitor scrolls.

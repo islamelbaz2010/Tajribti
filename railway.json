@@ -5,8 +5,7 @@
     "buildCommand": "cd api && npm install && npm run db:generate && npm run build"
   },
   "deploy": {
-    "preDeployCommand": ["cd api && npm run db:migrate"],
-    "startCommand": "cd api && npm run start",
+    "startCommand": "cd api && npm run db:migrate && npm run start",
     "restartPolicyType": "ON_FAILURE"
   }
 }

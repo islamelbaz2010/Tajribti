@@ -58,7 +58,11 @@ function buildChoiceFindings(questionAggregates: { text: string; responses: numb
 // applies (measurement.ts) — computed locally here (not added to
 // measurement.ts) since report.ts already has its own prisma import and
 // this is a one-off grouped count, not a reusable aggregation.
-async function getTextQuestionResponseCounts(campaignId: string): Promise<{ text: string; count: number }[]> {
+// Exported (not just for report.ts's own use) — Feature A (Evidence
+// Sufficiency Coach, Founder-approved optional extension) reuses this
+// exact same per-question count in api/src/lib/readiness.ts rather than
+// duplicating the query; no behavior change to the function itself.
+export async function getTextQuestionResponseCounts(campaignId: string): Promise<{ text: string; count: number }[]> {
   const questions = await prisma.question.findMany({
     where: { campaignId, stage: "POST_TRIAL", type: "TEXT" },
     orderBy: { order: "asc" },
@@ -115,6 +119,134 @@ function buildTextRecommendations(textCounts: { text: string; count: number }[])
       (t) =>
         `${t.count} open-text response(s) were recorded for '${t.text}'. Review these responses directly before finalizing any decision that depends on this qualitative context.`
     );
+}
+
+// FOUNDER-APPROVED — Feature E: Segment-Conditioned Evidence (Gender/City
+// only). Optional extension beyond the Benchmark's mandatory requirements
+// — Benchmark §3 ("Meaningful audience differences can be examined when
+// data supports them") and §7 ("Segment-level outputs must only be shown
+// when the backend actually supports the required aggregation") *permit*
+// this; neither requires it nor defines its mechanism. Reuses the exact
+// same aggregate logic already used campaign-wide above (average;
+// deterministic mode with all ties named) scoped to participations
+// sharing an already-captured demographic value (Benchmark §7
+// "demographics" snapshot) — no new measurement, no age segmentation, no
+// bins, no significance testing, no causal claim. Every non-empty cell is
+// shown regardless of size (Founder-approved: no minimum-N threshold is
+// invented). A participation with no value for a dimension is skipped —
+// the same convention the campaign-wide demographics aggregation above
+// already uses (no "Unknown" bucket is fabricated).
+type SegmentDimension = "genderAtEntry" | "cityAtEntry";
+
+async function getSegmentedEvidence(
+  campaignId: string,
+  piQuestionText: string | null,
+  ratingQuestionText: string | null
+): Promise<{
+  gender: { segmentValue: string; sentences: string[] }[];
+  city: { segmentValue: string; sentences: string[] }[];
+}> {
+  const piAnswers = await prisma.answer.findMany({
+    where: { question: { campaignId, type: "PURCHASE_INTENT_1_5" }, valueNumber: { not: null } },
+    select: { valueNumber: true, participation: { select: { genderAtEntry: true, cityAtEntry: true } } },
+  });
+  const ratingAnswers = await prisma.answer.findMany({
+    where: { question: { campaignId, type: "RATING_1_5" }, valueNumber: { not: null } },
+    select: { valueNumber: true, participation: { select: { genderAtEntry: true, cityAtEntry: true } } },
+  });
+  const choiceQuestions = await prisma.question.findMany({
+    where: { campaignId, type: { in: ["SINGLE_CHOICE", "MULTI_CHOICE"] } },
+    orderBy: { order: "asc" },
+  });
+  const choiceAnswers = await Promise.all(
+    choiceQuestions.map((q) =>
+      prisma.answer.findMany({
+        where: { questionId: q.id },
+        select: { valueOptions: true, participation: { select: { genderAtEntry: true, cityAtEntry: true } } },
+      })
+    )
+  );
+
+  function buildForDimension(dimension: SegmentDimension) {
+    const sentencesBySegment = new Map<string, string[]>();
+    const addSentence = (seg: string | null, sentence: string) => {
+      if (!seg) return; // no value for this dimension -> skipped, never fabricated as "Unknown"
+      if (!sentencesBySegment.has(seg)) sentencesBySegment.set(seg, []);
+      sentencesBySegment.get(seg)!.push(sentence);
+    };
+
+    const piBySeg = new Map<string, { sum: number; n: number }>();
+    for (const a of piAnswers) {
+      const seg = a.participation[dimension];
+      if (!seg) continue;
+      const cur = piBySeg.get(seg) ?? { sum: 0, n: 0 };
+      cur.sum += a.valueNumber ?? 0;
+      cur.n += 1;
+      piBySeg.set(seg, cur);
+    }
+    for (const [seg, { sum, n }] of piBySeg) {
+      const avg = Number((sum / n).toFixed(2));
+      addSentence(
+        seg,
+        `Among ${seg} respondents (n=${n}), average purchase intent${piQuestionText ? ` for '${piQuestionText}'` : ""} was ${avg}/5.`
+      );
+    }
+
+    const ratingBySeg = new Map<string, { sum: number; n: number }>();
+    for (const a of ratingAnswers) {
+      const seg = a.participation[dimension];
+      if (!seg) continue;
+      const cur = ratingBySeg.get(seg) ?? { sum: 0, n: 0 };
+      cur.sum += a.valueNumber ?? 0;
+      cur.n += 1;
+      ratingBySeg.set(seg, cur);
+    }
+    for (const [seg, { sum, n }] of ratingBySeg) {
+      const avg = Number((sum / n).toFixed(2));
+      addSentence(
+        seg,
+        `Among ${seg} respondents (n=${n}), the average rating${ratingQuestionText ? ` for '${ratingQuestionText}'` : ""} was ${avg}/5.`
+      );
+    }
+
+    choiceQuestions.forEach((q, i) => {
+      const options: { id: string; label: string }[] = q.options ? JSON.parse(q.options) : [];
+      const answers = choiceAnswers[i];
+      const tallyBySeg = new Map<string, Record<string, number>>();
+      const countBySeg = new Map<string, number>();
+      for (const a of answers) {
+        const seg = a.participation[dimension];
+        if (!seg || !a.valueOptions) continue;
+        const ids: string[] = JSON.parse(a.valueOptions);
+        const tally = tallyBySeg.get(seg) ?? {};
+        for (const id of ids) tally[id] = (tally[id] ?? 0) + 1;
+        tallyBySeg.set(seg, tally);
+        countBySeg.set(seg, (countBySeg.get(seg) ?? 0) + 1);
+      }
+      for (const [seg, tally] of tallyBySeg) {
+        const n = countBySeg.get(seg) ?? 0;
+        if (n === 0) continue;
+        const counts = options.map((o) => ({ label: o.label, count: tally[o.id] ?? 0 }));
+        const maxCount = Math.max(...counts.map((c) => c.count));
+        if (maxCount === 0) continue;
+        const top = counts.filter((c) => c.count === maxCount).map((c) => c.label);
+        if (top.length === 1) {
+          addSentence(seg, `Among ${seg} respondents (n=${n}), the most common response to '${q.text}' was '${top[0]}' (${maxCount} of ${n}).`);
+        } else {
+          addSentence(
+            seg,
+            `Among ${seg} respondents (n=${n}), the most common responses to '${q.text}' were ${joinWithAnd(
+              top.map((l) => `'${l}'`)
+            )}, each selected by ${maxCount} of ${n}.`
+          );
+        }
+      }
+    });
+
+    return Array.from(sentencesBySegment.entries()).map(([segmentValue, sentences]) => ({ segmentValue, sentences }));
+  }
+
+  return { gender: buildForDimension("genderAtEntry"), city: buildForDimension("cityAtEntry") };
 }
 
 function buildRecommendations(
@@ -260,6 +392,11 @@ export async function buildReport(campaignId: string) {
   // alone exists) -> choice -> text).
   const recommendations = buildRecommendations(evidence.level, purchaseIntent, satisfaction, questionAggregates, textQuestionCounts);
 
+  // Feature E (Founder-approved optional extension, not Benchmark-
+  // required): Gender/City-conditioned evidence. See getSegmentedEvidence()
+  // above for the full methodology.
+  const segmentedEvidence = await getSegmentedEvidence(campaignId, purchaseIntent.questionText, satisfaction.questionText);
+
   return {
     campaign: {
       id: campaign.id,
@@ -286,12 +423,27 @@ export async function buildReport(campaignId: string) {
     consumerVoice: verbatims,
     findings,
     recommendations,
+    // Feature E (Founder-approved optional extension): every figure below
+    // should be read alongside its own stated n and treated as
+    // directional, not conclusive — no minimum sample size is asserted,
+    // reusing the exact same caution idiom already applied to `findings`
+    // above rather than inventing a new one.
+    audienceDifferences: {
+      note: "Every figure below should be read alongside its own stated sample size (n) and treated as directional, not conclusive — no minimum sample size is asserted.",
+      gender: segmentedEvidence.gender,
+      city: segmentedEvidence.city,
+    },
     methodology:
       "All figures are computed live from persisted participation, eligibility, redemption and survey-response records for this campaign. No figure is estimated, modeled, or AI-generated.",
     limitations: [
       "Purchase intent and satisfaction reflect self-reported survey responses only.",
       "The 1-5 scale for purchase intent and satisfaction is a platform characteristic, not a defined product standard; treat the reported average alongside its scale rather than as a validated index.",
-      "Segment-level (audience-difference) breakdowns are limited to source/QR attribution and the demographic snapshot captured at eligibility; no additional segmentation is fabricated.",
+      // Updated for Feature E: this previously stated no additional
+      // segmentation existed beyond source/QR and the raw demographic
+      // snapshot — that is no longer accurate now that gender/city-
+      // conditioned evidence exists (see audienceDifferences above), so
+      // the boundary is restated precisely rather than left stale.
+      "Gender/city-conditioned evidence (where shown) reflects only the demographic snapshot captured at eligibility; no age-based, cross-campaign, or predictive segmentation is fabricated, and no statistical comparison between segments is applied.",
       // No sample-sufficiency claim is made at any size — Benchmark §6
       // requires cautious language for small samples but never defines a
       // point at which a sample becomes statistically sufficient.

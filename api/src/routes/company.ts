@@ -316,6 +316,20 @@ router.get("/campaigns/:id/study-type-requests", async (req, res) => {
   res.json(requests);
 });
 
+// FOUNDER-APPROVED — Feature A: Evidence Sufficiency Coach (optional
+// extension). Company previously had no read-only way to view readiness/
+// evidence coverage before attempting submit-for-review (only the
+// success/failure response of that action ever returned it). This lets
+// Company view the same already-existing checkReadiness() output
+// (including the new evidenceCoverage field) proactively, at any time —
+// no new business rule, same company-isolation scoping as every other
+// route in this file.
+router.get("/campaigns/:id/readiness", async (req, res) => {
+  const campaign = await loadOwnedCampaign(req, res);
+  if (!campaign) return;
+  res.json(await checkReadiness(campaign.id));
+});
+
 // Configure -> Review/Ready is a company-driven step (Benchmark §2.4);
 // Launch/Pause/Close remains TAJRIBTI Operations-controlled (§4 OPERATIONS
 // "Launch / Pause / Close"; §8 hybrid model).

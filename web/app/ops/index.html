@@ -467,7 +467,16 @@ async function loadReadiness() {
   const r = await api('/ops/campaigns/' + currentCampaignId + '/readiness');
   document.getElementById('readiness-content').innerHTML =
     '<p><strong>' + (r.ready ? 'Ready to launch' : 'Not yet ready') + '</strong></p><ul>' +
-    r.checks.map(c => '<li class="' + (c.ok ? 'check-ok' : 'check-bad') + '">' + (c.ok ? '✓' : '✗') + ' ' + esc(c.label) + '</li>').join('') + '</ul>';
+    r.checks.map(c => '<li class="' + (c.ok ? 'check-ok' : 'check-bad') + '">' + (c.ok ? '✓' : '✗') + ' ' + esc(c.label) + '</li>').join('') + '</ul>' +
+    // FOUNDER-APPROVED — Feature A: Evidence Sufficiency Coach (optional
+    // extension, not Benchmark-required). This same endpoint already
+    // works regardless of campaign status (no status check in the
+    // route), so this one panel covers both "before Launch" (READY) and
+    // "before Close" (ACTIVE/PAUSED) without any new route or gate.
+    '<h3 style="font-size:0.95rem;">Evidence coverage</h3>' +
+    (r.evidenceCoverage.length
+      ? '<ul>' + r.evidenceCoverage.map(line => '<li>' + esc(line) + '</li>').join('') + '</ul>'
+      : '<p style="color:var(--muted)">No evidence recorded yet.</p>');
 }
 
 // QR / Journey Operations (Benchmark §4 OPERATIONS "QR / Journey
@@ -566,6 +575,22 @@ function breakdownLine(counts) {
   return keys.length ? keys.map(k => esc(k) + ': ' + counts[k]).join(' · ') : '—';
 }
 
+// FOUNDER-APPROVED — Feature E: Segment-Conditioned Evidence (optional
+// extension, not Benchmark-required). Renders the exact sentences
+// already computed server-side (api/src/lib/report.ts) — no wording is
+// composed here.
+function renderAudienceDifferences(ad) {
+  function renderDimension(label, segments) {
+    return '<h4 style="font-size:0.88rem;margin:10px 0 4px;">' + label + '</h4>' +
+      (segments.length
+        ? segments.map(s => '<p style="margin-bottom:4px;"><strong>' + esc(s.segmentValue) + '</strong></p><ul>' + s.sentences.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>').join('')
+        : '<p style="color:var(--muted)">No ' + label.toLowerCase() + ' data available yet.</p>');
+  }
+  return '<p style="color:var(--muted);font-size:0.82rem;">' + esc(ad.note) + '</p>' +
+    renderDimension('Gender', ad.gender) +
+    renderDimension('City', ad.city);
+}
+
 async function loadOpsReport() {
   const r = await api('/ops/campaigns/' + currentCampaignId + '/report');
   document.getElementById('ops-report-content').innerHTML =
@@ -583,6 +608,7 @@ async function loadOpsReport() {
     '<h3 style="font-size:0.95rem;">Demographics</h3><p>Sample size: ' + r.demographics.sampleSize + ', average age: ' + (r.demographics.averageAge ?? '—') + '<br/>' +
     'Gender: ' + breakdownLine(r.demographics.genderBreakdown) + '<br/>' +
     'City: ' + breakdownLine(r.demographics.cityBreakdown) + '</p>' +
+    '<h3 style="font-size:0.95rem;">Audience Differences</h3>' + renderAudienceDifferences(r.audienceDifferences) +
     '<h3 style="font-size:0.95rem;">Purchase intent</h3>' + (r.purchaseIntent.questionText ? '<p style="color:var(--muted);font-size:0.85rem;margin-bottom:2px;">' + esc(r.purchaseIntent.questionText) + '</p>' : '') + '<p>' + (r.purchaseIntent.averageScore ?? '—') + ' / 5 (' + r.purchaseIntent.responses + ' responses)</p>' +
     '<h3 style="font-size:0.95rem;">Satisfaction</h3>' + (r.satisfaction.questionText ? '<p style="color:var(--muted);font-size:0.85rem;margin-bottom:2px;">' + esc(r.satisfaction.questionText) + '</p>' : '') + '<p>' + (r.satisfaction.averageScore ?? '—') + ' / 5 (' + r.satisfaction.responses + ' responses)</p>' +
     '<h3 style="font-size:0.95rem;">Campaign-specific questions</h3>' +

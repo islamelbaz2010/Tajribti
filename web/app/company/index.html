@@ -199,6 +199,13 @@
       </div>
       <button id="btn-save-setup">Save</button>
       <div class="msg" id="setup-msg"></div>
+      <!-- FOUNDER-APPROVED — Feature A: Evidence Sufficiency Coach
+           (optional extension, not Benchmark-required). Purely
+           descriptive counts, reusing api/src/lib/readiness.ts's
+           evidenceCoverage field — never a claim that evidence is
+           "enough", never a new blocking rule. -->
+      <h3 style="font-size:0.95rem;margin-top:20px;">Evidence coverage</h3>
+      <div id="evidence-coverage-content" style="color:var(--muted);font-size:0.85rem;"></div>
     </div>
 
     <div class="card tab-panel hidden" id="tab-questions">
@@ -555,6 +562,7 @@ async function openCampaign(id) {
   renderTemplateApplyRow();
   renderQrSources(c.qrSources || []);
   await refreshStudyTypeGovernanceUI((c.questions || []).length);
+  await loadEvidenceCoverage();
 
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelector('.tab-btn[data-tab="setup"]').classList.add('active');
@@ -749,6 +757,25 @@ function renderStudyTypeRequestBlock() {
   }
 }
 
+// FOUNDER-APPROVED — Feature A: Evidence Sufficiency Coach (optional
+// extension, not Benchmark-required). Descriptive counts only — never a
+// judgment of whether evidence is "enough". Reuses
+// GET /company/campaigns/:id/readiness (evidenceCoverage field); the
+// ready/checks part of that same response is intentionally not shown
+// here, since this panel's only purpose is evidence visibility, not a
+// new blocking gate.
+async function loadEvidenceCoverage() {
+  const el = document.getElementById('evidence-coverage-content');
+  try {
+    const r = await api('/company/campaigns/' + currentCampaignId + '/readiness');
+    el.innerHTML = r.evidenceCoverage.length
+      ? '<ul>' + r.evidenceCoverage.map(line => '<li>' + esc(line) + '</li>').join('') + '</ul>'
+      : '<p>No evidence recorded yet.</p>';
+  } catch (e) {
+    el.textContent = '';
+  }
+}
+
 document.getElementById('btn-add-question').onclick = async () => {
   const msg = document.getElementById('question-msg');
   const type = document.getElementById('q-type').value;
@@ -846,6 +873,23 @@ function breakdownLine(counts) {
   return keys.length ? keys.map(k => esc(k) + ': ' + counts[k]).join(' · ') : '—';
 }
 
+// FOUNDER-APPROVED — Feature E: Segment-Conditioned Evidence (optional
+// extension, not Benchmark-required). Renders the exact sentences
+// already computed server-side (api/src/lib/report.ts) — no wording is
+// composed here, so the frontend cannot accidentally introduce
+// evaluative language the backend deliberately avoids.
+function renderAudienceDifferences(ad) {
+  function renderDimension(label, segments) {
+    return '<h4 style="font-size:0.88rem;margin:10px 0 4px;">' + label + '</h4>' +
+      (segments.length
+        ? segments.map(s => '<p style="margin-bottom:4px;"><strong>' + esc(s.segmentValue) + '</strong></p><ul>' + s.sentences.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>').join('')
+        : '<p style="color:var(--muted)">No ' + label.toLowerCase() + ' data available yet.</p>');
+  }
+  return '<p style="color:var(--muted);font-size:0.82rem;">' + esc(ad.note) + '</p>' +
+    renderDimension('Gender', ad.gender) +
+    renderDimension('City', ad.city);
+}
+
 async function loadReport() {
   const r = await api('/company/campaigns/' + currentCampaignId + '/report');
   document.getElementById('report-content').innerHTML =
@@ -867,6 +911,7 @@ async function loadReport() {
     '<h3 style="font-size:0.95rem;">Demographics</h3><p>Sample size: ' + r.demographics.sampleSize + ', average age: ' + (r.demographics.averageAge ?? '—') + '<br/>' +
     'Gender: ' + breakdownLine(r.demographics.genderBreakdown) + '<br/>' +
     'City: ' + breakdownLine(r.demographics.cityBreakdown) + '</p>' +
+    '<h3 style="font-size:0.95rem;">Audience Differences</h3>' + renderAudienceDifferences(r.audienceDifferences) +
     '<h3 style="font-size:0.95rem;">Purchase intent</h3>' + (r.purchaseIntent.questionText ? '<p style="color:var(--muted);font-size:0.85rem;margin-bottom:2px;">' + esc(r.purchaseIntent.questionText) + '</p>' : '') + '<p>' + (r.purchaseIntent.averageScore ?? '—') + ' / 5 (' + r.purchaseIntent.responses + ' responses)</p>' +
     '<h3 style="font-size:0.95rem;">Satisfaction</h3>' + (r.satisfaction.questionText ? '<p style="color:var(--muted);font-size:0.85rem;margin-bottom:2px;">' + esc(r.satisfaction.questionText) + '</p>' : '') + '<p>' + (r.satisfaction.averageScore ?? '—') + ' / 5 (' + r.satisfaction.responses + ' responses)</p>' +
     '<h3 style="font-size:0.95rem;">Campaign-specific questions</h3>' +

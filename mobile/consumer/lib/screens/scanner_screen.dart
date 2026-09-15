@@ -5,6 +5,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../core/l10n.dart';
+import '../core/models.dart';
 import '../core/session.dart';
 import '../widgets/lang_toggle.dart';
 

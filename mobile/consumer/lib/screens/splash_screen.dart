@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../core/auth_service.dart';
 import '../core/constants.dart';
 import '../core/l10n.dart';
 

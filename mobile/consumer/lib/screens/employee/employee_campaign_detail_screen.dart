@@ -99,6 +99,7 @@ class _EmployeeCampaignDetailScreenState extends State<EmployeeCampaignDetailScr
     // totalRedemptions/surveyCompletions/completionRate/
     // purchaseIntentPercent shape. Purchase intent is a 1-5 average
     // score, not a percentage — shown as "x.x/5", never invented as "%".
+    final ov = _overview!;
     final funnel = (ov['funnel'] as Map<String, dynamic>?) ?? const {};
     final purchaseIntent = (ov['purchaseIntent'] as Map<String, dynamic>?) ?? const {};
     final entered = funnel['entered'] as int? ?? 0;

@@ -258,7 +258,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                     // ── Campaign Cards ───────────────────────────────────────
                     if (_error != null)
-                      SliverFillRemaining(child: _ErrorState(error: s.loadError, onRetry: _load))
+                      // hasScrollBody: false — the default (true) forces this
+                      // sliver's exact height to whatever viewport space is
+                      // left below the hero banner/header, which is too
+                      // little on short screens and overflows _ErrorState's
+                      // content instead of letting the scroll view grow to
+                      // fit it (a real bug this fix surfaced, not a
+                      // test-only artifact — the same banner+header height
+                      // math applies on a real short/landscape screen).
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: _ErrorState(error: s.loadError, onRetry: _load),
+                      )
                     else if (_campaigns.isEmpty)
                       SliverToBoxAdapter(child: _EmptyState(s: s))
                     else

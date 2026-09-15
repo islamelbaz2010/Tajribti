@@ -15,6 +15,16 @@ void main() {
     await tester.pumpWidget(const TajribtiApp());
     await tester.pump();
     expect(find.byType(TajribtiApp), findsOneWidget);
+
+    // SplashScreen schedules a 1.6s navigation Timer (fake-clock, since
+    // testWidgets runs in a FakeAsync zone). Advancing past it and then
+    // disposing the tree keeps that timer (and HomeScreen's own campaign
+    // poll timer once navigation lands there) accounted for — otherwise
+    // either is still pending at binding teardown and flutter_test fails
+    // the test with "A Timer is still pending".
+    await tester.pump(const Duration(milliseconds: 1700));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 
   // Campaign auto-sync (Benchmark §14): HomeScreen must register a
@@ -23,40 +33,33 @@ void main() {
   // back to the foreground — this is the mechanism that lets a newly
   // ACTIVE campaign be discovered without a manual pull-to-refresh.
   //
-  // _load()/_silentRefresh() fire a real Dio request with no reachable
-  // backend in this test; ApiClient's connect/receive timeouts are real
-  // Timers, not fake-clock ones, so this runs under tester.runAsync() (the
-  // documented pattern for real async I/O in widget tests) and waits out
-  // the real timeout on each attempt rather than racing it — otherwise the
-  // test binding's teardown fails with "A Timer is still pending".
+  // getActiveCampaigns()/getParticipations() do fire real ApiClient calls
+  // here, but flutter_test overrides HttpOverrides for the whole binding so
+  // every HTTP request completes immediately with a synthetic 400 response
+  // instead of touching the network or a real timeout Timer — so this needs
+  // only ordinary fake-clock pumps, not tester.runAsync().
   testWidgets('HomeScreen survives background/foreground lifecycle transitions without throwing',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
-    await tester.runAsync(() async {
-      await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
-      await tester.pump();
-      await Future<void>.delayed(const Duration(seconds: 11));
-      await tester.pump();
-      expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
 
-      // Background: polling must stop cleanly.
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-      await tester.pump();
-      expect(tester.takeException(), isNull);
+    // Background: polling must stop cleanly.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    expect(tester.takeException(), isNull);
 
-      // Foreground again: must trigger an immediate refresh and restart
-      // polling without throwing.
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-      await tester.pump();
-      await Future<void>.delayed(const Duration(seconds: 11));
-      await tester.pump();
-      expect(tester.takeException(), isNull);
+    // Foreground again: must trigger an immediate refresh and restart
+    // polling without throwing.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(tester.takeException(), isNull);
 
-      // Unmount before the test ends so the periodic Timer is cancelled in
-      // dispose() rather than leaking into the next test.
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump();
-      expect(tester.takeException(), isNull);
-    });
+    // Unmount before the test ends so the periodic Timer is cancelled in
+    // dispose() rather than leaking into the next test.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    expect(tester.takeException(), isNull);
   });
 }

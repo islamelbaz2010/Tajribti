@@ -94,9 +94,18 @@ export const STUDY_TEMPLATES: StudyTemplate[] = [
     ],
   },
   {
+    // G2-A (forensic closure pass): reframed — the persisted key stays
+    // CONCEPT_LAUNCH_VIABILITY for full backward compatibility with every
+    // existing Campaign.studyType / StudyTypeChangeRequest value; only
+    // the display-facing label/decision changed. The prior label/decision
+    // implied pre-development concept validation, but the actual
+    // mechanism below (real physical trial -> appeal/differentiation/
+    // purchase-intent survey) has no pre-trial stimulus stage and cannot
+    // establish whether an unproduced concept would succeed before
+    // manufacturing — see governance closure report for the full audit.
     key: "CONCEPT_LAUNCH_VIABILITY",
-    label: "Concept / Launch Viability",
-    decision: "Should we launch this concept?",
+    label: "Post-Trial — Differentiation & Appeal",
+    decision: "How appealing and differentiated is this product after trial, and what purchase intent does it generate?",
     questions: [
       { stage: "ELIGIBILITY", type: "SINGLE_CHOICE", text: "Do you regularly purchase products in this category?", options: yesNo() },
       { stage: "POST_TRIAL", type: "SINGLE_CHOICE", text: "Is this product appealing to you?", options: [{ id: "opt0", label: "Very appealing" }, { id: "opt1", label: "Somewhat appealing" }, { id: "opt2", label: "Not appealing" }] },

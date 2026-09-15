@@ -76,6 +76,90 @@ function buildTextFindings(textCounts: { text: string; count: number }[]): strin
     .map((t) => `${t.count} open-text response(s) were recorded for '${t.text}'.`);
 }
 
+// FOUNDER-APPROVED — G1-B Evidence-Grounded Recommendation Methodology
+// (forensic closure pass, final report). Every recommendation here is
+// downstream of an already-computed Finding — no new measurement, no
+// evaluative language ("high/low/strong/weak/good/bad/launch/expand/
+// discontinue"), no threshold, no statistical inference, no sentiment or
+// theme inference. Each category states only that specific evidence
+// exists and directs a bounded procedural next step (treat as one input,
+// validate before generalizing, review together before concluding,
+// review verbatims before finalizing) — never a verdict on the evidence
+// itself. Fixed emission order: ZERO_DATA -> joint PI/rating (or
+// whichever alone exists) -> choice -> text, matching the Findings
+// ordering above.
+function buildChoiceRecommendations(questionAggregates: { text: string; responses: number; breakdown: { label: string; count: number }[] }[]): string[] {
+  const out: string[] = [];
+  for (const q of questionAggregates) {
+    if (q.responses === 0 || q.breakdown.length === 0) continue;
+    const maxCount = Math.max(...q.breakdown.map((b) => b.count));
+    if (maxCount === 0) continue;
+    const topLabels = q.breakdown.filter((b) => b.count === maxCount).map((b) => b.label);
+    if (topLabels.length === 1) {
+      out.push(
+        `The most common response to '${q.text}' was '${topLabels[0]}' (${maxCount} of ${q.responses} respondent(s)). Treat this as a sample-specific signal and validate it with further evidence before drawing any broader-market conclusion.`
+      );
+    } else {
+      out.push(
+        `The most common responses to '${q.text}' were ${joinWithAnd(topLabels.map((l) => `'${l}'`))}, each selected by ${maxCount} of ${q.responses} respondent(s). Treat this as a sample-specific signal and validate it with further evidence before drawing any broader-market conclusion.`
+      );
+    }
+  }
+  return out;
+}
+
+function buildTextRecommendations(textCounts: { text: string; count: number }[]): string[] {
+  return textCounts
+    .filter((t) => t.count > 0)
+    .map(
+      (t) =>
+        `${t.count} open-text response(s) were recorded for '${t.text}'. Review these responses directly before finalizing any decision that depends on this qualitative context.`
+    );
+}
+
+function buildRecommendations(
+  evidenceLevel: "ZERO_DATA" | "HAS_DATA",
+  purchaseIntent: { averageScore: number | null; responses: number },
+  satisfaction: { averageScore: number | null; responses: number; questionText: string | null },
+  questionAggregates: { text: string; responses: number; breakdown: { label: string; count: number }[] }[],
+  textCounts: { text: string; count: number }[]
+): string[] {
+  if (evidenceLevel === "ZERO_DATA") {
+    return ["Do not draw conclusions until survey responses are collected."];
+  }
+
+  const recommendations: string[] = [];
+  const hasPI = purchaseIntent.averageScore != null;
+  const hasRating = satisfaction.averageScore != null;
+
+  // Joint PI/rating supersedes the two standalone categories whenever
+  // both exist — a single, weighting-free juxtaposition rather than two
+  // un-cross-referenced lines. Deliberately asserts nothing about
+  // relative importance, agreement, or disagreement between the two
+  // figures (a prior draft's "equal weight" / "neither more important"
+  // language was itself an unsupported weighting claim and was removed).
+  if (hasPI && hasRating) {
+    const ratingLabel = satisfaction.questionText ? `the product-experience rating for '${satisfaction.questionText}'` : "the product-experience rating";
+    recommendations.push(
+      `Purchase intent (${purchaseIntent.averageScore}/5 across ${purchaseIntent.responses} response(s)) and ${ratingLabel} (${satisfaction.averageScore}/5 across ${satisfaction.responses} response(s)) were both measured for this campaign. Review both results together before drawing any conclusion.`
+    );
+  } else if (hasPI) {
+    recommendations.push(
+      `The observed purchase-intent result (${purchaseIntent.averageScore}/5 across ${purchaseIntent.responses} response(s)) should be treated as one input, alongside the sample size, to the next commercial decision — not as a standalone conclusion.`
+    );
+  } else if (hasRating) {
+    const ratingSubject = satisfaction.questionText ? `result for '${satisfaction.questionText}'` : "product-experience rating result";
+    recommendations.push(
+      `The observed ${ratingSubject} (${satisfaction.averageScore}/5 across ${satisfaction.responses} response(s)) should be treated as one input, alongside the sample size, to the next product decision — not as a standalone conclusion.`
+    );
+  }
+
+  recommendations.push(...buildChoiceRecommendations(questionAggregates));
+  recommendations.push(...buildTextRecommendations(textCounts));
+
+  return recommendations;
+}
+
 // Decision-ready report (Benchmark §7): Data -> Analysis -> Consumer Voice
 // -> Insight -> Decision -> Recommendation. Every field is a real query
 // against persisted data; no AI narrative is fabricated (user-directive
@@ -125,15 +209,13 @@ export async function buildReport(campaignId: string) {
     cityBreakdown: cityCounts,
   };
 
-  // Findings/recommendations: deterministic, evidence-triggered statements
-  // only — never free-form generated text. Each rule cites the exact
-  // number that produced it (traceable lineage, user-directive §16/§18).
+  // Findings: deterministic, evidence-triggered statements only — never
+  // free-form generated text. Each rule cites the exact number that
+  // produced it (traceable lineage, user-directive §16/§18).
   const findings: string[] = [];
-  const recommendations: string[] = [];
 
   if (evidence.level === "ZERO_DATA") {
     findings.push("No completed post-trial survey responses have been recorded for this campaign yet.");
-    recommendations.push("Do not draw conclusions until survey responses are collected.");
   } else {
     // Benchmark §6 requires cautious language for small samples but
     // defines no threshold for "small" — so this caution is applied to
@@ -154,20 +236,6 @@ export async function buildReport(campaignId: string) {
     if (satisfaction.averageScore != null) {
       findings.push(`Average satisfaction rating across ${satisfaction.responses} response(s) is ${satisfaction.averageScore}/5.`);
     }
-    // No threshold-triggered recommendation ("average >= 4 => strong",
-    // "<= 2.5 => weak", etc.) is generated: Benchmark §7 requires a
-    // "recommendations" evidence category to exist, but nowhere defines
-    // a cutoff at which a purchase-intent/satisfaction average becomes
-    // "strong," "weak," or actionable. A prior pass invented 4 and 2.5
-    // as such cutoffs and prescribed launch/messaging advice from them —
-    // that is fabricated scoring methodology (Benchmark §12/§22
-    // prohibition on inventing thresholds), not a Benchmark requirement.
-    // BLOCKED — BENCHMARK DOES NOT SPECIFY THE REQUIRED RECOMMENDATION
-    // METHODOLOGY. The category is still populated honestly rather than
-    // left silently empty:
-    recommendations.push(
-      "No Benchmark-defined threshold exists for turning purchase intent or satisfaction averages into a specific recommendation — review the reported figures and sample size directly."
-    );
   }
 
   // Decision 2 (forensic audit 2026-09-15): promote already-persisted
@@ -184,6 +252,13 @@ export async function buildReport(campaignId: string) {
   // previously produced findings limited to the two lines above.
   findings.push(...buildChoiceFindings(questionAggregates));
   findings.push(...buildTextFindings(textQuestionCounts));
+
+  // G1-B (forensic closure pass): recommendations are computed
+  // separately from findings, using the exact same underlying evidence —
+  // see buildRecommendations() above for the full methodology and its
+  // fixed emission order (zero-data -> joint PI/rating (or whichever
+  // alone exists) -> choice -> text).
+  const recommendations = buildRecommendations(evidence.level, purchaseIntent, satisfaction, questionAggregates, textQuestionCounts);
 
   return {
     campaign: {

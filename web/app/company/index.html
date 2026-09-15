@@ -539,8 +539,14 @@ function renderTemplateApplyRow() {
   if (!tpl) { row.classList.add('hidden'); row.innerHTML = ''; return; }
   row.classList.remove('hidden');
   row.className = 'msg';
+  // GET /company/study-templates intentionally returns `questionCount`
+  // (a number), not the full `questions` array — the catalog listing
+  // doesn't need each template's full question bodies, only apply-template
+  // does, and that's a POST with the full server-side catalog behind it.
+  // Reading `tpl.questions.length` here (an earlier version's bug) throws
+  // because `tpl.questions` is undefined on this response shape.
   row.innerHTML = '<strong>' + esc(tpl.label) + '</strong> — ' + esc(tpl.decision) +
-    ' <button class="small secondary" id="btn-apply-template" style="margin-left:8px;">Apply recommended questions (' + tpl.questions.length + ')</button>';
+    ' <button class="small secondary" id="btn-apply-template" style="margin-left:8px;">Apply recommended questions (' + tpl.questionCount + ')</button>';
   document.getElementById('btn-apply-template').onclick = async () => {
     try {
       const result = await api('/company/campaigns/' + currentCampaignId + '/questions/apply-template', { method: 'POST', body: { templateKey: tpl.key } });

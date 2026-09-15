@@ -43,6 +43,13 @@ Under that authorization, this decision adds one capability: a small, static **"
 
 Drawn from Kantar, Ipsos, Qualtrics, NielsenIQ and IQVIA sources researched in this product pass — see the accompanying handoff for full citations. Summary: professional consumer-intelligence study types (Concept Testing, Product/Sensory Testing, Packaging/Claims Testing, Usage & Attitude, Post-Trial Experience) differ from a generic survey tool by connecting evidence to a specific brand decision, and a platform that pre-populates the right questions for a stated decision is a defensible differentiator for companies without in-house research expertise — without needing separate software per sector.
 
+**Content additions (product-value pass, 2026-09-15):** three question-content gaps were identified against this same research and closed, all within the existing five-question-type/two-stage model, none adding a second `RATING_1_5` or `PURCHASE_INTENT_1_5` to any template (the §4 constraint above):
+- Beauty & Personal Care and Home Care Post-Trial templates gained the same "Would you buy this again?" repurchase-intent question the Food & Beverage template already had — research treats repurchase intent as distinct evidence from a single point-in-time purchase-intent score, and there was no reason the two sector variants should carry less evidence than the third.
+- Concept/Launch Viability gained a "How different is this product from what you can already buy?" question — concept-testing sources (Qualtrics; see handoff) treat uniqueness/differentiation as core evidence alongside appeal and purchase intent; this template had no `RATING_1_5` question at all, so nothing was displaced.
+- Packaging & Claims Reaction gained a purchase-intent question — packaging research (Ipsos, Zappi; see handoff) ties pack/claim reaction to purchase intent as the outcome metric, not comprehension/believability alone; this template had no `PURCHASE_INTENT_1_5` question at all, so nothing was displaced.
+
+A candidate "value/price perception" question (also research-supported) was explicitly **not** added: the Campaign/Product data model carries no price field and the consumer journey never shows a price, so a price-perception question would have no evidence anchor — this is recorded as a Product Decision Required (whether to add a price field to `Product`), not silently worked around with a weak question.
+
 ## 6. Reversibility
 
 Purely additive: one nullable schema column, two new thin routes, and optional UI affordances. Removing this decision requires no data migration for any campaign that never set `studyType`.

@@ -471,8 +471,8 @@ async function loadOpsReport() {
     '<h3 style="font-size:0.95rem;">Demographics</h3><p>Sample size: ' + r.demographics.sampleSize + ', average age: ' + (r.demographics.averageAge ?? '—') + '<br/>' +
     'Gender: ' + breakdownLine(r.demographics.genderBreakdown) + '<br/>' +
     'City: ' + breakdownLine(r.demographics.cityBreakdown) + '</p>' +
-    '<h3 style="font-size:0.95rem;">Purchase intent</h3><p>' + (r.purchaseIntent.averageScore ?? '—') + ' / 5 (' + r.purchaseIntent.responses + ' responses)</p>' +
-    '<h3 style="font-size:0.95rem;">Satisfaction</h3><p>' + (r.satisfaction.averageScore ?? '—') + ' / 5 (' + r.satisfaction.responses + ' responses)</p>' +
+    '<h3 style="font-size:0.95rem;">Purchase intent</h3>' + (r.purchaseIntent.questionText ? '<p style="color:var(--muted);font-size:0.85rem;margin-bottom:2px;">' + esc(r.purchaseIntent.questionText) + '</p>' : '') + '<p>' + (r.purchaseIntent.averageScore ?? '—') + ' / 5 (' + r.purchaseIntent.responses + ' responses)</p>' +
+    '<h3 style="font-size:0.95rem;">Satisfaction</h3>' + (r.satisfaction.questionText ? '<p style="color:var(--muted);font-size:0.85rem;margin-bottom:2px;">' + esc(r.satisfaction.questionText) + '</p>' : '') + '<p>' + (r.satisfaction.averageScore ?? '—') + ' / 5 (' + r.satisfaction.responses + ' responses)</p>' +
     '<h3 style="font-size:0.95rem;">Campaign-specific questions</h3>' +
     (r.campaignSpecificQuestions.length ? r.campaignSpecificQuestions.map(q => '<p><strong>' + esc(q.text) + '</strong> (' + q.responses + ' responses)<br/>' + q.breakdown.map(b => esc(b.label) + ': ' + b.count).join(' · ') + '</p>').join('') : '<p style="color:var(--muted)">No choice-question responses yet.</p>') +
     '<h3 style="font-size:0.95rem;">Consumer voice</h3>' +

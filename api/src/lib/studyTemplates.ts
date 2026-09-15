@@ -70,6 +70,13 @@ export const STUDY_TEMPLATES: StudyTemplate[] = [
       { stage: "POST_TRIAL", type: "RATING_1_5", text: "How would you rate the product's texture, feel and scent overall?" },
       { stage: "POST_TRIAL", type: "PURCHASE_INTENT_1_5", text: "How likely are you to purchase this product if available at your usual store?" },
       { stage: "POST_TRIAL", type: "SINGLE_CHOICE", text: "Did the product perform as you expected?", options: [{ id: "opt0", label: "Yes" }, { id: "opt1", label: "No" }, { id: "opt2", label: "Somewhat" }] },
+      // Repurchase intent, added for parity with Food & Beverage —
+      // research consistently treats "would you buy this again" as a
+      // distinct evidence point from a single point-in-time purchase-
+      // intent score (see founder-decision record §5 for sourcing).
+      // SINGLE_CHOICE, not a second PURCHASE_INTENT_1_5 — the campaign
+      // already has one; adding a second would corrupt its aggregate.
+      { stage: "POST_TRIAL", type: "SINGLE_CHOICE", text: "Would you buy this again?", options: [{ id: "opt0", label: "Yes" }, { id: "opt1", label: "No" }, { id: "opt2", label: "Not sure" }] },
       { stage: "POST_TRIAL", type: "TEXT", text: "What did you like or dislike about the product?" },
     ],
   },
@@ -81,6 +88,8 @@ export const STUDY_TEMPLATES: StudyTemplate[] = [
       { stage: "POST_TRIAL", type: "RATING_1_5", text: "How would you rate the product's effectiveness?" },
       { stage: "POST_TRIAL", type: "PURCHASE_INTENT_1_5", text: "How likely are you to purchase this product if available at your usual store?" },
       { stage: "POST_TRIAL", type: "SINGLE_CHOICE", text: "How easy was the product to use?", options: [{ id: "opt0", label: "Very easy" }, { id: "opt1", label: "Easy" }, { id: "opt2", label: "Neutral" }, { id: "opt3", label: "Difficult" }, { id: "opt4", label: "Very difficult" }] },
+      // Repurchase intent — same rationale as the Beauty template above.
+      { stage: "POST_TRIAL", type: "SINGLE_CHOICE", text: "Would you buy this again?", options: [{ id: "opt0", label: "Yes" }, { id: "opt1", label: "No" }, { id: "opt2", label: "Not sure" }] },
       { stage: "POST_TRIAL", type: "TEXT", text: "What did you like or dislike about the product?" },
     ],
   },
@@ -91,6 +100,12 @@ export const STUDY_TEMPLATES: StudyTemplate[] = [
     questions: [
       { stage: "ELIGIBILITY", type: "SINGLE_CHOICE", text: "Do you regularly purchase products in this category?", options: yesNo() },
       { stage: "POST_TRIAL", type: "SINGLE_CHOICE", text: "Is this product appealing to you?", options: [{ id: "opt0", label: "Very appealing" }, { id: "opt1", label: "Somewhat appealing" }, { id: "opt2", label: "Not appealing" }] },
+      // Uniqueness/differentiation — concept-testing research treats this
+      // as core evidence alongside appeal and purchase intent (a concept
+      // can be liked yet redundant with what a consumer already buys).
+      // This template previously had no RATING_1_5 question at all, so
+      // adding one here creates no aggregation conflict.
+      { stage: "POST_TRIAL", type: "RATING_1_5", text: "How different is this product from what you can already buy?" },
       { stage: "POST_TRIAL", type: "PURCHASE_INTENT_1_5", text: "How likely are you to purchase this product if available at your usual store?" },
       { stage: "POST_TRIAL", type: "TEXT", text: "What would make this product more appealing to you?" },
     ],
@@ -102,6 +117,13 @@ export const STUDY_TEMPLATES: StudyTemplate[] = [
     questions: [
       { stage: "POST_TRIAL", type: "SINGLE_CHOICE", text: "Was the product's main benefit clear from the packaging?", options: [{ id: "opt0", label: "Yes" }, { id: "opt1", label: "No" }, { id: "opt2", label: "Not sure" }] },
       { stage: "POST_TRIAL", type: "RATING_1_5", text: "How believable is the product's main claim?" },
+      // Purchase intent — packaging/claims research (Ipsos, Zappi;
+      // see founder-decision record) consistently ties pack/claim
+      // reaction to purchase intent as the outcome metric, not just
+      // comprehension/believability in isolation. This template
+      // previously had no PURCHASE_INTENT_1_5 question, so adding one
+      // here creates no aggregation conflict.
+      { stage: "POST_TRIAL", type: "PURCHASE_INTENT_1_5", text: "How likely are you to purchase this product if available at your usual store?" },
       { stage: "POST_TRIAL", type: "TEXT", text: "What message or benefit stood out most on the packaging?" },
     ],
   },

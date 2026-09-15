@@ -65,6 +65,30 @@ export interface PurchaseIntentSummary {
   responses: number;
   averageScore: number | null;
   distribution: Record<string, number>; // "1".."5" -> count
+  questionText: string | null;
+}
+
+// questionText: the Study-Type Intelligence layer (FOUNDER-APPROVED
+// STRATEGIC DIFFERENTIATION — see governance/FOUNDER_DECISION_STRATEGIC_
+// DIFFERENTIATION.md) deliberately creates RATING_1_5 questions that are
+// not literally "satisfaction" for every study type (e.g. Concept/Launch
+// Viability's "How different is this product from what you can already
+// buy?", Packaging & Claims Reaction's claim-believability question).
+// Labeling every such figure "Satisfaction" without showing what was
+// actually asked would misrepresent the evidence — exactly what
+// Benchmark §6 ("evidence must be separated from interpretation") warns
+// against. Since campaign-wide aggregation only stays meaningful with at
+// most one question of this type per campaign (see the apply-template
+// guard in company.ts), the underlying question text can be shown
+// unambiguously whenever exactly one exists; if a company has manually
+// added more than one (the single-question POST route carries no such
+// guard), there is no single text to attribute the blended average to, so
+// this stays null and the UI falls back to its existing generic label —
+// no new methodology, just honest labeling of what already exists.
+async function singleQuestionText(campaignId: string, type: string): Promise<string | null> {
+  const questions = await prisma.question.findMany({ where: { campaignId, type }, select: { text: true } });
+  const distinct = Array.from(new Set(questions.map((q) => q.text)));
+  return distinct.length === 1 ? distinct[0] : null;
 }
 
 export async function getPurchaseIntent(campaignId: string): Promise<PurchaseIntentSummary> {
@@ -86,6 +110,7 @@ export async function getPurchaseIntent(campaignId: string): Promise<PurchaseInt
     responses: answers.length,
     averageScore: answers.length ? Number((sum / answers.length).toFixed(2)) : null,
     distribution,
+    questionText: await singleQuestionText(campaignId, "PURCHASE_INTENT_1_5"),
   };
 }
 
@@ -101,6 +126,7 @@ export async function getSatisfaction(campaignId: string) {
   return {
     responses: answers.length,
     averageScore: answers.length ? Number((sum / answers.length).toFixed(2)) : null,
+    questionText: await singleQuestionText(campaignId, "RATING_1_5"),
   };
 }
 

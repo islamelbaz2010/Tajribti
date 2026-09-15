@@ -464,6 +464,27 @@ async function openCampaign(id) {
   document.getElementById('s-gender').value = c.audienceGender || 'ANY';
   document.getElementById('s-city').value = c.audienceCity || '';
 
+  // UI/UX lock fix: PATCH /company/campaigns/:id has always correctly
+  // rejected edits once a campaign leaves DRAFT/READY (assertConfigurable
+  // in api/src/routes/company.ts — verified: 409, zero DB change) and the
+  // Setup form has always correctly surfaced that rejection's error
+  // message on Save. What was missing is any visual indication *before*
+  // the attempt — every field rendered as a normal, enabled input for an
+  // ACTIVE/PAUSED/COMPLETED campaign, indistinguishable from an editable
+  // DRAFT/READY one. This only toggles `disabled` on the same fields and
+  // hides Save; it does not change what the backend already enforces.
+  const setupLocked = c.status !== 'DRAFT' && c.status !== 'READY';
+  ['s-name', 's-objective', 's-start', 's-end', 's-product', 's-studytype', 's-agemin', 's-agemax', 's-gender', 's-city']
+    .forEach(id => { document.getElementById(id).disabled = setupLocked; });
+  document.getElementById('btn-save-setup').classList.toggle('hidden', setupLocked);
+  const setupMsg = document.getElementById('setup-msg');
+  if (setupLocked) {
+    setupMsg.textContent = 'Configuration is locked once launched — view only.';
+    setupMsg.className = 'msg';
+  } else {
+    setupMsg.textContent = ''; setupMsg.className = 'msg';
+  }
+
   const actions = document.getElementById('cd-actions');
   actions.innerHTML = '';
   if (c.status === 'DRAFT') {

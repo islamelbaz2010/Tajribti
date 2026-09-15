@@ -1,0 +1,7 @@
+{
+  "name": "tajribti-benchmark-clean",
+  "private": true,
+  "workspaces": [
+    "api"
+  ]
+}

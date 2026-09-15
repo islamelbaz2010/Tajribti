@@ -1,0 +1,331 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../core/api_client.dart';
+import '../core/auth_service.dart';
+import '../core/constants.dart';
+import '../core/l10n.dart';
+import '../widgets/lang_toggle.dart';
+
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  // Mobile Recovery + Current-Backend Alignment (2026-09-15): no consumer
+  // profile endpoint exists on the current backend, and Consumer identity
+  // has no email/points concept at all — name/phone are the values cached
+  // locally at the last successful OTP verify (AuthService.saveSession);
+  // participation count comes from the real GET /consumer/participations.
+  String? _name;
+  String? _phone;
+  int _campaignCount = 0;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final loggedIn = await AuthService.isLoggedIn();
+    if (!mounted) return;
+    if (!loggedIn) {
+      context.go('/home');
+      return;
+    }
+    setState(() { _loading = true; _error = null; });
+    try {
+      final name = await AuthService.getName();
+      final phone = await AuthService.getPhone();
+      final participations = await apiClient.getParticipations();
+      if (mounted) {
+        setState(() {
+          _name = name;
+          _phone = phone;
+          _campaignCount = participations.length;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() { _error = 'load_fail'; _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.l10n;
+    return Directionality(
+      textDirection: context.dir,
+      child: Scaffold(
+        backgroundColor: kBackground,
+        appBar: AppBar(
+          backgroundColor: kPrimary,
+          elevation: 0,
+          title: Text(
+            s.profileTitle,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+          ),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
+          ),
+          actions: const [
+            Padding(
+              padding: EdgeInsets.only(right: 12),
+              child: Center(child: LangToggle(light: true)),
+            ),
+          ],
+        ),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator(color: kPrimary))
+            : _error != null
+                ? _ProfileErrorState(onRetry: _load, s: s)
+                : _ProfileBody(name: _name, phone: _phone ?? '', campaignCount: _campaignCount, s: s),
+      ),
+    );
+  }
+}
+
+class _ProfileBody extends StatelessWidget {
+  final String? name;
+  final String phone;
+  final int campaignCount;
+  final AppStr s;
+  const _ProfileBody({required this.name, required this.phone, required this.campaignCount, required this.s});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          // ── Profile Header ──────────────────────────────────────────────
+          // Consumer Visual System (2026-09-02): was a full-bleed dark navy
+          // gradient block — the exact "dark profile" inconsistency this
+          // pass's visual-consistency review named, next to Settings'
+          // all-light body using the same kBackground Scaffold. Converted
+          // to a light, premium card matching the target hierarchy
+          // (surface white, primary text deep navy, brand accent used only
+          // as a restrained ring around the avatar) instead of a dark hero.
+          Container(
+            width: double.infinity,
+            color: kBackground,
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+            child: Column(
+              children: [
+                Container(
+                  width: 88,
+                  height: 88,
+                  decoration: BoxDecoration(
+                    color: kSurface,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: kBrand, width: 3),
+                    boxShadow: [
+                      BoxShadow(color: kCardShadow, blurRadius: 12, offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: const Icon(Icons.person_rounded, color: kPrimary, size: 44),
+                ),
+                const SizedBox(height: 16),
+                if (name != null && name!.isNotEmpty)
+                  Text(
+                    name!,
+                    style: const TextStyle(
+                      color: kPrimary,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                const SizedBox(height: 6),
+                Text(
+                  phone,
+                  style: TextStyle(
+                    color: kPrimary.withOpacity(0.45),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _StatBadge(
+                      icon: Icons.check_circle_rounded,
+                      value: '$campaignCount',
+                      label: s.campaignsLabel,
+                      iconColor: kSuccess,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // ── Menu Tiles ──────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                _ProfileTile(
+                  icon: Icons.history_rounded,
+                  label: s.myActivityFull,
+                  onTap: () => context.push('/activity'),
+                ),
+                const SizedBox(height: 12),
+                _ProfileTile(
+                  icon: Icons.settings_rounded,
+                  label: s.settingsTitle,
+                  onTap: () => context.push('/settings'),
+                ),
+                const SizedBox(height: 12),
+                _ProfileTile(
+                  icon: Icons.info_outline_rounded,
+                  label: s.servicesTitle,
+                  onTap: () => context.push('/services'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatBadge extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color iconColor;
+  const _StatBadge({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.iconColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: kCardShadow, blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: iconColor, size: 22),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              color: kPrimary,
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              color: kPrimary.withOpacity(0.55),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _ProfileTile({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      shadowColor: kCardShadow,
+      elevation: 2,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: kPrimary.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: kPrimary, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: kPrimary,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: Colors.grey.shade300,
+                size: 22,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileErrorState extends StatelessWidget {
+  final VoidCallback onRetry;
+  final AppStr s;
+  const _ProfileErrorState({required this.onRetry, required this.s});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.wifi_off_rounded, size: 48, color: kAccent),
+            const SizedBox(height: 16),
+            Text(s.loadError, style: const TextStyle(color: kAccent, fontSize: 16)),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: onRetry,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kBrand,
+                foregroundColor: kPrimary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              child: Text(s.retry),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

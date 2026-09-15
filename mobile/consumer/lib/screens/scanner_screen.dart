@@ -1,0 +1,234 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import '../core/api_client.dart';
+import '../core/constants.dart';
+import '../core/l10n.dart';
+import '../core/session.dart';
+import '../widgets/lang_toggle.dart';
+
+class ScannerScreen extends StatefulWidget {
+  // When set, the scanner is being used as the Campaign-participation
+  // verification step (Campaign Detail -> Start Trial -> Scan Campaign QR):
+  // a scanned code is only accepted if it resolves to this exact campaign,
+  // and a match pops back `true` to the caller instead of navigating to
+  // Campaign Detail. When null, the scanner keeps its original
+  // discovery-shortcut behavior (scan any campaign's QR to jump straight
+  // to its Campaign Detail page).
+  final String? verifyCampaignId;
+  const ScannerScreen({super.key, this.verifyCampaignId});
+
+  @override
+  State<ScannerScreen> createState() => _ScannerScreenState();
+}
+
+class _ScannerScreenState extends State<ScannerScreen> {
+  final _controller = MobileScannerController();
+  bool _processing = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  // Mobile Recovery + Current-Backend Alignment (2026-09-15): the current
+  // backend's QR model is a short, opaque QrSource.code resolved via
+  // GET /consumer/qr/:code -> { campaignId, sourceId, sourceLabel }
+  // (see api/src/routes/consumer.ts) — not a campaign UUID embedded
+  // directly in the QR content. The physical QR encodes a URL the
+  // released web Consumer app already reads as `?qr=<code>` (see
+  // web/app/consumer/index.html); a bare code (no URL) is also accepted
+  // so a plain printed code still works.
+  String? _parseQrCode(String raw) {
+    final trimmed = raw.trim();
+    try {
+      final uri = Uri.parse(trimmed);
+      final fromQuery = uri.queryParameters['qr'];
+      if (fromQuery != null && fromQuery.isNotEmpty) return fromQuery;
+    } catch (_) {
+      // Not a parseable URI — fall through to treating it as a bare code.
+    }
+    if (trimmed.isEmpty || trimmed.contains(' ')) return null;
+    return trimmed;
+  }
+
+  Future<void> _onDetect(BarcodeCapture capture) async {
+    if (_processing) return;
+    final barcode = capture.barcodes.firstOrNull;
+    if (barcode?.rawValue == null) return;
+
+    setState(() => _processing = true);
+    await _controller.stop();
+
+    final raw = barcode!.rawValue!;
+    final code = _parseQrCode(raw);
+
+    if (code == null) {
+      await _fail(context.l10n.scanError);
+      return;
+    }
+
+    QrResolution resolution;
+    try {
+      resolution = await apiClient.resolveQrCode(code);
+    } on DioException {
+      await _fail(context.l10n.scanError);
+      return;
+    }
+
+    if (widget.verifyCampaignId != null) {
+      if (resolution.campaignId != widget.verifyCampaignId) {
+        await _fail(context.l10n.scanCampaignMismatch);
+        return;
+      }
+      if (!mounted) return;
+      context.pop(true);
+      return;
+    }
+
+    JourneySession.start(resolution.campaignId, qrSourceId: resolution.sourceId);
+    if (!mounted) return;
+    context.push('/campaign');
+  }
+
+  Future<void> _fail(String message) async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: kAccent,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    setState(() => _processing = false);
+    await _controller.start();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.l10n;
+    return Directionality(
+      textDirection: context.dir,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: Text(
+            s.scanTitle,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          ),
+          leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+              onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
+            ),
+          actions: const [
+            Padding(
+              padding: EdgeInsets.only(right: 12),
+              child: Center(child: LangToggle(light: true)),
+            ),
+          ],
+        ),
+        body: Stack(
+          children: [
+            MobileScanner(controller: _controller, onDetect: _onDetect),
+
+            Center(
+              child: Container(
+                width: 260,
+                height: 260,
+                decoration: BoxDecoration(
+                  border: Border.all(color: kAccent, width: 3),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kAccent.withOpacity(0.3),
+                      blurRadius: 24,
+                      spreadRadius: -4,
+                    ),
+                  ],
+                ),
+                child: const _CornerDecorations(),
+              ),
+            ),
+
+            Positioned(
+              bottom: 72,
+              left: 0,
+              right: 0,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 32),
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      s.scanHint,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      s.scanSub,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white.withOpacity(0.65), fontSize: 13, height: 1.4),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            if (_processing)
+              Container(
+                color: Colors.black54,
+                child: const Center(child: CircularProgressIndicator(color: kAccent)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CornerDecorations extends StatelessWidget {
+  const _CornerDecorations();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned(top: 0, right: 0, child: _Corner(top: true, right: true)),
+        Positioned(top: 0, left: 0, child: _Corner(top: true, right: false)),
+        Positioned(bottom: 0, right: 0, child: _Corner(top: false, right: true)),
+        Positioned(bottom: 0, left: 0, child: _Corner(top: false, right: false)),
+      ],
+    );
+  }
+}
+
+class _Corner extends StatelessWidget {
+  final bool top;
+  final bool right;
+  const _Corner({required this.top, required this.right});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(
+        border: Border(
+          top: top ? const BorderSide(color: Colors.white, width: 3) : BorderSide.none,
+          bottom: !top ? const BorderSide(color: Colors.white, width: 3) : BorderSide.none,
+          right: right ? const BorderSide(color: Colors.white, width: 3) : BorderSide.none,
+          left: !right ? const BorderSide(color: Colors.white, width: 3) : BorderSide.none,
+        ),
+      ),
+    );
+  }
+}

@@ -330,12 +330,21 @@ async function loadParticipants() {
 
 function metric(n, label) { return '<div class="metric"><div class="metric-num">' + n + '</div><div class="metric-label">' + label + '</div></div>'; }
 
+// GET /ops/campaigns/:id/live already returns `sources` (Benchmark §3
+// "QR/journey source is operationally visible where applicable"; §4
+// OPERATIONS "Live Monitoring") — the Company Live Results view already
+// renders it, this view previously did not. No new backend query is
+// added; this only surfaces an already-computed field.
 async function loadLive() {
   const data = await api('/ops/campaigns/' + currentCampaignId + '/live');
   document.getElementById('live-content').innerHTML =
     '<div class="metrics-row">' + metric(data.funnel.entered, 'Entered') + metric(data.funnel.eligible, 'Eligible') +
     metric(data.funnel.trialRedeemed, 'Trial redeemed') + metric(data.funnel.surveyComplete, 'Survey complete') + '</div>' +
-    '<p>Purchase intent avg: ' + (data.purchaseIntent.averageScore ?? '—') + '/5 · Satisfaction avg: ' + (data.satisfaction.averageScore ?? '—') + '/5</p>';
+    '<p>Purchase intent avg: ' + (data.purchaseIntent.averageScore ?? '—') + '/5 · Satisfaction avg: ' + (data.satisfaction.averageScore ?? '—') + '/5</p>' +
+    '<h3 style="font-size:0.95rem;">Sources</h3>' +
+    (data.sources.length ? '<table><tr><th>Source</th><th>Entered</th><th>Trial redeemed</th><th>Survey complete</th></tr>' +
+      data.sources.map(s => '<tr><td>' + esc(s.label) + '</td><td>' + s.entered + '</td><td>' + s.trialRedeemed + '</td><td>' + s.surveyComplete + '</td></tr>').join('') + '</table>'
+      : '<p style="color:var(--muted)">No QR/sources configured for this campaign.</p>');
 }
 
 async function loadIssues() {
@@ -365,20 +374,60 @@ async function loadSurveyOps() {
     (data.aggregates.length ? data.aggregates.map(a => '<p><strong>' + esc(a.text) + '</strong> (' + a.responses + ' responses)<br/>' + a.breakdown.map(b => esc(b.label) + ': ' + b.count).join(' · ') + '</p>').join('') : '<p style="color:var(--muted)">No choice-question responses yet.</p>');
 }
 
+// GET /ops/campaigns/:id/insights already returns `questionAggregates`
+// (Benchmark §7 "campaign-specific questions") — the Company Insights
+// view already renders it, this view previously did not. No new
+// backend query is added; this only surfaces an already-computed field.
 async function loadOpsInsights() {
   const data = await api('/ops/campaigns/' + currentCampaignId + '/insights');
   document.getElementById('ops-insights-content').innerHTML =
     '<p style="color:var(--muted);font-size:0.85rem;">Evidence level: <strong>' + data.evidence.level + '</strong> (n=' + data.evidence.sampleSize + ')</p>' +
     '<p>Purchase intent: ' + (data.purchaseIntent.averageScore ?? '—') + '/5 · Satisfaction: ' + (data.satisfaction.averageScore ?? '—') + '/5</p>' +
+    '<h3 style="font-size:0.95rem;">Campaign-specific questions</h3>' +
+    (data.questionAggregates.length ? data.questionAggregates.map(q => '<p><strong>' + esc(q.text) + '</strong> (' + q.responses + ' responses)<br/>' + q.breakdown.map(b => esc(b.label) + ': ' + b.count).join(' · ') + '</p>').join('') : '<p style="color:var(--muted)">No choice-question responses yet.</p>') +
     '<h3 style="font-size:0.95rem;">Consumer voice</h3>' +
     (data.verbatims.length ? data.verbatims.map(v => '<div class="verbatim">"' + esc(v.response) + '"</div>').join('') : '<p style="color:var(--muted)">No verbatims yet.</p>');
+}
+
+// Renders every category buildReport() (api/src/lib/report.ts) returns.
+// Benchmark §7 "Required evidence categories" plus §3 source-attribution
+// visibility — see the matching comment in web/app/company/index.html's
+// loadReport(). Campaign objective/product/dates are already shown in
+// this console's Config tab, so they are not repeated here; everything
+// else the endpoint computes (evidence, funnel, sources, demographics,
+// purchase intent, satisfaction, campaign-specific questions, consumer
+// voice) was previously invisible in this tab and is wired in now — no
+// new backend computation or methodology is introduced.
+function breakdownLine(counts) {
+  const keys = Object.keys(counts);
+  return keys.length ? keys.map(k => esc(k) + ': ' + counts[k]).join(' · ') : '—';
 }
 
 async function loadOpsReport() {
   const r = await api('/ops/campaigns/' + currentCampaignId + '/report');
   document.getElementById('ops-report-content').innerHTML =
+    '<p style="color:var(--muted);font-size:0.85rem;">Generated ' + new Date(r.generatedAt).toLocaleString() + ' · Evidence level: <strong>' + r.evidence.level + '</strong> (sample size ' + r.evidence.sampleSize + ')</p>' +
+    '<h3 style="font-size:0.95rem;">Participant / trial metrics</h3>' +
+    '<div class="metrics-row">' +
+    metric(r.funnel.entered, 'Entered') + metric(r.funnel.eligible, 'Eligible') +
+    metric(r.funnel.trialRedeemed, 'Trial redeemed') + metric(r.funnel.surveyComplete, 'Survey complete') +
+    '</div>' +
+    '<h3 style="font-size:0.95rem;">Sources</h3>' +
+    (r.sources.length ? '<table><tr><th>Source</th><th>Entered</th><th>Trial redeemed</th><th>Survey complete</th></tr>' +
+      r.sources.map(s => '<tr><td>' + esc(s.label) + '</td><td>' + s.entered + '</td><td>' + s.trialRedeemed + '</td><td>' + s.surveyComplete + '</td></tr>').join('') + '</table>'
+      : '<p style="color:var(--muted)">No QR/sources configured for this campaign.</p>') +
+    '<h3 style="font-size:0.95rem;">Demographics</h3><p>Sample size: ' + r.demographics.sampleSize + ', average age: ' + (r.demographics.averageAge ?? '—') + '<br/>' +
+    'Gender: ' + breakdownLine(r.demographics.genderBreakdown) + '<br/>' +
+    'City: ' + breakdownLine(r.demographics.cityBreakdown) + '</p>' +
+    '<h3 style="font-size:0.95rem;">Purchase intent</h3><p>' + (r.purchaseIntent.averageScore ?? '—') + ' / 5 (' + r.purchaseIntent.responses + ' responses)</p>' +
+    '<h3 style="font-size:0.95rem;">Satisfaction</h3><p>' + (r.satisfaction.averageScore ?? '—') + ' / 5 (' + r.satisfaction.responses + ' responses)</p>' +
+    '<h3 style="font-size:0.95rem;">Campaign-specific questions</h3>' +
+    (r.campaignSpecificQuestions.length ? r.campaignSpecificQuestions.map(q => '<p><strong>' + esc(q.text) + '</strong> (' + q.responses + ' responses)<br/>' + q.breakdown.map(b => esc(b.label) + ': ' + b.count).join(' · ') + '</p>').join('') : '<p style="color:var(--muted)">No choice-question responses yet.</p>') +
+    '<h3 style="font-size:0.95rem;">Consumer voice</h3>' +
+    (r.consumerVoice.length ? r.consumerVoice.map(v => '<div class="verbatim">"' + esc(v.response) + '"<br/><span style="color:var(--muted);font-size:0.78rem;">' + esc(v.question) + '</span></div>').join('') : '<p style="color:var(--muted)">No open-text responses yet.</p>') +
     '<h3 style="font-size:0.95rem;">Findings</h3><ul>' + r.findings.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul>' +
     '<h3 style="font-size:0.95rem;">Recommendations</h3><ul>' + (r.recommendations.length ? r.recommendations.map(f => '<li>' + esc(f) + '</li>').join('') : '<li>None yet.</li>') + '</ul>' +
+    '<h3 style="font-size:0.95rem;">Methodology</h3><p style="color:var(--muted);font-size:0.85rem;">' + esc(r.methodology) + '</p>' +
     '<h3 style="font-size:0.95rem;">Limitations</h3><ul>' + r.limitations.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>';
 }
 

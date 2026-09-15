@@ -480,13 +480,52 @@ async function loadInsights() {
     (data.verbatims.length ? data.verbatims.map(v => '<div class="verbatim">"' + esc(v.response) + '"<br/><span style="color:var(--muted);font-size:0.78rem;">' + esc(v.question) + '</span></div>').join('') : '<p style="color:var(--muted)">No open-text responses yet.</p>');
 }
 
+// Renders every category buildReport() (api/src/lib/report.ts) returns.
+// Benchmark §7 "Required evidence categories" lists campaign identity,
+// product, dates, participant/trial metrics, sample size, demographics,
+// product/experience feedback, purchase intent, campaign-specific
+// questions, consumer verbatims, findings, recommendations, methodology
+// and limitations; §3 additionally requires source/channel performance
+// to be operationally visible. The backend already computes all of
+// these for this exact endpoint — this function previously rendered
+// only a subset (findings, recommendations, a partial demographics line,
+// methodology, limitations), leaving the rest of the already-authorized,
+// already-computed report data invisible to the company. No new
+// backend computation or methodology is introduced here; this only
+// wires existing fields into the one display surface built for them.
+function breakdownLine(counts) {
+  const keys = Object.keys(counts);
+  return keys.length ? keys.map(k => esc(k) + ': ' + counts[k]).join(' · ') : '—';
+}
+
 async function loadReport() {
   const r = await api('/company/campaigns/' + currentCampaignId + '/report');
   document.getElementById('report-content').innerHTML =
-    '<p style="color:var(--muted);font-size:0.85rem;">Generated ' + new Date(r.generatedAt).toLocaleString() + '</p>' +
+    '<p style="color:var(--muted);font-size:0.85rem;">Generated ' + new Date(r.generatedAt).toLocaleString() + ' · Evidence level: <strong>' + r.evidence.level + '</strong> (sample size ' + r.evidence.sampleSize + ')</p>' +
+    '<h3 style="font-size:0.95rem;">Campaign</h3><p>' + esc(r.campaign.name) + ' — ' + esc(r.campaign.objective) + '<br/>' +
+    'Product: ' + (r.campaign.product ? esc(r.campaign.product) : 'No product linked') + '<br/>' +
+    'Dates: ' + new Date(r.campaign.startDate).toLocaleDateString() + ' – ' + new Date(r.campaign.endDate).toLocaleDateString() + '<br/>' +
+    'Status: ' + esc(r.campaign.status) + '</p>' +
+    '<h3 style="font-size:0.95rem;">Participant / trial metrics</h3>' +
+    '<div class="metrics-row">' +
+    metric(r.funnel.entered, 'Entered') + metric(r.funnel.eligible, 'Eligible') +
+    metric(r.funnel.trialRedeemed, 'Trial redeemed') + metric(r.funnel.surveyComplete, 'Survey complete') +
+    '</div>' +
+    '<h3 style="font-size:0.95rem;">Sources</h3>' +
+    (r.sources.length ? '<table><tr><th>Source</th><th>Entered</th><th>Trial redeemed</th><th>Survey complete</th></tr>' +
+      r.sources.map(s => '<tr><td>' + esc(s.label) + '</td><td>' + s.entered + '</td><td>' + s.trialRedeemed + '</td><td>' + s.surveyComplete + '</td></tr>').join('') + '</table>'
+      : '<p style="color:var(--muted)">No QR/sources configured for this campaign.</p>') +
+    '<h3 style="font-size:0.95rem;">Demographics</h3><p>Sample size: ' + r.demographics.sampleSize + ', average age: ' + (r.demographics.averageAge ?? '—') + '<br/>' +
+    'Gender: ' + breakdownLine(r.demographics.genderBreakdown) + '<br/>' +
+    'City: ' + breakdownLine(r.demographics.cityBreakdown) + '</p>' +
+    '<h3 style="font-size:0.95rem;">Purchase intent</h3><p>' + (r.purchaseIntent.averageScore ?? '—') + ' / 5 (' + r.purchaseIntent.responses + ' responses)</p>' +
+    '<h3 style="font-size:0.95rem;">Satisfaction</h3><p>' + (r.satisfaction.averageScore ?? '—') + ' / 5 (' + r.satisfaction.responses + ' responses)</p>' +
+    '<h3 style="font-size:0.95rem;">Campaign-specific questions</h3>' +
+    (r.campaignSpecificQuestions.length ? r.campaignSpecificQuestions.map(q => '<p><strong>' + esc(q.text) + '</strong> (' + q.responses + ' responses)<br/>' + q.breakdown.map(b => esc(b.label) + ': ' + b.count).join(' · ') + '</p>').join('') : '<p style="color:var(--muted)">No choice-question responses yet.</p>') +
+    '<h3 style="font-size:0.95rem;">Consumer voice</h3>' +
+    (r.consumerVoice.length ? r.consumerVoice.map(v => '<div class="verbatim">"' + esc(v.response) + '"<br/><span style="color:var(--muted);font-size:0.78rem;">' + esc(v.question) + '</span></div>').join('') : '<p style="color:var(--muted)">No open-text responses yet.</p>') +
     '<h3 style="font-size:0.95rem;">Findings</h3><ul>' + r.findings.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul>' +
     '<h3 style="font-size:0.95rem;">Recommendations</h3><ul>' + (r.recommendations.length ? r.recommendations.map(f => '<li>' + esc(f) + '</li>').join('') : '<li>None yet — insufficient evidence.</li>') + '</ul>' +
-    '<h3 style="font-size:0.95rem;">Demographics</h3><p>Sample size: ' + r.demographics.sampleSize + ', average age: ' + (r.demographics.averageAge ?? '—') + '</p>' +
     '<h3 style="font-size:0.95rem;">Methodology</h3><p style="color:var(--muted);font-size:0.85rem;">' + esc(r.methodology) + '</p>' +
     '<h3 style="font-size:0.95rem;">Limitations</h3><ul>' + r.limitations.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>';
 }

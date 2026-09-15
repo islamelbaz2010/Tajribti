@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
@@ -15,7 +16,20 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+// Campaign auto-sync (forensic finding, 2026-09-16): the pre-Benchmark app
+// had no polling, lifecycle observer, socket or push mechanism anywhere in
+// its mobile or backend code (verified against origin/main:apps/consumer —
+// only a manual RefreshIndicator plus a fresh _load() on screen init). Any
+// "it just showed up" memory of that app is explained by Home remounting on
+// cold start/navigation, not a real live-sync mechanism. The current
+// backend has no socket/SSE/push endpoint either (api/src/routes/
+// consumer.ts is plain REST), and Benchmark §9 explicitly excludes push
+// notifications, so this implements the smallest mechanism that makes
+// discovery genuinely automatic while Home is open: lightweight polling,
+// paused while backgrounded and refreshed immediately on foreground resume.
+const Duration _kCampaignPollInterval = Duration(seconds: 30);
+
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<Campaign> _campaigns = [];
   // Mobile Recovery + Current-Backend Alignment (2026-09-15): there is no
   // consumer profile endpoint on the current backend (no totalPoints/
@@ -27,11 +41,15 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   bool _loggedIn = false;
   String? _error;
+  Timer? _pollTimer;
+  bool _refreshing = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+    _startPolling();
     AuthService.authEpoch.addListener(_onAuthChanged);
   }
 
@@ -41,8 +59,61 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _pollTimer?.cancel();
     AuthService.authEpoch.removeListener(_onAuthChanged);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Foreground resume (Benchmark auto-sync requirement): refresh right
+      // away rather than waiting for the next poll tick, then resume polling.
+      _silentRefresh();
+      _startPolling();
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      // Stop polling while backgrounded — no point spending battery/network
+      // on a screen the user cannot see.
+      _pollTimer?.cancel();
+    }
+  }
+
+  void _startPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(_kCampaignPollInterval, (_) => _silentRefresh());
+  }
+
+  // Background refresh used by polling/resume: never shows the full-screen
+  // spinner and never surfaces a network error to the user — a missed poll
+  // just tries again next tick. `_refreshing` prevents overlapping requests
+  // if a poll tick fires while a previous one is still in flight.
+  Future<void> _silentRefresh() async {
+    if (!mounted || _loading || _refreshing) return;
+    _refreshing = true;
+    try {
+      final loggedIn = await AuthService.isLoggedIn();
+      final campaigns = await apiClient.getActiveCampaigns();
+      List<ParticipationRecord> participations = _participations;
+      if (loggedIn) {
+        try {
+          participations = await apiClient.getParticipations();
+        } catch (_) {
+          // keep last-known participations on transient failure
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _loggedIn = loggedIn;
+        _campaigns = campaigns;
+        _participations = loggedIn ? participations : [];
+      });
+    } catch (_) {
+      // Network interruption during a background poll: leave current state
+      // as-is, retry on the next tick.
+    } finally {
+      _refreshing = false;
+    }
   }
 
   Future<void> _load() async {

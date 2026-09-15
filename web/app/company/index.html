@@ -554,7 +554,7 @@ function renderTemplateApplyRow() {
       renderQuestions(c.questions || []);
       row.className = result.created.length ? 'msg ok' : 'msg';
       row.innerHTML = (result.created.length ? 'Added ' + result.created.length + ' question(s).' : 'No new questions added.') +
-        (result.skipped.length ? ' Skipped ' + result.skipped.length + ' (a rating or purchase-intent question already exists on this campaign — combining two would blend unrelated averages).' : '');
+        (result.skipped.length ? ' Skipped ' + result.skipped.length + ' (already present on this campaign, or would duplicate a rating/purchase-intent question that already exists — combining two of those would blend unrelated averages).' : '');
     } catch (e) {
       row.className = 'msg error'; row.textContent = e.message;
     }

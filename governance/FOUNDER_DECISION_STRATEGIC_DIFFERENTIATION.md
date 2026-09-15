@@ -23,7 +23,9 @@ Under that authorization, this decision adds one capability: a small, static **"
 - A company creating a campaign may optionally answer "What are you trying to learn?" from six research-derived study types (Post-Trial Experience for Food & Beverage / Beauty & Personal Care / Home Care, Concept/Launch Viability, Packaging & Claims Reaction, Usage & Attitude).
 - Selecting one tags the campaign (`studyType`) and offers to bulk-create that study type's recommended questions — using only the five question types and two stages the Benchmark-conformant `Question` model already defines.
 - A company can ignore this entirely; a campaign with no `studyType` behaves identically to the pre-existing, Benchmark-only product.
-- Every generated question can be edited or deleted afterward exactly like a manually-authored one.
+- A generated question is stored as an ordinary `Question` row, indistinguishable from a manually-authored one, and `DELETE /company/campaigns/:id/questions/:qid` already exists on the backend for any question, generated or manual.
+
+**Correction (final acceptance pass, 2026-09-15):** this document previously stated that "every generated question can be edited or deleted afterward exactly like a manually-authored one," implying the Company console UI already supports that. It does not: `web/app/company/index.html`'s question list renders stage/type/text only, with no edit or delete control wired to any question, generated or manual — the backend `DELETE` route exists but nothing in the UI calls it. This is a pre-existing Journey/Survey gap that predates the Study-Type layer (the empty fourth `<th>` column in the question table suggests it was always intended and never finished); it is not something this decision introduced, and the Benchmark itself never requires question editing as part of the named "Journey/Survey" capability — only that questions exist, persist, and feed analysis. Left unfixed in this pass per the standing rule against opportunistic feature-building during an acceptance/audit pass; recorded here so the claim above is never repeated as fact.
 
 ## 3. What this is not
 

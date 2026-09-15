@@ -294,17 +294,34 @@ router.delete("/campaigns/:id/questions/:qid", async (req, res) => {
 // Benchmark-required. Bulk-creates a study template's recommended
 // questions through the exact same prisma.question.create() shape as the
 // single-question POST above; applies the same assertConfigurable() lock.
-// Every created question can be edited or deleted afterward like any
-// other — nothing here is a new question mechanism.
+// Every created question is stored as an ordinary Question row — nothing
+// here is a new question mechanism. (The Company console currently has
+// no edit/delete UI for any question, generated or manual, despite the
+// backend DELETE route existing — see the correction note in the
+// founder-decision record. Because of that, this route must not create
+// a question a user cannot then remove if they re-apply.)
 //
-// Guard (correctness, not preference): getSatisfaction()/getPurchaseIntent()
-// in measurement.ts average ALL RATING_1_5 / PURCHASE_INTENT_1_5 answers on
-// the campaign together with no per-question breakdown. Every catalog
-// template already contains at most one of each (see studyTemplates.ts),
-// but a company could have already added one manually, or applied another
-// template first — so a template question of either type is skipped,
-// not created, if the campaign already has one. Skipped questions are
-// reported back so the Company UI can show exactly what happened.
+// Two independent duplicate guards, both correctness constraints:
+//
+// 1. getSatisfaction()/getPurchaseIntent() in measurement.ts average ALL
+//    RATING_1_5 / PURCHASE_INTENT_1_5 answers on the campaign together
+//    with no per-question breakdown. Every catalog template already
+//    contains at most one of each (see studyTemplates.ts), but a company
+//    could have already added one manually, or applied another template
+//    first — so a template question of either type is skipped, not
+//    created, if the campaign already has one.
+//
+// 2. Discovered in final-acceptance browser testing: re-applying the
+//    same (or an overlapping) template a second time created duplicate
+//    SINGLE_CHOICE/TEXT questions with identical wording — harmless to
+//    any aggregate (each Question row is analyzed independently by id
+//    in getQuestionAggregates()/getVerbatims()), but a real defect: with
+//    no delete UI, a company had no way to remove the duplicates. Any
+//    template question whose exact text already exists on the campaign
+//    is now skipped too, regardless of type.
+//
+// Skipped questions are reported back so the Company UI can show
+// exactly what happened.
 router.post("/campaigns/:id/questions/apply-template", async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
@@ -317,15 +334,17 @@ router.post("/campaigns/:id/questions/apply-template", async (req, res) => {
 
   const existing = await prisma.question.findMany({
     where: { campaignId: campaign.id },
-    select: { type: true, order: true },
+    select: { type: true, text: true, order: true },
   });
   const hasType = (t: string) => existing.some((q) => q.type === t);
+  const hasText = (t: string) => existing.some((q) => q.text === t);
 
   const created = [];
   const skipped: string[] = [];
   let order = existing.length ? Math.max(...existing.map((q) => q.order)) + 1 : 0;
   for (const q of template.questions) {
-    if ((q.type === "RATING_1_5" && hasType("RATING_1_5")) || (q.type === "PURCHASE_INTENT_1_5" && hasType("PURCHASE_INTENT_1_5"))) {
+    const measurementConflict = (q.type === "RATING_1_5" && hasType("RATING_1_5")) || (q.type === "PURCHASE_INTENT_1_5" && hasType("PURCHASE_INTENT_1_5"));
+    if (measurementConflict || hasText(q.text)) {
       skipped.push(q.text);
       continue;
     }
@@ -341,9 +360,7 @@ router.post("/campaigns/:id/questions/apply-template", async (req, res) => {
       },
     });
     created.push(question);
-    if (q.type === "RATING_1_5" || q.type === "PURCHASE_INTENT_1_5") {
-      existing.push({ type: q.type, order }); // prevent a second one within the same template application
-    }
+    existing.push({ type: q.type, text: q.text, order }); // prevent a repeat within the same template application
   }
 
   res.status(201).json({ created, skipped });

@@ -251,11 +251,33 @@ async function enterViaQr(code) {
 async function openCampaign(id) {
   const c = await api('/consumer/campaigns/' + id);
   state.campaign = c;
+  state.participation = null;
   state.eligibilityQuestions = c.questions || [];
   document.getElementById('c-company').textContent = c.company.name;
   document.getElementById('c-name').textContent = c.name;
   document.getElementById('c-objective').textContent = c.objective;
   document.getElementById('c-product').textContent = c.product ? ('Product: ' + c.product.name) : '';
+
+  // Reset the eligibility form and every result message left over from a
+  // previous campaign visit or a previous consumer's session in this same
+  // browser tab (Benchmark §10 "verified participation"/multi-consumer
+  // isolation, exercised by the dev consumer-switch control above). Without
+  // this, a fresh consumer opening a campaign after another consumer used
+  // this device would see the prior consumer's age/gender/city answers
+  // still filled in and their eligibility result ("You are eligible!"/an
+  // error) still displayed — before this consumer has submitted anything
+  // of their own. Neither the input values nor these message elements are
+  // otherwise touched by openCampaign, so they persist across consumers
+  // since the dev "Change consumer" control clears only the auth token,
+  // not the DOM (see resetConsumerSession above).
+  document.getElementById('e-age').value = '';
+  document.getElementById('e-gender').value = 'ANY';
+  document.getElementById('e-city').value = '';
+  ['eligibility-msg', 'redeem-msg', 'survey-msg'].forEach(id => {
+    const el = document.getElementById(id);
+    el.textContent = '';
+    el.className = 'msg';
+  });
 
   const qDiv = document.getElementById('eligibility-questions');
   qDiv.innerHTML = '';

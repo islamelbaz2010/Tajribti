@@ -57,6 +57,7 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="pipeline">Campaign Pipeline</button>
       <button class="tab-btn" data-tab="companies">Companies</button>
+      <button class="tab-btn" data-tab="studytype-requests">Study-Type Requests</button>
     </div>
 
     <div class="card tab-panel" id="tab-pipeline">
@@ -94,6 +95,24 @@
       <label>Employee password</label><input id="nco-owner-password" type="password" />
       <button id="btn-create-company">Create company</button>
       <div class="msg" id="nco-msg"></div>
+    </div>
+
+    <!-- FOUNDER-APPROVED — forensic audit 2026-09-15, Decision 1:
+         "Study-Type change = WARN + OPERATIONS REVIEW/APPROVAL." Added
+         to the existing Operations experience (same tab pattern as
+         Campaign Pipeline / Companies above), not a separate admin
+         application. -->
+    <div class="card tab-panel hidden" id="tab-studytype-requests">
+      <h2>Study-type change requests</h2>
+      <div class="row">
+        <select id="str-filter">
+          <option value="PENDING">Pending</option>
+          <option value="">All</option>
+          <option value="APPROVED">Approved</option>
+          <option value="REJECTED">Rejected</option>
+        </select>
+      </div>
+      <div id="studytype-requests-list"></div>
     </div>
   </div>
 
@@ -145,6 +164,7 @@ let currentCampaignId = null;
 let currentCampaign = null;
 let studyTemplates = []; // cached from GET /ops/study-templates (founder-approved extension)
 function studyTypeLabel(key) {
+  if (!key) return 'custom, no template';
   const t = studyTemplates.find(x => x.key === key);
   return t ? t.label : key;
 }
@@ -174,6 +194,25 @@ async function api(path, opts = {}) {
 }
 function show(id) { ['view-login','view-home','view-campaign'].forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id)); }
 
+// Basic account safety/usability (not a Benchmark-named capability, but
+// every authenticated workspace needs a way to end a session from inside
+// it): the token otherwise persists in localStorage for its full 12h
+// lifetime (see api/src/lib/auth.ts signToken expiresIn) with no UI path
+// to clear it short of manually clearing browser storage. Signing out is
+// purely a client-side token discard — the JWT itself has no server-side
+// session to revoke (Benchmark §10 "OTP/JWT flow" is stateless by design).
+function renderWho(name) {
+  document.getElementById('who').innerHTML =
+    (name ? '<span>' + esc(name) + '</span>' : '') +
+    ' <button class="secondary small" id="btn-signout">Sign out</button>';
+  document.getElementById('btn-signout').onclick = () => {
+    token = null;
+    localStorage.removeItem('tj_ops_token');
+    document.getElementById('who').innerHTML = '';
+    show('view-login');
+  };
+}
+
 document.getElementById('btn-login').onclick = async () => {
   const msg = document.getElementById('login-msg');
   try {
@@ -182,7 +221,7 @@ document.getElementById('btn-login').onclick = async () => {
       password: document.getElementById('login-password').value,
     }});
     token = r.token; localStorage.setItem('tj_ops_token', token);
-    document.getElementById('who').textContent = r.opsUser.name;
+    renderWho(r.opsUser.name);
     await loadHome();
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };
@@ -194,6 +233,7 @@ document.querySelectorAll('#view-home .tab-btn').forEach(btn => {
     document.querySelectorAll('#view-home .tab-panel').forEach(p => p.classList.add('hidden'));
     document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
     if (btn.dataset.tab === 'companies') loadCompanies();
+    if (btn.dataset.tab === 'studytype-requests') loadStudyTypeRequests();
   };
 });
 
@@ -275,6 +315,78 @@ document.getElementById('btn-create-company').onclick = async () => {
     await loadCompanies();
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };
+
+// FOUNDER-APPROVED — forensic audit 2026-09-15, Decision 1: "Study-Type
+// change = WARN + OPERATIONS REVIEW/APPROVAL." Approve/Reject call the
+// same requireOps-gated routes a Company employee's token can never
+// reach (different actor kind entirely — see middleware/auth.ts), so a
+// company can never approve/reject its own request through this or any
+// other surface.
+async function loadStudyTypeRequests() {
+  const status = document.getElementById('str-filter').value;
+  const requests = await api('/ops/study-type-requests' + (status ? '?status=' + encodeURIComponent(status) : ''));
+  const list = document.getElementById('studytype-requests-list');
+  list.innerHTML = '';
+  if (!requests.length) { list.innerHTML = '<p style="color:var(--muted)">No requests.</p>'; return; }
+
+  requests.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'item';
+    div.style.cursor = 'default';
+    div.style.flexDirection = 'column';
+    div.style.alignItems = 'stretch';
+    div.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+        '<div><strong>' + esc(r.campaign.name) + '</strong><div style="color:var(--muted);font-size:0.85rem;">' + esc(r.campaign.company.name) + ' · campaign status: ' + esc(r.campaign.status) + '</div></div>' +
+        '<span class="pill">' + esc(r.status) + '</span>' +
+      '</div>' +
+      '<p style="font-size:0.88rem;margin:8px 0 0;">Current: <strong>' + esc(studyTypeLabel(r.currentStudyType)) + '</strong> &rarr; Requested: <strong>' + esc(studyTypeLabel(r.requestedStudyType)) + '</strong></p>' +
+      '<p style="color:var(--muted);font-size:0.8rem;margin:2px 0 0;">Requested by ' + esc(r.requestedBy.name) + ' (' + esc(r.requestedBy.email) + ') on ' + new Date(r.createdAt).toLocaleString() + '</p>' +
+      (r.status !== 'PENDING' ?
+        '<p style="color:var(--muted);font-size:0.8rem;margin:2px 0 0;">' + (r.status === 'APPROVED' ? 'Approved' : 'Rejected') +
+        (r.reviewedBy ? ' by ' + esc(r.reviewedBy.name) : '') + (r.reviewedAt ? ' on ' + new Date(r.reviewedAt).toLocaleString() : '') +
+        (r.rejectionReason ? ': &ldquo;' + esc(r.rejectionReason) + '&rdquo;' : '.') + '</p>'
+        : '<div class="row" id="str-actions-' + esc(r.id) + '" style="margin-top:8px;">' +
+          '<button class="small" data-approve="' + esc(r.id) + '">Approve</button>' +
+          '<button class="small secondary" data-reject="' + esc(r.id) + '">Reject</button>' +
+          '</div><div class="msg" id="str-msg-' + esc(r.id) + '"></div>');
+    list.appendChild(div);
+  });
+
+  list.querySelectorAll('button[data-approve]').forEach(btn => {
+    btn.onclick = async () => {
+      const msg = document.getElementById('str-msg-' + btn.dataset.approve);
+      try {
+        await api('/ops/study-type-requests/' + btn.dataset.approve + '/approve', { method: 'POST' });
+        await loadStudyTypeRequests();
+      } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+    };
+  });
+  // Rejection reason is required (StudyTypeChangeRequest.rejectionReason)
+  // — collected via an inline input rather than a JS prompt() dialog,
+  // consistent with the rest of this console's forms (e.g. Operational
+  // Issues above).
+  list.querySelectorAll('button[data-reject]').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.reject;
+      const container = document.getElementById('str-actions-' + id);
+      container.innerHTML =
+        '<input id="str-reason-' + esc(id) + '" placeholder="Rejection reason" style="width:auto;flex:1;min-width:180px;" />' +
+        '<button class="small danger" id="str-confirm-reject-' + esc(id) + '">Confirm reject</button>';
+      document.getElementById('str-confirm-reject-' + id).onclick = async () => {
+        const msg = document.getElementById('str-msg-' + id);
+        const reason = document.getElementById('str-reason-' + id).value.trim();
+        if (!reason) { msg.textContent = 'A rejection reason is required.'; msg.className = 'msg error'; return; }
+        try {
+          await api('/ops/study-type-requests/' + id + '/reject', { method: 'POST', body: { reason } });
+          await loadStudyTypeRequests();
+        } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+      };
+    };
+  });
+}
+
+document.getElementById('str-filter').onchange = loadStudyTypeRequests;
 
 document.getElementById('btn-back').onclick = (e) => { e.preventDefault(); loadHome(); };
 
@@ -485,7 +597,7 @@ async function loadOpsReport() {
 
 (async () => {
   if (token) {
-    try { await loadHome(); return; } catch { localStorage.removeItem('tj_ops_token'); token = null; }
+    try { renderWho(''); await loadHome(); return; } catch { localStorage.removeItem('tj_ops_token'); token = null; }
   }
   show('view-login');
 })();

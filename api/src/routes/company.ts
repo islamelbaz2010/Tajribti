@@ -175,6 +175,45 @@ function assertConfigurable(campaign: { status: string }, res: Response): boolea
   return true;
 }
 
+// FOUNDER-APPROVED — forensic audit 2026-09-15, Decision 1: "Study-Type
+// change = WARN + OPERATIONS REVIEW/APPROVAL". Once a campaign has ≥1
+// Question row (from any source — a template application or a manually
+// authored question), its studyType tag is no longer directly mutable by
+// PATCH; the Company must submit a StudyTypeChangeRequest instead (see
+// POST .../study-type-requests below), which TAJRIBTI Operations approves
+// or rejects. A campaign with zero questions is unaffected — direct
+// change remains exactly as before, no request/approval involved.
+//
+// Also blocks a direct change whenever a PENDING request already exists,
+// even if the campaign's question count has since dropped to zero (e.g.
+// every question was deleted after the request was filed) — otherwise a
+// company could bypass its own pending request through the question-
+// count loophole while Operations is still reviewing it (this is the
+// "Company modifying the Study Type while a request is pending" case the
+// audit brief's concurrency section names explicitly).
+async function assertStudyTypeChangeAllowed(campaignId: string, res: Response): Promise<boolean> {
+  const [questionCount, pendingRequest] = await Promise.all([
+    prisma.question.count({ where: { campaignId } }),
+    prisma.studyTypeChangeRequest.findFirst({ where: { campaignId, status: "PENDING" } }),
+  ]);
+  if (pendingRequest) {
+    res.status(409).json({
+      error: "A study-type change request is already pending TAJRIBTI Operations review for this campaign.",
+      code: "STUDY_TYPE_CHANGE_PENDING",
+    });
+    return false;
+  }
+  if (questionCount > 0) {
+    res.status(409).json({
+      error:
+        "This campaign already has configured survey questions. Submit a study-type change request for TAJRIBTI Operations review instead of changing it directly.",
+      code: "STUDY_TYPE_CHANGE_REQUIRES_APPROVAL",
+    });
+    return false;
+  }
+  return true;
+}
+
 router.patch("/campaigns/:id", async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
@@ -184,6 +223,19 @@ router.patch("/campaigns/:id", async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
   const d = parsed.data;
+
+  // "" is the Company UI's "— custom, no template —" option, normalized
+  // to null the same way it already is on campaign creation (see
+  // createCampaignSchema's use above) — comparing against the persisted
+  // value (also null, never "") this way avoids a false-positive "change"
+  // on every save of an unrelated field with studyType left at "".
+  if (d.studyType !== undefined) {
+    const requestedStudyType = d.studyType === "" ? null : d.studyType;
+    if (requestedStudyType !== campaign.studyType) {
+      if (!(await assertStudyTypeChangeAllowed(campaign.id, res))) return;
+    }
+  }
+
   const updated = await prisma.campaign.update({
     where: { id: campaign.id },
     data: {
@@ -193,6 +245,75 @@ router.patch("/campaigns/:id", async (req, res) => {
     },
   });
   res.json(updated);
+});
+
+// --- Study-Type Change Requests (forensic audit 2026-09-15, Decision 1) ----
+// Read-only-safe select projections below never return requestedBy's or
+// reviewedBy's passwordHash — same discipline as every other cross-actor
+// projection in this file (e.g. GET /employees above).
+const studyTypeRequestSchema = z.object({
+  requestedStudyType: z
+    .string()
+    .refine((v) => v === "" || findTemplate(v) != null, { message: "Unknown study type" }),
+});
+
+router.post("/campaigns/:id/study-type-requests", async (req, res) => {
+  const { employeeId } = asEmployee(req);
+  const campaign = await loadOwnedCampaign(req, res);
+  if (!campaign) return;
+  if (!assertConfigurable(campaign, res)) return;
+
+  const parsed = studyTypeRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid input" });
+  }
+  const requestedStudyType = parsed.data.requestedStudyType === "" ? null : parsed.data.requestedStudyType;
+
+  if (requestedStudyType === campaign.studyType) {
+    return res.status(400).json({ error: "Requested study type is the same as the campaign's current study type" });
+  }
+
+  const existingPending = await prisma.studyTypeChangeRequest.findFirst({
+    where: { campaignId: campaign.id, status: "PENDING" },
+  });
+  if (existingPending) {
+    return res.status(409).json({
+      error: "A study-type change request is already pending TAJRIBTI Operations review for this campaign.",
+      request: existingPending,
+    });
+  }
+
+  const request = await prisma.studyTypeChangeRequest.create({
+    data: {
+      campaignId: campaign.id,
+      currentStudyType: campaign.studyType,
+      requestedStudyType,
+      requestedById: employeeId,
+      status: "PENDING",
+    },
+  });
+  res.status(201).json(request);
+});
+
+router.get("/campaigns/:id/study-type-requests", async (req, res) => {
+  const campaign = await loadOwnedCampaign(req, res);
+  if (!campaign) return;
+  const requests = await prisma.studyTypeChangeRequest.findMany({
+    where: { campaignId: campaign.id },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      currentStudyType: true,
+      requestedStudyType: true,
+      status: true,
+      createdAt: true,
+      reviewedAt: true,
+      rejectionReason: true,
+      requestedBy: { select: { name: true } },
+      reviewedBy: { select: { name: true } },
+    },
+  });
+  res.json(requests);
 });
 
 // Configure -> Review/Ready is a company-driven step (Benchmark §2.4);

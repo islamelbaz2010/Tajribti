@@ -159,6 +159,86 @@ router.post("/campaigns/:id/close", async (req, res) => {
   res.json(updated);
 });
 
+// --- Study-Type Change Requests (forensic audit 2026-09-15, Decision 1) ----
+// "Study-Type change = WARN + OPERATIONS REVIEW/APPROVAL." Read-only
+// projections below never return requestedBy's/reviewedBy's passwordHash.
+router.get("/study-type-requests", async (req, res) => {
+  const status = typeof req.query.status === "string" ? req.query.status : undefined;
+  const requests = await prisma.studyTypeChangeRequest.findMany({
+    where: status ? { status } : undefined,
+    orderBy: { createdAt: "desc" },
+    include: {
+      campaign: { select: { id: true, name: true, status: true, company: { select: { name: true } } } },
+      requestedBy: { select: { name: true, email: true } },
+      reviewedBy: { select: { name: true } },
+    },
+  });
+  res.json(requests);
+});
+
+router.post("/study-type-requests/:id/approve", async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const request = await prisma.studyTypeChangeRequest.findUnique({
+    where: { id: req.params.id },
+    include: { campaign: true },
+  });
+  if (!request) return res.status(404).json({ error: "Request not found" });
+  if (request.status !== "PENDING") return res.status(409).json({ error: "Request is not pending" });
+  if (request.campaign.status !== "DRAFT" && request.campaign.status !== "READY") {
+    return res.status(409).json({ error: "Campaign is no longer configurable; this request can no longer be approved" });
+  }
+
+  // Concurrency safety: only flip PENDING -> APPROVED, and only apply the
+  // campaign.studyType change, if the request is still PENDING at the
+  // moment of write — guards two reviewers (or a double click) acting on
+  // the same request. No new framework: same "conditional updateMany,
+  // check affected count" guard already used by DELETE
+  // /questions/:qid above.
+  const outcome = await prisma.$transaction(async (tx) => {
+    const flipped = await tx.studyTypeChangeRequest.updateMany({
+      where: { id: request.id, status: "PENDING" },
+      data: { status: "APPROVED", reviewedById: opsUserId, reviewedAt: new Date() },
+    });
+    if (flipped.count === 0) return null;
+    // Preserve existing questions — this only ever changes the campaign's
+    // studyType tag, never touches Question rows (no automatic
+    // reconciliation/deletion — Decision 1's explicit safety rule).
+    const campaign = await tx.campaign.update({
+      where: { id: request.campaignId },
+      data: { studyType: request.requestedStudyType },
+    });
+    return campaign;
+  });
+
+  if (!outcome) return res.status(409).json({ error: "Request was already reviewed" });
+  const updatedRequest = await prisma.studyTypeChangeRequest.findUnique({ where: { id: request.id } });
+  res.json({ request: updatedRequest, campaign: outcome });
+});
+
+const rejectStudyTypeRequestSchema = z.object({ reason: z.string().min(1) });
+
+router.post("/study-type-requests/:id/reject", async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const parsed = rejectStudyTypeRequestSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "A rejection reason is required" });
+
+  const request = await prisma.studyTypeChangeRequest.findUnique({ where: { id: req.params.id } });
+  if (!request) return res.status(404).json({ error: "Request not found" });
+  if (request.status !== "PENDING") return res.status(409).json({ error: "Request is not pending" });
+
+  // Rejecting never touches the Campaign row (studyType/questions both
+  // stay exactly as they are), so no campaign-configurability gate is
+  // needed here the way approve requires one.
+  const flipped = await prisma.studyTypeChangeRequest.updateMany({
+    where: { id: request.id, status: "PENDING" },
+    data: { status: "REJECTED", reviewedById: opsUserId, reviewedAt: new Date(), rejectionReason: parsed.data.reason },
+  });
+  if (flipped.count === 0) return res.status(409).json({ error: "Request was already reviewed" });
+
+  const updatedRequest = await prisma.studyTypeChangeRequest.findUnique({ where: { id: request.id } });
+  res.json(updatedRequest);
+});
+
 // --- Participants (Benchmark §4 OPERATIONS "Participants") -----------------
 router.get("/campaigns/:id/participants", async (req, res) => {
   const campaign = await loadCampaignOrNotFound(req, res);

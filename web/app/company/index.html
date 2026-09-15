@@ -181,6 +181,13 @@
       <label>What are you trying to learn? (optional)</label>
       <select id="s-studytype"><option value="">— custom, no template —</option></select>
       <p id="s-studytype-decision" style="color:var(--muted);font-size:0.82rem;margin:0 0 8px;"></p>
+      <!-- FOUNDER-APPROVED — forensic audit 2026-09-15, Decision 1:
+           "Study-Type change = WARN + OPERATIONS REVIEW/APPROVAL". Shown
+           only once this campaign has ≥1 survey question (see
+           refreshStudyTypeGovernanceUI()) — before that, the select above
+           remains directly editable exactly as before, no request/
+           approval involved. -->
+      <div id="study-type-request-block" class="hidden" style="margin:-4px 0 14px;"></div>
       <h3 style="font-size:0.95rem;">Audience</h3>
       <div class="grid2">
         <div><label>Min age</label><input id="s-agemin" type="number" /></div>
@@ -260,7 +267,14 @@ let token = localStorage.getItem('tj_company_token') || null;
 let currentCampaignId = null;
 let currentCampaignStudyType = '';
 let currentCampaignLocked = false; // status !== DRAFT/READY — see UI/UX lock fix in openCampaign()
+let currentCampaignHasQuestions = false; // forensic audit 2026-09-15, Decision 1 — see refreshStudyTypeGovernanceUI()
+let latestStudyTypeRequest = null; // most recent StudyTypeChangeRequest for the open campaign, if any
 let studyTemplates = []; // cached from GET /company/study-templates
+function studyTypeLabel(key) {
+  if (!key) return 'custom, no template';
+  const t = studyTemplates.find(x => x.key === key);
+  return t ? t.label : key;
+}
 
 // Security hardening: company/product/campaign/employee names, question
 // text, option labels, QR labels and consumer survey verbatims all
@@ -289,6 +303,25 @@ function show(id) {
   ['view-login','view-campaigns','view-campaign-detail'].forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
 }
 
+// Basic account safety/usability (not a Benchmark-named capability, but
+// every authenticated workspace needs a way to end a session from inside
+// it): the token otherwise persists in localStorage for its full 12h
+// lifetime (see api/src/lib/auth.ts signToken expiresIn) with no UI path
+// to clear it short of manually clearing browser storage. Signing out is
+// purely a client-side token discard — the JWT itself has no server-side
+// session to revoke (Benchmark §10 "OTP/JWT flow" is stateless by design).
+function renderWho(name) {
+  document.getElementById('who').innerHTML =
+    (name ? '<span>' + esc(name) + '</span>' : '') +
+    ' <button class="secondary small" id="btn-signout">Sign out</button>';
+  document.getElementById('btn-signout').onclick = () => {
+    token = null;
+    localStorage.removeItem('tj_company_token');
+    document.getElementById('who').innerHTML = '';
+    show('view-login');
+  };
+}
+
 document.getElementById('btn-login').onclick = async () => {
   const msg = document.getElementById('login-msg');
   try {
@@ -298,7 +331,7 @@ document.getElementById('btn-login').onclick = async () => {
     }});
     token = r.token;
     localStorage.setItem('tj_company_token', token);
-    document.getElementById('who').textContent = r.employee.name;
+    renderWho(r.employee.name);
     await loadCampaigns();
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };
@@ -521,6 +554,7 @@ async function openCampaign(id) {
   renderQuestions(c.questions || []);
   renderTemplateApplyRow();
   renderQrSources(c.qrSources || []);
+  await refreshStudyTypeGovernanceUI((c.questions || []).length);
 
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelector('.tab-btn[data-tab="setup"]').classList.add('active');
@@ -557,11 +591,33 @@ document.getElementById('btn-save-setup').onclick = async () => {
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };
 
+// DELETE /company/campaigns/:id/questions/:qid already existed on the
+// backend (assertConfigurable-gated, same DRAFT/READY lock as every other
+// Journey/Survey action) but nothing in this UI called it — a company had
+// no way to remove a manually-added or template-generated question, most
+// visibly after applying more than one study-template recommendation set
+// (each application is additive, never a replacement — see the founder
+// decision record and studyTemplates.ts). This wires the existing route
+// into the question list; no new backend behavior.
 function renderQuestions(questions) {
   const list = document.getElementById('question-list');
   list.innerHTML = questions.length ? '<table><tr><th>Stage</th><th>Type</th><th>Text</th><th></th></tr>' +
-    questions.map(q => '<tr><td>' + q.stage + '</td><td>' + q.type + '</td><td>' + esc(q.text) + '</td></tr>').join('') + '</table>'
+    questions.map(q => '<tr><td>' + q.stage + '</td><td>' + q.type + '</td><td>' + esc(q.text) + '</td><td>' +
+      (currentCampaignLocked ? '' : '<button class="small secondary" data-qid="' + esc(q.id) + '">Delete</button>') +
+      '</td></tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No questions yet.</p>';
+  list.querySelectorAll('button[data-qid]').forEach(btn => {
+    btn.onclick = async () => {
+      const msg = document.getElementById('question-msg');
+      try {
+        await api('/company/campaigns/' + currentCampaignId + '/questions/' + btn.dataset.qid, { method: 'DELETE' });
+        const c = await api('/company/campaigns/' + currentCampaignId);
+        renderQuestions(c.questions || []);
+        await refreshStudyTypeGovernanceUI((c.questions || []).length);
+        msg.textContent = 'Question deleted.'; msg.className = 'msg ok';
+      } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+    };
+  });
 }
 
 // Founder-approved strategic differentiation, not Benchmark-required
@@ -599,6 +655,7 @@ function renderTemplateApplyRow() {
       const result = await api('/company/campaigns/' + currentCampaignId + '/questions/apply-template', { method: 'POST', body: { templateKey: tpl.key } });
       const c = await api('/company/campaigns/' + currentCampaignId);
       renderQuestions(c.questions || []);
+      await refreshStudyTypeGovernanceUI((c.questions || []).length);
       row.className = result.created.length ? 'msg ok' : 'msg';
       row.innerHTML = (result.created.length ? 'Added ' + result.created.length + ' question(s).' : 'No new questions added.') +
         (result.skipped.length ? ' Skipped ' + result.skipped.length + ' (already present on this campaign, or would duplicate a rating/purchase-intent question that already exists — combining two of those would blend unrelated averages).' : '');
@@ -606,6 +663,90 @@ function renderTemplateApplyRow() {
       row.className = 'msg error'; row.textContent = e.message;
     }
   };
+}
+
+// FOUNDER-APPROVED — forensic audit 2026-09-15, Decision 1: "Study-Type
+// change = WARN + OPERATIONS REVIEW/APPROVAL." Mirrors the backend rule
+// in api/src/routes/company.ts's assertStudyTypeChangeAllowed(): once
+// this campaign has ≥1 question, the "What are you trying to learn?"
+// select becomes view-only (still shows the current study type; the
+// regular Save button keeps working for every other Setup field, since
+// sending the unchanged value back is a no-op the backend allows) and a
+// dedicated request block takes over. Below that question-count
+// threshold this behaves exactly like the pre-existing product — no
+// request, no approval, the select stays directly editable.
+async function refreshStudyTypeGovernanceUI(questionCount) {
+  currentCampaignHasQuestions = questionCount > 0;
+  const select = document.getElementById('s-studytype');
+  const block = document.getElementById('study-type-request-block');
+
+  if (currentCampaignLocked) {
+    // The disable-loop in openCampaign() already locks every Setup field,
+    // including this select; the request workflow itself is also DRAFT/
+    // READY-only (assertConfigurable on the backend), so there is nothing
+    // useful to show once a campaign has left that stage.
+    block.classList.add('hidden');
+    block.innerHTML = '';
+    return;
+  }
+
+  select.disabled = currentCampaignHasQuestions;
+
+  if (!currentCampaignHasQuestions) {
+    block.classList.add('hidden');
+    block.innerHTML = '';
+    return;
+  }
+
+  block.classList.remove('hidden');
+  const requests = await api('/company/campaigns/' + currentCampaignId + '/study-type-requests');
+  latestStudyTypeRequest = requests[0] || null;
+  renderStudyTypeRequestBlock();
+}
+
+function renderStudyTypeRequestBlock() {
+  const block = document.getElementById('study-type-request-block');
+  const pending = latestStudyTypeRequest && latestStudyTypeRequest.status === 'PENDING' ? latestStudyTypeRequest : null;
+
+  let statusHtml = '';
+  if (pending) {
+    statusHtml = '<p class="msg">Pending TAJRIBTI Operations review: change to <strong>' + esc(studyTypeLabel(pending.requestedStudyType)) +
+      '</strong> (requested ' + new Date(pending.createdAt).toLocaleString() + ' by ' + esc(pending.requestedBy ? pending.requestedBy.name : 'you') + '). ' +
+      'The campaign\'s study type remains <strong>' + esc(studyTypeLabel(pending.currentStudyType)) + '</strong> until this is reviewed.</p>';
+  } else if (latestStudyTypeRequest && latestStudyTypeRequest.status === 'REJECTED') {
+    statusHtml = '<p class="msg error">Last request — change to ' + esc(studyTypeLabel(latestStudyTypeRequest.requestedStudyType)) + ' — was rejected' +
+      (latestStudyTypeRequest.reviewedBy ? ' by ' + esc(latestStudyTypeRequest.reviewedBy.name) : '') +
+      (latestStudyTypeRequest.rejectionReason ? ': "' + esc(latestStudyTypeRequest.rejectionReason) + '"' : '.') +
+      ' The current study type is unchanged.</p>';
+  } else if (latestStudyTypeRequest && latestStudyTypeRequest.status === 'APPROVED') {
+    statusHtml = '<p class="msg ok">Last request was approved' + (latestStudyTypeRequest.reviewedAt ? ' on ' + new Date(latestStudyTypeRequest.reviewedAt).toLocaleString() : '') + '.</p>';
+  }
+
+  const options = '<option value="">— custom, no template —</option>' +
+    studyTemplates.map(t => '<option value="' + esc(t.key) + '">' + esc(t.label) + '</option>').join('');
+
+  block.innerHTML =
+    '<p style="color:var(--muted);font-size:0.85rem;margin:0 0 6px;">This campaign already has configured survey questions, so its study type can no longer be changed directly here — request a change for TAJRIBTI Operations to review instead. Existing questions are never removed automatically.</p>' +
+    statusHtml +
+    (pending ? '' :
+      '<label>Request a different study type</label>' +
+      '<select id="st-request-select">' + options + '</select>' +
+      '<button class="secondary small" id="btn-request-studytype-change">Request change</button>' +
+      '<p class="msg" id="st-request-msg"></p>');
+
+  if (!pending) {
+    document.getElementById('st-request-select').value = currentCampaignStudyType;
+    document.getElementById('btn-request-studytype-change').onclick = async () => {
+      const msg = document.getElementById('st-request-msg');
+      const requested = document.getElementById('st-request-select').value;
+      try {
+        await api('/company/campaigns/' + currentCampaignId + '/study-type-requests', { method: 'POST', body: { requestedStudyType: requested } });
+        const requests = await api('/company/campaigns/' + currentCampaignId + '/study-type-requests');
+        latestStudyTypeRequest = requests[0] || null;
+        renderStudyTypeRequestBlock();
+      } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+    };
+  }
 }
 
 document.getElementById('btn-add-question').onclick = async () => {
@@ -622,6 +763,7 @@ document.getElementById('btn-add-question').onclick = async () => {
     document.getElementById('q-text').value = ''; document.getElementById('q-options').value = '';
     const c = await api('/company/campaigns/' + currentCampaignId);
     renderQuestions(c.questions);
+    await refreshStudyTypeGovernanceUI((c.questions || []).length);
     msg.textContent = 'Question added.'; msg.className = 'msg ok';
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };
@@ -648,6 +790,18 @@ document.getElementById('btn-add-qr').onclick = async () => {
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };
 
+// Label consistency (forensic audit 2026-09-15): the Report tab already
+// shows the exact persisted question text under "Purchase intent"/
+// "Satisfaction" (measurement.ts's questionText, present on both the
+// /live and /insights API responses already) — Live and Insights simply
+// never rendered it. Same disambiguation, same source field, no backend
+// change; a Concept/Packaging-style campaign's RATING_1_5 question (e.g.
+// "How believable is the product's main claim?") no longer reads as a
+// generic, unattributed "Satisfaction" figure on these two tabs.
+function metricQuestionContext(text) {
+  return text ? '<p style="color:var(--muted);font-size:0.85rem;margin-bottom:2px;">' + esc(text) + '</p>' : '';
+}
+
 async function loadLive() {
   const data = await api('/company/campaigns/' + currentCampaignId + '/live');
   document.getElementById('live-content').innerHTML =
@@ -655,8 +809,8 @@ async function loadLive() {
     metric(data.funnel.entered, 'Entered') + metric(data.funnel.eligible, 'Eligible') +
     metric(data.funnel.trialRedeemed, 'Trial redeemed') + metric(data.funnel.surveyComplete, 'Survey complete') +
     '</div>' +
-    '<h3 style="font-size:0.95rem;">Purchase intent</h3><p>' + (data.purchaseIntent.averageScore ?? '—') + ' / 5 (' + data.purchaseIntent.responses + ' responses)</p>' +
-    '<h3 style="font-size:0.95rem;">Satisfaction</h3><p>' + (data.satisfaction.averageScore ?? '—') + ' / 5 (' + data.satisfaction.responses + ' responses)</p>' +
+    '<h3 style="font-size:0.95rem;">Purchase intent</h3>' + metricQuestionContext(data.purchaseIntent.questionText) + '<p>' + (data.purchaseIntent.averageScore ?? '—') + ' / 5 (' + data.purchaseIntent.responses + ' responses)</p>' +
+    '<h3 style="font-size:0.95rem;">Satisfaction</h3>' + metricQuestionContext(data.satisfaction.questionText) + '<p>' + (data.satisfaction.averageScore ?? '—') + ' / 5 (' + data.satisfaction.responses + ' responses)</p>' +
     '<h3 style="font-size:0.95rem;">Sources</h3><table><tr><th>Source</th><th>Entered</th><th>Trial redeemed</th><th>Survey complete</th></tr>' +
     data.sources.map(s => '<tr><td>' + esc(s.label) + '</td><td>' + s.entered + '</td><td>' + s.trialRedeemed + '</td><td>' + s.surveyComplete + '</td></tr>').join('') + '</table>';
 }
@@ -666,8 +820,8 @@ async function loadInsights() {
   const data = await api('/company/campaigns/' + currentCampaignId + '/insights');
   document.getElementById('insights-content').innerHTML =
     '<p style="color:var(--muted);font-size:0.85rem;">Evidence level: <strong>' + data.evidence.level + '</strong> (sample size ' + data.evidence.sampleSize + ')</p>' +
-    '<h3 style="font-size:0.95rem;">Purchase intent</h3><p>' + (data.purchaseIntent.averageScore ?? '—') + ' / 5</p>' +
-    '<h3 style="font-size:0.95rem;">Satisfaction</h3><p>' + (data.satisfaction.averageScore ?? '—') + ' / 5</p>' +
+    '<h3 style="font-size:0.95rem;">Purchase intent</h3>' + metricQuestionContext(data.purchaseIntent.questionText) + '<p>' + (data.purchaseIntent.averageScore ?? '—') + ' / 5</p>' +
+    '<h3 style="font-size:0.95rem;">Satisfaction</h3>' + metricQuestionContext(data.satisfaction.questionText) + '<p>' + (data.satisfaction.averageScore ?? '—') + ' / 5</p>' +
     '<h3 style="font-size:0.95rem;">Campaign-specific questions</h3>' +
     data.questionAggregates.map(q => '<p><strong>' + esc(q.text) + '</strong><br/>' + q.breakdown.map(b => esc(b.label) + ': ' + b.count).join(' · ') + '</p>').join('') +
     '<h3 style="font-size:0.95rem;">Consumer voice</h3>' +
@@ -727,7 +881,7 @@ async function loadReport() {
 
 (async () => {
   if (token) {
-    try { await loadCampaigns(); return; } catch { localStorage.removeItem('tj_company_token'); token = null; }
+    try { renderWho(''); await loadCampaigns(); return; } catch { localStorage.removeItem('tj_company_token'); token = null; }
   }
   show('view-login');
 })();

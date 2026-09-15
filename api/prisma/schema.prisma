@@ -32,7 +32,8 @@ model OpsUser {
   name         String
   createdAt    DateTime @default(now())
 
-  issuesOpened OperationalIssue[]
+  issuesOpened            OperationalIssue[]
+  studyTypeRequestReviews StudyTypeChangeRequest[]
 }
 
 // ---------------------------------------------------------------------------
@@ -68,6 +69,8 @@ model Employee {
   name         String
   createdAt    DateTime @default(now())
 
+  studyTypeRequests StudyTypeChangeRequest[]
+
   @@index([companyId])
 }
 
@@ -96,19 +99,19 @@ model Consumer {
   name      String?
   createdAt DateTime @default(now())
 
-  otpCodes      OtpCode[]
+  otpCodes       OtpCode[]
   participations Participation[]
 }
 
 model OtpCode {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   phone      String
   consumerId String?
   consumer   Consumer? @relation(fields: [consumerId], references: [id])
   code       String
   expiresAt  DateTime
   consumedAt DateTime?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   @@index([phone])
 }
@@ -135,11 +138,11 @@ model OtpCode {
 // (String, not a native enum — SQLite/Prisma limitation; enforced in code).
 
 model Campaign {
-  id        String         @id @default(cuid())
+  id        String   @id @default(cuid())
   companyId String
-  company   Company        @relation(fields: [companyId], references: [id])
+  company   Company  @relation(fields: [companyId], references: [id])
   productId String?
-  product   Product?       @relation(fields: [productId], references: [id])
+  product   Product? @relation(fields: [productId], references: [id])
 
   name      String
   // Benchmark §2.4/§3: "Campaign has a clear purpose, not only product/date
@@ -151,10 +154,10 @@ model Campaign {
   // Audience / Eligibility (Benchmark §3 "Audience/qualification").
   // Minimal demographic filter fields; screening beyond these is expressed
   // as ELIGIBILITY-stage Questions below.
-  audienceAgeMin  Int?
-  audienceAgeMax  Int?
-  audienceGender  String? // "ANY" | "MALE" | "FEMALE"
-  audienceCity    String?
+  audienceAgeMin Int?
+  audienceAgeMax Int?
+  audienceGender String? // "ANY" | "MALE" | "FEMALE"
+  audienceCity   String?
 
   // FOUNDER-APPROVED STRATEGIC DIFFERENTIATION (see
   // governance/FOUNDER_DECISION_STRATEGIC_DIFFERENTIATION.md) — NOT
@@ -164,6 +167,16 @@ model Campaign {
   // measurement.ts or report.ts branches on this value or changes its
   // methodology based on it. A campaign with no studyType behaves
   // identically to the pre-existing Benchmark-only product.
+  //
+  // GOVERNANCE (forensic audit 2026-09-15, Decision 1): this field may
+  // only be changed directly (via PATCH) while the campaign has zero
+  // Question rows. Once ≥1 question exists, a change must go through
+  // StudyTypeChangeRequest below (Warn + Operations approval) — see
+  // company.ts assertStudyTypeChangeAllowed(). This model file does not
+  // enforce that rule itself (SQLite/Prisma cannot express "field X is
+  // immutable once relation Y is non-empty" declaratively); it is
+  // enforced in the route layer, same as every other business rule in
+  // this schema.
   studyType String?
 
   startDate DateTime
@@ -173,12 +186,55 @@ model Campaign {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  questions      Question[]
-  qrSources      QrSource[]
-  participations Participation[]
-  issues         OperationalIssue[]
+  questions               Question[]
+  qrSources               QrSource[]
+  participations          Participation[]
+  issues                  OperationalIssue[]
+  studyTypeChangeRequests StudyTypeChangeRequest[]
 
   @@index([companyId])
+}
+
+// FOUNDER-APPROVED — forensic audit 2026-09-15, Decision 1 ("Study-Type
+// change = WARN + OPERATIONS REVIEW/APPROVAL"). NOT Benchmark-required in
+// its own right, but implements Benchmark §4 OPERATIONS "Readiness" /
+// operational-control posture for the one campaign-identity field the
+// Founder decided needs governance once real survey content exists on a
+// campaign. Purely additive: a campaign with no request rows behaves
+// identically to the pre-existing product.
+//
+// Deliberately NOT a generic workflow/approval engine (per the
+// implementation brief's own §4/§17 prohibition) — this table only ever
+// represents "change this one campaign's studyType tag from A to B",
+// nothing else is ever requested through it.
+// status: "PENDING" | "APPROVED" | "REJECTED"
+model StudyTypeChangeRequest {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+
+  // Snapshot of campaign.studyType at request time — not re-derived later,
+  // so the request record stays a truthful historical statement of what
+  // was asked for even if the campaign's studyType is changed again by a
+  // later, independent request.
+  currentStudyType   String?
+  requestedStudyType String?
+
+  requestedById String
+  requestedBy   Employee @relation(fields: [requestedById], references: [id])
+
+  status String @default("PENDING")
+
+  reviewedById    String?
+  reviewedBy      OpsUser?  @relation(fields: [reviewedById], references: [id])
+  reviewedAt      DateTime?
+  rejectionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId])
+  @@index([status])
 }
 
 // Benchmark §4 "Journey / Survey"; §2.3 screening/claim/trial/feedback stages
@@ -205,14 +261,14 @@ model Question {
 
 // Benchmark §3 "QR/source attribution"; §10 "QR lifecycle/date gating"
 model QrSource {
-  id         String    @id @default(cuid())
+  id         String   @id @default(cuid())
   campaignId String
-  campaign   Campaign  @relation(fields: [campaignId], references: [id])
-  code       String    @unique
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  code       String   @unique
   label      String
   activeFrom DateTime
   activeTo   DateTime
-  createdAt  DateTime  @default(now())
+  createdAt  DateTime @default(now())
 
   participations Participation[]
 
@@ -242,10 +298,10 @@ model Participation {
   genderAtEntry String?
   cityAtEntry   String?
 
-  enteredAt          DateTime  @default(now())
-  eligibilityAt      DateTime?
-  trialRedeemedAt    DateTime?
-  surveyCompletedAt  DateTime?
+  enteredAt         DateTime  @default(now())
+  eligibilityAt     DateTime?
+  trialRedeemedAt   DateTime?
+  surveyCompletedAt DateTime?
 
   answers Answer[]
 
@@ -255,11 +311,11 @@ model Participation {
 }
 
 model Answer {
-  id              String         @id @default(cuid())
+  id              String        @id @default(cuid())
   participationId String
-  participation   Participation  @relation(fields: [participationId], references: [id])
+  participation   Participation @relation(fields: [participationId], references: [id])
   questionId      String
-  question        Question       @relation(fields: [questionId], references: [id])
+  question        Question      @relation(fields: [questionId], references: [id])
 
   valueText    String?
   valueNumber  Float?

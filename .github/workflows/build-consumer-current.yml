@@ -1,0 +1,111 @@
+name: Consumer Android APK Build (Current Benchmark)
+
+# CURRENT lineage only. Runs only on benchmark-current — this branch is a
+# deliberately isolated container inside the same GitHub repository as the
+# legacy `main` branch; the two histories are unrelated by design (see
+# README.md). This workflow must never be copied onto or triggered from
+# main, and must never point at the legacy Railway API
+# (api-production-266c.up.railway.app) — that backend belongs to the old
+# pre-Benchmark implementation, not this one.
+#
+# Technical build steps (runner/Java/Flutter versions, platform-file
+# generation, artifact upload) are adapted from the legacy
+# build-consumer-android.yml as a known-working technical pattern only —
+# its API configuration and source path are not reused.
+on:
+  push:
+    branches:
+      - benchmark-current
+    paths:
+      - 'mobile/consumer/**'
+      - '.github/workflows/build-consumer-current.yml'
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Build Android APK (current)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # The current mobile app's compile-time API_BASE must point at a
+      # real, reachable deployment of the CURRENT api/ (see
+      # mobile/consumer/README.md) — never localhost, never the legacy
+      # Railway URL, never a placeholder. Until that deployment exists and
+      # its URL is recorded here as a repository variable, the build fails
+      # fast with a clear message instead of silently producing an APK
+      # that can't reach any real backend.
+      - name: Verify current API_BASE is configured
+        run: |
+          if [ -z "${{ vars.CURRENT_API_BASE }}" ]; then
+            echo "::error::CURRENT_API_BASE repository variable is not set. This must be the current TAJRIBTI Benchmark API's real deployed HTTPS URL (see mobile/consumer/README.md) — set it under Settings > Secrets and variables > Actions > Variables before running this workflow."
+            exit 1
+          fi
+          echo "Using CURRENT_API_BASE=${{ vars.CURRENT_API_BASE }}"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter 3.44.8
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+          cache: true
+
+      - name: Verify Flutter version
+        run: flutter --version
+
+      - name: Generate missing Android platform files
+        working-directory: mobile/consumer
+        run: |
+          cp android/app/src/main/AndroidManifest.xml /tmp/AndroidManifest_main.xml.bak
+          cp pubspec.yaml /tmp/pubspec.yaml.bak
+          flutter create --org com.tajribti --platforms android --project-name consumer .
+          cp /tmp/AndroidManifest_main.xml.bak android/app/src/main/AndroidManifest.xml
+          cp /tmp/pubspec.yaml.bak pubspec.yaml
+
+      - name: Verify AndroidManifest.xml preserved
+        working-directory: mobile/consumer
+        run: |
+          grep "CAMERA" android/app/src/main/AndroidManifest.xml && echo "CAMERA permission: OK" || (echo "ERROR: CAMERA permission missing" && exit 1)
+          grep "INTERNET" android/app/src/main/AndroidManifest.xml && echo "INTERNET permission: OK" || (echo "ERROR: INTERNET permission missing" && exit 1)
+
+      - name: Install Flutter dependencies
+        working-directory: mobile/consumer
+        run: flutter pub get
+
+      - name: Static analysis
+        working-directory: mobile/consumer
+        run: flutter analyze
+
+      - name: Build release APK
+        working-directory: mobile/consumer
+        run: |
+          flutter build apk --release \
+            --dart-define=API_BASE=${{ vars.CURRENT_API_BASE }}/api
+
+      - name: Verify APK exists
+        run: |
+          APK_PATH="mobile/consumer/build/app/outputs/flutter-apk/app-release.apk"
+          if [ -f "$APK_PATH" ]; then
+            echo "APK produced successfully."
+            ls -lh "$APK_PATH"
+          else
+            echo "ERROR: APK not found at expected path."
+            find mobile/consumer/build -name "*.apk" 2>/dev/null || echo "No APK found anywhere in build output."
+            exit 1
+          fi
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tajribti-consumer-current-${{ github.run_number }}
+          path: mobile/consumer/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
+          if-no-files-found: error

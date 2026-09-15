@@ -112,6 +112,11 @@ export async function buildReport(campaignId: string) {
       endDate: campaign.endDate,
       company: campaign.company.name,
       product: campaign.product?.name ?? null,
+      // FOUNDER-APPROVED STRATEGIC DIFFERENTIATION (not Benchmark-
+      // required) — a plain factual passthrough of the campaign's
+      // optional study-template tag, if any. Does not change how any
+      // figure below is computed.
+      studyType: campaign.studyType ?? null,
     },
     evidence,
     funnel,

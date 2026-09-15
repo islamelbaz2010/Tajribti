@@ -156,6 +156,16 @@ model Campaign {
   audienceGender  String? // "ANY" | "MALE" | "FEMALE"
   audienceCity    String?
 
+  // FOUNDER-APPROVED STRATEGIC DIFFERENTIATION (see
+  // governance/FOUNDER_DECISION_STRATEGIC_DIFFERENTIATION.md) — NOT
+  // Benchmark-required. Optional tag identifying which study-template
+  // catalog entry (api/src/lib/studyTemplates.ts) this campaign was
+  // configured from, if any. Purely descriptive metadata: nothing in
+  // measurement.ts or report.ts branches on this value or changes its
+  // methodology based on it. A campaign with no studyType behaves
+  // identically to the pre-existing Benchmark-only product.
+  studyType String?
+
   startDate DateTime
   endDate   DateTime
   status    String   @default("DRAFT")

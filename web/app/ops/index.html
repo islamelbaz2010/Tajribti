@@ -143,6 +143,11 @@ const API = '/api';
 let token = localStorage.getItem('tj_ops_token') || null;
 let currentCampaignId = null;
 let currentCampaign = null;
+let studyTemplates = []; // cached from GET /ops/study-templates (founder-approved extension)
+function studyTypeLabel(key) {
+  const t = studyTemplates.find(x => x.key === key);
+  return t ? t.label : key;
+}
 
 // Security hardening: company/product/campaign names, question text,
 // option labels, QR labels, consumer names/phones and consumer survey
@@ -193,6 +198,7 @@ document.querySelectorAll('#view-home .tab-btn').forEach(btn => {
 });
 
 async function loadHome() {
+  if (!studyTemplates.length) studyTemplates = await api('/ops/study-templates');
   await loadPipeline();
   show('view-home');
 }
@@ -340,7 +346,9 @@ function loadConfig() {
     '<p><strong>Objective</strong><br/>' + esc(c.objective || '—') + '</p>' +
     '<p><strong>Product</strong><br/>' + (c.product ? esc(c.product.name) : 'No product linked') + '</p>' +
     '<p><strong>Dates</strong><br/>' + new Date(c.startDate).toLocaleDateString() + ' – ' + new Date(c.endDate).toLocaleDateString() + '</p>' +
-    '<p><strong>Audience</strong><br/>' + (audienceParts.length ? audienceParts.join(' · ') : 'No audience filter set') + '</p>';
+    '<p><strong>Audience</strong><br/>' + (audienceParts.length ? audienceParts.join(' · ') : 'No audience filter set') + '</p>' +
+    // Founder-approved strategic differentiation, not Benchmark-required.
+    (c.studyType ? '<p><strong>Study type</strong><br/>' + esc(studyTypeLabel(c.studyType)) + '</p>' : '');
 }
 
 async function loadReadiness() {
@@ -450,6 +458,7 @@ async function loadOpsReport() {
   const r = await api('/ops/campaigns/' + currentCampaignId + '/report');
   document.getElementById('ops-report-content').innerHTML =
     '<p style="color:var(--muted);font-size:0.85rem;">Generated ' + new Date(r.generatedAt).toLocaleString() + ' · Evidence level: <strong>' + r.evidence.level + '</strong> (sample size ' + r.evidence.sampleSize + ')</p>' +
+    (r.campaign.studyType ? '<p style="color:var(--muted);font-size:0.85rem;">Study type: ' + esc(studyTypeLabel(r.campaign.studyType)) + '</p>' : '') +
     '<h3 style="font-size:0.95rem;">Participant / trial metrics</h3>' +
     '<div class="metrics-row">' +
     metric(r.funnel.entered, 'Entered') + metric(r.funnel.eligible, 'Eligible') +

@@ -71,6 +71,15 @@
 
     <div class="card hidden" id="new-campaign-card">
       <h2>New campaign</h2>
+      <!-- Founder-approved strategic differentiation (NOT Benchmark-
+           required — see governance/FOUNDER_DECISION_STRATEGIC_
+           DIFFERENTIATION.md): an optional "what are you trying to
+           learn?" study-type tag, from the read-only catalog at
+           GET /company/study-templates. Leaving it on "— custom —"
+           reproduces the exact pre-existing campaign-creation behavior. -->
+      <label>What are you trying to learn? (optional)</label>
+      <select id="nc-studytype"><option value="">— custom, no template —</option></select>
+      <p id="nc-studytype-decision" style="color:var(--muted);font-size:0.82rem;margin:0 0 8px;"></p>
       <label>Name</label><input id="nc-name" />
       <label>Objective</label><textarea id="nc-objective" rows="2"></textarea>
       <div class="grid2">
@@ -129,6 +138,7 @@
     <a href="#" id="btn-back" class="back">← Back to campaigns</a>
     <div class="card">
       <span class="pill" id="cd-status"></span>
+      <span class="pill hidden" id="cd-studytype" style="background:#fff;border:1px solid #e6d9cf;color:var(--ink);"></span>
       <h2 id="cd-name"></h2>
       <p id="cd-objective" style="color:var(--muted);"></p>
       <div class="row" id="cd-actions"></div>
@@ -164,6 +174,13 @@
       </div>
       <label>Product</label>
       <select id="s-product"></select>
+      <!-- Founder-approved strategic differentiation, not Benchmark-
+           required (see governance/FOUNDER_DECISION_STRATEGIC_
+           DIFFERENTIATION.md) — same optional study-type tag as the New
+           Campaign form, editable here too via the same PATCH endpoint. -->
+      <label>What are you trying to learn? (optional)</label>
+      <select id="s-studytype"><option value="">— custom, no template —</option></select>
+      <p id="s-studytype-decision" style="color:var(--muted);font-size:0.82rem;margin:0 0 8px;"></p>
       <h3 style="font-size:0.95rem;">Audience</h3>
       <div class="grid2">
         <div><label>Min age</label><input id="s-agemin" type="number" /></div>
@@ -179,6 +196,13 @@
 
     <div class="card tab-panel hidden" id="tab-questions">
       <h2>Eligibility &amp; post-trial questions</h2>
+      <!-- Founder-approved strategic differentiation (NOT Benchmark-
+           required): if this campaign has a study type selected, offer
+           to bulk-create its recommended questions through the exact
+           same question-creation path "Add question" below uses. Hidden
+           when no study type is set — behaves identically to the
+           pre-existing product otherwise. -->
+      <div id="template-apply-row" class="msg hidden" style="margin-bottom:10px;"></div>
       <div id="question-list"></div>
       <h3 style="font-size:0.95rem;">Add question</h3>
       <label>Stage</label>
@@ -234,6 +258,8 @@
 const API = '/api';
 let token = localStorage.getItem('tj_company_token') || null;
 let currentCampaignId = null;
+let currentCampaignStudyType = '';
+let studyTemplates = []; // cached from GET /company/study-templates
 
 // Security hardening: company/product/campaign/employee names, question
 // text, option labels, QR labels and consumer survey verbatims all
@@ -313,6 +339,7 @@ async function loadCampaigns() {
     list.appendChild(div);
   });
   await loadProducts(document.getElementById('nc-product'));
+  await loadStudyTemplates();
   await loadProfile();
   await loadEmployees();
   show('view-campaigns');
@@ -361,6 +388,24 @@ document.getElementById('btn-add-employee').onclick = async () => {
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };
 
+// Founder-approved strategic differentiation, not Benchmark-required
+// (see governance/FOUNDER_DECISION_STRATEGIC_DIFFERENTIATION.md).
+async function loadStudyTemplates() {
+  if (studyTemplates.length) return studyTemplates;
+  studyTemplates = await api('/company/study-templates');
+  const opts = studyTemplates.map(t => '<option value="' + esc(t.key) + '">' + esc(t.label) + '</option>').join('');
+  document.getElementById('nc-studytype').insertAdjacentHTML('beforeend', opts);
+  document.getElementById('s-studytype').insertAdjacentHTML('beforeend', opts);
+  return studyTemplates;
+}
+function studyTemplateDecisionText(key) {
+  const t = studyTemplates.find(x => x.key === key);
+  return t ? t.decision : '';
+}
+document.getElementById('nc-studytype').onchange = (e) => {
+  document.getElementById('nc-studytype-decision').textContent = studyTemplateDecisionText(e.target.value);
+};
+
 document.getElementById('btn-new-campaign').onclick = () => document.getElementById('new-campaign-card').classList.toggle('hidden');
 
 document.getElementById('btn-create-campaign').onclick = async () => {
@@ -372,6 +417,7 @@ document.getElementById('btn-create-campaign').onclick = async () => {
       startDate: document.getElementById('nc-start').value,
       endDate: document.getElementById('nc-end').value,
       productId: document.getElementById('nc-product').value || undefined,
+      studyType: document.getElementById('nc-studytype').value || undefined,
     }});
     document.getElementById('new-campaign-card').classList.add('hidden');
     await loadCampaigns();
@@ -405,6 +451,14 @@ async function openCampaign(id) {
   document.getElementById('s-end').value = c.endDate ? c.endDate.slice(0, 10) : '';
   await loadProducts(document.getElementById('s-product'));
   document.getElementById('s-product').value = c.productId || '';
+  await loadStudyTemplates();
+  document.getElementById('s-studytype').value = c.studyType || '';
+  document.getElementById('s-studytype-decision').textContent = studyTemplateDecisionText(c.studyType || '');
+  currentCampaignStudyType = c.studyType || '';
+  const badge = document.getElementById('cd-studytype');
+  const tpl = studyTemplates.find(t => t.key === c.studyType);
+  badge.textContent = tpl ? tpl.label : '';
+  badge.classList.toggle('hidden', !tpl);
   document.getElementById('s-agemin').value = c.audienceAgeMin || '';
   document.getElementById('s-agemax').value = c.audienceAgeMax || '';
   document.getElementById('s-gender').value = c.audienceGender || 'ANY';
@@ -428,6 +482,7 @@ async function openCampaign(id) {
   }
 
   renderQuestions(c.questions || []);
+  renderTemplateApplyRow();
   renderQrSources(c.qrSources || []);
 
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -451,9 +506,16 @@ document.getElementById('btn-save-setup').onclick = async () => {
       audienceAgeMax: Number(document.getElementById('s-agemax').value) || undefined,
       audienceGender: document.getElementById('s-gender').value,
       audienceCity: document.getElementById('s-city').value.trim() || undefined,
+      studyType: document.getElementById('s-studytype').value || undefined,
     }});
     document.getElementById('cd-name').textContent = updated.name;
     document.getElementById('cd-objective').textContent = updated.objective;
+    currentCampaignStudyType = updated.studyType || '';
+    const badge = document.getElementById('cd-studytype');
+    const tpl = studyTemplates.find(t => t.key === updated.studyType);
+    badge.textContent = tpl ? tpl.label : '';
+    badge.classList.toggle('hidden', !tpl);
+    renderTemplateApplyRow();
     msg.textContent = 'Saved.'; msg.className = 'msg ok';
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };
@@ -463,6 +525,34 @@ function renderQuestions(questions) {
   list.innerHTML = questions.length ? '<table><tr><th>Stage</th><th>Type</th><th>Text</th><th></th></tr>' +
     questions.map(q => '<tr><td>' + q.stage + '</td><td>' + q.type + '</td><td>' + esc(q.text) + '</td></tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No questions yet.</p>';
+}
+
+// Founder-approved strategic differentiation, not Benchmark-required
+// (see governance/FOUNDER_DECISION_STRATEGIC_DIFFERENTIATION.md).
+// Offers to bulk-create the selected study template's recommended
+// questions through the same question-creation path as "Add question"
+// above. Hidden entirely when no study type is set on this campaign —
+// the tab behaves exactly like the pre-existing product in that case.
+function renderTemplateApplyRow() {
+  const row = document.getElementById('template-apply-row');
+  const tpl = studyTemplates.find(t => t.key === currentCampaignStudyType);
+  if (!tpl) { row.classList.add('hidden'); row.innerHTML = ''; return; }
+  row.classList.remove('hidden');
+  row.className = 'msg';
+  row.innerHTML = '<strong>' + esc(tpl.label) + '</strong> — ' + esc(tpl.decision) +
+    ' <button class="small secondary" id="btn-apply-template" style="margin-left:8px;">Apply recommended questions (' + tpl.questions.length + ')</button>';
+  document.getElementById('btn-apply-template').onclick = async () => {
+    try {
+      const result = await api('/company/campaigns/' + currentCampaignId + '/questions/apply-template', { method: 'POST', body: { templateKey: tpl.key } });
+      const c = await api('/company/campaigns/' + currentCampaignId);
+      renderQuestions(c.questions || []);
+      row.className = result.created.length ? 'msg ok' : 'msg';
+      row.innerHTML = (result.created.length ? 'Added ' + result.created.length + ' question(s).' : 'No new questions added.') +
+        (result.skipped.length ? ' Skipped ' + result.skipped.length + ' (a rating or purchase-intent question already exists on this campaign — combining two would blend unrelated averages).' : '');
+    } catch (e) {
+      row.className = 'msg error'; row.textContent = e.message;
+    }
+  };
 }
 
 document.getElementById('btn-add-question').onclick = async () => {
@@ -556,7 +646,8 @@ async function loadReport() {
     '<h3 style="font-size:0.95rem;">Campaign</h3><p>' + esc(r.campaign.name) + ' — ' + esc(r.campaign.objective) + '<br/>' +
     'Product: ' + (r.campaign.product ? esc(r.campaign.product) : 'No product linked') + '<br/>' +
     'Dates: ' + new Date(r.campaign.startDate).toLocaleDateString() + ' – ' + new Date(r.campaign.endDate).toLocaleDateString() + '<br/>' +
-    'Status: ' + esc(r.campaign.status) + '</p>' +
+    'Status: ' + esc(r.campaign.status) +
+    (r.campaign.studyType ? '<br/>Study type: ' + esc((studyTemplates.find(t => t.key === r.campaign.studyType) || {}).label || r.campaign.studyType) : '') + '</p>' +
     '<h3 style="font-size:0.95rem;">Participant / trial metrics</h3>' +
     '<div class="metrics-row">' +
     metric(r.funnel.entered, 'Entered') + metric(r.funnel.eligible, 'Eligible') +

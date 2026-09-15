@@ -14,9 +14,17 @@ import {
   classifySample,
 } from "../lib/measurement";
 import { buildReport } from "../lib/report";
+import { STUDY_TEMPLATES } from "../lib/studyTemplates";
 
 const router = Router();
 router.use(requireOps);
+
+// Founder-approved strategic differentiation, not Benchmark-required (see
+// governance/FOUNDER_DECISION_STRATEGIC_DIFFERENTIATION.md) — read-only,
+// same catalog the Company console reads from GET /company/study-templates.
+router.get("/study-templates", async (_req, res) => {
+  res.json(STUDY_TEMPLATES.map((t) => ({ key: t.key, label: t.label, decision: t.decision, questionCount: t.questions.length })));
+});
 
 async function loadCampaignOrNotFound(req: Request, res: Response) {
   const campaign = await prisma.campaign.findUnique({ where: { id: req.params.id } });

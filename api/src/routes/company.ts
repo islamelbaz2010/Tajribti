@@ -14,9 +14,17 @@ import {
   classifySample,
 } from "../lib/measurement";
 import { buildReport } from "../lib/report";
+import { STUDY_TEMPLATES, findTemplate } from "../lib/studyTemplates";
 
 const router = Router();
 router.use(requireEmployee);
+
+// --- Study Templates (FOUNDER-APPROVED STRATEGIC DIFFERENTIATION — see
+// governance/FOUNDER_DECISION_STRATEGIC_DIFFERENTIATION.md; NOT
+// Benchmark-required). Read-only catalog; no company/campaign data. -----
+router.get("/study-templates", async (_req, res) => {
+  res.json(STUDY_TEMPLATES.map((t) => ({ key: t.key, label: t.label, decision: t.decision, questionCount: t.questions.length })));
+});
 
 // Company isolation (Benchmark §10): every campaign/product lookup below is
 // scoped to req.claims.companyId. Cross-company access returns 404, not
@@ -104,6 +112,11 @@ router.get("/campaigns", async (req, res) => {
   res.json(campaigns);
 });
 
+// studyType: optional tag into the FOUNDER-APPROVED study-template catalog
+// (api/src/lib/studyTemplates.ts) — NOT Benchmark-required. Validated
+// against the known catalog keys so the field stays meaningful; omitting
+// it leaves the campaign identical to the pre-existing Benchmark-only
+// product.
 const createCampaignSchema = z.object({
   name: z.string().min(1),
   objective: z.string().min(1),
@@ -114,6 +127,10 @@ const createCampaignSchema = z.object({
   audienceAgeMax: z.number().int().optional(),
   audienceGender: z.string().optional(),
   audienceCity: z.string().optional(),
+  studyType: z
+    .string()
+    .optional()
+    .refine((v) => v == null || v === "" || findTemplate(v) != null, { message: "Unknown study type" }),
 });
 
 router.post("/campaigns", async (req, res) => {
@@ -133,6 +150,7 @@ router.post("/campaigns", async (req, res) => {
       audienceAgeMax: d.audienceAgeMax,
       audienceGender: d.audienceGender,
       audienceCity: d.audienceCity,
+      studyType: d.studyType || undefined,
       status: "DRAFT",
     },
   });
@@ -269,6 +287,66 @@ router.delete("/campaigns/:id/questions/:qid", async (req, res) => {
   const result = await prisma.question.deleteMany({ where: { id: req.params.qid, campaignId: campaign.id } });
   if (result.count === 0) return res.status(404).json({ error: "Question not found" });
   res.status(204).end();
+});
+
+// FOUNDER-APPROVED STRATEGIC DIFFERENTIATION (see
+// governance/FOUNDER_DECISION_STRATEGIC_DIFFERENTIATION.md) — NOT
+// Benchmark-required. Bulk-creates a study template's recommended
+// questions through the exact same prisma.question.create() shape as the
+// single-question POST above; applies the same assertConfigurable() lock.
+// Every created question can be edited or deleted afterward like any
+// other — nothing here is a new question mechanism.
+//
+// Guard (correctness, not preference): getSatisfaction()/getPurchaseIntent()
+// in measurement.ts average ALL RATING_1_5 / PURCHASE_INTENT_1_5 answers on
+// the campaign together with no per-question breakdown. Every catalog
+// template already contains at most one of each (see studyTemplates.ts),
+// but a company could have already added one manually, or applied another
+// template first — so a template question of either type is skipped,
+// not created, if the campaign already has one. Skipped questions are
+// reported back so the Company UI can show exactly what happened.
+router.post("/campaigns/:id/questions/apply-template", async (req, res) => {
+  const campaign = await loadOwnedCampaign(req, res);
+  if (!campaign) return;
+  if (!assertConfigurable(campaign, res)) return;
+
+  const parsed = z.object({ templateKey: z.string() }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  const template = findTemplate(parsed.data.templateKey);
+  if (!template) return res.status(404).json({ error: "Unknown study type" });
+
+  const existing = await prisma.question.findMany({
+    where: { campaignId: campaign.id },
+    select: { type: true, order: true },
+  });
+  const hasType = (t: string) => existing.some((q) => q.type === t);
+
+  const created = [];
+  const skipped: string[] = [];
+  let order = existing.length ? Math.max(...existing.map((q) => q.order)) + 1 : 0;
+  for (const q of template.questions) {
+    if ((q.type === "RATING_1_5" && hasType("RATING_1_5")) || (q.type === "PURCHASE_INTENT_1_5" && hasType("PURCHASE_INTENT_1_5"))) {
+      skipped.push(q.text);
+      continue;
+    }
+    const question = await prisma.question.create({
+      data: {
+        campaignId: campaign.id,
+        stage: q.stage,
+        type: q.type,
+        text: q.text,
+        options: q.options ? JSON.stringify(q.options) : null,
+        order: order++,
+        required: q.required ?? true,
+      },
+    });
+    created.push(question);
+    if (q.type === "RATING_1_5" || q.type === "PURCHASE_INTENT_1_5") {
+      existing.push({ type: q.type, order }); // prevent a second one within the same template application
+    }
+  }
+
+  res.status(201).json({ created, skipped });
 });
 
 // --- QR / Sources ------------------------------------------------------------

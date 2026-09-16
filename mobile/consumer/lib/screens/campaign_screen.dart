@@ -532,7 +532,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
     // and entry (enterCampaignWeb) already enforce this server-side; this
     // mirrors that same rule in Campaign Detail itself. Does not affect
     // already-completed campaigns (handled above) or the active case.
-    if (_campaign != null && _campaign!.status != 'active') {
+    if (_campaign != null && _campaign!.status != 'ACTIVE') {
       return Directionality(
         textDirection: context.dir,
         child: Scaffold(

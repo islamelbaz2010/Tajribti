@@ -197,6 +197,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           padding: EdgeInsets.symmetric(horizontal: 4),
                           child: Center(child: LangToggle()),
                         ),
+                        // Consumer Participation Journey (2026-09-16): the QR
+                        // discovery entry point (scan a campaign's QR to
+                        // resolve straight to it, no prior campaign
+                        // selection) was already fully implemented in
+                        // scanner_screen.dart (verifyCampaignId == null
+                        // branch, resolveQrCode -> JourneySession.start ->
+                        // push('/campaign')) but had no reachable entry
+                        // point anywhere in the app — the only existing call
+                        // site (campaign_screen.dart) always passes a
+                        // verifyCampaignId. This button is the missing
+                        // front door onto that already-correct, already-
+                        // tested code path; nothing about QR resolution,
+                        // source attribution, or campaign validation changes.
+                        IconButton(
+                          icon: const Icon(Icons.qr_code_scanner_rounded, color: kPrimary),
+                          onPressed: () => context.push('/scanner'),
+                        ),
                         IconButton(
                           icon: const Icon(Icons.info_outline_rounded, color: kPrimary),
                           onPressed: () => context.push('/services'),

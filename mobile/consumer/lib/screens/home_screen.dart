@@ -208,7 +208,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           )
                         else
                           TextButton(
-                            onPressed: () => context.push('/auth-choice'),
+                            // Physical device acceptance (2026-09-16): this
+                            // pointed at '/auth-choice', a route that does
+                            // not exist in app.dart's GoRouter table (the
+                            // account-choice/login/signup screens were
+                            // deliberately removed — see app.dart's own
+                            // comment) and threw GoException at runtime on
+                            // a real device. '/phone' is the actual, current
+                            // phone+OTP entry screen.
+                            onPressed: () => context.push('/phone'),
                             child: Text(
                               s.signIn,
                               style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w700),

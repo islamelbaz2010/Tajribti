@@ -320,7 +320,11 @@ class _NotLoggedIn extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () => context.push('/auth-choice'),
+              // Physical device acceptance (2026-09-16): same dead-route bug
+              // as home_screen.dart's sign-in button — '/auth-choice' does
+              // not exist in app.dart's GoRouter table. '/phone' is the
+              // actual current phone+OTP entry screen.
+              onPressed: () => context.push('/phone'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: kBrand,
                 foregroundColor: kPrimary,

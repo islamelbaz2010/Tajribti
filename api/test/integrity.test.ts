@@ -673,3 +673,72 @@ describe("regression", () => {
     );
   });
 });
+
+describe("auth transport hardening", () => {
+  it("S1: OTP request returns devOnlyCode outside production and verify completes the round-trip", async () => {
+    const phone = "+201000000001";
+    const req1 = await api("/api/consumer/auth/otp/request", { method: "POST", body: { phone } });
+    assert.equal(req1.status, 200);
+    assert.match(req1.body.devOnlyCode, /^\d{6}$/);
+
+    const v = await api("/api/consumer/auth/otp/verify", {
+      method: "POST",
+      body: { phone, code: req1.body.devOnlyCode },
+    });
+    assert.equal(v.status, 200);
+    assert.ok(v.body.token);
+    assert.equal(v.body.consumer.phone, phone);
+  });
+
+  it("S2: OTP request is throttled to one send per 60s per phone", async () => {
+    const phone = "+201000000002";
+    assert.equal(
+      (await api("/api/consumer/auth/otp/request", { method: "POST", body: { phone } })).status,
+      200
+    );
+    const second = await api("/api/consumer/auth/otp/request", { method: "POST", body: { phone } });
+    assert.equal(second.status, 429);
+    // A different phone is unaffected — limits are keyed per credential.
+    assert.equal(
+      (
+        await api("/api/consumer/auth/otp/request", {
+          method: "POST",
+          body: { phone: "+201000000003" },
+        })
+      ).status,
+      200
+    );
+  });
+
+  it("S3: OTP verify is throttled per phone — brute force stops at the window max", async () => {
+    const phone = "+201000000004";
+    await api("/api/consumer/auth/otp/request", { method: "POST", body: { phone } });
+    for (let i = 0; i < 10; i++) {
+      const r = await api("/api/consumer/auth/otp/verify", {
+        method: "POST",
+        body: { phone, code: "000000" },
+      });
+      assert.equal(r.status, 401);
+    }
+    const blocked = await api("/api/consumer/auth/otp/verify", {
+      method: "POST",
+      body: { phone, code: "000000" },
+    });
+    assert.equal(blocked.status, 429);
+  });
+
+  it("S4: employee login is throttled per email", async () => {
+    for (let i = 0; i < 10; i++) {
+      const r = await api("/api/company/auth/login", {
+        method: "POST",
+        body: { email: "a@example.test", password: "wrong" },
+      });
+      assert.equal(r.status, 401);
+    }
+    const blocked = await api("/api/company/auth/login", {
+      method: "POST",
+      body: { email: "a@example.test", password: "wrong" },
+    });
+    assert.equal(blocked.status, 429);
+  });
+});

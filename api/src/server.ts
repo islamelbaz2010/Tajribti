@@ -10,7 +10,28 @@ import opsAuthRoutes from "./routes/opsAuth";
 import opsRoutes from "./routes/ops";
 
 const app = express();
-app.use(cors());
+app.disable("x-powered-by");
+
+// Production hardening: when CORS_ORIGIN is configured (comma-separated
+// allowlist, e.g. the deployed web app origin), only those origins may make
+// cross-origin API calls. Unset keeps the permissive default needed for
+// local dev (emulators, file:// webviews). Same-origin static clients are
+// unaffected either way.
+const allowedOrigins = (process.env.CORS_ORIGIN ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+app.use(cors(allowedOrigins.length ? { origin: allowedOrigins } : undefined));
+
+// Baseline response headers. No CSP here — the thin web clients use inline
+// scripts, so a restrictive policy would break them.
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  next();
+});
+
 app.use(express.json());
 
 // `dev` reflects the standard NODE_ENV convention already implied by this

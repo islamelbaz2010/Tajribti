@@ -85,6 +85,37 @@ router.post("/campaigns/:id/eligibility", requireConsumer, async (req, res) => {
     return res.status(409).json({ error: "Already participated in this campaign", participation: existing });
   }
 
+  // QR/source → campaign binding (Benchmark §10 campaign ownership
+  // isolation): a source identifier is only valid for the campaign it was
+  // created on. Unknown ids and sources belonging to another campaign get
+  // the same 400 — the response does not reveal whether the source exists
+  // elsewhere. Checked before any mutation so a rejected attempt creates
+  // no participation.
+  if (qrSourceId) {
+    const source = await prisma.qrSource.findUnique({
+      where: { id: qrSourceId },
+      select: { campaignId: true },
+    });
+    if (!source || source.campaignId !== campaign.id) {
+      return res.status(400).json({ error: "Invalid QR/source for this campaign" });
+    }
+  }
+
+  // Answer → question → campaign binding: screener answers may only
+  // reference ELIGIBILITY-stage questions of this exact campaign and must
+  // carry a value. A question id from another campaign, a POST_TRIAL
+  // question, or an answer with no content must never become persisted
+  // evidence (the participation is scoped to this campaign, so a foreign
+  // question id would otherwise create an Answer row whose two relations
+  // disagree — exactly the malformed evidence measurement must never see).
+  const eligibilityQuestionIds = new Set(campaign.questions.map((q) => q.id));
+  const hasInvalidAnswer = answers.some(
+    (a) => !eligibilityQuestionIds.has(a.questionId) || (!a.valueText?.trim() && !(a.valueOptions?.length ?? 0))
+  );
+  if (hasInvalidAnswer) {
+    return res.status(400).json({ error: "Invalid input" });
+  }
+
   // Demographic gate (Benchmark §3 "Audience/qualification is an explicit
   // campaign concern"). Missing demographic input is treated as a screener
   // question instead of an automatic fail only if the campaign did not
@@ -106,29 +137,35 @@ router.post("/campaigns/:id/eligibility", requireConsumer, async (req, res) => {
 
   const eligible = demoEligible && allRequiredAnswered;
 
-  const participation = await prisma.participation.create({
-    data: {
-      campaignId: campaign.id,
-      consumerId,
-      qrSourceId,
-      status: eligible ? "ELIGIBLE" : "INELIGIBLE",
-      eligibilityAt: new Date(),
-      ageAtEntry: age,
-      genderAtEntry: gender,
-      cityAtEntry: city,
-    },
-  });
-
-  if (answers.length) {
-    await prisma.answer.createMany({
-      data: answers.map((a) => ({
-        participationId: participation.id,
-        questionId: a.questionId,
-        valueText: a.valueText,
-        valueOptions: a.valueOptions ? JSON.stringify(a.valueOptions) : null,
-      })),
+  // Participation and its screener answers commit together — a
+  // participation without the answers that determined its status (or
+  // answers on a participation that failed to be created) would be
+  // corrupt evidence.
+  const participation = await prisma.$transaction(async (tx) => {
+    const created = await tx.participation.create({
+      data: {
+        campaignId: campaign.id,
+        consumerId,
+        qrSourceId,
+        status: eligible ? "ELIGIBLE" : "INELIGIBLE",
+        eligibilityAt: new Date(),
+        ageAtEntry: age,
+        genderAtEntry: gender,
+        cityAtEntry: city,
+      },
     });
-  }
+    if (answers.length) {
+      await tx.answer.createMany({
+        data: answers.map((a) => ({
+          participationId: created.id,
+          questionId: a.questionId,
+          valueText: a.valueText,
+          valueOptions: a.valueOptions ? JSON.stringify(a.valueOptions) : null,
+        })),
+      });
+    }
+    return created;
+  });
 
   res.json({ eligible, participation });
 });
@@ -172,15 +209,30 @@ router.get("/campaigns/:id/survey", requireConsumer, async (req, res) => {
   res.json(questions);
 });
 
+// Minimum evidence validity: a submission must contain at least one
+// answer, and every answer must carry an actual value. A request with no
+// valid answer payload must not produce persisted evidence or a completed
+// participation (an all-null Answer row is not evidence — it would still
+// inflate per-question response counts downstream).
 const surveySubmitSchema = z.object({
-  answers: z.array(
-    z.object({
-      questionId: z.string(),
-      valueText: z.string().optional(),
-      valueNumber: z.number().optional(),
-      valueOptions: z.array(z.string()).optional(),
-    })
-  ),
+  answers: z
+    .array(
+      z
+        .object({
+          questionId: z.string(),
+          valueText: z.string().optional(),
+          valueNumber: z.number().optional(),
+          valueOptions: z.array(z.string()).optional(),
+        })
+        .refine(
+          (a) =>
+            (a.valueText?.trim() ?? "").length > 0 ||
+            a.valueNumber !== undefined ||
+            (a.valueOptions?.length ?? 0) > 0,
+          { message: "Each answer must carry a value" }
+        )
+    )
+    .min(1),
 });
 
 router.post("/campaigns/:id/survey", requireConsumer, async (req, res) => {
@@ -196,29 +248,51 @@ router.post("/campaigns/:id/survey", requireConsumer, async (req, res) => {
     return res.status(409).json({ error: "Survey is available only after trial redemption" });
   }
 
-  await prisma.$transaction(
-    parsed.data.answers.map((a) =>
-      prisma.answer.upsert({
-        where: { participationId_questionId: { participationId: participation.id, questionId: a.questionId } },
-        create: {
-          participationId: participation.id,
-          questionId: a.questionId,
-          valueText: a.valueText,
-          valueNumber: a.valueNumber,
-          valueOptions: a.valueOptions ? JSON.stringify(a.valueOptions) : null,
-        },
-        update: {
-          valueText: a.valueText,
-          valueNumber: a.valueNumber,
-          valueOptions: a.valueOptions ? JSON.stringify(a.valueOptions) : null,
-        },
-      })
-    )
-  );
+  // Answer → question → participation → campaign binding (Benchmark §10
+  // campaign ownership isolation): every submitted questionId must be a
+  // POST_TRIAL question of this exact campaign. The participation is
+  // already bound to the authenticated consumer and this campaign by the
+  // campaignId_consumerId lookup above, so enforcing the question side
+  // guarantees answer.question.campaignId === participation.campaignId.
+  // Answers referencing questions of other campaigns — or another stage —
+  // are rejected whole, before any mutation.
+  const surveyQuestions = await prisma.question.findMany({
+    where: { campaignId: participation.campaignId, stage: "POST_TRIAL" },
+    select: { id: true },
+  });
+  const surveyQuestionIds = new Set(surveyQuestions.map((q) => q.id));
+  if (parsed.data.answers.some((a) => !surveyQuestionIds.has(a.questionId))) {
+    return res.status(400).json({ error: "Invalid input" });
+  }
 
-  const updated = await prisma.participation.update({
-    where: { id: participation.id },
-    data: { status: "SURVEY_COMPLETE", surveyCompletedAt: new Date() },
+  // Answers and the SURVEY_COMPLETE transition commit together — a
+  // completed participation without its persisted answers is corrupt
+  // evidence, and answers on a participation that never completed must
+  // not stand either.
+  const updated = await prisma.$transaction(async (tx) => {
+    await Promise.all(
+      parsed.data.answers.map((a) =>
+        tx.answer.upsert({
+          where: { participationId_questionId: { participationId: participation.id, questionId: a.questionId } },
+          create: {
+            participationId: participation.id,
+            questionId: a.questionId,
+            valueText: a.valueText,
+            valueNumber: a.valueNumber,
+            valueOptions: a.valueOptions ? JSON.stringify(a.valueOptions) : null,
+          },
+          update: {
+            valueText: a.valueText,
+            valueNumber: a.valueNumber,
+            valueOptions: a.valueOptions ? JSON.stringify(a.valueOptions) : null,
+          },
+        })
+      )
+    );
+    return tx.participation.update({
+      where: { id: participation.id },
+      data: { status: "SURVEY_COMPLETE", surveyCompletedAt: new Date() },
+    });
   });
 
   res.json(updated);

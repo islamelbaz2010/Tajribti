@@ -1,0 +1,567 @@
+import { describe, it, before, after } from "node:test";
+import assert from "node:assert/strict";
+import { prisma, signToken, startApi, ApiCall } from "./helpers";
+
+// Focused evidence-integrity regression suite (Benchmark §10 campaign
+// ownership isolation / company isolation). Exercises the real HTTP
+// boundary of the Consumer and Company routers against a freshly
+// migrated SQLite database — no mocks, no production data.
+//
+// Fixture graph:
+//   Company A ── employeeA, productPA, productPA2
+//     ├─ campaignCA1 (ACTIVE, productPA) ─ qrSA1
+//     │    ├─ qElig1  ELIGIBILITY SINGLE_CHOICE (required)
+//     │    ├─ qPI     POST_TRIAL PURCHASE_INTENT_1_5
+//     │    ├─ qRate   POST_TRIAL RATING_1_5
+//     │    ├─ qChoice POST_TRIAL SINGLE_CHOICE
+//     │    └─ qText   POST_TRIAL TEXT
+//     ├─ campaignCA2 (ACTIVE) ─ qrSA2
+//     │    ├─ qEligOther ELIGIBILITY TEXT
+//     │    └─ qPIother   POST_TRIAL PURCHASE_INTENT_1_5
+//     └─ campaignCM (ACTIVE, measurement baseline) ─ qrSM
+//          ├─ qPIM  POST_TRIAL PURCHASE_INTENT_1_5
+//          ├─ qRateM POST_TRIAL RATING_1_5
+//          └─ qTextM POST_TRIAL TEXT
+//   Company B ── employeeB, productPB
+//     └─ campaignCB (ACTIVE, productPB) ─ qrSB1
+//          └─ qPIB POST_TRIAL PURCHASE_INTENT_1_5
+//
+// One complete valid journey is seeded on CM in before() so the
+// measurement/report tests have an exact, uncontaminated baseline.
+
+let api: ApiCall;
+let stopServer: () => Promise<void>;
+
+let companyAId: string;
+let companyBId: string;
+let employeeAToken: string;
+let employeeBToken: string;
+let productPAId: string;
+let productPBId: string;
+let campaignCA1Id: string;
+let campaignCA2Id: string;
+let campaignDraftId: string;
+let campaignCBId: string;
+let campaignCMId: string;
+let qrSA1Id: string;
+let qrSA2Id: string;
+let qrSB1Id: string;
+let qrSMId: string;
+let qElig1Id: string;
+let qPIId: string;
+let qRateId: string;
+let qChoiceId: string;
+let qTextId: string;
+let qEligOtherId: string;
+let qPIotherId: string;
+let qPIBId: string;
+
+let phoneSeq = 0;
+async function mkConsumer() {
+  const consumer = await prisma.consumer.create({ data: { phone: `+2010000${String(10000 + phoneSeq++)}` } });
+  return { id: consumer.id, token: signToken({ kind: "consumer", consumerId: consumer.id }) };
+}
+
+async function eligibleOn(campaignId: string, token: string, body: Record<string, unknown> = {}) {
+  const res = await api(`/api/consumer/campaigns/${campaignId}/eligibility`, { method: "POST", token, body });
+  assert.equal(res.status, 200, `eligibility failed: ${JSON.stringify(res.body)}`);
+  return res.body.participation;
+}
+
+async function redeemedOn(campaignId: string, token: string, eligBody: Record<string, unknown> = {}) {
+  const participation = await eligibleOn(campaignId, token, eligBody);
+  const res = await api(`/api/consumer/campaigns/${campaignId}/redeem`, { method: "POST", token });
+  assert.equal(res.status, 200, `redeem failed: ${JSON.stringify(res.body)}`);
+  return participation;
+}
+
+const campaignBody = (overrides: Record<string, unknown> = {}) => ({
+  name: "Test Campaign",
+  objective: "Validate evidence integrity",
+  startDate: new Date(Date.now() - 86400000).toISOString(),
+  endDate: new Date(Date.now() + 86400000).toISOString(),
+  ...overrides,
+});
+
+const eligAnswer = () => ({ answers: [{ questionId: qElig1Id, valueOptions: ["yes"] }] });
+
+before(async () => {
+  ({ api, stop: stopServer } = await startApi());
+
+  const companyA = await prisma.company.create({ data: { name: "Company A" } });
+  const companyB = await prisma.company.create({ data: { name: "Company B" } });
+  companyAId = companyA.id;
+  companyBId = companyB.id;
+
+  const employeeA = await prisma.employee.create({
+    data: { companyId: companyAId, email: "a@example.test", name: "Emp A", passwordHash: "x" },
+  });
+  const employeeB = await prisma.employee.create({
+    data: { companyId: companyBId, email: "b@example.test", name: "Emp B", passwordHash: "x" },
+  });
+  employeeAToken = signToken({ kind: "employee", employeeId: employeeA.id, companyId: companyAId });
+  employeeBToken = signToken({ kind: "employee", employeeId: employeeB.id, companyId: companyBId });
+
+  const productPA = await prisma.product.create({ data: { companyId: companyAId, name: "Product A" } });
+  const productPB = await prisma.product.create({ data: { companyId: companyBId, name: "Product B" } });
+  productPAId = productPA.id;
+  productPBId = productPB.id;
+
+  const mkCampaign = (companyId: string, name: string, productId?: string) =>
+    prisma.campaign.create({
+      data: {
+        companyId,
+        productId,
+        name,
+        objective: "Test objective",
+        startDate: new Date(Date.now() - 86400000),
+        endDate: new Date(Date.now() + 86400000),
+        status: "ACTIVE",
+      },
+    });
+
+  const campaignCA1 = await mkCampaign(companyAId, "CA1", productPAId);
+  const campaignCA2 = await mkCampaign(companyAId, "CA2");
+  const campaignCB = await mkCampaign(companyBId, "CB", productPBId);
+  const campaignCM = await mkCampaign(companyAId, "CM");
+  const campaignDraft = await prisma.campaign.create({
+    data: {
+      companyId: companyAId,
+      productId: productPAId,
+      name: "Draft A",
+      objective: "Test objective",
+      startDate: new Date(Date.now() - 86400000),
+      endDate: new Date(Date.now() + 86400000),
+      status: "DRAFT",
+    },
+  });
+  campaignCA1Id = campaignCA1.id;
+  campaignCA2Id = campaignCA2.id;
+  campaignCBId = campaignCB.id;
+  campaignCMId = campaignCM.id;
+  campaignDraftId = campaignDraft.id;
+
+  const mkQr = (campaignId: string, code: string) =>
+    prisma.qrSource.create({
+      data: {
+        campaignId,
+        code,
+        label: code,
+        activeFrom: new Date(Date.now() - 86400000),
+        activeTo: new Date(Date.now() + 86400000),
+      },
+    });
+  qrSA1Id = (await mkQr(campaignCA1Id, "SRC-A1")).id;
+  qrSA2Id = (await mkQr(campaignCA2Id, "SRC-A2")).id;
+  qrSB1Id = (await mkQr(campaignCBId, "SRC-B1")).id;
+  qrSMId = (await mkQr(campaignCMId, "SRC-M")).id;
+
+  const mkQuestion = (campaignId: string, stage: string, type: string, text: string, extra: Record<string, unknown> = {}) =>
+    prisma.question.create({ data: { campaignId, stage, type, text, order: 0, ...extra } });
+
+  qElig1Id = (
+    await mkQuestion(campaignCA1Id, "ELIGIBILITY", "SINGLE_CHOICE", "Screener?", {
+      options: JSON.stringify([{ id: "yes", label: "Yes" }, { id: "no", label: "No" }]),
+    })
+  ).id;
+  qPIId = (await mkQuestion(campaignCA1Id, "POST_TRIAL", "PURCHASE_INTENT_1_5", "PI?")).id;
+  qRateId = (await mkQuestion(campaignCA1Id, "POST_TRIAL", "RATING_1_5", "Rate?")).id;
+  qChoiceId = (
+    await mkQuestion(campaignCA1Id, "POST_TRIAL", "SINGLE_CHOICE", "Pick?", {
+      options: JSON.stringify([{ id: "a", label: "A" }, { id: "b", label: "B" }]),
+    })
+  ).id;
+  qTextId = (await mkQuestion(campaignCA1Id, "POST_TRIAL", "TEXT", "Tell us", { required: false })).id;
+
+  qEligOtherId = (await mkQuestion(campaignCA2Id, "ELIGIBILITY", "TEXT", "Other screener", { required: false })).id;
+  qPIotherId = (await mkQuestion(campaignCA2Id, "POST_TRIAL", "PURCHASE_INTENT_1_5", "Other PI")).id;
+  qPIBId = (await mkQuestion(campaignCBId, "POST_TRIAL", "PURCHASE_INTENT_1_5", "B PI")).id;
+
+  const qPIM = await mkQuestion(campaignCMId, "POST_TRIAL", "PURCHASE_INTENT_1_5", "M PI");
+  const qRateM = await mkQuestion(campaignCMId, "POST_TRIAL", "RATING_1_5", "M rate");
+  const qTextM = await mkQuestion(campaignCMId, "POST_TRIAL", "TEXT", "M text", { required: false });
+  void qPIBId;
+
+  // Baseline completed journey on CM (PI=5, rating=4, one verbatim).
+  const baseline = await mkConsumer();
+  const participation = await redeemedOn(campaignCMId, baseline.token, { qrSourceId: qrSMId });
+  void participation;
+  const submit = await api(`/api/consumer/campaigns/${campaignCMId}/survey`, {
+    method: "POST",
+    token: baseline.token,
+    body: {
+      answers: [
+        { questionId: qPIM.id, valueNumber: 5 },
+        { questionId: qRateM.id, valueNumber: 4 },
+        { questionId: qTextM.id, valueText: "baseline verbatim" },
+      ],
+    },
+  });
+  assert.equal(submit.status, 200, `baseline survey failed: ${JSON.stringify(submit.body)}`);
+});
+
+after(async () => {
+  await stopServer();
+  await prisma.$disconnect();
+});
+
+// ---------------------------------------------------------------------------
+// DEFECT A — Product → Company ownership (P1/P2/P3)
+// ---------------------------------------------------------------------------
+describe("product → company ownership", () => {
+  it("P1: same-company product assignment succeeds on create and update", async () => {
+    const created = await api("/api/company/campaigns", {
+      method: "POST",
+      token: employeeAToken,
+      body: campaignBody({ productId: productPAId }),
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    assert.equal(created.body.productId, productPAId);
+
+    const other = await prisma.product.create({ data: { companyId: companyAId, name: "Product A2" } });
+    const patched = await api(`/api/company/campaigns/${created.body.id}`, {
+      method: "PATCH",
+      token: employeeAToken,
+      body: { productId: other.id },
+    });
+    assert.equal(patched.status, 200, JSON.stringify(patched.body));
+    assert.equal(patched.body.productId, other.id);
+  });
+
+  it("P2/P3: cross-company product assignment is rejected and mutates nothing", async () => {
+    const created = await api("/api/company/campaigns", {
+      method: "POST",
+      token: employeeAToken,
+      body: campaignBody({ productId: productPBId }),
+    });
+    assert.equal(created.status, 404);
+
+    const patched = await api(`/api/company/campaigns/${campaignDraftId}`, {
+      method: "PATCH",
+      token: employeeAToken,
+      body: { productId: productPBId },
+    });
+    assert.equal(patched.status, 404);
+    const unchanged = await prisma.campaign.findUnique({ where: { id: campaignDraftId } });
+    assert.equal(unchanged?.productId, productPAId);
+  });
+
+  it("P3b: unknown product id is rejected identically (no existence leak)", async () => {
+    const patched = await api(`/api/company/campaigns/${campaignDraftId}`, {
+      method: "PATCH",
+      token: employeeAToken,
+      body: { productId: "no-such-product" },
+    });
+    assert.equal(patched.status, 404);
+    const unchanged = await prisma.campaign.findUnique({ where: { id: campaignDraftId } });
+    assert.equal(unchanged?.productId, productPAId);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DEFECT B — QR/source → campaign binding (Q1–Q4)
+// ---------------------------------------------------------------------------
+describe("QR source → campaign binding", () => {
+  it("Q1: same-campaign QR source participates normally", async () => {
+    const consumer = await mkConsumer();
+    const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/eligibility`, {
+      method: "POST",
+      token: consumer.token,
+      body: { qrSourceId: qrSA1Id, ...eligAnswer() },
+    });
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.equal(res.body.eligible, true);
+    assert.equal(res.body.participation.qrSourceId, qrSA1Id);
+  });
+
+  it("Q2/Q4: QR source of another campaign is rejected with no participation", async () => {
+    const consumer = await mkConsumer();
+    const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/eligibility`, {
+      method: "POST",
+      token: consumer.token,
+      body: { qrSourceId: qrSA2Id, ...eligAnswer() },
+    });
+    assert.equal(res.status, 400);
+    const count = await prisma.participation.count({ where: { campaignId: campaignCA1Id, consumerId: consumer.id } });
+    assert.equal(count, 0);
+  });
+
+  it("Q3: QR source of another company's campaign is rejected", async () => {
+    const consumer = await mkConsumer();
+    const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/eligibility`, {
+      method: "POST",
+      token: consumer.token,
+      body: { qrSourceId: qrSB1Id, ...eligAnswer() },
+    });
+    assert.equal(res.status, 400);
+    const count = await prisma.participation.count({ where: { campaignId: campaignCA1Id, consumerId: consumer.id } });
+    assert.equal(count, 0);
+  });
+
+  it("Q4b: unknown QR source id is rejected identically", async () => {
+    const consumer = await mkConsumer();
+    const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/eligibility`, {
+      method: "POST",
+      token: consumer.token,
+      body: { qrSourceId: "no-such-source", ...eligAnswer() },
+    });
+    assert.equal(res.status, 400);
+    const count = await prisma.participation.count({ where: { campaignId: campaignCA1Id, consumerId: consumer.id } });
+    assert.equal(count, 0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DEFECT C/D — Answer → question → campaign binding (eligibility + survey)
+// ---------------------------------------------------------------------------
+describe("answer → question → campaign binding (eligibility)", () => {
+  it("rejects a screener answer targeting another campaign's question", async () => {
+    const consumer = await mkConsumer();
+    const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/eligibility`, {
+      method: "POST",
+      token: consumer.token,
+      body: { answers: [{ questionId: qEligOtherId, valueText: "x" }, ...eligAnswer().answers] },
+    });
+    assert.equal(res.status, 400);
+    assert.equal(await prisma.participation.count({ where: { campaignId: campaignCA1Id, consumerId: consumer.id } }), 0);
+    assert.equal(await prisma.answer.count({ where: { questionId: qEligOtherId } }), 0);
+  });
+
+  it("rejects a screener answer targeting a POST_TRIAL question of the same campaign", async () => {
+    const consumer = await mkConsumer();
+    const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/eligibility`, {
+      method: "POST",
+      token: consumer.token,
+      body: { answers: [{ questionId: qPIId, valueText: "5" }, ...eligAnswer().answers] },
+    });
+    assert.equal(res.status, 400);
+    assert.equal(await prisma.participation.count({ where: { campaignId: campaignCA1Id, consumerId: consumer.id } }), 0);
+  });
+
+  it("rejects a screener answer carrying no value", async () => {
+    const consumer = await mkConsumer();
+    const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/eligibility`, {
+      method: "POST",
+      token: consumer.token,
+      body: { answers: [{ questionId: qElig1Id }] },
+    });
+    assert.equal(res.status, 400);
+    assert.equal(await prisma.participation.count({ where: { campaignId: campaignCA1Id, consumerId: consumer.id } }), 0);
+  });
+});
+
+describe("answer → question → participation → campaign binding (survey)", () => {
+  const validSurvey = () => ({
+    answers: [
+      { questionId: qPIId, valueNumber: 5 },
+      { questionId: qRateId, valueNumber: 4 },
+      { questionId: qChoiceId, valueOptions: ["a"] },
+      { questionId: qTextId, valueText: "solid product" },
+    ],
+  });
+
+  it("A1: valid participation + valid campaign questions completes", async () => {
+    const consumer = await mkConsumer();
+    const participation = await redeemedOn(campaignCA1Id, consumer.token, eligAnswer());
+    const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/survey`, {
+      method: "POST",
+      token: consumer.token,
+      body: validSurvey(),
+    });
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.equal(res.body.status, "SURVEY_COMPLETE");
+    // 4 survey answers persisted (the participation also carries its 1
+    // eligibility screener answer from redeemedOn()).
+    assert.equal(
+      await prisma.answer.count({
+        where: { participationId: participation.id, questionId: { in: [qPIId, qRateId, qChoiceId, qTextId] } },
+      }),
+      4
+    );
+  });
+
+  it("A2/A5: a foreign-campaign question is rejected and persists nothing", async () => {
+    const consumer = await mkConsumer();
+    const participation = await redeemedOn(campaignCA1Id, consumer.token, eligAnswer());
+    const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/survey`, {
+      method: "POST",
+      token: consumer.token,
+      body: { answers: [{ questionId: qPIotherId, valueNumber: 3 }] },
+    });
+    assert.equal(res.status, 400);
+    // No answer persisted for the rejected question; the only answer on
+    // the participation remains its eligibility screener answer.
+    assert.equal(
+      await prisma.answer.count({ where: { participationId: participation.id, questionId: qPIotherId } }),
+      0
+    );
+    assert.equal(await prisma.answer.count({ where: { participationId: participation.id } }), 1);
+    const unchanged = await prisma.participation.findUnique({ where: { id: participation.id } });
+    assert.equal(unchanged?.status, "TRIAL_REDEEMED");
+  });
+
+  it("A2b: an ELIGIBILITY-stage question of the same campaign is rejected at survey time", async () => {
+    const consumer = await mkConsumer();
+    const participation = await redeemedOn(campaignCA1Id, consumer.token, eligAnswer());
+    const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/survey`, {
+      method: "POST",
+      token: consumer.token,
+      body: { answers: [{ questionId: qElig1Id, valueOptions: ["no"] }] },
+    });
+    assert.equal(res.status, 400);
+    const unchanged = await prisma.participation.findUnique({ where: { id: participation.id } });
+    assert.equal(unchanged?.status, "TRIAL_REDEEMED");
+  });
+
+  it("A3: a participation of another campaign cannot be reached through this route", async () => {
+    const consumer = await mkConsumer();
+    await redeemedOn(campaignCA1Id, consumer.token, eligAnswer());
+    const res = await api(`/api/consumer/campaigns/${campaignCA2Id}/survey`, {
+      method: "POST",
+      token: consumer.token,
+      body: { answers: [{ questionId: qPIotherId, valueNumber: 3 }] },
+    });
+    assert.equal(res.status, 404);
+  });
+
+  it("A4: a different consumer cannot act on the participation", async () => {
+    const consumer = await mkConsumer();
+    await redeemedOn(campaignCA1Id, consumer.token, eligAnswer());
+    const other = await mkConsumer();
+    const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/survey`, {
+      method: "POST",
+      token: other.token,
+      body: validSurvey(),
+    });
+    assert.equal(res.status, 404);
+    assert.equal(
+      await prisma.answer.count({ where: { participation: { consumerId: other.id } } }),
+      0
+    );
+  });
+
+  it("D1: an empty answers payload cannot complete a participation", async () => {
+    const consumer = await mkConsumer();
+    const participation = await redeemedOn(campaignCA1Id, consumer.token, eligAnswer());
+    const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/survey`, {
+      method: "POST",
+      token: consumer.token,
+      body: { answers: [] },
+    });
+    assert.equal(res.status, 400);
+    const unchanged = await prisma.participation.findUnique({ where: { id: participation.id } });
+    assert.equal(unchanged?.status, "TRIAL_REDEEMED");
+  });
+
+  it("D2: an answer carrying no value is rejected", async () => {
+    const consumer = await mkConsumer();
+    const participation = await redeemedOn(campaignCA1Id, consumer.token, eligAnswer());
+    const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/survey`, {
+      method: "POST",
+      token: consumer.token,
+      body: { answers: [{ questionId: qPIId }] },
+    });
+    assert.equal(res.status, 400);
+    // Nothing new persisted — only the eligibility screener answer remains.
+    assert.equal(await prisma.answer.count({ where: { participationId: participation.id } }), 1);
+    const unchanged = await prisma.participation.findUnique({ where: { id: participation.id } });
+    assert.equal(unchanged?.status, "TRIAL_REDEEMED");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DEFECT D — Measurement / report protection from malformed persisted rows
+// ---------------------------------------------------------------------------
+describe("measurement and report integrity", () => {
+  it("M1: valid campaign answers appear in that campaign's measurement", async () => {
+    const res = await api(`/api/company/campaigns/${campaignCMId}/live`, { token: employeeAToken });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.purchaseIntent.responses, 1);
+    assert.equal(res.body.purchaseIntent.averageScore, 5);
+    assert.equal(res.body.satisfaction.responses, 1);
+    assert.equal(res.body.satisfaction.averageScore, 4);
+    assert.equal(res.body.funnel.surveyComplete, 1);
+    const sm = res.body.sources.find((s: any) => s.sourceId === qrSMId);
+    assert.deepEqual([sm.entered, sm.trialRedeemed, sm.surveyComplete], [1, 1, 1]);
+  });
+
+  it("M2: an answer whose participation belongs to another campaign is excluded", async () => {
+    const foreign = await mkConsumer();
+    const malParticipation = await prisma.participation.create({
+      data: { campaignId: campaignCBId, consumerId: foreign.id, status: "SURVEY_COMPLETE" },
+    });
+    // Malformed row: question lives on CM, participation lives on CB.
+    await prisma.answer.create({
+      data: { participationId: malParticipation.id, questionId: (await prisma.question.findFirstOrThrow({ where: { campaignId: campaignCMId, type: "PURCHASE_INTENT_1_5" } })).id, valueNumber: 1 },
+    });
+    const res = await api(`/api/company/campaigns/${campaignCMId}/live`, { token: employeeAToken });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.purchaseIntent.responses, 1);
+    assert.equal(res.body.purchaseIntent.averageScore, 5);
+  });
+
+  it("M3: a participation bound to another campaign's source is excluded from source metrics", async () => {
+    const foreign = await mkConsumer();
+    await prisma.participation.create({
+      data: { campaignId: campaignCA2Id, consumerId: foreign.id, qrSourceId: qrSMId, status: "SURVEY_COMPLETE" },
+    });
+    const res = await api(`/api/company/campaigns/${campaignCMId}/live`, { token: employeeAToken });
+    assert.equal(res.status, 200);
+    const sm = res.body.sources.find((s: any) => s.sourceId === qrSMId);
+    assert.deepEqual([sm.entered, sm.trialRedeemed, sm.surveyComplete], [1, 1, 1]);
+  });
+
+  it("M4: report evidence stays campaign-scoped and report shape is unchanged", async () => {
+    const foreign = await mkConsumer();
+    const malParticipation = await prisma.participation.create({
+      data: { campaignId: campaignCBId, consumerId: foreign.id, status: "SURVEY_COMPLETE" },
+    });
+    const qTextM = await prisma.question.findFirstOrThrow({ where: { campaignId: campaignCMId, type: "TEXT" } });
+    await prisma.answer.create({
+      data: { participationId: malParticipation.id, questionId: qTextM.id, valueText: "FOREIGN-VERBATIM-MARKER-7x9" },
+    });
+
+    const res = await api(`/api/company/campaigns/${campaignCMId}/report`, { token: employeeAToken });
+    assert.equal(res.status, 200);
+    assert.ok(!JSON.stringify(res.body).includes("FOREIGN-VERBATIM-MARKER-7x9"));
+    assert.ok(res.body.consumerVoice.some((v: any) => v.response === "baseline verbatim"));
+    assert.equal(res.body.evidence.sampleSize, 1);
+    assert.ok(Array.isArray(res.body.findings) && res.body.findings.length > 0);
+    assert.ok(Array.isArray(res.body.recommendations) && res.body.recommendations.length > 0);
+    assert.ok(res.body.methodology.includes("persisted"));
+    assert.equal(res.body.campaign.id, campaignCMId);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Regression — existing valid behavior is unchanged (R1–R8)
+// ---------------------------------------------------------------------------
+describe("regression", () => {
+  it("R7: study-template catalog and direct studyType assignment are unchanged", async () => {
+    const templates = await api("/api/company/study-templates", { token: employeeAToken });
+    assert.equal(templates.status, 200);
+    assert.equal(templates.body.length, 6);
+
+    const created = await api("/api/company/campaigns", {
+      method: "POST",
+      token: employeeAToken,
+      body: campaignBody({ studyType: "POST_TRIAL_FOOD_BEVERAGE" }),
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    assert.equal(created.body.studyType, "POST_TRIAL_FOOD_BEVERAGE");
+  });
+
+  it("R8: actor isolation is unchanged", async () => {
+    assert.equal((await api("/api/company/campaigns")).status, 401);
+
+    const consumer = await mkConsumer();
+    assert.equal((await api("/api/company/campaigns", { token: consumer.token })).status, 403);
+    assert.equal((await api("/api/consumer/participations", { token: employeeAToken })).status, 403);
+
+    // Cross-company campaign detail stays a non-leaking 404.
+    assert.equal(
+      (await api(`/api/company/campaigns/${campaignCA1Id}`, { token: employeeBToken })).status,
+      404
+    );
+  });
+});

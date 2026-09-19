@@ -66,7 +66,9 @@ export async function getTextQuestionResponseCounts(campaignId: string): Promise
   const questions = await prisma.question.findMany({
     where: { campaignId, stage: "POST_TRIAL", type: "TEXT" },
     orderBy: { order: "asc" },
-    select: { text: true, answers: { select: { valueText: true } } },
+    // answers.participation must belong to the same campaign — see the
+    // cross-boundary discipline note in lib/measurement.ts.
+    select: { text: true, answers: { where: { participation: { campaignId } }, select: { valueText: true } } },
   });
   return questions.map((q) => ({
     text: q.text,
@@ -147,11 +149,11 @@ async function getSegmentedEvidence(
   city: { segmentValue: string; sentences: string[] }[];
 }> {
   const piAnswers = await prisma.answer.findMany({
-    where: { question: { campaignId, type: "PURCHASE_INTENT_1_5" }, valueNumber: { not: null } },
+    where: { question: { campaignId, type: "PURCHASE_INTENT_1_5" }, participation: { campaignId }, valueNumber: { not: null } },
     select: { valueNumber: true, participation: { select: { genderAtEntry: true, cityAtEntry: true } } },
   });
   const ratingAnswers = await prisma.answer.findMany({
-    where: { question: { campaignId, type: "RATING_1_5" }, valueNumber: { not: null } },
+    where: { question: { campaignId, type: "RATING_1_5" }, participation: { campaignId }, valueNumber: { not: null } },
     select: { valueNumber: true, participation: { select: { genderAtEntry: true, cityAtEntry: true } } },
   });
   const choiceQuestions = await prisma.question.findMany({
@@ -161,7 +163,7 @@ async function getSegmentedEvidence(
   const choiceAnswers = await Promise.all(
     choiceQuestions.map((q) =>
       prisma.answer.findMany({
-        where: { questionId: q.id },
+        where: { questionId: q.id, participation: { campaignId } },
         select: { valueOptions: true, participation: { select: { genderAtEntry: true, cityAtEntry: true } } },
       })
     )

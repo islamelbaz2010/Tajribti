@@ -138,6 +138,22 @@ router.post("/campaigns", async (req, res) => {
   const parsed = createCampaignSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
   const d = parsed.data;
+
+  // Product → Company ownership (Benchmark §10 company isolation): a
+  // campaign may only reference a Product owned by the same Company.
+  // Same response for unknown and cross-company ids — matching
+  // loadOwnedCampaign's convention of not leaking another tenant's
+  // existence.
+  if (d.productId) {
+    const product = await prisma.product.findUnique({
+      where: { id: d.productId },
+      select: { companyId: true },
+    });
+    if (!product || product.companyId !== companyId) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+  }
+
   const campaign = await prisma.campaign.create({
     data: {
       companyId,
@@ -215,6 +231,7 @@ async function assertStudyTypeChangeAllowed(campaignId: string, res: Response): 
 }
 
 router.patch("/campaigns/:id", async (req, res) => {
+  const { companyId } = asEmployee(req);
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
   if (!assertConfigurable(campaign, res)) return;
@@ -233,6 +250,20 @@ router.patch("/campaigns/:id", async (req, res) => {
     const requestedStudyType = d.studyType === "" ? null : d.studyType;
     if (requestedStudyType !== campaign.studyType) {
       if (!(await assertStudyTypeChangeAllowed(campaign.id, res))) return;
+    }
+  }
+
+  // Same Product → Company ownership invariant as POST /campaigns above —
+  // the PATCH path must not be able to attach another company's product
+  // to this campaign either. Rejected before any mutation, with the same
+  // non-leaking 404.
+  if (d.productId !== undefined) {
+    const product = await prisma.product.findUnique({
+      where: { id: d.productId },
+      select: { companyId: true },
+    });
+    if (!product || product.companyId !== companyId) {
+      return res.status(404).json({ error: "Product not found" });
     }
   }
 

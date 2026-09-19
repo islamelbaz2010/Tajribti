@@ -4,6 +4,16 @@ import { prisma } from "./prisma";
 // metric here has a real source query, a stated population, and a
 // defensible denominator. No commercial metric or statistical claim is
 // invented beyond what raw persisted Answers/Participations support.
+//
+// Cross-boundary discipline (Benchmark §10 campaign/company isolation):
+// Answer and Participation rows join relations that are stored as
+// independent foreign keys. Ingestion now guarantees those relations
+// agree (routes/consumer.ts), but every query below additionally
+// constrains BOTH sides of the join to the queried campaign — so a
+// malformed row persisted before that enforcement (e.g. an Answer whose
+// question belongs to campaign A while its participation belongs to
+// campaign B) is excluded from BOTH campaigns' evidence rather than
+// contaminating either.
 
 export async function getFunnel(campaignId: string) {
   const participations = await prisma.participation.findMany({
@@ -27,7 +37,10 @@ export async function getFunnel(campaignId: string) {
 export async function getSourceBreakdown(campaignId: string) {
   const sources = await prisma.qrSource.findMany({
     where: { campaignId },
-    include: { participations: { select: { status: true } } },
+    // participations.campaignId must match the source's campaign — a
+    // malformed participation pointing at another campaign's source is
+    // excluded from this campaign's source metrics.
+    include: { participations: { where: { campaignId }, select: { status: true } } },
   });
   return sources.map((s) => ({
     sourceId: s.id,
@@ -95,6 +108,7 @@ export async function getPurchaseIntent(campaignId: string): Promise<PurchaseInt
   const answers = await prisma.answer.findMany({
     where: {
       question: { campaignId, type: "PURCHASE_INTENT_1_5" },
+      participation: { campaignId },
       valueNumber: { not: null },
     },
     select: { valueNumber: true },
@@ -118,6 +132,7 @@ export async function getSatisfaction(campaignId: string) {
   const answers = await prisma.answer.findMany({
     where: {
       question: { campaignId, type: "RATING_1_5" },
+      participation: { campaignId },
       valueNumber: { not: null },
     },
     select: { valueNumber: true },
@@ -138,6 +153,7 @@ export async function getVerbatims(campaignId: string, limit = 50) {
   const answers = await prisma.answer.findMany({
     where: {
       question: { campaignId, stage: "POST_TRIAL", type: "TEXT" },
+      participation: { campaignId },
       valueText: { not: null },
     },
     select: { valueText: true, createdAt: true, question: { select: { text: true } } },
@@ -189,7 +205,7 @@ export async function getQuestionAggregates(campaignId: string) {
   const results = [];
   for (const q of questions) {
     const answers = await prisma.answer.findMany({
-      where: { questionId: q.id },
+      where: { questionId: q.id, participation: { campaignId } },
       select: { valueOptions: true },
     });
     const options: { id: string; label: string }[] = q.options ? JSON.parse(q.options) : [];

@@ -256,6 +256,21 @@ class AppStr {
   String get notEligibleTitle => ar ? 'هذه الحملة غير متاحة لك'  : 'Not Available for You';
   String get notEligibleSub   => ar ? 'هذه الحملة مخصصة لفئة محددة من المستهلكين ولا تنطبق عليك.' : 'This campaign is targeted to a specific audience and is not available for your profile.';
 
+  // ── Eligibility Collection (Mobile Eligibility gap closure, 2026-09-20) ──
+  // Same contract as the web Consumer's eligibility card: demographics
+  // (numeric age + ANY/MALE/FEMALE gender + free-text city) plus the
+  // campaign's ELIGIBILITY-stage questions, posted to
+  // POST /consumer/campaigns/:id/eligibility.
+  String get eligibilityTitle => ar ? 'التحقق من الأهلية'          : 'Eligibility Check';
+  String get eligibilitySub   => ar ? 'أجب على هذه الأسئلة السريعة لمعرفة ما إذا كانت الحملة مناسبة لك' : 'Answer a few quick questions to see if this campaign is for you';
+  String get ageInputLabel    => ar ? 'العمر'                      : 'Age';
+  String get ageInputHint     => ar ? 'عمرك بالسنوات'              : 'Your age in years';
+  String get preferNotToSay   => ar ? 'أفضّل عدم الإجابة'          : 'Prefer not to say';
+  String get cityHint         => ar ? 'مدينتك'                     : 'Your city';
+  String get checkEligibility => ar ? 'تحقق من الأهلية'            : 'Check Eligibility';
+  String get requiredQuestions => ar ? 'يرجى الإجابة على الأسئلة المطلوبة' : 'Please answer the required questions';
+  String get noAnswerOptions   => ar ? 'لم تُضبط خيارات إجابة لهذا السؤال بعد.' : 'No answer options are configured for this question yet.';
+
   // ── Activity ──────────────────────────────────────────────────────────────
   String get activityTitle   => ar ? 'نشاطاتي'                   : 'My Activity';
   String get noActivity      => ar ? 'لا يوجد نشاط بعد'          : 'No activity yet';

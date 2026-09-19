@@ -18,10 +18,11 @@ import { prisma, signToken, startApi, ApiCall } from "./helpers";
 //     ├─ campaignCA2 (ACTIVE) ─ qrSA2
 //     │    ├─ qEligOther ELIGIBILITY TEXT
 //     │    └─ qPIother   POST_TRIAL PURCHASE_INTENT_1_5
-//     └─ campaignCM (ACTIVE, measurement baseline) ─ qrSM
-//          ├─ qPIM  POST_TRIAL PURCHASE_INTENT_1_5
-//          ├─ qRateM POST_TRIAL RATING_1_5
-//          └─ qTextM POST_TRIAL TEXT
+//     ├─ campaignCM (ACTIVE, measurement baseline) ─ qrSM
+//     │    ├─ qPIM  POST_TRIAL PURCHASE_INTENT_1_5
+//     │    ├─ qRateM POST_TRIAL RATING_1_5
+//     │    └─ qTextM POST_TRIAL TEXT
+//     └─ campaignCG (ACTIVE, audience-gated: age 18–30, FEMALE, Cairo)
 //   Company B ── employeeB, productPB
 //     └─ campaignCB (ACTIVE, productPB) ─ qrSB1
 //          └─ qPIB POST_TRIAL PURCHASE_INTENT_1_5
@@ -43,6 +44,7 @@ let campaignCA2Id: string;
 let campaignDraftId: string;
 let campaignCBId: string;
 let campaignCMId: string;
+let campaignCGId: string;
 let qrSA1Id: string;
 let qrSA2Id: string;
 let qrSB1Id: string;
@@ -140,6 +142,25 @@ before(async () => {
   campaignCBId = campaignCB.id;
   campaignCMId = campaignCM.id;
   campaignDraftId = campaignDraft.id;
+
+  // Audience-gated campaign: proves configured demographic gates are
+  // actually evaluated against the demographics the client submits —
+  // the contract the mobile eligibility step now fulfils.
+  const campaignCG = await prisma.campaign.create({
+    data: {
+      companyId: companyAId,
+      name: "CG",
+      objective: "Test objective",
+      startDate: new Date(Date.now() - 86400000),
+      endDate: new Date(Date.now() + 86400000),
+      status: "ACTIVE",
+      audienceAgeMin: 18,
+      audienceAgeMax: 30,
+      audienceGender: "FEMALE",
+      audienceCity: "Cairo",
+    },
+  });
+  campaignCGId = campaignCG.id;
 
   const mkQr = (campaignId: string, code: string) =>
     prisma.qrSource.create({
@@ -347,6 +368,93 @@ describe("answer → question → campaign binding (eligibility)", () => {
     });
     assert.equal(res.status, 400);
     assert.equal(await prisma.participation.count({ where: { campaignId: campaignCA1Id, consumerId: consumer.id } }), 0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Eligibility decisions — the contract the mobile collection step fulfils
+// (E6/E7/E8/E12). The server is the authority: it must produce a real
+// INELIGIBLE outcome for unanswered required screeners and for failed
+// audience gates, never let redemption proceed from INELIGIBLE, and keep
+// the existing duplicate-participation protection.
+// ---------------------------------------------------------------------------
+describe("audience gates & eligibility decisions", () => {
+  it("E7+E6: an unanswered required screener produces INELIGIBLE, and INELIGIBLE cannot redeem", async () => {
+    const consumer = await mkConsumer();
+    const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/eligibility`, {
+      method: "POST",
+      token: consumer.token,
+      body: { answers: [] },
+    });
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.equal(res.body.eligible, false);
+    assert.equal(res.body.participation.status, "INELIGIBLE");
+    const redeem = await api(`/api/consumer/campaigns/${campaignCA1Id}/redeem`, {
+      method: "POST",
+      token: consumer.token,
+    });
+    assert.equal(redeem.status, 403);
+  });
+
+  it("E8: configured audience gates are evaluated against submitted demographics", async () => {
+    const mk = () => mkConsumer();
+
+    const inside = await mk();
+    const ok = await api(`/api/consumer/campaigns/${campaignCGId}/eligibility`, {
+      method: "POST",
+      token: inside.token,
+      body: { age: 25, gender: "FEMALE", city: "Cairo" },
+    });
+    assert.equal(ok.status, 200, JSON.stringify(ok.body));
+    assert.equal(ok.body.eligible, true);
+    assert.equal(ok.body.participation.ageAtEntry, 25);
+    assert.equal(ok.body.participation.genderAtEntry, "FEMALE");
+    assert.equal(ok.body.participation.cityAtEntry, "Cairo");
+
+    const tooOld = await mk();
+    const ageFail = await api(`/api/consumer/campaigns/${campaignCGId}/eligibility`, {
+      method: "POST",
+      token: tooOld.token,
+      body: { age: 40, gender: "FEMALE", city: "Cairo" },
+    });
+    assert.equal(ageFail.body.eligible, false);
+    assert.equal(ageFail.body.participation.status, "INELIGIBLE");
+
+    const wrongGender = await mk();
+    const genderFail = await api(`/api/consumer/campaigns/${campaignCGId}/eligibility`, {
+      method: "POST",
+      token: wrongGender.token,
+      body: { age: 25, gender: "MALE", city: "Cairo" },
+    });
+    assert.equal(genderFail.body.eligible, false);
+
+    const wrongCity = await mk();
+    const cityFail = await api(`/api/consumer/campaigns/${campaignCGId}/eligibility`, {
+      method: "POST",
+      token: wrongCity.token,
+      body: { age: 25, gender: "FEMALE", city: "Giza" },
+    });
+    assert.equal(cityFail.body.eligible, false);
+  });
+
+  it("E12: a second eligibility submission on the same campaign is rejected", async () => {
+    const consumer = await mkConsumer();
+    const first = await api(`/api/consumer/campaigns/${campaignCGId}/eligibility`, {
+      method: "POST",
+      token: consumer.token,
+      body: { age: 25, gender: "FEMALE", city: "Cairo" },
+    });
+    assert.equal(first.body.eligible, true);
+    const second = await api(`/api/consumer/campaigns/${campaignCGId}/eligibility`, {
+      method: "POST",
+      token: consumer.token,
+      body: { age: 25, gender: "FEMALE", city: "Cairo" },
+    });
+    assert.equal(second.status, 409);
+    assert.equal(
+      await prisma.participation.count({ where: { campaignId: campaignCGId, consumerId: consumer.id } }),
+      1
+    );
   });
 });
 

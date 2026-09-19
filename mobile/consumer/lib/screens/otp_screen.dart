@@ -19,10 +19,11 @@ import '../widgets/lang_toggle.dart';
 //   - campaign-scoped OTP (old: campaignId+phone -> transactionReqID) —
 //     the current backend's OTP is a plain phone-only account mechanism,
 //     not bound to one campaign.
-// After verify, this screen now completes the same eligibility -> redeem
-// -> survey sequence campaign_screen.dart's _start() does, so a consumer
-// who reaches OTP mid-entry doesn't have to press "Start" again — matching
-// the original app's UX of finishing entry immediately after OTP.
+// After verify, this screen hands the journey to /eligibility — the real
+// eligibility collection step (screener answers + audience demographics).
+// The eligibility -> redeem -> survey sequence itself now lives in
+// eligibility_screen.dart, so a consumer who reaches OTP mid-entry still
+// doesn't have to press "Start" again.
 class OtpScreen extends StatefulWidget {
   final String phone;
   const OtpScreen({super.key, required this.phone});
@@ -112,37 +113,17 @@ class _OtpScreenState extends State<OtpScreen> {
     }
   }
 
-  // Runs the same eligibility -> redeem sequence as CampaignScreen._start()
-  // for the campaign this OTP verification was reached from (if any), then
-  // continues straight to the survey — no separate "Start" press needed.
+  // Continues the QR-first journey for the campaign this OTP verification
+  // was reached from: the eligibility step (collection + server decision +
+  // redemption) lives on /eligibility now. JourneySession carries the
+  // scanned campaign + QR source through, so campaign context is preserved.
   Future<void> _completeEntry() async {
-    final campaignId = JourneySession.campaignId;
-    if (campaignId == null) {
+    if (!mounted) return;
+    if (JourneySession.campaignId == null) {
       context.go('/home');
       return;
     }
-    try {
-      final eligibility = await apiClient.submitEligibility(
-        campaignId: campaignId,
-        qrSourceId: JourneySession.qrSourceId,
-      );
-      if (!mounted) return;
-      if (!eligibility.eligible) {
-        context.go('/campaign');
-        return;
-      }
-      await apiClient.redeemTrial(campaignId);
-      if (!mounted) return;
-      JourneySession.markRedeemed();
-      context.go('/survey', extra: campaignId);
-    } catch (e) {
-      if (!mounted) return;
-      if (e is DioException && e.response?.statusCode == 409) {
-        context.go('/campaign', extra: true);
-        return;
-      }
-      context.go('/campaign');
-    }
+    context.go('/eligibility');
   }
 
   @override

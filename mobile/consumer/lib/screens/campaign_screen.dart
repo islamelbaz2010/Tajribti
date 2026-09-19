@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api_client.dart';
@@ -23,10 +22,6 @@ class _CampaignScreenState extends State<CampaignScreen> {
   bool _loading = true;
   bool _entering = false;
   bool _alreadyCompleted = false;
-  // Benchmark Alignment — Audience/Eligibility (2026-09-06, DL-101)
-  // Server-confirmed: consumer does not meet this campaign's audience criteria.
-  bool _ineligible = false;
-  String? _ineligibilityReason;
   String? _error;
 
   @override
@@ -78,53 +73,27 @@ class _CampaignScreenState extends State<CampaignScreen> {
   }
 
   Future<void> _start() async {
-    final scanned = await context.push<bool>('/scanner', extra: JourneySession.campaignId);
-    if (scanned != true || !mounted) return;
-
-    final loggedIn = await AuthService.isLoggedIn();
-    if (!mounted) return;
-
-    if (!loggedIn) {
-      context.push('/phone');
-      return;
-    }
-
-    final campaignId = JourneySession.campaignId!;
+    if (_entering) return;
     setState(() => _entering = true);
     try {
-      // Mobile Recovery + Current-Backend Alignment (2026-09-15): the old
-      // single enterCampaign() call is now the current backend's real
-      // two-step sequence — eligibility (creates the Participation row,
-      // records the demographic snapshot) then redeem (marks the trial
-      // redeemed) — matching exactly how the released web Consumer app
-      // drives the same endpoints. No screener answers are collected on
-      // mobile yet (see this build's known limitations): campaigns with
-      // required ELIGIBILITY-stage questions will correctly come back
-      // ineligible rather than mobile fabricating answers.
-      final eligibility = await apiClient.submitEligibility(campaignId: campaignId, qrSourceId: JourneySession.qrSourceId);
+      final scanned = await context.push<bool>('/scanner', extra: JourneySession.campaignId);
+      if (scanned != true || !mounted) return;
+
+      final loggedIn = await AuthService.isLoggedIn();
       if (!mounted) return;
-      if (!eligibility.eligible) {
-        setState(() { _entering = false; _ineligible = true; _ineligibilityReason = null; });
+
+      if (!loggedIn) {
+        await context.push('/phone');
         return;
       }
-      await apiClient.redeemTrial(campaignId);
-      if (!mounted) return;
-      JourneySession.markRedeemed();
-      context.go('/survey', extra: campaignId);
-    } catch (e) {
-      if (!mounted) return;
-      if (e is DioException && e.response?.statusCode == 409) {
-        // Already participated in this campaign.
-        setState(() { _alreadyCompleted = true; _entering = false; });
-        return;
-      }
-      if (e is DioException && e.response?.statusCode == 401) {
-        await AuthService.logout();
-        if (!mounted) return;
-        context.push('/phone');
-        return;
-      }
-      setState(() { _entering = false; _error = '_entryFail'; });
+
+      // Mobile Eligibility gap closure (2026-09-20): eligibility is now a
+      // real collection step (screener answers + audience demographics on
+      // /eligibility), not a silent empty submit. The server remains the
+      // eligibility authority; this screen no longer submits it.
+      await context.push('/eligibility');
+    } finally {
+      if (mounted) setState(() => _entering = false);
     }
   }
 
@@ -151,7 +120,6 @@ class _CampaignScreenState extends State<CampaignScreen> {
     String? displayError;
     if (_error == '_noId') displayError = s.campaignNotFound;
     if (_error == '_loadFail') displayError = s.campaignError;
-    if (_error == '_entryFail') displayError = s.entryError;
 
     if (displayError != null && _campaign == null) {
       return Directionality(
@@ -461,70 +429,6 @@ class _CampaignScreenState extends State<CampaignScreen> {
       );
     }
 
-    // Benchmark Alignment — Audience/Eligibility (2026-09-06, DL-101):
-    // Show a clear ineligibility state when the server confirmed this
-    // consumer does not meet the campaign's audience criteria.
-    // Placed before the non-active gate because eligibility is a consumer-
-    // identity concern, not a campaign-lifecycle concern.
-    if (_campaign != null && _ineligible) {
-      return Directionality(
-        textDirection: context.dir,
-        child: Scaffold(
-          backgroundColor: kBackground,
-          appBar: AppBar(
-            backgroundColor: kSurface,
-            surfaceTintColor: kSurface,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded, color: kPrimary),
-              onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
-            ),
-            actions: const [
-              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle())),
-            ],
-          ),
-          body: SafeArea(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 90,
-                      height: 90,
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(Icons.person_off_rounded, color: Colors.orange.shade400, size: 40),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      s.notEligibleTitle,
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: kPrimary),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      _ineligibilityReason ?? s.notEligibleSub,
-                      style: TextStyle(fontSize: 14, color: Colors.grey.shade600, height: 1.5),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 32),
-                    TextButton(
-                      onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
-                      child: Text(s.backHome, style: const TextStyle(color: kPrimary)),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
     // Campaign lifecycle: a first-time (not-yet-completed) visitor reaching
     // a non-active campaign directly (stale QR, bookmarked link) must see a
     // clear unavailable state here rather than a Start Trial that would only
@@ -764,27 +668,6 @@ class _CampaignScreenState extends State<CampaignScreen> {
                         // ── How it Works ──────────────────────────────────
                         const SizedBox(height: 24),
                         _StepsRow(s: s),
-
-                        // ── Error Message ─────────────────────────────────
-                        if (_error == '_entryFail') ...[
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: kAccent.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.error_outline, color: kAccent, size: 18),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(s.entryError, style: const TextStyle(color: kAccent, fontSize: 13)),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
 
                         // ── CTA Button ────────────────────────────────────
                         const SizedBox(height: 28),

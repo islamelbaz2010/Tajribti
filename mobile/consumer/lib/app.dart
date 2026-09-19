@@ -7,6 +7,7 @@ import 'screens/scanner_screen.dart';
 import 'screens/campaign_screen.dart';
 import 'screens/phone_screen.dart';
 import 'screens/otp_screen.dart';
+import 'screens/eligibility_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/survey_screen.dart';
 import 'screens/thank_you_screen.dart';
@@ -47,6 +48,14 @@ final _router = GoRouter(
     GoRoute(
       path: '/otp',
       builder: (_, state) => OtpScreen(phone: state.extra as String),
+    ),
+    // Mobile Eligibility gap closure (2026-09-20): the eligibility step
+    // between OTP/identity and trial redemption — collects the campaign's
+    // ELIGIBILITY-stage answers + audience demographics before the server
+    // decides eligibility.
+    GoRoute(
+      path: '/eligibility',
+      builder: (_, state) => EligibilityScreen(campaign: state.extra as Campaign?),
     ),
     GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
     GoRoute(

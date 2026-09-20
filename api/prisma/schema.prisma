@@ -402,14 +402,25 @@ model OperationalIssue {
 // storage infra exists this pass — an upload/storage provider is a separate
 // future decision). kind: "PRODUCT_IMAGE" | "PACKAGING_IMAGE" |
 // "CAMPAIGN_MEDIA" | "CREATIVE".
+// FOUNDER INNOVATION (D-5, 2026-09-20): HOSTED media approved. `source`
+// distinguishes URL-referenced assets (unchanged path) from bucket-hosted
+// uploads. HOSTED rows store `storageKey` (campaign-scoped object key);
+// `url` holds no external link for HOSTED rows — read URLs are signed at
+// request time (private bucket, per media spec). status: "PENDING"
+// (upload-init issued, not yet confirmed) | "READY" (object confirmed).
 model CampaignMedia {
-  id         String   @id @default(cuid())
-  campaignId String
-  campaign   Campaign @relation(fields: [campaignId], references: [id])
-  kind       String
-  url        String
-  caption    String?
-  createdAt  DateTime @default(now())
+  id          String   @id @default(cuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id])
+  kind        String
+  url         String
+  caption     String?
+  source      String   @default("URL")
+  status      String   @default("READY")
+  storageKey  String?
+  contentType String?
+  sizeBytes   Int?
+  createdAt   DateTime @default(now())
 
   @@index([campaignId])
 }

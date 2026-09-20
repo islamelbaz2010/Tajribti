@@ -62,6 +62,10 @@
            (OFD-15C shared panel and OFD-14 consumer push were both
            REJECTED — neither tab exists.) -->
       <button class="tab-btn" data-tab="question-requests">Question Requests</button>
+      <!-- OFD-08: Platform Admin console surface — ops-user management
+           and audit log. The tab is hidden for OPERATIONS users; backend
+           requirePlatformAdmin remains the authoritative guard. -->
+      <button class="tab-btn hidden" data-tab="admin" id="tab-btn-admin">Administration</button>
     </div>
 
     <div class="card tab-panel" id="tab-pipeline">
@@ -129,6 +133,30 @@
     <div class="card tab-panel hidden" id="tab-question-requests">
       <h2>Question change requests</h2>
       <div id="question-requests-list"></div>
+    </div>
+
+    <!-- OFD-08: Platform Admin — ops-user management + audit log.
+         PLATFORM_ADMIN only; hidden from OPERATIONS entirely. -->
+    <div class="card tab-panel hidden" id="tab-admin">
+      <h2>Administration</h2>
+      <h3 style="font-size:0.95rem;">Operations users</h3>
+      <div id="ops-users-list"></div>
+      <h4 style="font-size:0.88rem;margin:12px 0 4px;">Create ops user</h4>
+      <div class="grid2">
+        <div><label>Name</label><input id="nou-name" /></div>
+        <div><label>Email</label><input id="nou-email" /></div>
+        <div><label>Password</label><input id="nou-password" type="password" /></div>
+        <div><label>Role</label>
+          <select id="nou-role">
+            <option value="OPERATIONS">Operations</option>
+            <option value="PLATFORM_ADMIN">Platform Admin</option>
+          </select>
+        </div>
+      </div>
+      <button class="secondary small" id="btn-create-ops-user">Create ops user</button>
+      <div class="msg" id="nou-msg"></div>
+      <h3 style="font-size:0.95rem;margin-top:20px;">Audit events</h3>
+      <div id="audit-events-list"></div>
     </div>
 
   </div>
@@ -257,14 +285,47 @@ document.querySelectorAll('#view-home .tab-btn').forEach(btn => {
     if (btn.dataset.tab === 'companies') loadCompanies();
     if (btn.dataset.tab === 'studytype-requests') loadStudyTypeRequests();
     if (btn.dataset.tab === 'question-requests') loadQuestionRequests();
+    if (btn.dataset.tab === 'admin') loadAdmin();
   };
 });
 
 async function loadHome() {
   if (!studyTemplates.length) studyTemplates = await api('/ops/study-templates');
+  // OFD-08: Administration tab is PLATFORM_ADMIN-only.
+  document.getElementById('tab-btn-admin').classList.toggle('hidden', currentOpsRole !== 'PLATFORM_ADMIN');
   await loadPipeline();
   show('view-home');
 }
+
+// OFD-08: Platform Admin — ops-user management + audit events (both
+// requirePlatformAdmin on the backend; this surface is admin-only).
+async function loadAdmin() {
+  const users = await api('/ops/ops-users');
+  document.getElementById('ops-users-list').innerHTML = users.length ?
+    '<table><tr><th>Name</th><th>Email</th><th>Role</th></tr>' +
+    users.map(u => '<tr><td>' + esc(u.name) + '</td><td>' + esc(u.email) + '</td><td><span class="pill">' + esc(u.role) + '</span></td></tr>').join('') + '</table>'
+    : '<p style="color:var(--muted)">No ops users.</p>';
+  const events = await api('/ops/audit-events');
+  document.getElementById('audit-events-list').innerHTML = events.length ?
+    '<table><tr><th>When</th><th>Actor</th><th>Action</th><th>Entity</th></tr>' +
+    events.map(e => '<tr><td>' + new Date(e.createdAt).toLocaleString() + '</td><td>' + esc(e.actorName || '') + ' (' + esc(e.actorKind || '') + ')</td><td>' + esc(e.action) + '</td><td>' + esc(e.targetType || '') + (e.targetId ? ' ' + esc(e.targetId) : '') + '</td></tr>').join('') + '</table>'
+    : '<p style="color:var(--muted)">No audit events.</p>';
+}
+
+document.getElementById('btn-create-ops-user').onclick = async () => {
+  const msg = document.getElementById('nou-msg');
+  try {
+    await api('/ops/ops-users', { method: 'POST', body: {
+      name: document.getElementById('nou-name').value.trim(),
+      email: document.getElementById('nou-email').value.trim(),
+      password: document.getElementById('nou-password').value,
+      role: document.getElementById('nou-role').value,
+    }});
+    document.getElementById('nou-name').value = ''; document.getElementById('nou-email').value = ''; document.getElementById('nou-password').value = '';
+    await loadAdmin();
+    msg.textContent = 'Ops user created.'; msg.className = 'msg ok';
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+};
 
 document.getElementById('pipeline-filter').onchange = loadPipeline;
 
@@ -698,6 +759,14 @@ async function loadOpsReport() {
     (r.consumerVoice.length ? r.consumerVoice.map(v => '<div class="verbatim">"' + esc(v.response) + '"<br/><span style="color:var(--muted);font-size:0.78rem;">' + esc(v.question) + '</span></div>').join('') : '<p style="color:var(--muted)">No open-text responses yet.</p>') +
     '<h3 style="font-size:0.95rem;">Findings</h3><ul>' + r.findings.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul>' +
     '<h3 style="font-size:0.95rem;">Recommendations</h3><ul>' + (r.recommendations.length ? r.recommendations.map(f => '<li>' + esc(f) + '</li>').join('') : '<li>None yet.</li>') + '</ul>' +
+    // FOUNDER INNOVATION (D-3, 2026-09-20): per-study-type methodology
+    // profile — same block the company report renders.
+    (r.studyProfile ?
+      '<h3 style="font-size:0.95rem;">Study methodology — ' + esc(studyTypeLabel(r.studyProfile.key)) + '</h3>' +
+      '<p style="color:var(--muted);font-size:0.85rem;"><strong>Objective:</strong> ' + esc(r.studyProfile.objective) + '<br/><strong>Method:</strong> ' + esc(r.studyProfile.methodology) + '</p>' +
+      '<h4 style="font-size:0.88rem;margin:8px 0 4px;">Study-type limitations</h4><ul>' + r.studyProfile.limitations.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>' +
+      '<h4 style="font-size:0.88rem;margin:8px 0 4px;">This report does not claim</h4><ul>' + r.studyProfile.notClaimed.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>'
+      : '') +
     '<h3 style="font-size:0.95rem;">Methodology</h3><p style="color:var(--muted);font-size:0.85rem;">' + esc(r.methodology) + '</p>' +
     '<h3 style="font-size:0.95rem;">Limitations</h3><ul>' + r.limitations.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>';
 }

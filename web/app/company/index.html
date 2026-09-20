@@ -233,9 +233,10 @@
       </div>
       <button id="btn-save-setup">Save</button>
       <div class="msg" id="setup-msg"></div>
-      <!-- FOUNDER INNOVATION (OFD-12): campaign media are URL-referenced
-           assets (product/packaging/campaign media/creative). URLs only —
-           no upload mechanism is invented. Editable while configurable. -->
+      <!-- FOUNDER INNOVATION (OFD-12 + D-5): campaign media — URL-referenced
+           assets and hosted file uploads (private Railway Bucket, signed
+           URLs; JPEG/PNG/WebP, max 5 MB, 20 per campaign). Editable while
+           configurable. -->
       <h3 style="font-size:0.95rem;margin-top:20px;">Campaign media</h3>
       <div id="media-list"></div>
       <div id="media-add-form">
@@ -250,6 +251,11 @@
         <label>Caption (optional)</label><input id="m-caption" />
         <button class="secondary small" id="btn-add-media">Add media</button>
         <div class="msg" id="media-msg"></div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:12px 0;" />
+        <label>Or upload an image file (JPEG / PNG / WebP, max 5 MB)</label>
+        <input type="file" id="m-file" accept="image/jpeg,image/png,image/webp" />
+        <button class="secondary small" id="btn-upload-media">Upload file</button>
+        <div class="msg" id="media-upload-msg"></div>
       </div>
       <!-- FOUNDER-APPROVED — Feature A: Evidence Sufficiency Coach
            (optional extension, not Benchmark-required). Purely
@@ -950,11 +956,14 @@ async function loadQuestionChangeRequests(locked) {
   } catch { block.classList.add('hidden'); }
 }
 
-// FOUNDER INNOVATION (OFD-12): campaign media, URL-referenced.
+// FOUNDER INNOVATION (OFD-12 + D-5): campaign media — URL-referenced and
+// hosted uploads (private bucket; hosted rows show their source/status,
+// READY assets resolve to short-lived signed read URLs).
 function renderMedia(media) {
   const list = document.getElementById('media-list');
-  list.innerHTML = media.length ? '<table><tr><th>Type</th><th>URL</th><th>Caption</th><th></th></tr>' +
-    media.map(m => '<tr><td>' + esc(m.kind) + '</td><td style="word-break:break-all;">' + esc(m.url) + '</td><td>' + esc(m.caption || '') + '</td><td>' +
+  list.innerHTML = media.length ? '<table><tr><th>Type</th><th>Source</th><th>URL</th><th>Caption</th><th></th></tr>' +
+    media.map(m => '<tr><td>' + esc(m.kind) + '</td><td>' + esc(m.source || 'URL') + (m.status && m.status !== 'READY' ? ' (' + esc(m.status) + ')' : '') + '</td><td style="word-break:break-all;">' +
+      (m.url ? (m.url.startsWith('http') && (m.source || 'URL') === 'URL' ? esc(m.url) : '<a href="' + esc(m.url) + '" target="_blank" rel="noopener">view</a>') : '—') + '</td><td>' + esc(m.caption || '') + '</td><td>' +
       (currentCampaignLocked ? '' : '<button class="small secondary" data-mid="' + esc(m.id) + '">Remove</button>') +
       '</td></tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No media attached yet.</p>';
@@ -980,6 +989,32 @@ document.getElementById('btn-add-media').onclick = async () => {
     const c = await api('/company/campaigns/' + currentCampaignId);
     renderMedia(c.media || []);
     msg.textContent = 'Media added.'; msg.className = 'msg ok';
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+};
+
+// FOUNDER INNOVATION (D-5): hosted upload — init (signed PUT URL) → PUT
+// bytes to the bucket → confirm. The bucket URL never carries API
+// credentials; the file goes straight to storage.
+document.getElementById('btn-upload-media').onclick = async () => {
+  const msg = document.getElementById('media-upload-msg');
+  const file = document.getElementById('m-file').files[0];
+  if (!file) { msg.textContent = 'Choose a file first.'; msg.className = 'msg error'; return; }
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { msg.textContent = 'JPEG, PNG or WebP only.'; msg.className = 'msg error'; return; }
+  if (file.size > 5 * 1024 * 1024) { msg.textContent = 'File too large — maximum 5 MB.'; msg.className = 'msg error'; return; }
+  try {
+    const init = await api('/company/campaigns/' + currentCampaignId + '/media/upload-init', { method: 'POST', body: {
+      kind: document.getElementById('m-kind').value,
+      contentType: file.type,
+      sizeBytes: file.size,
+      caption: document.getElementById('m-caption').value.trim() || undefined,
+    }});
+    const put = await fetch(init.uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+    if (!put.ok) throw new Error('Upload to storage failed');
+    await api('/company/campaigns/' + currentCampaignId + '/media/' + init.mediaId + '/confirm', { method: 'POST' });
+    document.getElementById('m-file').value = ''; document.getElementById('m-caption').value = '';
+    const c = await api('/company/campaigns/' + currentCampaignId);
+    renderMedia(c.media || []);
+    msg.textContent = 'File uploaded.'; msg.className = 'msg ok';
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };
 
@@ -1109,6 +1144,15 @@ async function loadReport() {
       '<p style="color:var(--muted);font-size:0.8rem;">' + esc(r.narrative.methodology) + '</p>' +
       '<ul>' + r.narrative.en.map(s => '<li>' + esc(s) + '</li>').join('') + '</ul>' +
       '<ul dir="rtl" lang="ar">' + r.narrative.ar.map(s => '<li>' + esc(s) + '</li>').join('') + '</ul>'
+      : '') +
+    // FOUNDER INNOVATION (D-3, 2026-09-20): per-study-type methodology
+    // profile — objective, method, per-type limitations, and an explicit
+    // "not claimed" block so each of the 8 study types reads differently.
+    (r.studyProfile ?
+      '<h3 style="font-size:0.95rem;">Study methodology — ' + esc((studyTemplates.find(t => t.key === r.studyProfile.key) || {}).label || r.studyProfile.key) + '</h3>' +
+      '<p style="color:var(--muted);font-size:0.85rem;"><strong>Objective:</strong> ' + esc(r.studyProfile.objective) + '<br/><strong>Method:</strong> ' + esc(r.studyProfile.methodology) + '</p>' +
+      '<h4 style="font-size:0.88rem;margin:8px 0 4px;">Study-type limitations</h4><ul>' + r.studyProfile.limitations.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>' +
+      '<h4 style="font-size:0.88rem;margin:8px 0 4px;">This report does not claim</h4><ul>' + r.studyProfile.notClaimed.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>'
       : '') +
     '<h3 style="font-size:0.95rem;">Methodology</h3><p style="color:var(--muted);font-size:0.85rem;">' + esc(r.methodology) + '</p>' +
     '<h3 style="font-size:0.95rem;">Limitations</h3><ul>' + r.limitations.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>';

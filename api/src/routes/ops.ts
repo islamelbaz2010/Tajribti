@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireOps, requirePlatformAdmin, asOps } from "../middleware/auth";
+import { resolveMediaUrls } from "../lib/media";
 import { checkReadiness } from "../lib/readiness";
 import { buildIntelligence } from "../lib/intelligence";
 import { writeAccessAudit } from "../lib/audit";
@@ -122,7 +123,7 @@ router.get("/campaigns/:id", async (req, res) => {
     include: { company: true, product: true, questions: { orderBy: { order: "asc" } }, qrSources: true, media: true },
   });
   if (!campaign) return res.status(404).json({ error: "Campaign not found" });
-  res.json(campaign);
+  res.json({ ...campaign, media: await resolveMediaUrls(campaign.media) });
 });
 
 // --- Campaign Configuration / Readiness -------------------------------------

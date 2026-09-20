@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { buildNarrative } from "./narrative";
+import { getStudyProfile } from "./studyProfiles";
 import {
   getFunnel,
   getSourceBreakdown,
@@ -416,6 +417,10 @@ export async function buildReport(campaignId: string) {
       // figure below is computed.
       studyType: campaign.studyType ?? null,
     },
+    // FOUNDER INNOVATION (D-3, 2026-09-20): per-study-type methodology
+    // profile — static approved methodology text keyed on studyType; all
+    // figures still come only from the evidence blocks below.
+    studyProfile: getStudyProfile(campaign.studyType),
     evidence,
     funnel,
     sources,

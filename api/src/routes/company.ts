@@ -17,6 +17,16 @@ import {
 } from "../lib/measurement";
 import { buildReport } from "../lib/report";
 import { STUDY_TEMPLATES, findTemplate } from "../lib/studyTemplates";
+import {
+  MEDIA_LIMITS,
+  createUploadUrl,
+  deleteObject,
+  isHostedMediaConfigured,
+  mediaExtension,
+  mediaStorageKey,
+  resolveMediaUrls,
+  verifyStoredObject,
+} from "../lib/media";
 
 const router = Router();
 router.use(requireEmployee);
@@ -229,7 +239,7 @@ router.get("/campaigns/:id", async (req, res) => {
     where: { id: campaign.id },
     include: { product: true, questions: { orderBy: { order: "asc" } }, qrSources: true, media: true },
   });
-  res.json(full);
+  res.json({ ...full, media: await resolveMediaUrls(full!.media) });
 });
 
 function assertConfigurable(campaign: { status: string }, res: Response): boolean {
@@ -767,17 +777,30 @@ router.get("/campaigns/:id/question-change-requests", async (req, res) => {
   res.json(requests);
 });
 
-// --- OFD-12: campaign media (URL-referenced assets) --------------------------
+// --- OFD-12 + D-5: campaign media — URL-referenced + hosted uploads -------
+// URL path is unchanged (OFD-12). Hosted uploads (D-5): private Railway
+// Bucket; init creates a PENDING row + signed PUT URL; confirm verifies
+// the stored object (content-type + size) then marks READY; reads resolve
+// fresh signed GET URLs for HOSTED rows. Fails closed (503) when the
+// bucket is not provisioned — URL media is unaffected.
 const mediaSchema = z.object({
   kind: z.enum(["PRODUCT_IMAGE", "PACKAGING_IMAGE", "CAMPAIGN_MEDIA", "CREATIVE"]),
   url: z.string().url(),
   caption: z.string().optional(),
 });
 
+const uploadInitSchema = z.object({
+  kind: z.enum(["PRODUCT_IMAGE", "PACKAGING_IMAGE", "CAMPAIGN_MEDIA", "CREATIVE"]),
+  contentType: z.string(),
+  sizeBytes: z.number().int().positive(),
+  caption: z.string().optional(),
+});
+
 router.get("/campaigns/:id/media", async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
-  res.json(await prisma.campaignMedia.findMany({ where: { campaignId: campaign.id }, orderBy: { createdAt: "asc" } }));
+  const media = await prisma.campaignMedia.findMany({ where: { campaignId: campaign.id }, orderBy: { createdAt: "asc" } });
+  res.json(await resolveMediaUrls(media));
 });
 
 router.post("/campaigns/:id/media", async (req, res) => {
@@ -786,16 +809,58 @@ router.post("/campaigns/:id/media", async (req, res) => {
   if (!assertConfigurable(campaign, res)) return;
   const parsed = mediaSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  const count = await prisma.campaignMedia.count({ where: { campaignId: campaign.id } });
+  if (count >= MEDIA_LIMITS.maxPerCampaign) return res.status(400).json({ error: "Media limit reached (20 per campaign)" });
   const media = await prisma.campaignMedia.create({ data: { campaignId: campaign.id, ...parsed.data } });
   res.status(201).json(media);
+});
+
+// D-5 hosted upload step 1: declare the asset, get a signed PUT URL.
+router.post("/campaigns/:id/media/upload-init", async (req, res) => {
+  const campaign = await loadOwnedCampaign(req, res);
+  if (!campaign) return;
+  if (!assertConfigurable(campaign, res)) return;
+  if (!isHostedMediaConfigured()) return res.status(503).json({ error: "Hosted media storage is not provisioned" });
+  const parsed = uploadInitSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  const { kind, contentType, sizeBytes, caption } = parsed.data;
+  const ext = mediaExtension(contentType);
+  if (!ext) return res.status(400).json({ error: "Unsupported media type — JPEG, PNG or WebP only" });
+  if (sizeBytes > MEDIA_LIMITS.maxBytes) return res.status(400).json({ error: "File too large — maximum 5 MB" });
+  const count = await prisma.campaignMedia.count({ where: { campaignId: campaign.id } });
+  if (count >= MEDIA_LIMITS.maxPerCampaign) return res.status(400).json({ error: "Media limit reached (20 per campaign)" });
+  const media = await prisma.campaignMedia.create({
+    data: { campaignId: campaign.id, kind, caption, url: "", source: "HOSTED", status: "PENDING", contentType, sizeBytes },
+  });
+  const storageKey = mediaStorageKey(campaign.id, media.id, ext);
+  await prisma.campaignMedia.update({ where: { id: media.id }, data: { storageKey } });
+  const uploadUrl = await createUploadUrl(storageKey, contentType);
+  res.status(201).json({ mediaId: media.id, uploadUrl, storageKey, expiresIn: MEDIA_LIMITS.uploadUrlTtlSeconds });
+});
+
+// D-5 hosted upload step 2: confirm the stored object matches the
+// declared type+size, then mark the row READY.
+router.post("/campaigns/:id/media/:mid/confirm", async (req, res) => {
+  const campaign = await loadOwnedCampaign(req, res);
+  if (!campaign) return;
+  const media = await prisma.campaignMedia.findFirst({ where: { id: req.params.mid, campaignId: campaign.id } });
+  if (!media || media.source !== "HOSTED" || !media.storageKey) return res.status(404).json({ error: "Media not found" });
+  if (media.status === "READY") return res.json(media);
+  const ok = await verifyStoredObject(media.storageKey, media.contentType!, media.sizeBytes!).catch(() => false);
+  if (!ok) return res.status(400).json({ error: "Uploaded object missing or does not match declared type/size" });
+  res.json(await prisma.campaignMedia.update({ where: { id: media.id }, data: { status: "READY" } }));
 });
 
 router.delete("/campaigns/:id/media/:mid", async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
   if (!assertConfigurable(campaign, res)) return;
-  const result = await prisma.campaignMedia.deleteMany({ where: { id: req.params.mid, campaignId: campaign.id } });
-  if (result.count === 0) return res.status(404).json({ error: "Media not found" });
+  const media = await prisma.campaignMedia.findFirst({ where: { id: req.params.mid, campaignId: campaign.id } });
+  if (!media) return res.status(404).json({ error: "Media not found" });
+  if (media.source === "HOSTED" && media.storageKey && isHostedMediaConfigured()) {
+    await deleteObject(media.storageKey).catch(() => undefined); // row delete proceeds; sweep covers orphans
+  }
+  await prisma.campaignMedia.delete({ where: { id: media.id } });
   res.status(204).end();
 });
 

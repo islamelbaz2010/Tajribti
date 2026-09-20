@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireConsumer, asConsumer } from "../middleware/auth";
 import { verifyToken } from "../lib/auth";
+import { resolveMediaUrls } from "../lib/media";
 
 const router = Router();
 
@@ -48,7 +49,7 @@ router.get("/campaigns/:id", async (req, res) => {
   if (!campaign || campaign.status !== "ACTIVE") {
     return res.status(404).json({ error: "Campaign not available" });
   }
-  res.json(campaign);
+  res.json({ ...campaign, media: await resolveMediaUrls(campaign.media) });
 });
 
 // ---------------------------------------------------------------------------

@@ -2,6 +2,12 @@
 ## OFD-01 … OFD-20 — Decision Register
 ### Date: 2026-09-20 · Baseline: 45aa571 · Status: ACTIVE FOUNDER INNOVATION INPUT
 
+> **SUPERSESSION NOTE (2026-09-20):** OFD-14 is superseded by the later Founder
+> decision of 2026-09-20 — consumers receive NO push notifications. All
+> push routes/UI were removed; `CampaignNotificationRequest` and
+> `Consumer.push*` remain as dormant schema artifacts only. See
+> `reports/TAJRIBTI_MASTER_PRODUCT_FORENSIC_REVIEW_2026-09-20.md` §V.
+
 **Authority:** Founder-approved directions issued 2026-09-20. These decisions govern the Founder
 Innovation layer only. `governance/REFERENCE_PRODUCT_BENCHMARK.md` remains immutable Product Truth
 for the existing product (OFD-11). No Benchmark amendment is authorized.

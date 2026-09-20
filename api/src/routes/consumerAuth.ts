@@ -3,14 +3,14 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { signToken } from "../lib/auth";
 import { rateLimit } from "../lib/rateLimit";
+import { isAkedlyEnabled, sendOtp as akedlySendOtp, verifyOtp as akedlyVerifyOtp } from "../lib/akedly";
 
 const router = Router();
 
 // Production hardening: the OTP code must never be returned to the client
 // (or logged) in production — devOnlyCode is a development convenience only.
-// No SMS provider is integrated yet, so production OTP delivery is
-// intentionally impossible until a provider is configured (a provider
-// decision, not something to fabricate).
+// When AKEDLY_API_KEY/AKEDLY_PIPELINE_ID are configured, delivery goes
+// through Akedly V1.2 and no local code exists at all.
 const isProduction = process.env.NODE_ENV === "production";
 
 function generateOtp(): string {
@@ -32,16 +32,28 @@ router.post(
     if (!parsed.success) return res.status(400).json({ error: "Invalid phone" });
     const { phone } = parsed.data;
 
+    if (isAkedlyEnabled()) {
+      // Real delivery. The OtpCode row carries the Akedly transactionReqID
+      // in `code` — verify resolves it by phone, never by user input.
+      const sent = await akedlySendOtp(phone, req.ip);
+      if (!sent.ok) {
+        // eslint-disable-next-line no-console
+        console.warn(`[OTP] Akedly send failed for phone=${phone}: status=${sent.status} ${sent.message}`);
+        return res.status(sent.status).json({ error: "OTP could not be sent. Please try again later." });
+      }
+      await prisma.otpCode.create({ data: { phone, code: sent.transactionReqID, expiresAt: sent.expiresAt } });
+      return res.json({ sent: true, expiresAt: sent.expiresAt });
+    }
+
+    if (isProduction) {
+      // No provider configured — fail closed rather than pretend a code
+      // was delivered.
+      return res.status(503).json({ error: "OTP provider not configured" });
+    }
+
     const code = generateOtp();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     await prisma.otpCode.create({ data: { phone, code, expiresAt } });
-
-    if (isProduction) {
-      // eslint-disable-next-line no-console
-      console.log(`[OTP] issued for phone=${phone} (code withheld — no delivery provider configured)`);
-      return res.json({ sent: true, expiresAt });
-    }
-
     // eslint-disable-next-line no-console
     console.log(`[OTP] phone=${phone} code=${code} (no SMS gateway integrated — dev delivery)`);
     res.json({ sent: true, devOnlyCode: code, expiresAt });
@@ -50,7 +62,8 @@ router.post(
 
 const verifySchema = z.object({
   phone: z.string().min(6).max(20),
-  code: z.string().length(6),
+  // Akedly pipelines may issue 4–6 digit codes — never hardcode 6.
+  code: z.string().regex(/^\d{4,6}$/),
   name: z.string().optional(),
 });
 
@@ -62,11 +75,28 @@ router.post(
     if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
     const { phone, code, name } = parsed.data;
 
-    const otp = await prisma.otpCode.findFirst({
-      where: { phone, code, consumedAt: null, expiresAt: { gt: new Date() } },
-      orderBy: { createdAt: "desc" },
-    });
-    if (!otp) return res.status(401).json({ error: "Invalid or expired code" });
+    let otp: { id: string };
+    if (isAkedlyEnabled()) {
+      // The stored `code` is the Akedly transactionReqID; the user-entered
+      // code is checked by Akedly, not compared here.
+      const latest = await prisma.otpCode.findFirst({
+        where: { phone, consumedAt: null, expiresAt: { gt: new Date() } },
+        orderBy: { createdAt: "desc" },
+      });
+      if (!latest) return res.status(401).json({ error: "Invalid or expired code" });
+      const verified = await akedlyVerifyOtp(latest.code, code);
+      if (!verified.ok) {
+        return res.status(verified.status).json({ error: "Invalid or expired code" });
+      }
+      otp = latest;
+    } else {
+      const found = await prisma.otpCode.findFirst({
+        where: { phone, code, consumedAt: null, expiresAt: { gt: new Date() } },
+        orderBy: { createdAt: "desc" },
+      });
+      if (!found) return res.status(401).json({ error: "Invalid or expired code" });
+      otp = found;
+    }
 
     await prisma.otpCode.update({ where: { id: otp.id }, data: { consumedAt: new Date() } });
 

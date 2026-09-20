@@ -11,6 +11,10 @@ import opsRoutes from "./routes/ops";
 
 const app = express();
 app.disable("x-powered-by");
+// Railway fronts the service with a proxy — trust one hop so req.ip is the
+// real end-user address (used for the Akedly x-end-user-ip rate-limit
+// dimension), not the proxy's.
+app.set("trust proxy", 1);
 
 // Production hardening: when CORS_ORIGIN is configured (comma-separated
 // allowlist, e.g. the deployed web app origin), only those origins may make

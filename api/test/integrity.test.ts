@@ -1,6 +1,7 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { prisma, signToken, startApi, ApiCall } from "./helpers";
+import { _setAkedlyFetch } from "../src/lib/akedly";
 
 // Focused evidence-integrity regression suite (Benchmark §10 campaign
 // ownership isolation / company isolation). Exercises the real HTTP
@@ -740,5 +741,103 @@ describe("auth transport hardening", () => {
       body: { email: "a@example.test", password: "wrong" },
     });
     assert.equal(blocked.status, 429);
+  });
+});
+
+describe("akedly transport", () => {
+  const OLD_KEY = process.env.AKEDLY_API_KEY;
+  const OLD_PIPE = process.env.AKEDLY_PIPELINE_ID;
+
+  function enableAkedly() {
+    process.env.AKEDLY_API_KEY = "test-key";
+    process.env.AKEDLY_PIPELINE_ID = "test-pipeline";
+  }
+
+  after(() => {
+    if (OLD_KEY === undefined) delete process.env.AKEDLY_API_KEY;
+    else process.env.AKEDLY_API_KEY = OLD_KEY;
+    if (OLD_PIPE === undefined) delete process.env.AKEDLY_PIPELINE_ID;
+    else process.env.AKEDLY_PIPELINE_ID = OLD_PIPE;
+    _setAkedlyFetch(null);
+  });
+
+  it("T1: full Akedly round-trip — challenge → send → verify → token, no code echo", async () => {
+    enableAkedly();
+    _setAkedlyFetch(async (url) => {
+      if (url.includes("/challenge"))
+        return { status: 200, json: async () => ({ status: "success", data: { challengeRequired: false, turnstile: { required: false, siteKey: null } } }) };
+      if (url.includes("/send"))
+        return { status: 200, json: async () => ({ status: "success", data: { transactionID: "t1", transactionReqID: "tx-t1", channels: ["whatsapp"], expiresAt: new Date(Date.now() + 300000).toISOString() }, message: "OTP sent successfully" }) };
+      return { status: 200, json: async () => ({ status: "success", data: { verified: true, transactionID: "t1" }, message: "OTP verified successfully" }) };
+    });
+    const phone = "+201000000010";
+    const r = await api("/api/consumer/auth/otp/request", { method: "POST", body: { phone } });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.sent, true);
+    assert.equal(r.body.devOnlyCode, undefined);
+    const v = await api("/api/consumer/auth/otp/verify", { method: "POST", body: { phone, code: "123456" } });
+    assert.equal(v.status, 200);
+    assert.ok(v.body.token);
+    assert.equal(v.body.consumer.phone, phone);
+  });
+
+  it("T2: Akedly INVALID_OTP surfaces as 401 and no consumer session is created", async () => {
+    enableAkedly();
+    _setAkedlyFetch(async (url) => {
+      if (url.includes("/challenge"))
+        return { status: 200, json: async () => ({ status: "success", data: { challengeRequired: false, turnstile: { required: false, siteKey: null } } }) };
+      if (url.includes("/send"))
+        return { status: 200, json: async () => ({ status: "success", data: { transactionReqID: "tx-t2", expiresAt: new Date(Date.now() + 300000).toISOString() } }) };
+      return { status: 403, json: async () => ({ status: "error", code: "INVALID_OTP", message: "Invalid OTP" }) };
+    });
+    const phone = "+201000000011";
+    assert.equal((await api("/api/consumer/auth/otp/request", { method: "POST", body: { phone } })).status, 200);
+    const v = await api("/api/consumer/auth/otp/verify", { method: "POST", body: { phone, code: "000000" } });
+    assert.equal(v.status, 401);
+    assert.equal(await prisma.consumer.count({ where: { phone } }), 0);
+  });
+
+  it("T3: Akedly 429 propagates as 429", async () => {
+    enableAkedly();
+    _setAkedlyFetch(async (url) => {
+      if (url.includes("/challenge"))
+        return { status: 200, json: async () => ({ status: "success", data: { challengeRequired: false, turnstile: { required: false, siteKey: null } } }) };
+      return { status: 429, json: async () => ({ status: "error", code: "RATE_LIMIT_PHONENUMBER_PERMINUTE", message: "Rate limit exceeded", cooldownSeconds: 47 }) };
+    });
+    const r = await api("/api/consumer/auth/otp/request", { method: "POST", body: { phone: "+201000000012" } });
+    assert.equal(r.status, 429);
+  });
+
+  it("T4: PoW challenge is solved and powSolution is included in the send", async () => {
+    enableAkedly();
+    let sendBody: any = null;
+    _setAkedlyFetch(async (url, init) => {
+      if (url.includes("/challenge"))
+        return { status: 200, json: async () => ({ status: "success", data: { challengeRequired: true, challenge: "deadbeef", difficulty: 1, challengeToken: "ct-1", expiresAt: new Date(Date.now() + 90000).toISOString(), turnstile: { required: false, siteKey: null } } }) };
+      if (url.includes("/send")) {
+        sendBody = JSON.parse(init!.body!);
+        return { status: 200, json: async () => ({ status: "success", data: { transactionReqID: "tx-t4", expiresAt: new Date(Date.now() + 300000).toISOString() } }) };
+      }
+      return { status: 200, json: async () => ({ status: "success", data: { verified: true } }) };
+    });
+    const phone = "+201000000013";
+    assert.equal((await api("/api/consumer/auth/otp/request", { method: "POST", body: { phone } })).status, 200);
+    assert.equal(sendBody.powSolution.challengeToken, "ct-1");
+    assert.equal(typeof sendBody.powSolution.nonce, "number");
+    // The solver's contract: SHA256("deadbeef:<nonce>") starts with "0".
+    const crypto = await import("crypto");
+    const digest = crypto.createHash("sha256").update(`deadbeef:${sendBody.powSolution.nonce}`).digest("hex");
+    assert.ok(digest.startsWith("0"));
+  });
+
+  it("T5: Turnstile-required pipeline fails closed with 503, never silently bypassed", async () => {
+    enableAkedly();
+    _setAkedlyFetch(async (url) => {
+      if (url.includes("/challenge"))
+        return { status: 200, json: async () => ({ status: "success", data: { challengeRequired: false, turnstile: { required: true, siteKey: "0x4AAA" } } }) };
+      return { status: 200, json: async () => ({}) };
+    });
+    const r = await api("/api/consumer/auth/otp/request", { method: "POST", body: { phone: "+201000000014" } });
+    assert.equal(r.status, 503);
   });
 });

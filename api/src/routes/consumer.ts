@@ -2,16 +2,33 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireConsumer, asConsumer } from "../middleware/auth";
+import { verifyToken } from "../lib/auth";
 
 const router = Router();
 
 // ---------------------------------------------------------------------------
-// Discover (Benchmark §4 CONSUMER "Discover") — active campaigns only.
+// Discover (Benchmark §4 CONSUMER "Discover") — active, in-window campaigns.
+// FOUNDER PRODUCT DECISION (2026-09-20): for an authenticated consumer,
+// Discover must exclude every campaign they already have a Participation
+// record for — participated campaigns live in Activity/History only, never
+// in Discover (no disabled card, no "already participated" entry).
+// Anonymous callers still receive the public active list unchanged.
 // ---------------------------------------------------------------------------
-router.get("/campaigns", async (_req, res) => {
+router.get("/campaigns", async (req, res) => {
   const now = new Date();
+  let consumerId: string | null = null;
+  const header = req.headers.authorization;
+  if (header?.startsWith("Bearer ")) {
+    const claims = verifyToken(header.slice("Bearer ".length));
+    if (claims?.kind === "consumer") consumerId = claims.consumerId;
+  }
   const campaigns = await prisma.campaign.findMany({
-    where: { status: "ACTIVE", startDate: { lte: now }, endDate: { gte: now } },
+    where: {
+      status: "ACTIVE",
+      startDate: { lte: now },
+      endDate: { gte: now },
+      ...(consumerId ? { participations: { none: { consumerId } } } : {}),
+    },
     include: { company: { select: { name: true } }, product: true },
     orderBy: { startDate: "desc" },
   });
@@ -362,29 +379,11 @@ router.post("/panel/opt-out", requireConsumer, async (req, res) => {
   res.json(consumer);
 });
 
-// --- OFD-14C: explicit push opt-in / opt-out ----------------------------------
-// The pushToken is stored for future transport; no push is sent without an
-// Operations-launched, company-requested notification (OFD-14B).
-router.post("/push/opt-in", requireConsumer, async (req, res) => {
-  const { consumerId } = asConsumer(req);
-  const parsed = z.object({ pushToken: z.string().min(1).optional() }).safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
-  const consumer = await prisma.consumer.update({
-    where: { id: consumerId },
-    data: { pushOptIn: true, pushOptInAt: new Date(), pushToken: parsed.data.pushToken ?? null },
-    select: { id: true, pushOptIn: true, pushOptInAt: true },
-  });
-  res.json(consumer);
-});
-
-router.post("/push/opt-out", requireConsumer, async (req, res) => {
-  const { consumerId } = asConsumer(req);
-  const consumer = await prisma.consumer.update({
-    where: { id: consumerId },
-    data: { pushOptIn: false, pushOptInAt: null, pushToken: null },
-    select: { id: true, pushOptIn: true },
-  });
-  res.json(consumer);
-});
+// FOUNDER PRODUCT DECISION (2026-09-20): consumers receive NO push
+// notifications — the /push/opt-in and /push/opt-out endpoints were removed
+// (no consent to collect, nothing to deliver). The Consumer.pushOptIn /
+// pushToken columns are left dormant: dropping them would be a destructive
+// migration with no product need. Mobile push UI cleanup is deferred to the
+// final mobile release phase (mobile code is frozen this pass).
 
 export default router;

@@ -312,32 +312,58 @@ describe("question audit + change requests (OFD-19)", () => {
   });
 });
 
-// --- OFD-14: activation notification requests -----------------------------------
-describe("activation notification requests (OFD-14)", () => {
-  it("company requests on ACTIVE campaign; ops launches; audience = push opt-ins only", async () => {
-    const filed = await api(`/api/company/campaigns/${campaignAId}/notification-requests`, {
-      method: "POST", token: empAdminAToken,
-      body: { title: "Live now", body: "Campaign A is live" },
-    });
-    assert.equal(filed.status, 201, JSON.stringify(filed.body));
-
-    const dup = await api(`/api/company/campaigns/${campaignAId}/notification-requests`, {
-      method: "POST", token: empAdminAToken, body: { title: "t", body: "b" },
-    });
-    assert.equal(dup.status, 409);
-
-    const launched = await api(`/api/ops/notification-requests/${filed.body.id}/launch`, { method: "POST", token: opsWorkerToken });
-    assert.equal(launched.status, 200, JSON.stringify(launched.body));
-    assert.equal(launched.body.status, "LAUNCHED");
-    assert.equal(launched.body.deliveryStatus, "PENDING_DELIVERY");
-    assert.equal(launched.body.eligibleCount, 1); // only the opt-in consumer c1
+// --- Founder decision 2026-09-20: NO consumer push -----------------------------
+// Consumers receive no push notifications, so the OFD-14 request/launch
+// workflow was removed (there is no delivery target). These tests pin the
+// rejection: the endpoints must not exist.
+describe("no consumer push (Founder decision 2026-09-20)", () => {
+  it("consumer push opt-in/out endpoints are gone", async () => {
+    const c = await mkConsumer();
+    const on = await api("/api/consumer/push/opt-in", { method: "POST", token: c.token, body: { pushToken: "tok" } });
+    assert.equal(on.status, 404);
+    const off = await api("/api/consumer/push/opt-out", { method: "POST", token: c.token });
+    assert.equal(off.status, 404);
   });
 
-  it("requests on a DRAFT campaign are refused", async () => {
-    const res = await api(`/api/company/campaigns/${campaignDraftAId}/notification-requests`, {
+  it("company notification-request endpoint is gone", async () => {
+    const res = await api(`/api/company/campaigns/${campaignAId}/notification-requests`, {
       method: "POST", token: empAdminAToken, body: { title: "t", body: "b" },
     });
-    assert.equal(res.status, 409);
+    assert.equal(res.status, 404);
+  });
+
+  it("ops notification launch endpoint is gone", async () => {
+    const res = await api("/api/ops/notification-requests", { token: opsWorkerToken });
+    assert.equal(res.status, 404);
+  });
+});
+
+// --- Founder decision 2026-09-20: Discover excludes participated campaigns ------
+// OPEN APP -> available ACTIVE campaigns -> exclude already-participated ->
+// history lives only in Activity. Enforced at the API level, not just the UI.
+describe("consumer Discover exclusion (Founder decision 2026-09-20)", () => {
+  it("authenticated consumer does not see a participated campaign; anonymous and other consumers do", async () => {
+    // c1 participated in campaignA during `before()`.
+    const c1Token = signToken({
+      kind: "consumer",
+      consumerId: (await prisma.participation.findFirstOrThrow({ where: { campaignId: campaignAId } })).consumerId,
+    });
+    const mine = await api("/api/consumer/campaigns", { token: c1Token });
+    assert.equal(mine.status, 200);
+    assert.ok(!mine.body.some((c: any) => c.id === campaignAId), "participated campaign must be absent from Discover");
+
+    // Activity still returns it for the same consumer.
+    const activity = await api("/api/consumer/participations", { token: c1Token });
+    assert.ok(activity.body.some((p: any) => p.campaignId === campaignAId));
+
+    // A different consumer still sees it.
+    const other = await mkConsumer();
+    const theirs = await api("/api/consumer/campaigns", { token: other.token });
+    assert.ok(theirs.body.some((c: any) => c.id === campaignAId));
+
+    // Anonymous callers see the public active list unchanged.
+    const anon = await api("/api/consumer/campaigns");
+    assert.ok(anon.body.some((c: any) => c.id === campaignAId));
   });
 });
 
@@ -348,10 +374,6 @@ describe("consumer consent + panel (OFD-15)", () => {
     const on = await api("/api/consumer/panel/opt-in", { method: "POST", token: c.token });
     assert.equal(on.status, 200);
     assert.equal(on.body.panelOptIn, true);
-    const push = await api("/api/consumer/push/opt-in", { method: "POST", token: c.token, body: { pushToken: "tok" } });
-    assert.equal(push.status, 200);
-    const row = await prisma.consumer.findUnique({ where: { id: c.id } });
-    assert.equal(row!.pushToken, "tok");
     const off = await api("/api/consumer/panel/opt-out", { method: "POST", token: c.token });
     assert.equal(off.body.panelOptIn, false);
   });

@@ -505,68 +505,11 @@ router.get("/campaigns/:id/question-audit", async (req, res) => {
   res.json(await prisma.questionAuditEvent.findMany({ where: { campaignId: campaign.id }, orderBy: { createdAt: "desc" } }));
 });
 
-// --- OFD-14: activation notification requests ---------------------------------
-// Launches are recorded as PENDING_DELIVERY. Actual push transport is a
-// separate gate (provider credentials, consumer push tokens — spec §14).
-router.get("/notification-requests", async (_req, res) => {
-  const requests = await prisma.campaignNotificationRequest.findMany({
-    orderBy: { createdAt: "asc" },
-    include: {
-      campaign: { select: { id: true, name: true, status: true, company: { select: { name: true } } } },
-      requestedBy: { select: { name: true } },
-      launchedBy: { select: { name: true } },
-    },
-  });
-  res.json(requests);
-});
-
-router.post("/notification-requests/:id/launch", async (req, res) => {
-  const { opsUserId } = asOps(req);
-  const request = await prisma.campaignNotificationRequest.findUnique({ where: { id: req.params.id }, include: { campaign: true } });
-  if (!request) return res.status(404).json({ error: "Request not found" });
-  if (request.campaign.status !== "ACTIVE") {
-    return res.status(409).json({ error: "Campaign is not ACTIVE — launch only once the campaign is live" });
-  }
-  // Eligible audience = consumers who explicitly opted in to push AND have
-  // any participation record for this campaign's company. OFD-14C.
-  const optedIn = await prisma.consumer.count({
-    where: {
-      pushOptIn: true,
-      participations: { some: { campaign: { companyId: request.campaign.companyId } } },
-    },
-  });
-  // Conditional flip guards a double-launch race (same pattern as the
-  // question-change and study-type flows).
-  const flipped = await prisma.campaignNotificationRequest.updateMany({
-    where: { id: request.id, status: "PENDING" },
-    data: {
-      status: "LAUNCHED",
-      deliveryStatus: "PENDING_DELIVERY",
-      eligibleCount: optedIn,
-      launchedById: opsUserId,
-      launchedAt: new Date(),
-    },
-  });
-  if (flipped.count === 0) return res.status(409).json({ error: "Request is not pending" });
-  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
-  await writeAccessAudit({ actorKind: "ops", actorId: opsUserId, actorName: actor?.name ?? "unknown", action: "NOTIFICATION_LAUNCH", targetType: "campaign", targetId: request.campaignId });
-  res.json(await prisma.campaignNotificationRequest.findUnique({ where: { id: request.id } }));
-});
-
-router.post("/notification-requests/:id/reject", async (req, res) => {
-  const { opsUserId } = asOps(req);
-  const note = typeof req.body?.note === "string" ? req.body.note : null;
-  const flipped = await prisma.campaignNotificationRequest.updateMany({
-    where: { id: req.params.id, status: "PENDING" },
-    data: { status: "REJECTED", reviewNote: note, launchedById: opsUserId },
-  });
-  if (flipped.count === 0) {
-    const existing = await prisma.campaignNotificationRequest.findUnique({ where: { id: req.params.id } });
-    if (!existing) return res.status(404).json({ error: "Request not found" });
-    return res.status(409).json({ error: `Request already ${existing.status}` });
-  }
-  res.json(await prisma.campaignNotificationRequest.findUnique({ where: { id: req.params.id } }));
-});
+// NOTE (forensic audit 2026-09-20): the OFD-14 activation-notification
+// request/launch routes were removed — the Founder decision of 2026-09-20
+// states consumers receive NO push notifications, so there is no delivery
+// target. The CampaignNotificationRequest model remains dormant in the
+// schema (dropping it would be a destructive migration with no product need).
 
 // NOTE (post-innovation forensic audit, 2026-09-20): no /ops/panel endpoint
 // exists. OFD-15C (shared TAJRIBTI-managed opt-in panel) is REJECTED under the

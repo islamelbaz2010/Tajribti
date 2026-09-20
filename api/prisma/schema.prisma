@@ -471,12 +471,11 @@ model QuestionAuditEvent {
   @@index([campaignId])
 }
 
-// OFD-14 — Mobile push activation notifications. Company requests; Operations
-// launches. Explicit consumer opt-in required (Consumer.pushOptIn). No
-// WhatsApp, no SMS, no lifecycle automation (14D). Delivery itself is an
-// OPEN DEPENDENCY (no push provider configured this pass) — a launched
-// request records its eligible audience and deliveryStatus "PENDING_PROVIDER"
-// rather than pretending delivery happened.
+// DORMANT (forensic pass 2026-09-20): the Founder decision of 2026-09-20
+// states consumers receive NO push notifications. All routes/UI for this
+// model were removed; the table is kept because dropping it would be a
+// destructive migration with no product need. Do not reintroduce a
+// notification surface without a new explicit Founder decision.
 // status: "PENDING" | "LAUNCHED" | "REJECTED"
 model CampaignNotificationRequest {
   id         String   @id @default(cuid())

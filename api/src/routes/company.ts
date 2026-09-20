@@ -799,41 +799,12 @@ router.delete("/campaigns/:id/media/:mid", async (req, res) => {
   res.status(204).end();
 });
 
-// --- OFD-14B: activation notification requests -------------------------------
-// Company requests; Operations launches. One pending request per campaign.
-const notificationRequestSchema = z.object({ title: z.string().min(1).max(120), body: z.string().min(1).max(500) });
-
-router.post("/campaigns/:id/notification-requests", requireCompanyAdmin, async (req, res) => {
-  const { employeeId } = asEmployee(req);
-  const campaign = await loadOwnedCampaign(req, res);
-  if (!campaign) return;
-  if (campaign.status !== "READY" && campaign.status !== "ACTIVE") {
-    return res.status(409).json({ error: "Notification requests can be filed only for READY or ACTIVE campaigns" });
-  }
-  const parsed = notificationRequestSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
-  const pending = await prisma.campaignNotificationRequest.findFirst({ where: { campaignId: campaign.id, status: "PENDING" } });
-  if (pending) return res.status(409).json({ error: "A notification request is already pending for this campaign" });
-  const request = await prisma.campaignNotificationRequest.create({
-    data: { campaignId: campaign.id, title: parsed.data.title, body: parsed.data.body, requestedById: employeeId },
-  });
-  res.status(201).json(request);
-});
-
-router.get("/campaigns/:id/notification-requests", async (req, res) => {
-  const campaign = await loadOwnedCampaign(req, res);
-  if (!campaign) return;
-  const requests = await prisma.campaignNotificationRequest.findMany({
-    where: { campaignId: campaign.id },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true, title: true, body: true, status: true, deliveryStatus: true, eligibleCount: true,
-      launchedAt: true, reviewNote: true, createdAt: true,
-      requestedBy: { select: { name: true } }, launchedBy: { select: { name: true } },
-    },
-  });
-  res.json(requests);
-});
+// NOTE (forensic audit 2026-09-20): the OFD-14B activation-notification
+// request routes were removed — the Founder decision of 2026-09-20 states
+// consumers receive NO push notifications, so there is no delivery target
+// for a notification workflow. The CampaignNotificationRequest model is left
+// dormant in the schema (dropping it would be a destructive migration with
+// no product need).
 
 // --- OFD-15B: same-company cross-campaign panel intelligence -----------------
 // Aggregates ONLY across this company's campaigns and ONLY consumers who

@@ -126,7 +126,7 @@ additive `narrative` field.
 - `PLATFORM_ADMIN` — TAJRIBTI platform-level administration: create companies, manage ops users,
   may access consumer PII (each PII-bearing access writes an `AccessAuditEvent`).
 - `OPERATIONS` — operational monitoring/control: pipeline, readiness, lifecycle, issues, live,
-  insights, reports, change-request review, notification launches. Does NOT receive consumer PII
+  insights, reports, change-request review. Does NOT receive consumer PII
   lists (participants endpoint requires PLATFORM_ADMIN).
 - `COMPANY_ADMIN` — full company capability incl. employee management and change requests.
 - `COMPANY_MEMBER` — campaign/product authoring + reporting; cannot manage employees.
@@ -142,7 +142,7 @@ assignment granularity (per-campaign vs per-company) that the decision does not 
 
 **Auditability:** `AccessAuditEvent` (actorKind, actorId, actorName, action, targetType,
 targetId, at) written for: company creation, ops-user creation, participants-PII access, panel
-access, question-change apply, notification launch. `GET /ops/audit-events` (PLATFORM_ADMIN).
+access, question-change apply. `GET /ops/audit-events` (PLATFORM_ADMIN).
 
 ## M. Campaign Media / Gallery (OFD-12)
 
@@ -162,16 +162,24 @@ Print-view export path: report views in company + ops apps gain a language toggl
 no binary storage. Server-side generated PDF remains a technical-only future option.
 Existing report data/behavior is untouched.
 
-## O. Push Notifications (OFD-14)
+## O. Push Notifications (OFD-14) — SUPERSEDED
 
-Implemented: consent (`pushOptIn`, `pushOptInAt`, `pushToken`), `CampaignNotificationRequest`
-(company requests with title/body → ops launches), `GET /ops/notification-requests`,
-`POST /ops/notification-requests/:id/launch`. On launch the request records the eligible
-audience count (push-opted-in consumers matching the campaign's audience fields) and
-`deliveryStatus: "PENDING_PROVIDER"` — **no actual push delivery exists**; FCM/provider
-credentials and a delivery worker are an OPEN DEPENDENCY. No WhatsApp, no SMS, no lifecycle
-notifications. Frequency/anti-annoyance: requests are per-campaign, single-use; a campaign gets
-at most one launch per request record — repeat sends need a new company request.
+**Superseded by Founder decision (2026-09-20, product forensic pass):** consumers receive NO
+push notifications — no campaign push, reminders, lifecycle push, reactivation, or "new
+campaign" push, and no push provider is to be selected or configured. The consent endpoints,
+notification-request routes, ops launch surface, and consumer/ops UI controls described below
+were removed in that pass. The `Consumer.pushOptIn`/`pushOptInAt`/`pushToken` columns and the
+`CampaignNotificationRequest` model are left dormant in the schema (dropping them would be a
+destructive migration with no product need). Mobile push UI removal is deferred to the final
+mobile-release phase (mobile code frozen this pass).
+
+*Historical record of the superseded implementation:* consent (`pushOptIn`, `pushOptInAt`,
+`pushToken`), `CampaignNotificationRequest` (company requests with title/body → ops launches),
+`GET /ops/notification-requests`, `POST /ops/notification-requests/:id/launch`. On launch the
+request recorded the eligible audience count (push-opted-in consumers matching the campaign's
+audience fields) and `deliveryStatus: "PENDING_PROVIDER"` — no actual push delivery ever
+existed; FCM/provider credentials were an OPEN DEPENDENCY. No WhatsApp, no SMS, no lifecycle
+notifications.
 
 ## P. Public Website (OFD-17)
 

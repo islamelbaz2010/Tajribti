@@ -84,18 +84,14 @@
       </div>
       <p class="muted" style="margin:8px 0 0;">Campaigns you've entered, and where each stands.</p>
     </div>
-    <!-- FOUNDER INNOVATION (OFD-15A / OFD-14C): explicit opt-in controls.
-         Both default off server-side; checking a box calls the dedicated
-         consent endpoint — never inferred. -->
+    <!-- FOUNDER INNOVATION (OFD-15A): explicit panel opt-in. Push consent
+         was removed — the Founder decision of 2026-09-20 states consumers
+         receive NO push notifications. -->
     <div class="card">
       <h2>Privacy &amp; participation</h2>
       <label style="display:flex;gap:8px;align-items:flex-start;font-weight:400;color:var(--ink);">
         <input type="checkbox" id="opt-panel" style="width:auto;margin-top:3px;" />
         <span>Join the Tajribti panel — lets your responses count toward same-company insights (anonymous aggregates only).</span>
-      </label>
-      <label style="display:flex;gap:8px;align-items:flex-start;font-weight:400;color:var(--ink);margin-top:10px;">
-        <input type="checkbox" id="opt-push" style="width:auto;margin-top:3px;" />
-        <span>Campaign notifications — get notified when new campaigns you may fit go live.</span>
       </label>
       <div class="msg" id="opt-msg"></div>
     </div>
@@ -116,6 +112,11 @@
       <h2 id="c-name"></h2>
       <p class="muted" id="c-objective"></p>
       <p class="muted" id="c-product"></p>
+      <!-- OFD-12: campaign media/gallery — company-configured product,
+           packaging, and creative assets are shown to the consumer as
+           stimulus (URLs are http(s)-validated server-side; values are
+           escaped before DOM insertion). -->
+      <div id="c-media" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;"></div>
     </div>
 
     <div class="card" id="eligibility-card">
@@ -237,11 +238,10 @@ document.getElementById('btn-verify-otp').onclick = async () => {
 };
 
 async function loadDiscover() {
-  // FOUNDER INNOVATION (OFD-15A / OFD-14C): reflect persisted consent flags.
+  // FOUNDER INNOVATION (OFD-15A): reflect persisted panel consent.
   try {
     const p = await api('/consumer/profile');
     document.getElementById('opt-panel').checked = p.panelOptIn === true;
-    document.getElementById('opt-push').checked = p.pushOptIn === true;
   } catch (_) { /* consent card stays unchecked; endpoint failure is non-fatal */ }
   const campaigns = await api('/consumer/campaigns');
   const list = document.getElementById('campaign-list');
@@ -279,15 +279,10 @@ async function loadHistory() {
 document.getElementById('btn-view-history').onclick = (e) => { e.preventDefault(); loadHistory(); };
 document.getElementById('btn-back-history').onclick = (e) => { e.preventDefault(); loadDiscover(); };
 
-// FOUNDER INNOVATION (OFD-15A / OFD-14C): explicit consent writes.
+// FOUNDER INNOVATION (OFD-15A): explicit consent writes.
 document.getElementById('opt-panel').onchange = async (e) => {
   const msg = document.getElementById('opt-msg');
   try { await api('/consumer/panel/' + (e.target.checked ? 'opt-in' : 'opt-out'), { method: 'POST' }); msg.textContent = 'Saved.'; msg.className = 'msg'; }
-  catch (err) { e.target.checked = !e.target.checked; msg.textContent = err.message; msg.className = 'msg error'; }
-};
-document.getElementById('opt-push').onchange = async (e) => {
-  const msg = document.getElementById('opt-msg');
-  try { await api('/consumer/push/' + (e.target.checked ? 'opt-in' : 'opt-out'), { method: 'POST', body: {} }); msg.textContent = 'Saved.'; msg.className = 'msg'; }
   catch (err) { e.target.checked = !e.target.checked; msg.textContent = err.message; msg.className = 'msg error'; }
 };
 
@@ -315,6 +310,26 @@ async function openCampaign(id) {
   document.getElementById('c-name').textContent = c.name;
   document.getElementById('c-objective').textContent = c.objective;
   document.getElementById('c-product').textContent = c.product ? ('Product: ' + c.product.name) : '';
+  const mediaRow = document.getElementById('c-media');
+  mediaRow.innerHTML = '';
+  (c.media || []).forEach(m => {
+    // img src only ever fetches — but still restrict to http(s) so a
+    // non-web scheme can't be injected via a stored URL.
+    if (!/^https?:\/\//i.test(m.url)) return;
+    const img = document.createElement('img');
+    img.src = m.url;
+    img.alt = m.caption || '';
+    img.title = m.caption || '';
+    img.style.cssText = 'max-width:120px;max-height:120px;border-radius:10px;object-fit:cover;border:1px solid #f1e6dc;';
+    mediaRow.appendChild(img);
+    if (m.caption) {
+      const cap = document.createElement('p');
+      cap.className = 'muted';
+      cap.style.cssText = 'width:100%;margin:2px 0 0;font-size:0.78rem;';
+      cap.textContent = m.caption;
+      mediaRow.appendChild(cap);
+    }
+  });
 
   // Reset the eligibility form and every result message left over from a
   // previous campaign visit or a previous consumer's session in this same

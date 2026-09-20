@@ -58,11 +58,10 @@
       <button class="tab-btn active" data-tab="pipeline">Campaign Pipeline</button>
       <button class="tab-btn" data-tab="companies">Companies</button>
       <button class="tab-btn" data-tab="studytype-requests">Study-Type Requests</button>
-      <!-- FOUNDER INNOVATION: OFD-19 question change requests, OFD-14
-           activation notification requests. (OFD-15C shared panel was
-           REJECTED — no panel tab exists.) -->
+      <!-- FOUNDER INNOVATION: OFD-19 question change requests.
+           (OFD-15C shared panel and OFD-14 consumer push were both
+           REJECTED — neither tab exists.) -->
       <button class="tab-btn" data-tab="question-requests">Question Requests</button>
-      <button class="tab-btn" data-tab="notifications">Notifications</button>
     </div>
 
     <div class="card tab-panel" id="tab-pipeline">
@@ -130,14 +129,6 @@
     <div class="card tab-panel hidden" id="tab-question-requests">
       <h2>Question change requests</h2>
       <div id="question-requests-list"></div>
-    </div>
-
-    <!-- FOUNDER INNOVATION (OFD-14): company-requested activation
-         notifications — Operations launches; eligible audience is
-         computed from explicit consumer push opt-ins at launch time. -->
-    <div class="card tab-panel hidden" id="tab-notifications">
-      <h2>Activation notification requests</h2>
-      <div id="notification-requests-list"></div>
     </div>
 
   </div>
@@ -266,7 +257,6 @@ document.querySelectorAll('#view-home .tab-btn').forEach(btn => {
     if (btn.dataset.tab === 'companies') loadCompanies();
     if (btn.dataset.tab === 'studytype-requests') loadStudyTypeRequests();
     if (btn.dataset.tab === 'question-requests') loadQuestionRequests();
-    if (btn.dataset.tab === 'notifications') loadNotificationRequests();
   };
 });
 
@@ -463,44 +453,10 @@ async function loadQuestionRequests() {
   });
 }
 
-// FOUNDER INNOVATION (OFD-14): launch computes the opted-in eligible
-// audience and records PENDING_DELIVERY — actual push transport is a
-// separate gate (spec §14), so nothing is sent by this console yet.
-async function loadNotificationRequests() {
-  const requests = await api('/ops/notification-requests');
-  const list = document.getElementById('notification-requests-list');
-  list.innerHTML = '';
-  if (!requests.length) { list.innerHTML = '<p style="color:var(--muted)">No requests.</p>'; return; }
-  requests.forEach(r => {
-    const div = document.createElement('div');
-    div.className = 'item'; div.style.cursor = 'default'; div.style.flexDirection = 'column'; div.style.alignItems = 'stretch';
-    div.innerHTML =
-      '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-        '<div><strong>' + esc(r.title) + '</strong><div style="color:var(--muted);font-size:0.85rem;">' + esc(r.campaign.name) + ' · ' + esc(r.campaign.company.name) + ' · ' + esc(r.campaign.status) + '</div></div>' +
-        '<span class="pill">' + esc(r.status) + (r.deliveryStatus ? ' / ' + esc(r.deliveryStatus) : '') + '</span></div>' +
-      '<p style="font-size:0.88rem;margin:8px 0 0;">' + esc(r.body) + '</p>' +
-      '<p style="color:var(--muted);font-size:0.8rem;margin:2px 0 0;">Requested by ' + esc(r.requestedBy.name) + ' on ' + new Date(r.createdAt).toLocaleString() +
-      (r.eligibleCount != null ? ' · eligible opted-in audience: ' + r.eligibleCount : '') + '</p>' +
-      (r.status === 'PENDING'
-        ? '<div class="row" style="margin-top:8px;"><button class="small" data-launch="' + esc(r.id) + '">Launch</button><button class="small secondary" data-nreject="' + esc(r.id) + '">Reject</button></div><div class="msg" id="nr-msg-' + esc(r.id) + '"></div>'
-        : '');
-    list.appendChild(div);
-  });
-  list.querySelectorAll('button[data-launch]').forEach(btn => {
-    btn.onclick = async () => {
-      const msg = document.getElementById('nr-msg-' + btn.dataset.launch);
-      try { await api('/ops/notification-requests/' + btn.dataset.launch + '/launch', { method: 'POST' }); await loadNotificationRequests(); }
-      catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
-    };
-  });
-  list.querySelectorAll('button[data-nreject]').forEach(btn => {
-    btn.onclick = async () => {
-      const note = window.prompt('Rejection note (optional):', '');
-      try { await api('/ops/notification-requests/' + btn.dataset.nreject + '/reject', { method: 'POST', body: { note } }); await loadNotificationRequests(); }
-      catch (e) { alert(e.message); }
-    };
-  });
-}
+// NOTE (forensic audit 2026-09-20): the OFD-14 activation-notification
+// request/launch surface was removed — consumers receive NO push
+// notifications under the Founder decision of 2026-09-20, so there is no
+// delivery target for the workflow.
 
 // NOTE (forensic audit 2026-09-20): the OFD-15C shared-panel surface was
 // removed — the shared TAJRIBTI-managed panel is a REJECTED direction.

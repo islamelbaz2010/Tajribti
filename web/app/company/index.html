@@ -20,6 +20,7 @@
   }
   button { background: var(--primary); color:#fff; border:none; padding:10px 18px; border-radius:999px; font-weight:700; cursor:pointer; margin-top:14px; font-size:0.9rem; }
   button.secondary { background:#fff; color:var(--ink); border:1px solid #e6d9cf; }
+  button.danger { background:#b23b1e; }
   button.small { padding:6px 12px; font-size:0.8rem; margin-top:0; }
   .msg { font-size:0.85rem; margin-top:8px; }
   .msg.error { color:#b23b1e; } .msg.ok { color:#1e7a3d; }
@@ -61,10 +62,11 @@
 
   <div id="view-login" class="card">
     <h2>Company sign in</h2>
+    <p style="color:var(--muted);font-size:0.85rem;margin-top:-6px;">Your campaigns, evidence and reports.</p>
     <label>Email</label>
-    <input id="login-email" value="layla@nilefresh.example" />
+    <input id="login-email" autocomplete="username" />
     <label>Password</label>
-    <input id="login-password" type="password" value="CompanyPass123!" />
+    <input id="login-password" type="password" autocomplete="current-password" />
     <button id="btn-login">Sign in</button>
     <div class="msg" id="login-msg"></div>
   </div>
@@ -662,6 +664,20 @@ async function openCampaign(id) {
       catch (e) { msg.textContent = e.message; msg.className='msg error'; }
     };
     actions.appendChild(b);
+    // FOUNDER-APPROVED (product evolution 2026-09-20): DRAFT delete,
+    // COMPANY_ADMIN only (backend enforces both). Two-step inline confirm
+    // — no browser prompt(), consistent with the console's other forms.
+    if (currentEmployeeRole === 'COMPANY_ADMIN') {
+      const del = document.createElement('button'); del.className = 'small danger'; del.textContent = 'Delete draft';
+      del.onclick = () => {
+        if (del.dataset.armed !== '1') { del.dataset.armed = '1'; del.textContent = 'Confirm delete'; return; }
+        const msg = document.getElementById('cd-msg');
+        api('/company/campaigns/' + id, { method: 'DELETE' })
+          .then(() => loadCampaigns())
+          .catch(e => { msg.textContent = e.message; msg.className = 'msg error'; del.dataset.armed = ''; del.textContent = 'Delete draft'; });
+      };
+      actions.appendChild(del);
+    }
   } else if (c.status === 'READY') {
     // No "revert to draft" action — Benchmark names no reverse transition
     // in the Configure -> Review/Ready chain (see api/src/routes/company.ts).
@@ -933,16 +949,51 @@ document.getElementById('btn-add-question').onclick = async () => {
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };
 
-function renderQrSources(sources) {
+async function renderQrSources(sources) {
   const list = document.getElementById('qr-list');
-  // Review pass 2026-09-20: a QR/source row previously showed label+code
-  // but no usable artifact — the consumer entry point is
-  // /app/consumer/?qr=CODE (web/app/consumer/index.html). Render the link
-  // per source so it can be opened/copied/encoded into a QR image.
+  // FOUNDER-APPROVED (product evolution 2026-09-20): every source renders
+  // its entry link plus an actual QR image of that link (generated
+  // server-side, deterministic) — view, copy, open and download it.
   const base = location.origin + '/app/consumer/?qr=';
-  list.innerHTML = sources.length ? '<table><tr><th>Label</th><th>Code</th><th>Entry link</th><th>Active window</th></tr>' +
-    sources.map(s => '<tr><td>' + esc(s.label) + '</td><td>' + esc(s.code) + '</td><td style="word-break:break-all;"><a href="' + esc(base + encodeURIComponent(s.code)) + '" target="_blank" rel="noopener">' + esc(base + s.code) + '</a></td><td>' + new Date(s.activeFrom).toLocaleDateString() + ' – ' + new Date(s.activeTo).toLocaleDateString() + '</td></tr>').join('') + '</table>'
-    : '<p style="color:var(--muted)">No QR/sources yet.</p>';
+  if (!sources.length) {
+    list.innerHTML = '<p style="color:var(--muted)">No QR/sources yet.</p>';
+    return;
+  }
+  list.innerHTML = sources.map(s =>
+    '<div class="item" style="align-items:flex-start;gap:14px;">' +
+      '<img class="qr-thumb" data-sid="' + esc(s.id) + '" width="96" height="96" style="flex:none;border:1px solid #f1e6dc;border-radius:10px;background:#fff;" alt="QR for ' + esc(s.code) + '" />' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div><strong>' + esc(s.label) + '</strong> <span class="pill">' + esc(s.code) + '</span></div>' +
+        '<div style="color:var(--muted);font-size:0.8rem;margin:2px 0 6px;">' + new Date(s.activeFrom).toLocaleDateString() + ' – ' + new Date(s.activeTo).toLocaleDateString() + '</div>' +
+        '<div style="word-break:break-all;font-size:0.8rem;"><a href="' + esc(base + encodeURIComponent(s.code)) + '" target="_blank" rel="noopener">' + esc(base + s.code) + '</a></div>' +
+        '<div class="row" style="margin-top:6px;">' +
+          '<button class="small secondary" data-copyqr="' + esc(base + encodeURIComponent(s.code)) + '">Copy link</button>' +
+          '<a class="small secondary" style="padding:8px 14px;border-radius:999px;border:1px solid #e6d9cf;text-decoration:none;font-weight:600;font-size:0.85rem;" data-dlqr="' + esc(s.id) + '" data-code="' + esc(s.code) + '" href="#">Download QR</a>' +
+        '</div>' +
+      '</div>' +
+    '</div>').join('');
+
+  // The PNG endpoint is auth-gated — fetch as blob so <img> can render it.
+  for (const img of list.querySelectorAll('img.qr-thumb')) {
+    try {
+      const r = await fetch('/api/company/campaigns/' + currentCampaignId + '/qr-sources/' + img.dataset.sid + '/qr.png', { headers: { authorization: 'Bearer ' + token } });
+      if (r.ok) img.src = URL.createObjectURL(await r.blob());
+    } catch { /* image left blank; link still usable */ }
+  }
+  list.querySelectorAll('button[data-copyqr]').forEach(btn => {
+    btn.onclick = () => { navigator.clipboard.writeText(btn.dataset.copyqr); btn.textContent = 'Copied'; setTimeout(() => btn.textContent = 'Copy link', 1500); };
+  });
+  list.querySelectorAll('a[data-dlqr]').forEach(a => {
+    a.onclick = async (e) => {
+      e.preventDefault();
+      const r = await fetch('/api/company/campaigns/' + currentCampaignId + '/qr-sources/' + a.dataset.dlqr + '/qr.png', { headers: { authorization: 'Bearer ' + token } });
+      if (!r.ok) return;
+      const url = URL.createObjectURL(await r.blob());
+      const dl = document.createElement('a');
+      dl.href = url; dl.download = 'qr-' + a.dataset.code + '.png'; dl.click();
+      URL.revokeObjectURL(url);
+    };
+  });
 }
 
 // FOUNDER INNOVATION (OFD-19): pending change requests are visible to the

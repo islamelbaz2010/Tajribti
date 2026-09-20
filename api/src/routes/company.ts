@@ -17,6 +17,7 @@ import {
 } from "../lib/measurement";
 import { buildReport } from "../lib/report";
 import { STUDY_TEMPLATES, findTemplate } from "../lib/studyTemplates";
+import QRCode from "qrcode";
 import {
   MEDIA_LIMITS,
   createUploadUrl,
@@ -343,6 +344,55 @@ router.patch("/campaigns/:id", async (req, res) => {
   res.json(updated);
 });
 
+// FOUNDER-APPROVED (product evolution 2026-09-20): natural campaign delete.
+// DRAFT-only + COMPANY_ADMIN-only. A DRAFT campaign cannot have consumer
+// evidence (participation requires an ACTIVE campaign), so deletion removes
+// configuration rows only; if any participation exists the delete is
+// refused outright — evidence is never destroyed. READY is refused too:
+// a submitted campaign belongs to Operations review (no withdraw
+// transition exists in current governance — don't invent one). Audited.
+router.delete("/campaigns/:id", requireCompanyAdmin, async (req, res) => {
+  const { employeeId } = asEmployee(req);
+  const campaign = await loadOwnedCampaign(req, res);
+  if (!campaign) return;
+  if (campaign.status !== "DRAFT") {
+    return res.status(409).json({ error: "Only DRAFT campaigns can be deleted" });
+  }
+  const participations = await prisma.participation.count({ where: { campaignId: campaign.id } });
+  if (participations > 0) {
+    return res.status(409).json({ error: "Campaign has participation evidence and cannot be deleted" });
+  }
+
+  // Best-effort removal of any hosted media objects before the rows go.
+  if (isHostedMediaConfigured()) {
+    const hosted = await prisma.campaignMedia.findMany({
+      where: { campaignId: campaign.id, source: "HOSTED", storageKey: { not: null } },
+      select: { storageKey: true },
+    });
+    await Promise.all(hosted.map((m) => deleteObject(m.storageKey!).catch(() => undefined)));
+  }
+
+  await prisma.$transaction([
+    prisma.answer.deleteMany({ where: { question: { campaignId: campaign.id } } }),
+    prisma.participation.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.questionChangeRequest.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.studyTypeChangeRequest.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.campaignNotificationRequest.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.operationalIssue.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.campaignMedia.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.question.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.qrSource.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.campaign.delete({ where: { id: campaign.id } }),
+  ]);
+
+  const actor = await prisma.employee.findUnique({ where: { id: employeeId }, select: { name: true } });
+  await writeAccessAudit({
+    actorKind: "employee", actorId: employeeId, actorName: actor?.name ?? "unknown",
+    action: "CAMPAIGN_DELETE", targetType: "campaign", targetId: campaign.id,
+  });
+  res.status(204).end();
+});
+
 // --- Study-Type Change Requests (forensic audit 2026-09-15, Decision 1) ----
 // Read-only-safe select projections below never return requestedBy's or
 // reviewedBy's passwordHash — same discipline as every other cross-actor
@@ -631,6 +681,24 @@ router.post("/campaigns/:id/qr-sources", async (req, res) => {
   } catch {
     res.status(409).json({ error: "QR/source code already in use" });
   }
+});
+
+// FOUNDER-APPROVED (product evolution 2026-09-20): automatic QR image per
+// source. Deterministic PNG of the consumer entry URL — generated on
+// demand, nothing stored, so the image always encodes the same entry link
+// the UI displays. The QR is an entry mechanism only; campaign status,
+// dates, eligibility and participation rules are enforced downstream by
+// the consumer routes exactly as for typed entry.
+router.get("/campaigns/:id/qr-sources/:sid/qr.png", async (req, res) => {
+  const campaign = await loadOwnedCampaign(req, res);
+  if (!campaign) return;
+  const source = await prisma.qrSource.findFirst({ where: { id: req.params.sid, campaignId: campaign.id } });
+  if (!source) return res.status(404).json({ error: "QR/source not found" });
+  const entryUrl = `${req.protocol}://${req.get("host")}/app/consumer/?qr=${encodeURIComponent(source.code)}`;
+  const png = await QRCode.toBuffer(entryUrl, { width: 512, margin: 2 });
+  res.setHeader("Content-Type", "image/png");
+  res.setHeader("Content-Disposition", `inline; filename="qr-${source.code}.png"`);
+  res.send(png);
 });
 
 // --- Live Results (Benchmark §4 COMPANY "Live Results") --------------------

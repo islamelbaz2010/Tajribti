@@ -16,7 +16,7 @@ import { apiRoot, dbPath } from "./env";
 export { prisma, signToken };
 
 export interface ApiCall {
-  (path: string, opts?: { method?: string; token?: string; body?: unknown }): Promise<{ status: number; body: any }>;
+  (path: string, opts?: { method?: string; token?: string; body?: unknown; raw?: boolean }): Promise<{ status: number; body: any; headers?: Record<string, string>; raw?: Buffer }>;
 }
 
 export async function startApi(): Promise<{ api: ApiCall; stop: () => Promise<void> }> {
@@ -57,6 +57,14 @@ export async function startApi(): Promise<{ api: ApiCall; stop: () => Promise<vo
       },
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     });
+    if (opts.raw) {
+      return {
+        status: res.status,
+        body: null,
+        headers: Object.fromEntries(res.headers.entries()),
+        raw: Buffer.from(await res.arrayBuffer()),
+      };
+    }
     return { status: res.status, body: await res.json().catch(() => null) };
   };
 

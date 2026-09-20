@@ -167,6 +167,56 @@
   .btn-primary:hover { background: var(--primary-ink); }
   .btn-secondary { background: #fff; color: var(--ink); border: 1px solid #e6d9cf; }
 
+  /* ---------- hero product visual ---------- */
+  .hero-visual {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 26px;
+    margin-top: 46px;
+    flex-wrap: wrap;
+  }
+  .hv-phone {
+    width: 190px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 26px;
+    padding: 16px 14px 20px;
+    box-shadow: 0 26px 54px -26px rgba(60, 30, 10, 0.35);
+  }
+  .hv-phone-top { width: 52px; height: 5px; border-radius: 999px; background: var(--line); margin: 0 auto 16px; }
+  .hv-qr {
+    width: 96px; height: 96px;
+    margin: 0 auto 12px;
+    background: var(--bg-alt);
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+  }
+  .hv-phone .hv-line { height: 9px; border-radius: 999px; background: var(--bg-alt); margin: 8px 14px; }
+  .hv-phone .hv-line.short { margin: 8px 34px; background: var(--line); }
+  .hv-phone .hv-btn { height: 30px; border-radius: 999px; background: var(--primary); margin: 14px 14px 0; }
+  .hv-report {
+    width: 300px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 18px;
+    box-shadow: 0 26px 54px -30px rgba(60, 30, 10, 0.3);
+    text-align: left;
+  }
+  .hv-report .hv-title { height: 10px; width: 55%; border-radius: 999px; background: var(--bg-alt); margin-bottom: 14px; }
+  .hv-bars { display: flex; align-items: flex-end; gap: 8px; height: 72px; margin-bottom: 12px; }
+  .hv-bars span { flex: 1; border-radius: 6px 6px 0 0; background: var(--primary); }
+  .hv-bars span:nth-child(2) { opacity: 0.75; }
+  .hv-bars span:nth-child(3) { opacity: 0.55; }
+  .hv-bars span:nth-child(4) { opacity: 0.4; }
+  .hv-chips { display: flex; gap: 8px; }
+  .hv-chips span { flex: 1; height: 30px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); }
+  @media (max-width: 560px) {
+    .hv-report { width: 100%; max-width: 300px; }
+  }
+
   /* ---------- journey stage strip ---------- */
   .stage-strip-wrap { padding: 10px 6vw 70px; max-width: 1100px; margin: 0 auto; }
   .stage-strip {
@@ -370,6 +420,10 @@
           <span class="login-item-label">Company</span>
           <span class="login-item-desc">Access your company workspace</span>
         </a>
+        <a class="login-item" href="/app/consumer" role="menuitem">
+          <span class="login-item-label">Consumer</span>
+          <span class="login-item-desc">Enter a campaign with your phone number</span>
+        </a>
         <a class="login-item" href="/app/ops" role="menuitem">
           <span class="login-item-label">TAJRIBTI Operations</span>
           <span class="login-item-desc">Manage campaigns and operations</span>
@@ -390,6 +444,33 @@
   <div class="btn-row">
     <a class="btn btn-primary" href="#contact">Discuss your next product trial</a>
     <a class="btn btn-secondary" href="#report">See a sample report</a>
+  </div>
+  <div class="hero-visual" aria-hidden="true">
+    <div class="hv-phone">
+      <div class="hv-phone-top"></div>
+      <div class="hv-qr">
+        <svg width="56" height="56" viewBox="0 0 21 21" fill="var(--ink)">
+          <rect x="0" y="0" width="7" height="7" rx="1"/><rect x="2" y="2" width="3" height="3" fill="var(--bg-alt)"/>
+          <rect x="14" y="0" width="7" height="7" rx="1"/><rect x="16" y="2" width="3" height="3" fill="var(--bg-alt)"/>
+          <rect x="0" y="14" width="7" height="7" rx="1"/><rect x="2" y="16" width="3" height="3" fill="var(--bg-alt)"/>
+          <rect x="9" y="0" width="3" height="3"/><rect x="9" y="5" width="3" height="3"/>
+          <rect x="0" y="9" width="3" height="3"/><rect x="5" y="9" width="3" height="3"/>
+          <rect x="14" y="9" width="3" height="3"/><rect x="18" y="9" width="3" height="3"/>
+          <rect x="9" y="9" width="3" height="3" fill="var(--primary)"/>
+          <rect x="9" y="14" width="3" height="3"/><rect x="14" y="14" width="3" height="3"/>
+          <rect x="18" y="14" width="3" height="3"/><rect x="9" y="18" width="3" height="3"/>
+          <rect x="14" y="18" width="3" height="3"/><rect x="5" y="14" width="3" height="3" fill="var(--bg-alt)"/>
+        </svg>
+      </div>
+      <div class="hv-line"></div>
+      <div class="hv-line short"></div>
+      <div class="hv-btn"></div>
+    </div>
+    <div class="hv-report">
+      <div class="hv-title"></div>
+      <div class="hv-bars"><span style="height:100%"></span><span style="height:74%"></span><span style="height:60%"></span><span style="height:44%"></span></div>
+      <div class="hv-chips"><span></span><span></span></div>
+    </div>
   </div>
 </div>
 

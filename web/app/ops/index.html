@@ -432,10 +432,18 @@ async function loadStudyTypeRequests() {
         '<p style="color:var(--muted);font-size:0.8rem;margin:2px 0 0;">' + (r.status === 'APPROVED' ? 'Approved' : 'Rejected') +
         (r.reviewedBy ? ' by ' + esc(r.reviewedBy.name) : '') + (r.reviewedAt ? ' on ' + new Date(r.reviewedAt).toLocaleString() : '') +
         (r.rejectionReason ? ': &ldquo;' + esc(r.rejectionReason) + '&rdquo;' : '.') + '</p>'
-        : '<div class="row" id="str-actions-' + esc(r.id) + '" style="margin-top:8px;">' +
+        // Review pass 2026-09-20: a PENDING request on a locked campaign
+        // (backend returns 409 "no longer configurable" on approve) must
+        // not offer Approve — show why, keep Reject to clear the stale row.
+        : (r.campaign.status !== 'DRAFT' && r.campaign.status !== 'READY' ?
+          '<p class="msg" style="margin:8px 0 0;">Campaign is ' + esc(r.campaign.status) + ' — this request can no longer be approved.</p>' +
+          '<div class="row" id="str-actions-' + esc(r.id) + '" style="margin-top:8px;">' +
+          '<button class="small secondary" data-reject="' + esc(r.id) + '">Reject</button>' +
+          '</div><div class="msg" id="str-msg-' + esc(r.id) + '"></div>'
+          : '<div class="row" id="str-actions-' + esc(r.id) + '" style="margin-top:8px;">' +
           '<button class="small" data-approve="' + esc(r.id) + '">Approve</button>' +
           '<button class="small secondary" data-reject="' + esc(r.id) + '">Reject</button>' +
-          '</div><div class="msg" id="str-msg-' + esc(r.id) + '"></div>');
+          '</div><div class="msg" id="str-msg-' + esc(r.id) + '"></div>'));
     list.appendChild(div);
   });
 

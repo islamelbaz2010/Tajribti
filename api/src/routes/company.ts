@@ -179,13 +179,17 @@ router.get("/campaigns", async (req, res) => {
 const createCampaignSchema = z.object({
   name: z.string().min(1),
   objective: z.string().min(1),
-  productId: z.string().optional(),
+  // Explicit clear semantics (review pass 2026-09-20): nullable fields let
+  // PATCH distinguish "not sent" (undefined → preserve) from "cleared"
+  // (null/"" → persist NULL). Previously cleared optional values silently
+  // survived because undefined keys are skipped by Prisma update.
+  productId: z.string().nullish().transform((v) => (v === "" ? null : v)),
   startDate: z.string(),
   endDate: z.string(),
-  audienceAgeMin: z.number().int().optional(),
-  audienceAgeMax: z.number().int().optional(),
-  audienceGender: z.string().optional(),
-  audienceCity: z.string().optional(),
+  audienceAgeMin: z.number().int().nullish(),
+  audienceAgeMax: z.number().int().nullish(),
+  audienceGender: z.string().nullish().transform((v) => (v === "" ? null : v)),
+  audienceCity: z.string().nullish().transform((v) => (v === "" ? null : v)),
   studyType: z
     .string()
     .optional()
@@ -316,7 +320,9 @@ router.patch("/campaigns/:id", async (req, res) => {
   // the PATCH path must not be able to attach another company's product
   // to this campaign either. Rejected before any mutation, with the same
   // non-leaking 404.
-  if (d.productId !== undefined) {
+  // null productId = explicit clear (schema normalizes "" → null); only a
+  // real id goes through the ownership check.
+  if (d.productId) {
     const product = await prisma.product.findUnique({
       where: { id: d.productId },
       select: { companyId: true },

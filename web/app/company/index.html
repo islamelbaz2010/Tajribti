@@ -693,11 +693,13 @@ document.getElementById('btn-save-setup').onclick = async () => {
       objective: document.getElementById('s-objective').value.trim() || undefined,
       startDate: document.getElementById('s-start').value || undefined,
       endDate: document.getElementById('s-end').value || undefined,
-      productId: document.getElementById('s-product').value || undefined,
-      audienceAgeMin: Number(document.getElementById('s-agemin').value) || undefined,
-      audienceAgeMax: Number(document.getElementById('s-agemax').value) || undefined,
+      // Explicit clear: null tells the API to persist NULL; undefined would
+      // preserve the stale stored value (fixed 2026-09-20).
+      productId: document.getElementById('s-product').value || null,
+      audienceAgeMin: Number(document.getElementById('s-agemin').value) || null,
+      audienceAgeMax: Number(document.getElementById('s-agemax').value) || null,
       audienceGender: document.getElementById('s-gender').value,
-      audienceCity: document.getElementById('s-city').value.trim() || undefined,
+      audienceCity: document.getElementById('s-city').value.trim() || null,
       studyType: document.getElementById('s-studytype').value || undefined,
     }});
     document.getElementById('cd-name').textContent = updated.name;
@@ -933,8 +935,13 @@ document.getElementById('btn-add-question').onclick = async () => {
 
 function renderQrSources(sources) {
   const list = document.getElementById('qr-list');
-  list.innerHTML = sources.length ? '<table><tr><th>Label</th><th>Code</th><th>Active window</th></tr>' +
-    sources.map(s => '<tr><td>' + esc(s.label) + '</td><td>' + esc(s.code) + '</td><td>' + new Date(s.activeFrom).toLocaleDateString() + ' – ' + new Date(s.activeTo).toLocaleDateString() + '</td></tr>').join('') + '</table>'
+  // Review pass 2026-09-20: a QR/source row previously showed label+code
+  // but no usable artifact — the consumer entry point is
+  // /app/consumer/?qr=CODE (web/app/consumer/index.html). Render the link
+  // per source so it can be opened/copied/encoded into a QR image.
+  const base = location.origin + '/app/consumer/?qr=';
+  list.innerHTML = sources.length ? '<table><tr><th>Label</th><th>Code</th><th>Entry link</th><th>Active window</th></tr>' +
+    sources.map(s => '<tr><td>' + esc(s.label) + '</td><td>' + esc(s.code) + '</td><td style="word-break:break-all;"><a href="' + esc(base + encodeURIComponent(s.code)) + '" target="_blank" rel="noopener">' + esc(base + s.code) + '</a></td><td>' + new Date(s.activeFrom).toLocaleDateString() + ' – ' + new Date(s.activeTo).toLocaleDateString() + '</td></tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No QR/sources yet.</p>';
 }
 

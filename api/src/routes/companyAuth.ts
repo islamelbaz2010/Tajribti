@@ -29,7 +29,7 @@ router.post(
     });
     res.json({
       token,
-      employee: { id: employee.id, name: employee.name, email: employee.email, companyId: employee.companyId },
+      employee: { id: employee.id, name: employee.name, email: employee.email, companyId: employee.companyId, role: employee.role },
     });
   }
 );

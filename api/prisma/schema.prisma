@@ -25,15 +25,25 @@ datasource db {
 // TAJRIBTI OPERATIONS (internal actor surface — Benchmark §4 "TAJRIBTI OPERATIONS")
 // ---------------------------------------------------------------------------
 
+// FOUNDER INNOVATION (OFD-08, spec docs/TAJRIBTI_FOUNDER_INNOVATION_SPEC_
+// 2026-09-20.md §H–L) — NOT Benchmark-required. Two Innovation-layer roles:
+// "PLATFORM_ADMIN" (platform administration: company creation, ops-user
+// management, audited consumer-PII access) and "OPERATIONS" (campaign
+// pipeline/monitoring/issues/change-request review — no consumer-PII lists).
+// Migration backfills existing rows to PLATFORM_ADMIN so no current user
+// loses capability. Both are Innovation-layer names, not Benchmark truth.
 model OpsUser {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
   name         String
+  role         String   @default("OPERATIONS")
   createdAt    DateTime @default(now())
 
   issuesOpened            OperationalIssue[]
   studyTypeRequestReviews StudyTypeChangeRequest[]
+  questionChangeReviews   QuestionChangeRequest[]
+  notificationLaunches    CampaignNotificationRequest[]
 }
 
 // ---------------------------------------------------------------------------
@@ -60,6 +70,13 @@ model Company {
 // company has equal capability within that company; the only boundary
 // Benchmark actually names is company-level "employee company isolation"
 // (§10), which is enforced by scoping every query to companyId.
+// FOUNDER INNOVATION (OFD-08) — multiple Company roles. "COMPANY_ADMIN" has
+// full company capability including employee management and change requests;
+// "COMPANY_MEMBER" can author campaigns/products/questions and view reporting
+// but cannot manage employees or file requests. Existing rows are backfilled
+// to COMPANY_ADMIN by the migration (preserves current capability — the
+// removed-role history above is superseded only because the Founder has now
+// explicitly authorized multiple company roles as Innovation).
 model Employee {
   id           String   @id @default(cuid())
   companyId    String
@@ -67,9 +84,12 @@ model Employee {
   email        String   @unique
   passwordHash String
   name         String
+  role         String   @default("COMPANY_MEMBER")
   createdAt    DateTime @default(now())
 
-  studyTypeRequests StudyTypeChangeRequest[]
+  studyTypeRequests      StudyTypeChangeRequest[]
+  questionChangeRequests QuestionChangeRequest[]
+  notificationRequests   CampaignNotificationRequest[]
 
   @@index([companyId])
 }
@@ -82,6 +102,15 @@ model Product {
   name        String
   description String?
   imageUrl    String?
+  // FOUNDER INNOVATION (OFD-05): structured Price/Pack/Claims metadata.
+  // priceRange/packSize are descriptive labels (e.g. "EGP 25-35", "250ml") —
+  // a numeric price+currency model was deliberately NOT invented (no
+  // currency model or numeric-answer question type exists). claims is a
+  // JSON array of claim strings referenced by the CLAIMS_TESTING study
+  // template. All optional; a product without them behaves identically.
+  priceRange  String?
+  packSize    String?
+  claims      String?
   createdAt   DateTime @default(now())
 
   campaigns Campaign[]
@@ -98,6 +127,18 @@ model Consumer {
   phone     String   @unique
   name      String?
   createdAt DateTime @default(now())
+
+  // FOUNDER INNOVATION (OFD-15A): explicit, reversible, timestamped opt-in to
+  // the shared TAJRIBTI panel. Same-company cross-campaign aggregation reads
+  // only opted-in consumers (spec §F). Opting out stops future inclusion in
+  // panel aggregates; historical participation evidence is unchanged.
+  panelOptIn   Boolean   @default(false)
+  panelOptInAt DateTime?
+  // FOUNDER INNOVATION (OFD-14C): explicit push opt-in + device token holder.
+  // No notifications are ever sent to a consumer who has not opted in.
+  pushOptIn    Boolean   @default(false)
+  pushOptInAt  DateTime?
+  pushToken    String?
 
   otpCodes       OtpCode[]
   participations Participation[]
@@ -191,6 +232,9 @@ model Campaign {
   participations          Participation[]
   issues                  OperationalIssue[]
   studyTypeChangeRequests StudyTypeChangeRequest[]
+  media                   CampaignMedia[]
+  questionChangeRequests  QuestionChangeRequest[]
+  notificationRequests    CampaignNotificationRequest[]
 
   @@index([companyId])
 }
@@ -346,4 +390,134 @@ model OperationalIssue {
   resolvedAt  DateTime?
 
   @@index([campaignId])
+}
+
+// ===========================================================================
+// FOUNDER INNOVATION LAYER — everything below is OFD-authorized additive
+// surface (docs/TAJRIBTI_FOUNDER_INNOVATION_SPEC_2026-09-20.md), NOT
+// Benchmark-required. No existing model above was weakened or reshaped.
+// ===========================================================================
+
+// OFD-12 — Campaign media/gallery. URL-referenced assets only (no binary
+// storage infra exists this pass — an upload/storage provider is a separate
+// future decision). kind: "PRODUCT_IMAGE" | "PACKAGING_IMAGE" |
+// "CAMPAIGN_MEDIA" | "CREATIVE".
+model CampaignMedia {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  kind       String
+  url        String
+  caption    String?
+  createdAt  DateTime @default(now())
+
+  @@index([campaignId])
+}
+
+// OFD-19 — Question change governance. On a lifecycle-locked campaign
+// (ACTIVE/PAUSED/COMPLETED) a company cannot mutate questions directly; it
+// files a request that TAJRIBTI Operations performs. action: "EDIT"|"DELETE".
+// payload: for EDIT, the new question field values (text/options/required/
+// order — type/stage changes are rejected; delete+create is the honest path).
+// status: "PENDING" | "APPLIED" | "REJECTED"
+model QuestionChangeRequest {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  questionId String?
+  action     String
+  payload    String?
+  reason     String?
+
+  requestedById String
+  requestedBy   Employee @relation(fields: [requestedById], references: [id])
+
+  status String @default("PENDING")
+
+  performedById String?
+  performedBy   OpsUser?  @relation(fields: [performedById], references: [id])
+  performedAt   DateTime?
+  reviewNote    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditEvents QuestionAuditEvent[]
+
+  @@index([campaignId])
+  @@index([status])
+}
+
+// OFD-19 — every question modification is traceable: what changed, previous
+// value, new value, who requested, who performed, when, campaign, and the
+// campaign's lifecycle state at the moment of the change. Written for direct
+// company edits (DRAFT/READY) AND ops-applied changes alike.
+// actorKind: "employee" | "ops"
+model QuestionAuditEvent {
+  id             String   @id @default(cuid())
+  campaignId     String
+  questionId     String?
+  action         String // "CREATE" | "EDIT" | "DELETE"
+  prevValue      String?  // JSON snapshot
+  newValue       String?  // JSON snapshot
+  actorKind      String
+  actorId        String
+  actorName      String
+  lifecycleState String
+  requestId      String?
+  request        QuestionChangeRequest? @relation(fields: [requestId], references: [id])
+  createdAt      DateTime @default(now())
+
+  @@index([campaignId])
+}
+
+// OFD-14 — Mobile push activation notifications. Company requests; Operations
+// launches. Explicit consumer opt-in required (Consumer.pushOptIn). No
+// WhatsApp, no SMS, no lifecycle automation (14D). Delivery itself is an
+// OPEN DEPENDENCY (no push provider configured this pass) — a launched
+// request records its eligible audience and deliveryStatus "PENDING_PROVIDER"
+// rather than pretending delivery happened.
+// status: "PENDING" | "LAUNCHED" | "REJECTED"
+model CampaignNotificationRequest {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  title      String
+  body       String
+
+  requestedById String
+  requestedBy   Employee @relation(fields: [requestedById], references: [id])
+
+  status String @default("PENDING")
+
+  launchedById   String?
+  launchedBy     OpsUser? @relation(fields: [launchedById], references: [id])
+  launchedAt     DateTime?
+  eligibleCount  Int?
+  deliveryStatus String?
+  reviewNote     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId])
+  @@index([status])
+}
+
+// OFD-08 — access/PII auditability. Written whenever a privileged or
+// PII-bearing action occurs (company creation, ops-user creation,
+// participants-PII list access, panel access, question-change apply,
+// notification launch). actorKind: "ops" | "employee" | "consumer"
+model AccessAuditEvent {
+  id         String   @id @default(cuid())
+  actorKind  String
+  actorId    String
+  actorName  String
+  action     String
+  targetType String
+  targetId   String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorKind, actorId])
+  @@index([createdAt])
 }

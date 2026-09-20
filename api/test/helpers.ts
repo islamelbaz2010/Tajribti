@@ -8,6 +8,7 @@ import consumerRoutes from "../src/routes/consumer";
 import consumerAuthRoutes from "../src/routes/consumerAuth";
 import companyAuthRoutes from "../src/routes/companyAuth";
 import opsAuthRoutes from "../src/routes/opsAuth";
+import opsRoutes from "../src/routes/ops";
 import companyRoutes from "../src/routes/company";
 import { signToken } from "../src/lib/auth";
 import { apiRoot, dbPath } from "./env";
@@ -37,6 +38,7 @@ export async function startApi(): Promise<{ api: ApiCall; stop: () => Promise<vo
   app.use("/api/company/auth", companyAuthRoutes);
   app.use("/api/company", companyRoutes);
   app.use("/api/ops/auth", opsAuthRoutes);
+  app.use("/api/ops", opsRoutes);
   app.use((_err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     res.status(500).json({ error: "Internal server error" });
   });

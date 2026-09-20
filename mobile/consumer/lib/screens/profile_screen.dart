@@ -187,6 +187,11 @@ class _ProfileBody extends StatelessWidget {
                   label: s.servicesTitle,
                   onTap: () => context.push('/services'),
                 ),
+                const SizedBox(height: 24),
+                // FOUNDER INNOVATION (OFD-15A / OFD-14C): explicit opt-in
+                // controls. Both default off server-side; toggling calls
+                // the consent endpoints directly.
+                const _ConsentSection(),
               ],
             ),
           ),
@@ -291,6 +296,105 @@ class _ProfileTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// FOUNDER INNOVATION (OFD-15A / OFD-14C): explicit opt-in toggles for the
+// shared panel and push notifications. State is loaded from
+// GET /consumer/profile and written via the dedicated opt-in/opt-out
+// endpoints — never inferred, never defaulted on.
+class _ConsentSection extends StatefulWidget {
+  const _ConsentSection();
+
+  @override
+  State<_ConsentSection> createState() => _ConsentSectionState();
+}
+
+class _ConsentSectionState extends State<_ConsentSection> {
+  bool _panel = false;
+  bool _push = false;
+  bool _loaded = false;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final p = await apiClient.getProfile();
+      if (mounted) {
+        setState(() {
+          _panel = p['panelOptIn'] == true;
+          _push = p['pushOptIn'] == true;
+          _loaded = true;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() { _loaded = true; });
+    }
+  }
+
+  Future<void> _toggle(String which, bool value) async {
+    if (_busy) return;
+    setState(() { _busy = true; });
+    try {
+      if (which == 'panel') {
+        await apiClient.setPanelOptIn(value);
+      } else {
+        await apiClient.setPushOptIn(value);
+      }
+      if (mounted) setState(() { if (which == 'panel') { _panel = value; } else { _push = value; } });
+    } catch (_) {
+      // leave the switch at its previous value — the write failed
+    } finally {
+      if (mounted) setState(() { _busy = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.l10n;
+    if (!_loaded) return const SizedBox.shrink();
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: kCardShadow, blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 14, bottom: 4),
+            child: Text(
+              s.privacySection,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: kPrimary),
+            ),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(s.panelOptInLabel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: kPrimary)),
+            subtitle: Text(s.panelOptInSub, style: TextStyle(fontSize: 12, color: kPrimary.withOpacity(0.55))),
+            value: _panel,
+            activeColor: kBrand,
+            onChanged: _busy ? null : (v) => _toggle('panel', v),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(s.pushOptInLabel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: kPrimary)),
+            subtitle: Text(s.pushOptInSub, style: TextStyle(fontSize: 12, color: kPrimary.withOpacity(0.55))),
+            value: _push,
+            activeColor: kBrand,
+            onChanged: _busy ? null : (v) => _toggle('push', v),
+          ),
+          const SizedBox(height: 8),
+        ],
       ),
     );
   }

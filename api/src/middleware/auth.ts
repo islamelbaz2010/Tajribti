@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { verifyToken, Claims, ConsumerClaims, EmployeeClaims, OpsClaims } from "../lib/auth";
+import { prisma } from "../lib/prisma";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -50,6 +51,36 @@ export function requireOps(req: Request, res: Response, next: NextFunction) {
     }
     next();
   });
+}
+
+// FOUNDER INNOVATION (OFD-08) — role helpers. Roles live on the DB rows (not
+// the JWT) so a role change takes effect on the next request rather than
+// waiting for token expiry — important for revocation. Role names are
+// Innovation-layer spec (docs/TAJRIBTI_FOUNDER_INNOVATION_SPEC_2026-09-20.md),
+// not Benchmark truth.
+export async function requirePlatformAdmin(req: Request, res: Response, next: NextFunction) {
+  const claims = req.claims as OpsClaims | undefined;
+  if (!claims || claims.kind !== "ops") return res.status(403).json({ error: "TAJRIBTI Operations authentication required" });
+  const user = await prisma.opsUser.findUnique({ where: { id: claims.opsUserId }, select: { role: true } });
+  if (!user || user.role !== "PLATFORM_ADMIN") {
+    return res.status(403).json({ error: "Platform Admin role required" });
+  }
+  next();
+}
+
+// Company-role gate: COMPANY_ADMIN only (employee management, change
+// requests). COMPANY_MEMBER retains campaign/product/question authoring and
+// reporting — see spec §H–L for the minimal matrix.
+export async function requireCompanyAdmin(req: Request, res: Response, next: NextFunction) {
+  const claims = req.claims as EmployeeClaims | undefined;
+  if (!claims || claims.kind !== "employee") {
+    return res.status(403).json({ error: "Company authentication required" });
+  }
+  const employee = await prisma.employee.findUnique({ where: { id: claims.employeeId }, select: { role: true } });
+  if (!employee || employee.role !== "COMPANY_ADMIN") {
+    return res.status(403).json({ error: "Company Admin role required" });
+  }
+  next();
 }
 
 export function asConsumer(req: Request): ConsumerClaims {

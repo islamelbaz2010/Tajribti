@@ -646,10 +646,35 @@ describe("measurement and report integrity", () => {
 // Regression — existing valid behavior is unchanged (R1–R8)
 // ---------------------------------------------------------------------------
 describe("regression", () => {
+  // Updated 2026-09-20 (OFD-04): the Founder-approved study-type expansion
+  // added 8 templates (CONCEPT_TESTING, PRICING_PERCEPTION,
+  // PACKAGING_EVALUATION, CLAIMS_TESTING, ADVERTISING_MESSAGE_TESTING,
+  // BRAND_PERCEPTION, UA_EXPANSION, SEGMENTATION_STUDY) on top of the 6
+  // this assertion originally pinned. The check still pins the catalog —
+  // now to the full approved set, so any further drift still fails.
   it("R7: study-template catalog and direct studyType assignment are unchanged", async () => {
     const templates = await api("/api/company/study-templates", { token: employeeAToken });
     assert.equal(templates.status, 200);
-    assert.equal(templates.body.length, 6);
+    assert.equal(templates.body.length, 14);
+    assert.deepEqual(
+      templates.body.map((t: { key: string }) => t.key),
+      [
+        "POST_TRIAL_FOOD_BEVERAGE",
+        "POST_TRIAL_BEAUTY_PERSONAL_CARE",
+        "POST_TRIAL_HOME_CARE",
+        "CONCEPT_LAUNCH_VIABILITY",
+        "PACKAGING_CLAIMS_REACTION",
+        "USAGE_ATTITUDE",
+        "CONCEPT_TESTING",
+        "PRICING_PERCEPTION",
+        "PACKAGING_EVALUATION",
+        "CLAIMS_TESTING",
+        "ADVERTISING_MESSAGE_TESTING",
+        "BRAND_PERCEPTION",
+        "UA_EXPANSION",
+        "SEGMENTATION_STUDY",
+      ]
+    );
 
     const created = await api("/api/company/campaigns", {
       method: "POST",

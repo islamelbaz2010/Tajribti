@@ -233,6 +233,17 @@ class AppStr {
   String get myActivityFull  => ar ? 'نشاطاتي'                   : 'My Activity';
   String get seeAll          => ar ? 'عرض الكل'                  : 'See all';
 
+  // ── Privacy & participation (Founder Innovation OFD-15A / OFD-14C) ────────
+  // Explicit opt-in controls only — panel membership enables same-company
+  // cross-campaign intelligence; push opt-in enables company-requested,
+  // operations-launched activation notifications. Both default off.
+  String get privacySection    => ar ? 'الخصوصية والمشاركة'          : 'Privacy & Participation';
+  String get panelOptInLabel   => ar ? 'انضم إلى لوحة تجربتي'        : 'Join the Tajribti panel';
+  String get panelOptInSub     => ar ? 'يسمح بتجميع إجاباتك عبر حملات الشركة نفسها — إجماليات مجهولة فقط.' : 'Lets your responses count toward same-company insights — anonymous aggregates only.';
+  String get pushOptInLabel    => ar ? 'إشعارات الحملات'             : 'Campaign notifications';
+  String get pushOptInSub      => ar ? 'إشعارات عند إطلاق حملات جديدة قد تناسبك.' : 'Get notified when new campaigns you may fit go live.';
+  String get optInSaved        => ar ? 'تم الحفظ'                    : 'Saved';
+
   // ── Settings ─────────────────────────────────────────────────────────────
   String get settingsTitle   => ar ? 'الإعدادات'                  : 'Settings';
   String get languageLabel   => ar ? 'اللغة'                      : 'Language';

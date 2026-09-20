@@ -146,6 +146,108 @@ export const STUDY_TEMPLATES: StudyTemplate[] = [
       { stage: "POST_TRIAL", type: "TEXT", text: "What frustrates you most about products in this category?" },
     ],
   },
+  // =========================================================================
+  // FOUNDER INNOVATION (OFD-04) — eight additional study types, 2026-09-20.
+  // Methodology per type: docs/TAJRIBTI_FOUNDER_INNOVATION_SPEC_2026-09-20.md
+  // §A–D. Same engine, same constraint: at most one RATING_1_5 and one
+  // PURCHASE_INTENT_1_5 per template. These measure consumer PERCEPTION after
+  // real exposure/trial — they do not turn the platform into generic survey
+  // research and they do not perform the named formal methodologies that
+  // require instruments we do not have (e.g. a true Van Westendorp price
+  // ladder needs numeric price questions — documented boundary, not built).
+  // =========================================================================
+  {
+    key: "CONCEPT_TESTING",
+    label: "Concept Testing — Appeal & Differentiation",
+    decision: "Is this product or approved concept appealing and differentiated enough to proceed?",
+    questions: [
+      { stage: "ELIGIBILITY", type: "SINGLE_CHOICE", text: "Do you regularly purchase products in this category?", options: yesNo() },
+      { stage: "POST_TRIAL", type: "SINGLE_CHOICE", text: "How appealing is this product or concept to you?", options: [{ id: "opt0", label: "Very appealing" }, { id: "opt1", label: "Somewhat appealing" }, { id: "opt2", label: "Neutral" }, { id: "opt3", label: "Not appealing" }] },
+      { stage: "POST_TRIAL", type: "RATING_1_5", text: "How different is this from what you can already buy?" },
+      { stage: "POST_TRIAL", type: "PURCHASE_INTENT_1_5", text: "How likely are you to choose this if it were available?" },
+      { stage: "POST_TRIAL", type: "TEXT", text: "What would make this more appealing to you?" },
+    ],
+  },
+  {
+    key: "PRICING_PERCEPTION",
+    label: "Pricing — Value Perception",
+    decision: "Is the perceived price acceptable for the value delivered? (Uses Product.priceRange as context; NOT a Van Westendorp ladder.)",
+    questions: [
+      { stage: "ELIGIBILITY", type: "SINGLE_CHOICE", text: "Do you regularly purchase products in this category?", options: yesNo() },
+      { stage: "POST_TRIAL", type: "SINGLE_CHOICE", text: "How would you describe the price of this product?", options: [{ id: "opt0", label: "Too cheap — I'd question the quality" }, { id: "opt1", label: "Fair for what it offers" }, { id: "opt2", label: "A bit expensive" }, { id: "opt3", label: "Too expensive" }] },
+      { stage: "POST_TRIAL", type: "RATING_1_5", text: "How good is the value for money of this product?" },
+      { stage: "POST_TRIAL", type: "PURCHASE_INTENT_1_5", text: "How likely are you to purchase this product at its current price?" },
+      { stage: "POST_TRIAL", type: "TEXT", text: "What price would feel right for this product, and why?" },
+    ],
+  },
+  {
+    key: "PACKAGING_EVALUATION",
+    label: "Packaging — Appeal & Clarity",
+    decision: "Does the pack attract, communicate, and function? (Consumer reaction to the actual pack — NOT a shelf test.)",
+    questions: [
+      { stage: "POST_TRIAL", type: "SINGLE_CHOICE", text: "How attractive is the packaging?", options: [{ id: "opt0", label: "Very attractive" }, { id: "opt1", label: "Somewhat attractive" }, { id: "opt2", label: "Neutral" }, { id: "opt3", label: "Not attractive" }] },
+      { stage: "POST_TRIAL", type: "SINGLE_CHOICE", text: "Was it clear from the packaging what this product is and does?", options: [{ id: "opt0", label: "Yes, completely" }, { id: "opt1", label: "Somewhat" }, { id: "opt2", label: "No" }] },
+      { stage: "POST_TRIAL", type: "RATING_1_5", text: "How practical is the packaging to use (open, hold, store)?" },
+      { stage: "POST_TRIAL", type: "TEXT", text: "What stood out most — good or bad — about the packaging?" },
+    ],
+  },
+  {
+    key: "CLAIMS_TESTING",
+    label: "Claims — Comprehension & Believability",
+    decision: "Is the product's main claim understood and believed? (Perception only — NOT claim substantiation. Uses Product.claims.)",
+    questions: [
+      { stage: "POST_TRIAL", type: "SINGLE_CHOICE", text: "Can you recall the main benefit or claim on this product?", options: [{ id: "opt0", label: "Yes" }, { id: "opt1", label: "No" }, { id: "opt2", label: "Not sure" }] },
+      { stage: "POST_TRIAL", type: "RATING_1_5", text: "How believable is the product's main claim?" },
+      { stage: "POST_TRIAL", type: "PURCHASE_INTENT_1_5", text: "How likely are you to purchase this product based on its claims?" },
+      { stage: "POST_TRIAL", type: "TEXT", text: "Which claim or message stood out most, and did you believe it? Why?" },
+    ],
+  },
+  {
+    key: "ADVERTISING_MESSAGE_TESTING",
+    label: "Advertising / Message Testing — Recall & Relevance",
+    decision: "Does the intended message land with consumers? (Post-exposure recall/relevance — NOT ad-effectiveness measurement.)",
+    questions: [
+      { stage: "POST_TRIAL", type: "SINGLE_CHOICE", text: "Do you remember the message shown with this product?", options: [{ id: "opt0", label: "Yes, clearly" }, { id: "opt1", label: "Vaguely" }, { id: "opt2", label: "No" }] },
+      { stage: "POST_TRIAL", type: "SINGLE_CHOICE", text: "Was the message clear and easy to understand?", options: [{ id: "opt0", label: "Yes" }, { id: "opt1", label: "Somewhat" }, { id: "opt2", label: "No" }] },
+      { stage: "POST_TRIAL", type: "RATING_1_5", text: "How relevant was the message to you personally?" },
+      { stage: "POST_TRIAL", type: "TEXT", text: "In your own words, what was the message trying to tell you?" },
+    ],
+  },
+  {
+    key: "BRAND_PERCEPTION",
+    label: "Brand — Perception Snapshot",
+    decision: "How is the brand perceived by consumers who tried the product? (Point-in-time snapshot — NOT a brand tracker.)",
+    questions: [
+      { stage: "ELIGIBILITY", type: "SINGLE_CHOICE", text: "Had you heard of this brand before today?", options: yesNo() },
+      { stage: "POST_TRIAL", type: "MULTI_CHOICE", text: "Which words describe this brand to you now?", options: [{ id: "opt0", label: "Trustworthy" }, { id: "opt1", label: "High quality" }, { id: "opt2", label: "Good value" }, { id: "opt3", label: "Innovative" }, { id: "opt4", label: "Ordinary" }, { id: "opt5", label: "Not for me" }] },
+      { stage: "POST_TRIAL", type: "RATING_1_5", text: "How would you rate your overall impression of this brand?" },
+      { stage: "POST_TRIAL", type: "TEXT", text: "Did trying this product change how you see the brand? How?" },
+    ],
+  },
+  {
+    key: "UA_EXPANSION",
+    label: "Usage & Attitude — Expanded Category Picture",
+    decision: "How do category consumers use, choose, and feel about products like this? (Campaign-bound U&A — NOT a standalone panel study.)",
+    questions: [
+      { stage: "ELIGIBILITY", type: "SINGLE_CHOICE", text: "How often do you use products in this category?", options: [{ id: "opt0", label: "Daily" }, { id: "opt1", label: "Weekly" }, { id: "opt2", label: "Monthly" }, { id: "opt3", label: "Rarely" }, { id: "opt4", label: "Never" }] },
+      { stage: "ELIGIBILITY", type: "MULTI_CHOICE", text: "What matters most when you choose a product in this category?", options: [{ id: "opt0", label: "Price" }, { id: "opt1", label: "Brand" }, { id: "opt2", label: "Quality" }, { id: "opt3", label: "Ingredients/contents" }, { id: "opt4", label: "Recommendations" }, { id: "opt5", label: "Availability" }] },
+      { stage: "POST_TRIAL", type: "TEXT", text: "What usually drives your choice of product in this category?" },
+      { stage: "POST_TRIAL", type: "TEXT", text: "What frustrates you most about products in this category?" },
+      { stage: "POST_TRIAL", type: "SINGLE_CHOICE", text: "After trying it, where does this product stand vs. what you usually use?", options: [{ id: "opt0", label: "Better" }, { id: "opt1", label: "About the same" }, { id: "opt2", label: "Worse" }] },
+    ],
+  },
+  {
+    key: "SEGMENTATION_STUDY",
+    label: "Segmentation — Audience Difference Study",
+    decision: "Do meaningful audience groups respond differently to this product? (Screener-fed descriptive segmentation — no clustering/inference is performed.)",
+    questions: [
+      { stage: "ELIGIBILITY", type: "SINGLE_CHOICE", text: "How often do you use products in this category?", options: [{ id: "opt0", label: "Daily" }, { id: "opt1", label: "Weekly" }, { id: "opt2", label: "Monthly" }, { id: "opt3", label: "Rarely" }] },
+      { stage: "ELIGIBILITY", type: "SINGLE_CHOICE", text: "Who usually buys this kind of product in your household?", options: [{ id: "opt0", label: "Me" }, { id: "opt1", label: "Someone else" }, { id: "opt2", label: "Shared" }] },
+      { stage: "POST_TRIAL", type: "RATING_1_5", text: "How would you rate this product overall?" },
+      { stage: "POST_TRIAL", type: "PURCHASE_INTENT_1_5", text: "How likely are you to purchase this product?" },
+      { stage: "POST_TRIAL", type: "TEXT", text: "What did you like or dislike about the product?" },
+    ],
+  },
 ];
 
 export function findTemplate(key: string): StudyTemplate | undefined {

@@ -25,6 +25,7 @@ router.get("/campaigns/:id", async (req, res) => {
       company: { select: { name: true } },
       product: true,
       questions: { where: { stage: "ELIGIBILITY" }, orderBy: { order: "asc" } },
+      media: true,
     },
   });
   if (!campaign || campaign.status !== "ACTIVE") {
@@ -309,6 +310,81 @@ router.get("/participations", requireConsumer, async (req, res) => {
     orderBy: { enteredAt: "desc" },
   });
   res.json(participations);
+});
+
+// ===========================================================================
+// FOUNDER INNOVATION LAYER (docs/TAJRIBTI_FOUNDER_INNOVATION_SPEC_2026-09-20.md)
+// ===========================================================================
+
+// --- OFD-08.4: persistent consumer account profile ----------------------------
+router.get("/profile", requireConsumer, async (req, res) => {
+  const { consumerId } = asConsumer(req);
+  const consumer = await prisma.consumer.findUnique({
+    where: { id: consumerId },
+    select: { id: true, phone: true, name: true, panelOptIn: true, panelOptInAt: true, pushOptIn: true, pushOptInAt: true, createdAt: true },
+  });
+  if (!consumer) return res.status(404).json({ error: "Consumer not found" });
+  res.json(consumer);
+});
+
+router.patch("/profile", requireConsumer, async (req, res) => {
+  const { consumerId } = asConsumer(req);
+  const parsed = z.object({ name: z.string().min(1).optional() }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  const consumer = await prisma.consumer.update({
+    where: { id: consumerId },
+    data: { name: parsed.data.name },
+    select: { id: true, phone: true, name: true, panelOptIn: true, pushOptIn: true },
+  });
+  res.json(consumer);
+});
+
+// --- OFD-15A: explicit panel opt-in / opt-out ---------------------------------
+// Opt-in enables same-company cross-campaign aggregation (OFD-15B). Opt-out
+// is immediate: the consumer is excluded from all panel aggregates.
+router.post("/panel/opt-in", requireConsumer, async (req, res) => {
+  const { consumerId } = asConsumer(req);
+  const consumer = await prisma.consumer.update({
+    where: { id: consumerId },
+    data: { panelOptIn: true, panelOptInAt: new Date() },
+    select: { id: true, panelOptIn: true, panelOptInAt: true },
+  });
+  res.json(consumer);
+});
+
+router.post("/panel/opt-out", requireConsumer, async (req, res) => {
+  const { consumerId } = asConsumer(req);
+  const consumer = await prisma.consumer.update({
+    where: { id: consumerId },
+    data: { panelOptIn: false, panelOptInAt: null },
+    select: { id: true, panelOptIn: true },
+  });
+  res.json(consumer);
+});
+
+// --- OFD-14C: explicit push opt-in / opt-out ----------------------------------
+// The pushToken is stored for future transport; no push is sent without an
+// Operations-launched, company-requested notification (OFD-14B).
+router.post("/push/opt-in", requireConsumer, async (req, res) => {
+  const { consumerId } = asConsumer(req);
+  const parsed = z.object({ pushToken: z.string().min(1).optional() }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  const consumer = await prisma.consumer.update({
+    where: { id: consumerId },
+    data: { pushOptIn: true, pushOptInAt: new Date(), pushToken: parsed.data.pushToken ?? null },
+    select: { id: true, pushOptIn: true, pushOptInAt: true },
+  });
+  res.json(consumer);
+});
+
+router.post("/push/opt-out", requireConsumer, async (req, res) => {
+  const { consumerId } = asConsumer(req);
+  const consumer = await prisma.consumer.update({
+    where: { id: consumerId },
+    data: { pushOptIn: false, pushOptInAt: null, pushToken: null },
+    select: { id: true, pushOptIn: true },
+  });
+  res.json(consumer);
 });
 
 export default router;

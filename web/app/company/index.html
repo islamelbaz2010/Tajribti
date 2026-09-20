@@ -41,6 +41,15 @@
   .metrics-row { display:flex; gap:20px; flex-wrap:wrap; margin-bottom: 10px; }
   .verbatim { padding:10px; border-left:3px solid var(--primary); background:var(--bg); margin-bottom:8px; font-size:0.88rem; border-radius:6px; }
   a.back { color: var(--muted); font-size: 0.85rem; text-decoration:none; display:inline-block; margin-bottom:10px; }
+  /* FOUNDER INNOVATION (OFD-13): print/PDF output. Only the report card
+     prints; RTL Arabic narrative lines keep direction in print. */
+  @media print {
+    header, .tabs, #cd-actions, .back, #view-campaigns, #tab-setup, #tab-questions, #tab-qr, #tab-live, #tab-insights, .tab-panel:not(#tab-report), #btn-print-report, button { display:none !important; }
+    .hidden { display:block !important; }
+    #tab-report { display:block !important; }
+    main { max-width:none; padding:0; }
+    .card { border:none; }
+  }
 </style>
 </head>
 <body>
@@ -108,7 +117,24 @@
       <textarea id="np-description" rows="2"></textarea>
       <label>Image URL (optional)</label>
       <input id="np-image" placeholder="https://…" />
+      <!-- FOUNDER INNOVATION (OFD-05): optional structured price/pack/claims
+           fields. All three are plain descriptors attached to the product —
+           Pricing/Packaging/Claims study types may reference them, but
+           setting them changes no measurement behavior. -->
+      <div class="grid2">
+        <div><label>Price range (optional)</label><input id="np-price" placeholder="e.g. 25–40 EGP" /></div>
+        <div><label>Pack size (optional)</label><input id="np-pack" placeholder="e.g. 330 ml" /></div>
+      </div>
+      <label>Claims (optional, comma-separated)</label>
+      <input id="np-claims" placeholder="e.g. Sugar-free, Vitamin C enriched" />
       <button class="secondary small" id="btn-add-product">Add product</button>
+    </div>
+
+    <!-- FOUNDER INNOVATION (OFD-15B): same-company cross-campaign panel
+         intelligence — opted-in consumers only, aggregates only. -->
+    <div class="card">
+      <h2>Consumer panel <span class="pill">opted-in only</span></h2>
+      <div id="panel-insights-content" style="color:var(--muted);font-size:0.85rem;"></div>
     </div>
 
     <div class="card">
@@ -128,6 +154,14 @@
         <label>Name</label><input id="ne-name" />
         <label>Email</label><input id="ne-email" />
         <label>Password</label><input id="ne-password" type="password" />
+        <!-- FOUNDER INNOVATION (OFD-08): COMPANY_ADMIN may assign the new
+             employee's role. The whole add-form is hidden for
+             COMPANY_MEMBER (the backend enforces this regardless). -->
+        <label>Role</label>
+        <select id="ne-role">
+          <option value="COMPANY_MEMBER">Member</option>
+          <option value="COMPANY_ADMIN">Admin</option>
+        </select>
         <button class="secondary small" id="btn-add-employee">Add employee</button>
       </div>
       <p class="msg" id="employee-msg"></p>
@@ -199,6 +233,24 @@
       </div>
       <button id="btn-save-setup">Save</button>
       <div class="msg" id="setup-msg"></div>
+      <!-- FOUNDER INNOVATION (OFD-12): campaign media are URL-referenced
+           assets (product/packaging/campaign media/creative). URLs only —
+           no upload mechanism is invented. Editable while configurable. -->
+      <h3 style="font-size:0.95rem;margin-top:20px;">Campaign media</h3>
+      <div id="media-list"></div>
+      <div id="media-add-form">
+        <label>Type</label>
+        <select id="m-kind">
+          <option value="PRODUCT_IMAGE">Product image</option>
+          <option value="PACKAGING_IMAGE">Packaging image</option>
+          <option value="CAMPAIGN_MEDIA">Campaign media</option>
+          <option value="CREATIVE">Creative / ad asset</option>
+        </select>
+        <label>URL</label><input id="m-url" placeholder="https://…" />
+        <label>Caption (optional)</label><input id="m-caption" />
+        <button class="secondary small" id="btn-add-media">Add media</button>
+        <div class="msg" id="media-msg"></div>
+      </div>
       <!-- FOUNDER-APPROVED — Feature A: Evidence Sufficiency Coach
            (optional extension, not Benchmark-required). Purely
            descriptive counts, reusing api/src/lib/readiness.ts's
@@ -210,6 +262,10 @@
 
     <div class="card tab-panel hidden" id="tab-questions">
       <h2>Eligibility &amp; post-trial questions</h2>
+      <!-- FOUNDER INNOVATION (OFD-19): once the campaign is locked, direct
+           edits are replaced by change requests to TAJRIBTI Operations.
+           Shown only when currentCampaignLocked is true. -->
+      <div id="question-change-requests-block" class="hidden" style="margin-bottom:12px;"></div>
       <!-- Founder-approved strategic differentiation (NOT Benchmark-
            required): if this campaign has a study type selected, offer
            to bulk-create its recommended questions through the exact
@@ -258,10 +314,22 @@
     <div class="card tab-panel hidden" id="tab-insights">
       <h2>Insights</h2>
       <div id="insights-content"></div>
+      <!-- FOUNDER INNOVATION (OFD-06): derived intelligence is clearly
+           separated from the Benchmark-mandated Insights above — loaded
+           on demand, labeled derived. -->
+      <h3 style="font-size:0.95rem;margin-top:20px;">Advanced intelligence <span class="pill">derived</span></h3>
+      <button class="secondary small" id="btn-load-intelligence">Load derived intelligence</button>
+      <div id="intelligence-content" style="margin-top:10px;"></div>
     </div>
 
     <div class="card tab-panel hidden" id="tab-report">
       <h2>Final report</h2>
+      <div class="row" style="margin-bottom:12px;">
+        <!-- FOUNDER INNOVATION (OFD-13): browser print → Save as PDF.
+             The narrative block carries Arabic with dir="rtl" so the
+             printed/PDF output preserves RTL rendering. -->
+        <button class="secondary small" id="btn-print-report">Print / Save as PDF</button>
+      </div>
       <div id="report-content"></div>
     </div>
   </div>
@@ -271,6 +339,8 @@
 <script>
 const API = '/api';
 let token = localStorage.getItem('tj_company_token') || null;
+// OFD-08: persisted alongside the token so role-gated UI survives reload.
+let currentEmployeeRole = localStorage.getItem('tj_company_role') || 'COMPANY_MEMBER';
 let currentCampaignId = null;
 let currentCampaignStudyType = '';
 let currentCampaignLocked = false; // status !== DRAFT/READY — see UI/UX lock fix in openCampaign()
@@ -324,6 +394,7 @@ function renderWho(name) {
   document.getElementById('btn-signout').onclick = () => {
     token = null;
     localStorage.removeItem('tj_company_token');
+    localStorage.removeItem('tj_company_role');
     document.getElementById('who').innerHTML = '';
     show('view-login');
   };
@@ -337,7 +408,9 @@ document.getElementById('btn-login').onclick = async () => {
       password: document.getElementById('login-password').value,
     }});
     token = r.token;
+    currentEmployeeRole = r.employee.role || 'COMPANY_MEMBER';
     localStorage.setItem('tj_company_token', token);
+    localStorage.setItem('tj_company_role', currentEmployeeRole);
     renderWho(r.employee.name);
     await loadCampaigns();
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
@@ -345,9 +418,15 @@ document.getElementById('btn-login').onclick = async () => {
 
 async function loadProducts(selectEl) {
   const products = await api('/company/products');
-  document.getElementById('product-list').innerHTML = products.map(p =>
-    '<div>• ' + esc(p.name) + (p.description ? ' <span style="color:var(--muted);font-size:0.85rem;">— ' + esc(p.description) + '</span>' : '') + '</div>'
-  ).join('') || '<p style="color:var(--muted)">No products yet.</p>';
+  document.getElementById('product-list').innerHTML = products.map(p => {
+    const attrs = [p.priceRange, p.packSize].filter(Boolean).join(' · ');
+    const claims = p.claims ? JSON.parse(p.claims) : [];
+    return '<div>• ' + esc(p.name) +
+      (p.description ? ' <span style="color:var(--muted);font-size:0.85rem;">— ' + esc(p.description) + '</span>' : '') +
+      (attrs ? ' <span style="color:var(--muted);font-size:0.85rem;">(' + esc(attrs) + ')</span>' : '') +
+      (claims.length ? ' <span style="color:var(--muted);font-size:0.8rem;">[' + claims.map(esc).join(', ') + ']</span>' : '') +
+      '</div>';
+  }).join('') || '<p style="color:var(--muted)">No products yet.</p>';
   if (selectEl) {
     selectEl.innerHTML = '<option value="">— none —</option>' + products.map(p => '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>').join('');
   }
@@ -357,14 +436,16 @@ async function loadProducts(selectEl) {
 document.getElementById('btn-add-product').onclick = async () => {
   const name = document.getElementById('np-name').value.trim();
   if (!name) return;
+  const claimsRaw = document.getElementById('np-claims').value.trim();
   await api('/company/products', { method: 'POST', body: {
     name,
     description: document.getElementById('np-description').value.trim() || undefined,
     imageUrl: document.getElementById('np-image').value.trim() || undefined,
+    priceRange: document.getElementById('np-price').value.trim() || undefined,
+    packSize: document.getElementById('np-pack').value.trim() || undefined,
+    claims: claimsRaw ? claimsRaw.split(',').map(s => s.trim()).filter(Boolean) : undefined,
   }});
-  document.getElementById('np-name').value = '';
-  document.getElementById('np-description').value = '';
-  document.getElementById('np-image').value = '';
+  ['np-name', 'np-description', 'np-image', 'np-price', 'np-pack', 'np-claims'].forEach(id => { document.getElementById(id).value = ''; });
   await loadProducts(document.getElementById('nc-product'));
 };
 
@@ -383,6 +464,7 @@ async function loadCampaigns() {
   await loadStudyTemplates();
   await loadProfile();
   await loadEmployees();
+  await loadPanelInsights();
   show('view-campaigns');
 }
 
@@ -404,14 +486,15 @@ document.getElementById('btn-save-profile').onclick = async () => {
 };
 
 // --- Employees (Benchmark §4 COMPANY "Employees") ---------------------------
+// FOUNDER INNOVATION (OFD-08): role is shown per employee; the add-form is
+// COMPANY_ADMIN-only (backend enforces regardless of what this UI hides).
 async function loadEmployees() {
   const employees = await api('/company/employees');
   document.getElementById('employee-list').innerHTML = employees.length ?
-    '<table><tr><th>Name</th><th>Email</th></tr>' +
-    employees.map(e => '<tr><td>' + esc(e.name) + '</td><td>' + esc(e.email) + '</td></tr>').join('') + '</table>'
+    '<table><tr><th>Name</th><th>Email</th><th>Role</th></tr>' +
+    employees.map(e => '<tr><td>' + esc(e.name) + '</td><td>' + esc(e.email) + '</td><td>' + esc(e.role === 'COMPANY_ADMIN' ? 'Admin' : 'Member') + '</td></tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No employees yet.</p>';
-  // No role gate: Benchmark defines no employee permission tier — any
-  // employee of this company may add another (see api/src/routes/company.ts).
+  document.getElementById('employee-add-form').classList.toggle('hidden', currentEmployeeRole !== 'COMPANY_ADMIN');
 }
 document.getElementById('btn-add-employee').onclick = async () => {
   const msg = document.getElementById('employee-msg');
@@ -420,6 +503,7 @@ document.getElementById('btn-add-employee').onclick = async () => {
       name: document.getElementById('ne-name').value.trim(),
       email: document.getElementById('ne-email').value.trim(),
       password: document.getElementById('ne-password').value,
+      role: document.getElementById('ne-role').value,
     }});
     document.getElementById('ne-name').value = '';
     document.getElementById('ne-email').value = '';
@@ -446,6 +530,25 @@ function studyTemplateDecisionText(key) {
 document.getElementById('nc-studytype').onchange = (e) => {
   document.getElementById('nc-studytype-decision').textContent = studyTemplateDecisionText(e.target.value);
 };
+
+// FOUNDER INNOVATION (OFD-15B): opted-in panel aggregates for this company
+// only. Suppressed cells are shown as such — never as a fabricated number.
+async function loadPanelInsights() {
+  const el = document.getElementById('panel-insights-content');
+  try {
+    const d = await api('/company/panel-insights');
+    const cell = (v) => (v && typeof v === 'object' && v.suppressed) ? 'suppressed (small sample)' : String(v);
+    el.innerHTML =
+      '<p style="font-size:0.8rem;">' + esc(d.methodology) + '</p>' +
+      '<div class="metrics-row">' +
+      metric(d.optedInPanelConsumers, 'Panel consumers (opted in)') +
+      metric(d.repeatParticipantsAcrossCampaigns, 'Repeat across campaigns') +
+      '</div>' +
+      (d.perCampaign.length ? '<table><tr><th>Campaign</th><th>Status</th><th>Opted-in participants</th><th>Opted-in completes</th></tr>' +
+        d.perCampaign.map(c => '<tr><td>' + esc(c.name) + '</td><td>' + esc(c.status) + '</td><td>' + cell(c.optedInParticipants) + '</td><td>' + cell(c.optedInSurveyCompletes) + '</td></tr>').join('') + '</table>'
+        : '');
+  } catch (e) { el.innerHTML = '<p class="msg error">' + esc(e.message) + '</p>'; }
+}
 
 document.getElementById('btn-new-campaign').onclick = () => document.getElementById('new-campaign-card').classList.toggle('hidden');
 
@@ -540,6 +643,8 @@ async function openCampaign(id) {
   const qrMsg = document.getElementById('qr-msg');
   if (campaignLocked) { qrMsg.textContent = 'Locked once launched — view only.'; qrMsg.className = 'msg'; }
   else { qrMsg.textContent = ''; qrMsg.className = 'msg'; }
+  // OFD-12 media follows the same DRAFT/READY configurability lock.
+  document.getElementById('media-add-form').classList.toggle('hidden', campaignLocked);
 
   const actions = document.getElementById('cd-actions');
   actions.innerHTML = '';
@@ -561,7 +666,9 @@ async function openCampaign(id) {
   renderQuestions(c.questions || []);
   renderTemplateApplyRow();
   renderQrSources(c.qrSources || []);
+  renderMedia(c.media || []);
   await refreshStudyTypeGovernanceUI((c.questions || []).length);
+  await loadQuestionChangeRequests(campaignLocked);
   await loadEvidenceCoverage();
 
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -611,9 +718,32 @@ function renderQuestions(questions) {
   const list = document.getElementById('question-list');
   list.innerHTML = questions.length ? '<table><tr><th>Stage</th><th>Type</th><th>Text</th><th></th></tr>' +
     questions.map(q => '<tr><td>' + q.stage + '</td><td>' + q.type + '</td><td>' + esc(q.text) + '</td><td>' +
-      (currentCampaignLocked ? '' : '<button class="small secondary" data-qid="' + esc(q.id) + '">Delete</button>') +
+      (currentCampaignLocked
+        // OFD-19: once locked, company requests the change; Operations performs it.
+        ? '<button class="small secondary" data-req-qid="' + esc(q.id) + '">Request change</button>'
+        : '<button class="small secondary" data-qid="' + esc(q.id) + '">Delete</button>') +
       '</td></tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No questions yet.</p>';
+  list.querySelectorAll('button[data-req-qid]').forEach(btn => {
+    btn.onclick = async () => {
+      const qid = btn.dataset.reqQid;
+      const q = questions.find(x => x.id === qid);
+      const choice = window.prompt('Request to Operations — type EDIT to change the question text, or DELETE to request removal:', 'EDIT');
+      if (choice !== 'EDIT' && choice !== 'DELETE') return;
+      const msg = document.getElementById('question-msg');
+      try {
+        const body = { action: choice, questionId: qid };
+        if (choice === 'EDIT') {
+          const text = window.prompt('New question text:', q ? q.text : '');
+          if (!text || !text.trim()) return;
+          body.payload = { text: text.trim() };
+        }
+        await api('/company/campaigns/' + currentCampaignId + '/question-change-requests', { method: 'POST', body });
+        msg.textContent = 'Change request sent to TAJRIBTI Operations.'; msg.className = 'msg ok';
+        await loadQuestionChangeRequests(true);
+      } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+    };
+  });
   list.querySelectorAll('button[data-qid]').forEach(btn => {
     btn.onclick = async () => {
       const msg = document.getElementById('question-msg');
@@ -802,6 +932,57 @@ function renderQrSources(sources) {
     : '<p style="color:var(--muted)">No QR/sources yet.</p>';
 }
 
+// FOUNDER INNOVATION (OFD-19): pending change requests are visible to the
+// company so it can see what Operations has applied/rejected.
+async function loadQuestionChangeRequests(locked) {
+  const block = document.getElementById('question-change-requests-block');
+  if (!locked) { block.classList.add('hidden'); block.innerHTML = ''; return; }
+  try {
+    const requests = await api('/company/campaigns/' + currentCampaignId + '/question-change-requests');
+    block.classList.remove('hidden');
+    block.innerHTML = requests.length
+      ? '<strong>Change requests to Operations</strong><ul>' + requests.map(r =>
+          '<li>' + esc(r.action) + ' — ' + esc(r.status) +
+          ' <span style="color:var(--muted);font-size:0.82rem;">requested ' + new Date(r.createdAt).toLocaleString() +
+          (r.performedBy ? ' · handled by ' + esc(r.performedBy.name) : '') +
+          (r.reviewNote ? ' · "' + esc(r.reviewNote) + '"' : '') + '</span></li>').join('') + '</ul>'
+      : '<p style="color:var(--muted);font-size:0.85rem;">Configuration is locked. Use "Request change" on a question below to ask TAJRIBTI Operations to edit or remove it.</p>';
+  } catch { block.classList.add('hidden'); }
+}
+
+// FOUNDER INNOVATION (OFD-12): campaign media, URL-referenced.
+function renderMedia(media) {
+  const list = document.getElementById('media-list');
+  list.innerHTML = media.length ? '<table><tr><th>Type</th><th>URL</th><th>Caption</th><th></th></tr>' +
+    media.map(m => '<tr><td>' + esc(m.kind) + '</td><td style="word-break:break-all;">' + esc(m.url) + '</td><td>' + esc(m.caption || '') + '</td><td>' +
+      (currentCampaignLocked ? '' : '<button class="small secondary" data-mid="' + esc(m.id) + '">Remove</button>') +
+      '</td></tr>').join('') + '</table>'
+    : '<p style="color:var(--muted)">No media attached yet.</p>';
+  list.querySelectorAll('button[data-mid]').forEach(btn => {
+    btn.onclick = async () => {
+      try {
+        await api('/company/campaigns/' + currentCampaignId + '/media/' + btn.dataset.mid, { method: 'DELETE' });
+        const c = await api('/company/campaigns/' + currentCampaignId);
+        renderMedia(c.media || []);
+      } catch (e) { document.getElementById('media-msg').textContent = e.message; document.getElementById('media-msg').className = 'msg error'; }
+    };
+  });
+}
+document.getElementById('btn-add-media').onclick = async () => {
+  const msg = document.getElementById('media-msg');
+  try {
+    await api('/company/campaigns/' + currentCampaignId + '/media', { method: 'POST', body: {
+      kind: document.getElementById('m-kind').value,
+      url: document.getElementById('m-url').value.trim(),
+      caption: document.getElementById('m-caption').value.trim() || undefined,
+    }});
+    document.getElementById('m-url').value = ''; document.getElementById('m-caption').value = '';
+    const c = await api('/company/campaigns/' + currentCampaignId);
+    renderMedia(c.media || []);
+    msg.textContent = 'Media added.'; msg.className = 'msg ok';
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+};
+
 document.getElementById('btn-add-qr').onclick = async () => {
   const msg = document.getElementById('qr-msg');
   try {
@@ -920,9 +1101,54 @@ async function loadReport() {
     (r.consumerVoice.length ? r.consumerVoice.map(v => '<div class="verbatim">"' + esc(v.response) + '"<br/><span style="color:var(--muted);font-size:0.78rem;">' + esc(v.question) + '</span></div>').join('') : '<p style="color:var(--muted)">No open-text responses yet.</p>') +
     '<h3 style="font-size:0.95rem;">Findings</h3><ul>' + r.findings.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul>' +
     '<h3 style="font-size:0.95rem;">Recommendations</h3><ul>' + (r.recommendations.length ? r.recommendations.map(f => '<li>' + esc(f) + '</li>').join('') : '<li>None yet — insufficient evidence.</li>') + '</ul>' +
+    // FOUNDER INNOVATION (OFD-03): bilingual deterministic narrative,
+    // rendered verbatim from the report's own computed values. Arabic
+    // lines keep dir="rtl" — including in print/PDF output.
+    (r.narrative ?
+      '<h3 style="font-size:0.95rem;">Executive narrative <span class="pill">derived</span></h3>' +
+      '<p style="color:var(--muted);font-size:0.8rem;">' + esc(r.narrative.methodology) + '</p>' +
+      '<ul>' + r.narrative.en.map(s => '<li>' + esc(s) + '</li>').join('') + '</ul>' +
+      '<ul dir="rtl" lang="ar">' + r.narrative.ar.map(s => '<li>' + esc(s) + '</li>').join('') + '</ul>'
+      : '') +
     '<h3 style="font-size:0.95rem;">Methodology</h3><p style="color:var(--muted);font-size:0.85rem;">' + esc(r.methodology) + '</p>' +
     '<h3 style="font-size:0.95rem;">Limitations</h3><ul>' + r.limitations.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>';
 }
+
+// FOUNDER INNOVATION (OFD-13): print → Save as PDF (browser-native; the
+// Arabic narrative lines carry dir="rtl" so RTL is preserved in print).
+document.getElementById('btn-print-report').onclick = () => window.print();
+
+// FOUNDER INNOVATION (OFD-06): derived intelligence, loaded on demand.
+document.getElementById('btn-load-intelligence').onclick = async () => {
+  const el = document.getElementById('intelligence-content');
+  el.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+  try {
+    const d = await api('/company/campaigns/' + currentCampaignId + '/intelligence');
+    el.innerHTML =
+      '<p style="color:var(--muted);font-size:0.8rem;">' + esc(d.methodology.segmentation) + ' ' + esc(d.methodology.sentiment) + ' ' + esc(d.methodology.themes) + ' ' + esc(d.methodology.statistics) + '</p>' +
+      '<h4 style="font-size:0.88rem;margin:10px 0 4px;">Age-band segments (descriptive)</h4>' +
+      (d.segmentation.ageBands.length
+        ? d.segmentation.ageBands.map(s => '<p style="font-size:0.85rem;"><strong>' + esc(s.band) + '</strong> — ' +
+            (s.suppressed ? 'suppressed (n=' + s.n + ', below the minimum cell size)' :
+              'n=' + s.n + (s.purchaseIntentAvg != null ? ' · purchase intent ' + s.purchaseIntentAvg + '/5' : '') + (s.ratingAvg != null ? ' · rating ' + s.ratingAvg + '/5' : '')) +
+            '</p>').join('')
+        : '<p style="color:var(--muted)">No age-segment data.</p>') +
+      '<h4 style="font-size:0.88rem;margin:10px 0 4px;">Verbatim sentiment (keyword lexicon v' + esc(d.sentiment.lexiconVersion) + ')</h4>' +
+      '<p style="font-size:0.85rem;">positive ' + d.sentiment.counts.positive + ' · negative ' + d.sentiment.counts.negative + ' · neutral ' + d.sentiment.counts.neutral + '</p>' +
+      (d.sentiment.perResponse.length
+        ? '<ul>' + d.sentiment.perResponse.map(s => '<li style="font-size:0.82rem;">[' + esc(s.label) + '] "' + esc(s.response) + '"</li>').join('') + '</ul>'
+        : '') +
+      '<h4 style="font-size:0.88rem;margin:10px 0 4px;">Observed-term themes</h4>' +
+      (d.themes.length
+        ? d.themes.map(t => '<p style="font-size:0.85rem;"><strong>' + esc(t.term) + '</strong> — ' + t.count + ' verbatim(s) <span style="color:var(--muted)">(on "' + esc(t.questionText) + '")</span></p>').join('')
+        : '<p style="color:var(--muted)">No themes detected.</p>') +
+      '<h4 style="font-size:0.88rem;margin:10px 0 4px;">Choice proportions (Wilson 95% intervals)</h4>' +
+      (d.statistics.proportions.length
+        ? d.statistics.proportions.map(p => '<p style="font-size:0.85rem;"><strong>' + esc(p.text) + '</strong> (n=' + p.responses + ')<br/>' +
+            p.options.map(o => esc(o.label) + ': ' + o.count + (o.wilson95 ? ' [' + o.wilson95.low + '–' + o.wilson95.high + ']' : '')).join(' · ') + '</p>').join('')
+        : '<p style="color:var(--muted)">No choice-question responses yet.</p>');
+  } catch (e) { el.innerHTML = '<p class="msg error">' + esc(e.message) + '</p>'; }
+};
 
 (async () => {
   if (token) {

@@ -84,6 +84,21 @@
       </div>
       <p class="muted" style="margin:8px 0 0;">Campaigns you've entered, and where each stands.</p>
     </div>
+    <!-- FOUNDER INNOVATION (OFD-15A / OFD-14C): explicit opt-in controls.
+         Both default off server-side; checking a box calls the dedicated
+         consent endpoint — never inferred. -->
+    <div class="card">
+      <h2>Privacy &amp; participation</h2>
+      <label style="display:flex;gap:8px;align-items:flex-start;font-weight:400;color:var(--ink);">
+        <input type="checkbox" id="opt-panel" style="width:auto;margin-top:3px;" />
+        <span>Join the Tajribti panel — lets your responses count toward same-company insights (anonymous aggregates only).</span>
+      </label>
+      <label style="display:flex;gap:8px;align-items:flex-start;font-weight:400;color:var(--ink);margin-top:10px;">
+        <input type="checkbox" id="opt-push" style="width:auto;margin-top:3px;" />
+        <span>Campaign notifications — get notified when new campaigns you may fit go live.</span>
+      </label>
+      <div class="msg" id="opt-msg"></div>
+    </div>
   </div>
 
   <div id="view-history" class="hidden">
@@ -222,6 +237,12 @@ document.getElementById('btn-verify-otp').onclick = async () => {
 };
 
 async function loadDiscover() {
+  // FOUNDER INNOVATION (OFD-15A / OFD-14C): reflect persisted consent flags.
+  try {
+    const p = await api('/consumer/profile');
+    document.getElementById('opt-panel').checked = p.panelOptIn === true;
+    document.getElementById('opt-push').checked = p.pushOptIn === true;
+  } catch (_) { /* consent card stays unchecked; endpoint failure is non-fatal */ }
   const campaigns = await api('/consumer/campaigns');
   const list = document.getElementById('campaign-list');
   list.innerHTML = campaigns.length ? '' : '<p class="muted">No active campaigns right now.</p>';
@@ -257,6 +278,18 @@ async function loadHistory() {
 }
 document.getElementById('btn-view-history').onclick = (e) => { e.preventDefault(); loadHistory(); };
 document.getElementById('btn-back-history').onclick = (e) => { e.preventDefault(); loadDiscover(); };
+
+// FOUNDER INNOVATION (OFD-15A / OFD-14C): explicit consent writes.
+document.getElementById('opt-panel').onchange = async (e) => {
+  const msg = document.getElementById('opt-msg');
+  try { await api('/consumer/panel/' + (e.target.checked ? 'opt-in' : 'opt-out'), { method: 'POST' }); msg.textContent = 'Saved.'; msg.className = 'msg'; }
+  catch (err) { e.target.checked = !e.target.checked; msg.textContent = err.message; msg.className = 'msg error'; }
+};
+document.getElementById('opt-push').onchange = async (e) => {
+  const msg = document.getElementById('opt-msg');
+  try { await api('/consumer/push/' + (e.target.checked ? 'opt-in' : 'opt-out'), { method: 'POST', body: {} }); msg.textContent = 'Saved.'; msg.className = 'msg'; }
+  catch (err) { e.target.checked = !e.target.checked; msg.textContent = err.message; msg.className = 'msg error'; }
+};
 
 async function enterViaQr(code) {
   const banner = document.getElementById('qr-banner');

@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { buildNarrative } from "./narrative";
 import {
   getFunnel,
   getSourceBreakdown,
@@ -425,6 +426,26 @@ export async function buildReport(campaignId: string) {
     consumerVoice: verbatims,
     findings,
     recommendations,
+    // FOUNDER INNOVATION (OFD-03): deterministic bilingual executive
+    // narrative composed solely from the values already computed in this
+    // report object — no LLM, no estimation, no causality, no sentiment.
+    // See lib/narrative.ts for the binding methodology.
+    narrative: buildNarrative({
+      campaign: {
+        name: campaign.name,
+        status: campaign.status,
+        startDate: campaign.startDate,
+        endDate: campaign.endDate,
+        company: campaign.company.name,
+        product: campaign.product?.name ?? null,
+        studyType: campaign.studyType ?? null,
+      },
+      evidence,
+      funnel,
+      purchaseIntent,
+      satisfaction,
+      consumerVoice: verbatims,
+    }),
     // Feature E (Founder-approved optional extension): every figure below
     // should be read alongside its own stated n and treated as
     // directional, not conclusive — no minimum sample size is asserted,

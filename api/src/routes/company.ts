@@ -2,8 +2,10 @@ import { Router, Request, Response, NextFunction } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { requireEmployee, asEmployee } from "../middleware/auth";
+import { requireEmployee, requireCompanyAdmin, asEmployee } from "../middleware/auth";
 import { checkReadiness } from "../lib/readiness";
+import { buildIntelligence } from "../lib/intelligence";
+import { writeAccessAudit } from "../lib/audit";
 import {
   getFunnel,
   getSourceBreakdown,
@@ -60,30 +62,52 @@ router.get("/employees", async (req, res) => {
   const { companyId } = asEmployee(req);
   const employees = await prisma.employee.findMany({
     where: { companyId },
-    select: { id: true, name: true, email: true, createdAt: true },
+    select: { id: true, name: true, email: true, role: true, createdAt: true },
   });
   res.json(employees);
 });
 
-// No role gate on invitation: Benchmark §4 COMPANY names only "Employees"
-// as a capability, with no permission tier defined (see schema.prisma
-// Employee model comment). Any authenticated employee of this company —
-// company-level isolation is what Benchmark §10 actually names — may add
-// another employee to it.
-router.post("/employees", async (req, res) => {
+// FOUNDER INNOVATION (OFD-08): employee management is COMPANY_ADMIN-only.
+// (Earlier no-gate behavior is superseded only because the Founder has now
+// authorized multiple company roles.) New employees default to
+// COMPANY_MEMBER; the requester may choose COMPANY_ADMIN explicitly.
+router.post("/employees", requireCompanyAdmin, async (req, res) => {
   const { companyId } = asEmployee(req);
-  const schema = z.object({ name: z.string().min(1), email: z.string().email(), password: z.string().min(8) });
+  const schema = z.object({
+    name: z.string().min(1),
+    email: z.string().email(),
+    password: z.string().min(8),
+    role: z.enum(["COMPANY_ADMIN", "COMPANY_MEMBER"]).optional(),
+  });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
   try {
     const employee = await prisma.employee.create({
-      data: { companyId, name: parsed.data.name, email: parsed.data.email, passwordHash },
+      data: { companyId, name: parsed.data.name, email: parsed.data.email, passwordHash, role: parsed.data.role ?? "COMPANY_MEMBER" },
     });
-    res.status(201).json({ id: employee.id, name: employee.name, email: employee.email });
+    res.status(201).json({ id: employee.id, name: employee.name, email: employee.email, role: employee.role });
   } catch {
     res.status(409).json({ error: "Email already in use" });
   }
+});
+
+// Role assignment is COMPANY_ADMIN-only and a self-demotion guard prevents
+// the last admin locking the company out of its own admin capability.
+router.patch("/employees/:eid/role", requireCompanyAdmin, async (req, res) => {
+  const { companyId, employeeId } = asEmployee(req);
+  const parsed = z.object({ role: z.enum(["COMPANY_ADMIN", "COMPANY_MEMBER"]) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  if (req.params.eid === employeeId) {
+    return res.status(409).json({ error: "You cannot change your own role" });
+  }
+  const result = await prisma.employee.updateMany({
+    where: { id: req.params.eid, companyId },
+    data: { role: parsed.data.role },
+  });
+  if (result.count === 0) return res.status(404).json({ error: "Employee not found" });
+  const employee = await prisma.employee.findUnique({ where: { id: req.params.eid }, select: { id: true, name: true, email: true, role: true } });
+  res.json(employee);
 });
 
 // --- Product / Assets ------------------------------------------------------
@@ -92,13 +116,38 @@ router.get("/products", async (req, res) => {
   res.json(await prisma.product.findMany({ where: { companyId } }));
 });
 
+// OFD-05 fields are optional on both create and update; claims is an array
+// of strings persisted as JSON.
+const productSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  imageUrl: z.string().optional(),
+  priceRange: z.string().optional(),
+  packSize: z.string().optional(),
+  claims: z.array(z.string().min(1)).optional(),
+});
+
 router.post("/products", async (req, res) => {
   const { companyId } = asEmployee(req);
-  const schema = z.object({ name: z.string().min(1), description: z.string().optional(), imageUrl: z.string().optional() });
-  const parsed = schema.safeParse(req.body);
+  const parsed = productSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
-  const product = await prisma.product.create({ data: { companyId, ...parsed.data } });
+  const { claims, ...rest } = parsed.data;
+  const product = await prisma.product.create({ data: { companyId, ...rest, claims: claims ? JSON.stringify(claims) : null } });
   res.status(201).json(product);
+});
+
+router.patch("/products/:pid", async (req, res) => {
+  const { companyId } = asEmployee(req);
+  const parsed = productSchema.partial().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  const existing = await prisma.product.findUnique({ where: { id: req.params.pid }, select: { companyId: true } });
+  if (!existing || existing.companyId !== companyId) return res.status(404).json({ error: "Product not found" });
+  const { claims, ...rest } = parsed.data;
+  const product = await prisma.product.update({
+    where: { id: req.params.pid },
+    data: { ...rest, claims: claims ? JSON.stringify(claims) : undefined },
+  });
+  res.json(product);
 });
 
 // --- Campaigns -------------------------------------------------------------
@@ -178,7 +227,7 @@ router.get("/campaigns/:id", async (req, res) => {
   if (!campaign) return;
   const full = await prisma.campaign.findUnique({
     where: { id: campaign.id },
-    include: { product: true, questions: { orderBy: { order: "asc" } }, qrSources: true },
+    include: { product: true, questions: { orderBy: { order: "asc" } }, qrSources: true, media: true },
   });
   res.json(full);
 });
@@ -438,6 +487,7 @@ router.post("/campaigns/:id/questions", async (req, res) => {
       required: d.required,
     },
   });
+  await auditQuestionChange(req, campaign, "CREATE", null, question, null);
   res.status(201).json(question);
 });
 
@@ -450,8 +500,11 @@ router.delete("/campaigns/:id/questions/:qid", async (req, res) => {
   // otherwise an employee of Company A could delete a question belonging
   // to Company B's campaign by supplying a campaign id they own alongside
   // a guessed/observed foreign question id.
+  const existing = await prisma.question.findFirst({ where: { id: req.params.qid, campaignId: campaign.id } });
+  if (!existing) return res.status(404).json({ error: "Question not found" });
   const result = await prisma.question.deleteMany({ where: { id: req.params.qid, campaignId: campaign.id } });
   if (result.count === 0) return res.status(404).json({ error: "Question not found" });
+  await auditQuestionChange(req, campaign, "DELETE", existing, null, null);
   res.status(204).end();
 });
 
@@ -527,6 +580,7 @@ router.post("/campaigns/:id/questions/apply-template", async (req, res) => {
     });
     created.push(question);
     existing.push({ type: q.type, text: q.text, order }); // prevent a repeat within the same template application
+    await auditQuestionChange(req, campaign, "CREATE", null, question, null);
   }
 
   res.status(201).json({ created, skipped });
@@ -602,6 +656,237 @@ router.get("/campaigns/:id/report", async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
   res.json(await buildReport(campaign.id));
+});
+
+// ===========================================================================
+// FOUNDER INNOVATION LAYER (docs/TAJRIBTI_FOUNDER_INNOVATION_SPEC_2026-09-20.md)
+// ===========================================================================
+
+// --- OFD-19: question audit trail + change requests --------------------------
+// Every question mutation writes a QuestionAuditEvent (what/prev/new/actor/
+// campaign/lifecycle-state). Direct edits happen only while the campaign is
+// configurable (DRAFT/READY); once locked, a company files a change request
+// that Operations performs.
+async function auditQuestionChange(
+  req: Request,
+  campaign: { id: string; status: string },
+  action: "CREATE" | "EDIT" | "DELETE",
+  prev: { id: string; stage: string; type: string; text: string; options: string | null; order: number; required: boolean } | null,
+  next: { id: string; stage: string; type: string; text: string; options: string | null; order: number; required: boolean } | null,
+  requestId: string | null
+) {
+  const { employeeId } = asEmployee(req);
+  const actor = await prisma.employee.findUnique({ where: { id: employeeId }, select: { name: true } });
+  await prisma.questionAuditEvent.create({
+    data: {
+      campaignId: campaign.id,
+      questionId: (next ?? prev)?.id ?? null,
+      action,
+      prevValue: prev ? JSON.stringify(prev) : null,
+      newValue: next ? JSON.stringify(next) : null,
+      actorKind: "employee",
+      actorId: employeeId,
+      actorName: actor?.name ?? "unknown",
+      lifecycleState: campaign.status,
+      requestId,
+    },
+  });
+}
+
+router.get("/campaigns/:id/question-audit", async (req, res) => {
+  const campaign = await loadOwnedCampaign(req, res);
+  if (!campaign) return;
+  const events = await prisma.questionAuditEvent.findMany({
+    where: { campaignId: campaign.id },
+    orderBy: { createdAt: "desc" },
+  });
+  res.json(events);
+});
+
+// Change requests are filed only when the campaign is locked (once a
+// campaign is configurable the company edits directly — audited above).
+// Filing is COMPANY_ADMIN-only (spec §H–L matrix).
+const questionChangeRequestSchema = z.object({
+  action: z.enum(["EDIT", "DELETE"]),
+  questionId: z.string().min(1),
+  payload: z
+    .object({
+      text: z.string().min(1).optional(),
+      options: z.array(z.object({ id: z.string(), label: z.string() })).optional(),
+      required: z.boolean().optional(),
+      order: z.number().int().optional(),
+    })
+    .optional(),
+  reason: z.string().optional(),
+});
+
+router.post("/campaigns/:id/question-change-requests", requireCompanyAdmin, async (req, res) => {
+  const { employeeId } = asEmployee(req);
+  const campaign = await loadOwnedCampaign(req, res);
+  if (!campaign) return;
+  if (campaign.status === "DRAFT" || campaign.status === "READY") {
+    return res.status(409).json({ error: "Campaign is still configurable — edit questions directly (edits are audited)." });
+  }
+  const parsed = questionChangeRequestSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
+  const d = parsed.data;
+  const question = await prisma.question.findFirst({ where: { id: d.questionId, campaignId: campaign.id } });
+  if (!question) return res.status(404).json({ error: "Question not found" });
+  if (d.action === "EDIT" && (!d.payload || Object.keys(d.payload).length === 0)) {
+    return res.status(400).json({ error: "EDIT requests require a non-empty payload" });
+  }
+  const pending = await prisma.questionChangeRequest.findFirst({
+    where: { campaignId: campaign.id, questionId: d.questionId, status: "PENDING" },
+  });
+  if (pending) return res.status(409).json({ error: "A change request for this question is already pending" });
+  const request = await prisma.questionChangeRequest.create({
+    data: {
+      campaignId: campaign.id,
+      questionId: d.questionId,
+      action: d.action,
+      payload: d.payload ? JSON.stringify(d.payload) : null,
+      reason: d.reason ?? null,
+      requestedById: employeeId,
+    },
+  });
+  res.status(201).json(request);
+});
+
+router.get("/campaigns/:id/question-change-requests", async (req, res) => {
+  const campaign = await loadOwnedCampaign(req, res);
+  if (!campaign) return;
+  const requests = await prisma.questionChangeRequest.findMany({
+    where: { campaignId: campaign.id },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true, questionId: true, action: true, payload: true, reason: true, status: true,
+      reviewNote: true, performedAt: true, createdAt: true,
+      requestedBy: { select: { name: true } }, performedBy: { select: { name: true } },
+    },
+  });
+  res.json(requests);
+});
+
+// --- OFD-12: campaign media (URL-referenced assets) --------------------------
+const mediaSchema = z.object({
+  kind: z.enum(["PRODUCT_IMAGE", "PACKAGING_IMAGE", "CAMPAIGN_MEDIA", "CREATIVE"]),
+  url: z.string().url(),
+  caption: z.string().optional(),
+});
+
+router.get("/campaigns/:id/media", async (req, res) => {
+  const campaign = await loadOwnedCampaign(req, res);
+  if (!campaign) return;
+  res.json(await prisma.campaignMedia.findMany({ where: { campaignId: campaign.id }, orderBy: { createdAt: "asc" } }));
+});
+
+router.post("/campaigns/:id/media", async (req, res) => {
+  const campaign = await loadOwnedCampaign(req, res);
+  if (!campaign) return;
+  if (!assertConfigurable(campaign, res)) return;
+  const parsed = mediaSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  const media = await prisma.campaignMedia.create({ data: { campaignId: campaign.id, ...parsed.data } });
+  res.status(201).json(media);
+});
+
+router.delete("/campaigns/:id/media/:mid", async (req, res) => {
+  const campaign = await loadOwnedCampaign(req, res);
+  if (!campaign) return;
+  if (!assertConfigurable(campaign, res)) return;
+  const result = await prisma.campaignMedia.deleteMany({ where: { id: req.params.mid, campaignId: campaign.id } });
+  if (result.count === 0) return res.status(404).json({ error: "Media not found" });
+  res.status(204).end();
+});
+
+// --- OFD-14B: activation notification requests -------------------------------
+// Company requests; Operations launches. One pending request per campaign.
+const notificationRequestSchema = z.object({ title: z.string().min(1).max(120), body: z.string().min(1).max(500) });
+
+router.post("/campaigns/:id/notification-requests", requireCompanyAdmin, async (req, res) => {
+  const { employeeId } = asEmployee(req);
+  const campaign = await loadOwnedCampaign(req, res);
+  if (!campaign) return;
+  if (campaign.status !== "READY" && campaign.status !== "ACTIVE") {
+    return res.status(409).json({ error: "Notification requests can be filed only for READY or ACTIVE campaigns" });
+  }
+  const parsed = notificationRequestSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  const pending = await prisma.campaignNotificationRequest.findFirst({ where: { campaignId: campaign.id, status: "PENDING" } });
+  if (pending) return res.status(409).json({ error: "A notification request is already pending for this campaign" });
+  const request = await prisma.campaignNotificationRequest.create({
+    data: { campaignId: campaign.id, title: parsed.data.title, body: parsed.data.body, requestedById: employeeId },
+  });
+  res.status(201).json(request);
+});
+
+router.get("/campaigns/:id/notification-requests", async (req, res) => {
+  const campaign = await loadOwnedCampaign(req, res);
+  if (!campaign) return;
+  const requests = await prisma.campaignNotificationRequest.findMany({
+    where: { campaignId: campaign.id },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true, title: true, body: true, status: true, deliveryStatus: true, eligibleCount: true,
+      launchedAt: true, reviewNote: true, createdAt: true,
+      requestedBy: { select: { name: true } }, launchedBy: { select: { name: true } },
+    },
+  });
+  res.json(requests);
+});
+
+// --- OFD-15B: same-company cross-campaign panel intelligence -----------------
+// Aggregates ONLY across this company's campaigns and ONLY consumers who
+// explicitly opted into the panel. No PII is returned — counts only. Cells
+// below MIN_PANEL_CELL are suppressed (OFD-15 small-cell privacy rule).
+const MIN_PANEL_CELL = 5;
+
+router.get("/panel-insights", async (req, res) => {
+  const { companyId } = asEmployee(req);
+  await writeAccessAudit({ actorKind: "employee", actorId: asEmployee(req).employeeId, actorName: "employee", action: "PANEL_INSIGHTS_VIEW", targetType: "company", targetId: companyId });
+
+  const campaigns = await prisma.campaign.findMany({ where: { companyId }, select: { id: true, name: true, status: true } });
+  const campaignIds = campaigns.map((c) => c.id);
+  const optedInParticipations = await prisma.participation.findMany({
+    where: { campaignId: { in: campaignIds }, consumer: { panelOptIn: true } },
+    select: { campaignId: true, consumerId: true, status: true },
+  });
+
+  const byConsumer = new Map<string, Set<string>>();
+  for (const p of optedInParticipations) {
+    if (!byConsumer.has(p.consumerId)) byConsumer.set(p.consumerId, new Set());
+    byConsumer.get(p.consumerId)!.add(p.campaignId);
+  }
+  const repeatConsumers = Array.from(byConsumer.values()).filter((s) => s.size > 1).length;
+
+  const perCampaign = campaigns.map((c) => {
+    const rows = optedInParticipations.filter((p) => p.campaignId === c.id);
+    const completed = rows.filter((p) => p.status === "SURVEY_COMPLETE").length;
+    return {
+      campaignId: c.id,
+      name: c.name,
+      status: c.status,
+      optedInParticipants: rows.length < MIN_PANEL_CELL ? { suppressed: true as const, n: rows.length } : rows.length,
+      optedInSurveyCompletes: completed < MIN_PANEL_CELL ? { suppressed: true as const, n: completed } : completed,
+    };
+  });
+
+  res.json({
+    companyId,
+    derived: true,
+    methodology:
+      "Counts over opted-in panel consumers only, restricted to this company's campaigns. Aggregates only — no consumer-level data. Cells with n<5 are suppressed (OFD-15 small-cell rule). No cross-company data is ever included.",
+    optedInPanelConsumers: byConsumer.size,
+    repeatParticipantsAcrossCampaigns: repeatConsumers,
+    perCampaign,
+  });
+});
+
+// --- OFD-06: derived advanced intelligence -----------------------------------
+router.get("/campaigns/:id/intelligence", async (req, res) => {
+  const campaign = await loadOwnedCampaign(req, res);
+  if (!campaign) return;
+  res.json(await buildIntelligence(campaign.id));
 });
 
 export default router;

@@ -14,9 +14,9 @@ import 'models.dart';
 //     current backend's plain phone-only contract exactly.
 //   - refresh-token flow (/auth/refresh) — signToken() issues one token,
 //     there is no refresh endpoint.
-//   - consumer profile fetch (/auth/me) — no such endpoint exists;
-//     phone/name are cached locally from the OTP-verify response instead
-//     (see AuthService.saveSession).
+//   - consumer profile fetch (/auth/me) — superseded 2026-09-20 by the
+//     Founder Innovation layer: GET /consumer/profile now exists; local
+//     cache remains the fast path, the endpoint is used for consent flags.
 // Endpoint mapping used below (old -> current):
 //   POST /auth/otp/request           -> POST /consumer/auth/otp/request
 //   POST /auth/otp/verify            -> POST /consumer/auth/otp/verify
@@ -159,6 +159,22 @@ class ApiClient {
     final res = await _dio.get('/consumer/participations');
     final list = res.data as List<dynamic>;
     return list.map((p) => ParticipationRecord.fromJson(p as Map<String, dynamic>)).toList();
+  }
+
+  // ── Founder Innovation (OFD-08.4 / 15A / 14C): profile + explicit consent ──
+
+  Future<Map<String, dynamic>> getProfile() async {
+    final res = await _dio.get('/consumer/profile');
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<void> setPanelOptIn(bool value) async {
+    await _dio.post(value ? '/consumer/panel/opt-in' : '/consumer/panel/opt-out');
+  }
+
+  Future<void> setPushOptIn(bool value, {String? pushToken}) async {
+    await _dio.post(value ? '/consumer/push/opt-in' : '/consumer/push/opt-out',
+        data: {if (pushToken != null) 'pushToken': pushToken});
   }
 }
 

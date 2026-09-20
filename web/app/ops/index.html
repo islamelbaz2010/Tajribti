@@ -58,6 +58,11 @@
       <button class="tab-btn active" data-tab="pipeline">Campaign Pipeline</button>
       <button class="tab-btn" data-tab="companies">Companies</button>
       <button class="tab-btn" data-tab="studytype-requests">Study-Type Requests</button>
+      <!-- FOUNDER INNOVATION: OFD-19 question change requests, OFD-14
+           activation notification requests, OFD-15C panel. -->
+      <button class="tab-btn" data-tab="question-requests">Question Requests</button>
+      <button class="tab-btn" data-tab="notifications">Notifications</button>
+      <button class="tab-btn" data-tab="panel">Panel</button>
     </div>
 
     <div class="card tab-panel" id="tab-pipeline">
@@ -87,6 +92,9 @@
     <div class="card tab-panel hidden" id="tab-companies">
       <h2>Companies</h2>
       <div id="company-list"></div>
+      <!-- OFD-08: company onboarding is PLATFORM_ADMIN-only (backend
+           enforces); the form is hidden for OPERATIONS users. -->
+      <div id="company-onboard-block">
       <h3 style="font-size:0.95rem;">Onboard new company</h3>
       <label>Company name</label><input id="nco-name" />
       <label>Industry</label><input id="nco-industry" />
@@ -95,6 +103,7 @@
       <label>Employee password</label><input id="nco-owner-password" type="password" />
       <button id="btn-create-company">Create company</button>
       <div class="msg" id="nco-msg"></div>
+      </div>
     </div>
 
     <!-- FOUNDER-APPROVED — forensic audit 2026-09-15, Decision 1:
@@ -113,6 +122,28 @@
         </select>
       </div>
       <div id="studytype-requests-list"></div>
+    </div>
+
+    <!-- FOUNDER INNOVATION (OFD-19): company-filed question change
+         requests. Operations performs the change (audited); a delete of a
+         question with historical answers is refused server-side. -->
+    <div class="card tab-panel hidden" id="tab-question-requests">
+      <h2>Question change requests</h2>
+      <div id="question-requests-list"></div>
+    </div>
+
+    <!-- FOUNDER INNOVATION (OFD-14): company-requested activation
+         notifications — Operations launches; eligible audience is
+         computed from explicit consumer push opt-ins at launch time. -->
+    <div class="card tab-panel hidden" id="tab-notifications">
+      <h2>Activation notification requests</h2>
+      <div id="notification-requests-list"></div>
+    </div>
+
+    <!-- FOUNDER INNOVATION (OFD-15C): shared panel — opt-in aggregates only. -->
+    <div class="card tab-panel hidden" id="tab-panel">
+      <h2>Consumer panel (opted-in)</h2>
+      <div id="panel-content"></div>
     </div>
   </div>
 
@@ -160,6 +191,8 @@
 <script>
 const API = '/api';
 let token = localStorage.getItem('tj_ops_token') || null;
+// OFD-08: persisted alongside the token so role-gated UI survives reload.
+let currentOpsRole = localStorage.getItem('tj_ops_role') || 'OPERATIONS';
 let currentCampaignId = null;
 let currentCampaign = null;
 let studyTemplates = []; // cached from GET /ops/study-templates (founder-approved extension)
@@ -208,6 +241,7 @@ function renderWho(name) {
   document.getElementById('btn-signout').onclick = () => {
     token = null;
     localStorage.removeItem('tj_ops_token');
+    localStorage.removeItem('tj_ops_role');
     document.getElementById('who').innerHTML = '';
     show('view-login');
   };
@@ -221,6 +255,8 @@ document.getElementById('btn-login').onclick = async () => {
       password: document.getElementById('login-password').value,
     }});
     token = r.token; localStorage.setItem('tj_ops_token', token);
+    currentOpsRole = r.opsUser.role || 'OPERATIONS';
+    localStorage.setItem('tj_ops_role', currentOpsRole);
     renderWho(r.opsUser.name);
     await loadHome();
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
@@ -234,6 +270,9 @@ document.querySelectorAll('#view-home .tab-btn').forEach(btn => {
     document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
     if (btn.dataset.tab === 'companies') loadCompanies();
     if (btn.dataset.tab === 'studytype-requests') loadStudyTypeRequests();
+    if (btn.dataset.tab === 'question-requests') loadQuestionRequests();
+    if (btn.dataset.tab === 'notifications') loadNotificationRequests();
+    if (btn.dataset.tab === 'panel') loadPanel();
   };
 });
 
@@ -299,6 +338,8 @@ async function loadCompanies() {
   list.querySelectorAll('.company-row').forEach(row => {
     row.onclick = () => showCampaignsForCompany(row.dataset.id, row.dataset.name);
   });
+  // OFD-08: company onboarding is PLATFORM_ADMIN-only.
+  document.getElementById('company-onboard-block').classList.toggle('hidden', currentOpsRole !== 'PLATFORM_ADMIN');
 }
 
 document.getElementById('btn-create-company').onclick = async () => {
@@ -387,6 +428,97 @@ async function loadStudyTypeRequests() {
 }
 
 document.getElementById('str-filter').onchange = loadStudyTypeRequests;
+
+// FOUNDER INNOVATION (OFD-19): review queue for company-filed question
+// change requests. Apply performs the whitelisted change and writes an
+// audit event; reject requires no payload.
+async function loadQuestionRequests() {
+  const requests = await api('/ops/question-change-requests');
+  const list = document.getElementById('question-requests-list');
+  list.innerHTML = '';
+  if (!requests.length) { list.innerHTML = '<p style="color:var(--muted)">No requests.</p>'; return; }
+  requests.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'item'; div.style.cursor = 'default'; div.style.flexDirection = 'column'; div.style.alignItems = 'stretch';
+    div.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+        '<div><strong>' + esc(r.campaign.name) + '</strong><div style="color:var(--muted);font-size:0.85rem;">' + esc(r.campaign.company.name) + ' · ' + esc(r.campaign.status) + '</div></div>' +
+        '<span class="pill">' + esc(r.status) + '</span></div>' +
+      '<p style="font-size:0.88rem;margin:8px 0 0;">' + esc(r.action) + (r.question ? ' — "' + esc(r.question.text) + '"' : ' — (question no longer exists)') + '</p>' +
+      (r.payload ? '<p style="color:var(--muted);font-size:0.8rem;margin:2px 0 0;">Requested change: ' + esc(r.payload) + '</p>' : '') +
+      (r.reason ? '<p style="color:var(--muted);font-size:0.8rem;margin:2px 0 0;">Reason: ' + esc(r.reason) + '</p>' : '') +
+      '<p style="color:var(--muted);font-size:0.8rem;margin:2px 0 0;">Requested by ' + esc(r.requestedBy.name) + ' on ' + new Date(r.createdAt).toLocaleString() + '</p>' +
+      (r.status === 'PENDING'
+        ? '<div class="row" style="margin-top:8px;"><button class="small" data-apply="' + esc(r.id) + '">Apply</button><button class="small secondary" data-qreject="' + esc(r.id) + '">Reject</button></div><div class="msg" id="qr-msg-' + esc(r.id) + '"></div>'
+        : '');
+    list.appendChild(div);
+  });
+  list.querySelectorAll('button[data-apply]').forEach(btn => {
+    btn.onclick = async () => {
+      const msg = document.getElementById('qr-msg-' + btn.dataset.apply);
+      try { await api('/ops/question-change-requests/' + btn.dataset.apply + '/apply', { method: 'POST' }); await loadQuestionRequests(); }
+      catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+    };
+  });
+  list.querySelectorAll('button[data-qreject]').forEach(btn => {
+    btn.onclick = async () => {
+      const note = window.prompt('Rejection note (optional):', '');
+      try { await api('/ops/question-change-requests/' + btn.dataset.qreject + '/reject', { method: 'POST', body: { note } }); await loadQuestionRequests(); }
+      catch (e) { alert(e.message); }
+    };
+  });
+}
+
+// FOUNDER INNOVATION (OFD-14): launch computes the opted-in eligible
+// audience and records PENDING_DELIVERY — actual push transport is a
+// separate gate (spec §14), so nothing is sent by this console yet.
+async function loadNotificationRequests() {
+  const requests = await api('/ops/notification-requests');
+  const list = document.getElementById('notification-requests-list');
+  list.innerHTML = '';
+  if (!requests.length) { list.innerHTML = '<p style="color:var(--muted)">No requests.</p>'; return; }
+  requests.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'item'; div.style.cursor = 'default'; div.style.flexDirection = 'column'; div.style.alignItems = 'stretch';
+    div.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+        '<div><strong>' + esc(r.title) + '</strong><div style="color:var(--muted);font-size:0.85rem;">' + esc(r.campaign.name) + ' · ' + esc(r.campaign.company.name) + ' · ' + esc(r.campaign.status) + '</div></div>' +
+        '<span class="pill">' + esc(r.status) + (r.deliveryStatus ? ' / ' + esc(r.deliveryStatus) : '') + '</span></div>' +
+      '<p style="font-size:0.88rem;margin:8px 0 0;">' + esc(r.body) + '</p>' +
+      '<p style="color:var(--muted);font-size:0.8rem;margin:2px 0 0;">Requested by ' + esc(r.requestedBy.name) + ' on ' + new Date(r.createdAt).toLocaleString() +
+      (r.eligibleCount != null ? ' · eligible opted-in audience: ' + r.eligibleCount : '') + '</p>' +
+      (r.status === 'PENDING'
+        ? '<div class="row" style="margin-top:8px;"><button class="small" data-launch="' + esc(r.id) + '">Launch</button><button class="small secondary" data-nreject="' + esc(r.id) + '">Reject</button></div><div class="msg" id="nr-msg-' + esc(r.id) + '"></div>'
+        : '');
+    list.appendChild(div);
+  });
+  list.querySelectorAll('button[data-launch]').forEach(btn => {
+    btn.onclick = async () => {
+      const msg = document.getElementById('nr-msg-' + btn.dataset.launch);
+      try { await api('/ops/notification-requests/' + btn.dataset.launch + '/launch', { method: 'POST' }); await loadNotificationRequests(); }
+      catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+    };
+  });
+  list.querySelectorAll('button[data-nreject]').forEach(btn => {
+    btn.onclick = async () => {
+      const note = window.prompt('Rejection note (optional):', '');
+      try { await api('/ops/notification-requests/' + btn.dataset.nreject + '/reject', { method: 'POST', body: { note } }); await loadNotificationRequests(); }
+      catch (e) { alert(e.message); }
+    };
+  });
+}
+
+// FOUNDER INNOVATION (OFD-15C): shared panel — opt-in aggregate counts only.
+async function loadPanel() {
+  const d = await api('/ops/panel');
+  document.getElementById('panel-content').innerHTML =
+    '<p style="color:var(--muted);font-size:0.82rem;">' + esc(d.methodology) + '</p>' +
+    '<div class="metrics-row">' +
+    metric(d.optedInPanelSize, 'Panel size (opted in)') +
+    metric(d.optedInWithPushOptIn, 'Also opted in to push') +
+    metric(d.consumersWithParticipation, 'With ≥1 participation') +
+    '</div>';
+}
 
 document.getElementById('btn-back').onclick = (e) => { e.preventDefault(); loadHome(); };
 
@@ -493,6 +625,13 @@ function loadQrOps() {
 }
 
 async function loadParticipants() {
+  // OFD-08: participant PII (name/phone) is PLATFORM_ADMIN-only and
+  // audited server-side; OPERATIONS sees an explicit notice instead.
+  if (currentOpsRole !== 'PLATFORM_ADMIN') {
+    document.getElementById('participants-content').innerHTML =
+      '<p style="color:var(--muted)">Consumer identity data is restricted to Platform Admin accounts. All PII access is audited.</p>';
+    return;
+  }
   const list = await api('/ops/campaigns/' + currentCampaignId + '/participants');
   document.getElementById('participants-content').innerHTML = list.length ?
     '<table><tr><th>Consumer</th><th>Status</th><th>Source</th><th>Entered</th></tr>' +

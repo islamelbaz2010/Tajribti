@@ -23,7 +23,7 @@ router.post(
     if (!ok) return res.status(401).json({ error: "Invalid credentials" });
 
     const token = signToken({ kind: "ops", opsUserId: opsUser.id });
-    res.json({ token, opsUser: { id: opsUser.id, name: opsUser.name, email: opsUser.email } });
+    res.json({ token, opsUser: { id: opsUser.id, name: opsUser.name, email: opsUser.email, role: opsUser.role } });
   }
 );
 

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { signToken } from "../lib/auth";
 import { rateLimit } from "../lib/rateLimit";
-import { isAkedlyEnabled, sendOtp as akedlySendOtp, verifyOtp as akedlyVerifyOtp } from "../lib/akedly";
+import { isAkedlyEnabled, getChallenge as akedlyGetChallenge, sendOtp as akedlySendOtp, verifyOtp as akedlyVerifyOtp } from "../lib/akedly";
 
 const router = Router();
 
@@ -22,7 +22,31 @@ function generateOtp(): string {
 // (environment blocker — reported in the final report); the code is
 // returned in the response and logged so the flow is genuinely testable
 // end-to-end without fabricating delivery.
-const requestSchema = z.object({ phone: z.string().min(6).max(20) });
+const requestSchema = z.object({
+  phone: z.string().min(6).max(20),
+  // Client-side Shield proofs, forwarded to Akedly unchanged. The client
+  // obtains the challenge via GET /otp/challenge, solves PoW itself, and
+  // submits the result here — the server never solves it.
+  powSolution: z.object({ challengeToken: z.string(), nonce: z.number().int().nonnegative() }).optional(),
+  turnstileToken: z.string().optional(),
+});
+
+// Client-side PoW entry point (Akedly V1.2 Step 1). Returns the pipeline's
+// challenge requirements so the client can solve them before requesting an
+// OTP. When no provider is configured (local dev) the uniform response says
+// no challenge is required.
+router.get(
+  "/otp/challenge",
+  rateLimit({ windowMs: 5 * 60_000, max: 30 }),
+  async (_req, res) => {
+    if (!isAkedlyEnabled()) {
+      return res.json({ status: "success", data: { challengeRequired: false, turnstile: { required: false, siteKey: null } } });
+    }
+    const challenge = await akedlyGetChallenge();
+    if (!challenge.ok) return res.status(502).json({ error: "OTP provider challenge failed" });
+    res.json({ status: "success", data: challenge.data });
+  }
+);
 
 router.post(
   "/otp/request",
@@ -30,12 +54,12 @@ router.post(
   async (req, res) => {
     const parsed = requestSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid phone" });
-    const { phone } = parsed.data;
+    const { phone, powSolution, turnstileToken } = parsed.data;
 
     if (isAkedlyEnabled()) {
       // Real delivery. The OtpCode row carries the Akedly transactionReqID
       // in `code` — verify resolves it by phone, never by user input.
-      const sent = await akedlySendOtp(phone, req.ip);
+      const sent = await akedlySendOtp(phone, req.ip, powSolution, turnstileToken);
       if (!sent.ok) {
         // eslint-disable-next-line no-console
         console.warn(`[OTP] Akedly send failed for phone=${phone}: status=${sent.status} ${sent.message}`);

@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- Akedly Shield (official V1.2 client SDK) — solves the pipeline's
+     proof-of-work challenge in a Web Worker before OTP send. No credentials
+     are bundled; API key/pipeline ID stay on the backend. -->
+<script src="https://unpkg.com/@akedly/shield/dist/akedly-shield.min.js"></script>
 <title>TAJRIBTI — Consumer</title>
 <style>
   :root { --primary:#EB6B45; --bg:#FAF1EB; --ink:#241914; --muted:#7a6a61; --card:#fff; }
@@ -170,16 +174,37 @@ async function api(path, opts = {}) {
   return data;
 }
 
+// Akedly V1.2 client-side step: fetch the pipeline challenge through our
+// backend proxy, solve PoW here when the pipeline requires it (Shield SDK,
+// Web Worker), obtain a Turnstile token only if the pipeline demands one,
+// then submit the proofs with the OTP request. The backend never solves.
+async function collectOtpProofs() {
+  const ch = await api('/consumer/auth/otp/challenge');
+  const data = ch.data || {};
+  const proofs = {};
+  if (data.challengeRequired) {
+    if (!window.AkedlyShield) throw new Error('Verification service unavailable. Please retry.');
+    const { nonce } = await window.AkedlyShield.solvePow(data.challenge, data.difficulty);
+    proofs.powSolution = { challengeToken: data.challengeToken, nonce };
+  }
+  if (data.turnstile && data.turnstile.required) {
+    if (!window.AkedlyShield) throw new Error('Verification service unavailable. Please retry.');
+    proofs.turnstileToken = await window.AkedlyShield.getTurnstileToken(data.turnstile.siteKey);
+  }
+  return proofs;
+}
+
 document.getElementById('btn-request-otp').onclick = async () => {
   const phone = document.getElementById('phone').value.trim();
   const msg = document.getElementById('phone-msg');
   msg.textContent = ''; msg.className = 'msg';
   if (!phone) { msg.textContent = 'Enter a phone number.'; msg.className = 'msg error'; return; }
   try {
-    const r = await api('/consumer/auth/otp/request', { method: 'POST', body: { phone } });
+    const proofs = await collectOtpProofs();
+    const r = await api('/consumer/auth/otp/request', { method: 'POST', body: { phone, ...proofs } });
     document.getElementById('otp-step').classList.remove('hidden');
     document.getElementById('otp').value = r.devOnlyCode || '';
-    msg.textContent = 'Code sent (dev mode: pre-filled below).'; msg.className = 'msg ok';
+    msg.textContent = r.devOnlyCode ? 'Code sent (dev mode: pre-filled below).' : 'Code sent.'; msg.className = 'msg ok';
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };
 

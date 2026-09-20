@@ -1,13 +1,15 @@
-import crypto from "crypto";
-
-// Akedly V1.2 REST integration — backend-only. AKEDLY_API_KEY and
+// Akedly V1.2 REST integration — backend-only proxy. AKEDLY_API_KEY and
 // AKEDLY_PIPELINE_ID are server credentials and must never reach a client.
-// The Shield proof-of-work is solved here server-side: the algorithm is part
-// of the published V1.2 contract (SHA256(challenge + ":" + nonce) with
-// `difficulty` leading hex zeros) and the adaptive difficulty makes the
-// server-side cost trivial (base 3 ≈ a few thousand hashes). Turnstile,
-// unlike PoW, cannot be satisfied server-side — a pipeline that requires it
-// is surfaced as a configuration failure, never silently bypassed.
+//
+// Architecture (per the official V1.2 contract): the Shield PoW challenge is
+// a CLIENT-side step. The client fetches the challenge through this proxy,
+// solves the proof-of-work itself (official Shield SDKs, or the documented
+// SHA256(challenge + ":" + nonce) algorithm), and submits the resulting
+// powSolution back here — we forward it to Akedly unchanged. The server
+// never solves PoW: doing so would defeat the abuse-deterrence the pipeline
+// control exists for. Turnstile, when enabled on a pipeline, likewise
+// requires a client-side Cloudflare token — it is surfaced to the client
+// via the challenge payload, never bypassed.
 const AKEDLY_BASE = "https://api.akedly.io";
 
 type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<{ status: number; json: () => Promise<any> }>;
@@ -26,43 +28,29 @@ function credentials(): { APIKey: string; pipelineID: string } {
   return { APIKey: process.env.AKEDLY_API_KEY as string, pipelineID: process.env.AKEDLY_PIPELINE_ID as string };
 }
 
-export function solvePow(challenge: string, difficulty: number): number {
-  const prefix = "0".repeat(difficulty);
-  for (let nonce = 0; nonce < 50_000_000; nonce++) {
-    const digest = crypto.createHash("sha256").update(`${challenge}:${nonce}`).digest("hex");
-    if (digest.startsWith(prefix)) return nonce;
-  }
-  throw new Error("PoW solution not found within budget");
+export type AkedlyChallengeResult = { ok: true; data: any } | { ok: false };
+
+export async function getChallenge(): Promise<AkedlyChallengeResult> {
+  const { APIKey, pipelineID } = credentials();
+  const res = await fetchImpl(
+    `${AKEDLY_BASE}/api/v1.2/transactions/challenge?APIKey=${encodeURIComponent(APIKey)}&pipelineID=${encodeURIComponent(pipelineID)}`
+  );
+  const body = await res.json().catch(() => null);
+  if (res.status !== 200 || !body?.data) return { ok: false };
+  return { ok: true, data: body.data };
 }
 
 export type AkedlySendResult =
   | { ok: true; transactionReqID: string; expiresAt: Date }
   | { ok: false; status: number; message: string };
 
-export async function sendOtp(phone: string, endUserIp?: string): Promise<AkedlySendResult> {
+export async function sendOtp(
+  phone: string,
+  endUserIp?: string,
+  powSolution?: { challengeToken: string; nonce: number },
+  turnstileToken?: string
+): Promise<AkedlySendResult> {
   const { APIKey, pipelineID } = credentials();
-  const challengeRes = await fetchImpl(
-    `${AKEDLY_BASE}/api/v1.2/transactions/challenge?APIKey=${encodeURIComponent(APIKey)}&pipelineID=${encodeURIComponent(pipelineID)}`
-  );
-  const challengeBody = await challengeRes.json().catch(() => null);
-  if (challengeRes.status !== 200 || !challengeBody?.data) {
-    return { ok: false, status: 502, message: "OTP provider challenge failed" };
-  }
-  const challenge = challengeBody.data;
-  if (challenge.turnstile?.required) {
-    // Cannot be satisfied without a client-side Cloudflare token — the
-    // pipeline must disable Turnstile or the clients must integrate a
-    // Turnstile widget before production OTP can work.
-    return { ok: false, status: 503, message: "OTP provider requires client Turnstile — account configuration required" };
-  }
-  let powSolution: { challengeToken: string; nonce: number } | undefined;
-  if (challenge.challengeRequired && challenge.challenge && challenge.challengeToken) {
-    powSolution = {
-      challengeToken: challenge.challengeToken,
-      nonce: solvePow(challenge.challenge, challenge.difficulty),
-    };
-  }
-
   const sendRes = await fetchImpl(`${AKEDLY_BASE}/api/v1.2/transactions/send`, {
     method: "POST",
     headers: {
@@ -74,6 +62,7 @@ export async function sendOtp(phone: string, endUserIp?: string): Promise<Akedly
       pipelineID,
       verificationAddress: { phoneNumber: phone },
       ...(powSolution ? { powSolution } : {}),
+      ...(turnstileToken ? { turnstileToken } : {}),
     }),
   });
   const sendBody = await sendRes.json().catch(() => null);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
+import '../core/akedly_pow.dart';
 import '../core/api_client.dart';
 import '../core/auth_service.dart';
 import '../core/constants.dart';
@@ -12,13 +13,13 @@ import '../widgets/lang_toggle.dart';
 // Mobile Recovery + Current-Backend Alignment (2026-09-15): rewritten
 // against the current phone+OTP contract (api/src/routes/consumerAuth.ts).
 // Removed entirely, with no current-backend equivalent:
-//   - Akedly PoW/Turnstile challenge (getChallenge/solvePowInIsolate) — no
-//     proxy endpoint exists server-side; adding one would mean a new
-//     third-party dependency + backend route, out of scope for a
-//     mobile-only recovery pass.
 //   - campaign-scoped OTP (old: campaignId+phone -> transactionReqID) —
 //     the current backend's OTP is a plain phone-only account mechanism,
 //     not bound to one campaign.
+// Akedly V1.2 Shield: the client-side PoW contract is now live — this
+// screen fetches the challenge via the backend proxy (GET
+// /consumer/auth/otp/challenge) and solves it locally (akedly_pow.dart)
+// before requesting the OTP.
 // After verify, this screen hands the journey to /eligibility — the real
 // eligibility collection step (screener answers + audience demographics).
 // The eligibility -> redeem -> survey sequence itself now lives in
@@ -52,7 +53,21 @@ class _OtpScreenState extends State<OtpScreen> {
   Future<void> _requestOtp() async {
     setState(() { _error = null; });
     try {
-      await apiClient.requestOtp(phone: widget.phone);
+      // Akedly V1.2: the client solves the Shield PoW challenge when the
+      // pipeline requires it — the backend only forwards the resulting
+      // powSolution. A Turnstile-required pipeline fails into the same
+      // retryable error (no widget exists in this build; the current
+      // pipeline has Turnstile off).
+      Map<String, dynamic>? powSolution;
+      final challenge = await apiClient.getOtpChallenge();
+      if (challenge['challengeRequired'] == true) {
+        final nonce = solvePow(
+          challenge['challenge'] as String,
+          challenge['difficulty'] as int,
+        );
+        powSolution = {'challengeToken': challenge['challengeToken'], 'nonce': nonce};
+      }
+      await apiClient.requestOtp(phone: widget.phone, powSolution: powSolution);
       _startCountdown();
     } catch (_) {
       if (mounted) setState(() => _error = context.l10n.challengeError);

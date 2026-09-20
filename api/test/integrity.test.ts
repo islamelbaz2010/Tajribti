@@ -761,17 +761,31 @@ describe("akedly transport", () => {
     _setAkedlyFetch(null);
   });
 
-  it("T1: full Akedly round-trip — challenge → send → verify → token, no code echo", async () => {
+  it("T0: challenge proxy returns the pipeline challenge for the client to solve", async () => {
     enableAkedly();
     _setAkedlyFetch(async (url) => {
-      if (url.includes("/challenge"))
-        return { status: 200, json: async () => ({ status: "success", data: { challengeRequired: false, turnstile: { required: false, siteKey: null } } }) };
+      return { status: 200, json: async () => ({ status: "success", data: { challengeRequired: true, challenge: "deadbeef", difficulty: 3, challengeToken: "ct-x", expiresAt: new Date(Date.now() + 90000).toISOString(), turnstile: { required: false, siteKey: null } } }) };
+    });
+    const r = await api("/api/consumer/auth/otp/challenge");
+    assert.equal(r.status, 200);
+    assert.equal(r.body.data.challengeRequired, true);
+    assert.equal(r.body.data.challenge, "deadbeef");
+    assert.equal(r.body.data.difficulty, 3);
+    assert.equal(r.body.data.challengeToken, "ct-x");
+  });
+
+  it("T1: full Akedly round-trip — client powSolution → send → verify → token, no code echo", async () => {
+    enableAkedly();
+    _setAkedlyFetch(async (url) => {
       if (url.includes("/send"))
         return { status: 200, json: async () => ({ status: "success", data: { transactionID: "t1", transactionReqID: "tx-t1", channels: ["whatsapp"], expiresAt: new Date(Date.now() + 300000).toISOString() }, message: "OTP sent successfully" }) };
       return { status: 200, json: async () => ({ status: "success", data: { verified: true, transactionID: "t1" }, message: "OTP verified successfully" }) };
     });
     const phone = "+201000000010";
-    const r = await api("/api/consumer/auth/otp/request", { method: "POST", body: { phone } });
+    const r = await api("/api/consumer/auth/otp/request", {
+      method: "POST",
+      body: { phone, powSolution: { challengeToken: "ct-1", nonce: 48291 } },
+    });
     assert.equal(r.status, 200);
     assert.equal(r.body.sent, true);
     assert.equal(r.body.devOnlyCode, undefined);
@@ -784,8 +798,6 @@ describe("akedly transport", () => {
   it("T2: Akedly INVALID_OTP surfaces as 401 and no consumer session is created", async () => {
     enableAkedly();
     _setAkedlyFetch(async (url) => {
-      if (url.includes("/challenge"))
-        return { status: 200, json: async () => ({ status: "success", data: { challengeRequired: false, turnstile: { required: false, siteKey: null } } }) };
       if (url.includes("/send"))
         return { status: 200, json: async () => ({ status: "success", data: { transactionReqID: "tx-t2", expiresAt: new Date(Date.now() + 300000).toISOString() } }) };
       return { status: 403, json: async () => ({ status: "error", code: "INVALID_OTP", message: "Invalid OTP" }) };
@@ -799,21 +811,17 @@ describe("akedly transport", () => {
 
   it("T3: Akedly 429 propagates as 429", async () => {
     enableAkedly();
-    _setAkedlyFetch(async (url) => {
-      if (url.includes("/challenge"))
-        return { status: 200, json: async () => ({ status: "success", data: { challengeRequired: false, turnstile: { required: false, siteKey: null } } }) };
+    _setAkedlyFetch(async () => {
       return { status: 429, json: async () => ({ status: "error", code: "RATE_LIMIT_PHONENUMBER_PERMINUTE", message: "Rate limit exceeded", cooldownSeconds: 47 }) };
     });
     const r = await api("/api/consumer/auth/otp/request", { method: "POST", body: { phone: "+201000000012" } });
     assert.equal(r.status, 429);
   });
 
-  it("T4: PoW challenge is solved and powSolution is included in the send", async () => {
+  it("T4: client-supplied powSolution and turnstileToken are forwarded verbatim — the server never solves", async () => {
     enableAkedly();
     let sendBody: any = null;
     _setAkedlyFetch(async (url, init) => {
-      if (url.includes("/challenge"))
-        return { status: 200, json: async () => ({ status: "success", data: { challengeRequired: true, challenge: "deadbeef", difficulty: 1, challengeToken: "ct-1", expiresAt: new Date(Date.now() + 90000).toISOString(), turnstile: { required: false, siteKey: null } } }) };
       if (url.includes("/send")) {
         sendBody = JSON.parse(init!.body!);
         return { status: 200, json: async () => ({ status: "success", data: { transactionReqID: "tx-t4", expiresAt: new Date(Date.now() + 300000).toISOString() } }) };
@@ -821,23 +829,34 @@ describe("akedly transport", () => {
       return { status: 200, json: async () => ({ status: "success", data: { verified: true } }) };
     });
     const phone = "+201000000013";
-    assert.equal((await api("/api/consumer/auth/otp/request", { method: "POST", body: { phone } })).status, 200);
-    assert.equal(sendBody.powSolution.challengeToken, "ct-1");
-    assert.equal(typeof sendBody.powSolution.nonce, "number");
-    // The solver's contract: SHA256("deadbeef:<nonce>") starts with "0".
-    const crypto = await import("crypto");
-    const digest = crypto.createHash("sha256").update(`deadbeef:${sendBody.powSolution.nonce}`).digest("hex");
-    assert.ok(digest.startsWith("0"));
+    const r = await api("/api/consumer/auth/otp/request", {
+      method: "POST",
+      body: { phone, powSolution: { challengeToken: "ct-1", nonce: 42 }, turnstileToken: "tok-1" },
+    });
+    assert.equal(r.status, 200);
+    // Forwarded exactly as the client computed them — no server-side solve.
+    assert.deepEqual(sendBody.powSolution, { challengeToken: "ct-1", nonce: 42 });
+    assert.equal(sendBody.turnstileToken, "tok-1");
+    assert.equal(sendBody.verificationAddress.phoneNumber, phone);
   });
 
-  it("T5: Turnstile-required pipeline fails closed with 503, never silently bypassed", async () => {
+  it("T5: challenge passthrough exposes a Turnstile-required pipeline to the client", async () => {
     enableAkedly();
-    _setAkedlyFetch(async (url) => {
-      if (url.includes("/challenge"))
-        return { status: 200, json: async () => ({ status: "success", data: { challengeRequired: false, turnstile: { required: true, siteKey: "0x4AAA" } } }) };
-      return { status: 200, json: async () => ({}) };
+    _setAkedlyFetch(async () => {
+      return { status: 200, json: async () => ({ status: "success", data: { challengeRequired: false, turnstile: { required: true, siteKey: "0x4AAA" } } }) };
     });
-    const r = await api("/api/consumer/auth/otp/request", { method: "POST", body: { phone: "+201000000014" } });
-    assert.equal(r.status, 503);
+    const r = await api("/api/consumer/auth/otp/challenge");
+    assert.equal(r.status, 200);
+    assert.equal(r.body.data.turnstile.required, true);
+    assert.equal(r.body.data.turnstile.siteKey, "0x4AAA");
+  });
+
+  it("T6: challenge endpoint is uniform when no provider is configured", async () => {
+    delete process.env.AKEDLY_API_KEY;
+    delete process.env.AKEDLY_PIPELINE_ID;
+    const r = await api("/api/consumer/auth/otp/challenge");
+    assert.equal(r.status, 200);
+    assert.equal(r.body.data.challengeRequired, false);
+    assert.equal(r.body.data.turnstile.required, false);
   });
 });

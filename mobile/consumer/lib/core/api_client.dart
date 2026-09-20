@@ -53,8 +53,27 @@ class ApiClient {
 
   // ── Phone + OTP (the only Consumer auth mechanism in the current product) ──
 
-  Future<Map<String, dynamic>> requestOtp({required String phone}) async {
-    final res = await _dio.post('/consumer/auth/otp/request', data: {'phone': phone});
+  // Akedly V1.2 Step 1 — pipeline challenge via the backend proxy (no
+  // credentials on the client). Returns the `data` payload:
+  // { challengeRequired, challenge?, difficulty?, challengeToken?,
+  //   expiresAt?, turnstile: { required, siteKey } }
+  Future<Map<String, dynamic>> getOtpChallenge() async {
+    final res = await _dio.get('/consumer/auth/otp/challenge');
+    return (res.data['data'] ?? <String, dynamic>{}) as Map<String, dynamic>;
+  }
+
+  // powSolution/turnstileToken are the client-solved Shield proofs,
+  // forwarded by the backend to Akedly unchanged.
+  Future<Map<String, dynamic>> requestOtp({
+    required String phone,
+    Map<String, dynamic>? powSolution,
+    String? turnstileToken,
+  }) async {
+    final res = await _dio.post('/consumer/auth/otp/request', data: {
+      'phone': phone,
+      if (powSolution != null) 'powSolution': powSolution,
+      if (turnstileToken != null) 'turnstileToken': turnstileToken,
+    });
     return res.data as Map<String, dynamic>;
   }
 

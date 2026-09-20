@@ -59,10 +59,10 @@
       <button class="tab-btn" data-tab="companies">Companies</button>
       <button class="tab-btn" data-tab="studytype-requests">Study-Type Requests</button>
       <!-- FOUNDER INNOVATION: OFD-19 question change requests, OFD-14
-           activation notification requests, OFD-15C panel. -->
+           activation notification requests. (OFD-15C shared panel was
+           REJECTED — no panel tab exists.) -->
       <button class="tab-btn" data-tab="question-requests">Question Requests</button>
       <button class="tab-btn" data-tab="notifications">Notifications</button>
-      <button class="tab-btn" data-tab="panel">Panel</button>
     </div>
 
     <div class="card tab-panel" id="tab-pipeline">
@@ -140,11 +140,6 @@
       <div id="notification-requests-list"></div>
     </div>
 
-    <!-- FOUNDER INNOVATION (OFD-15C): shared panel — opt-in aggregates only. -->
-    <div class="card tab-panel hidden" id="tab-panel">
-      <h2>Consumer panel (opted-in)</h2>
-      <div id="panel-content"></div>
-    </div>
   </div>
 
   <div id="view-campaign" class="hidden">
@@ -272,7 +267,6 @@ document.querySelectorAll('#view-home .tab-btn').forEach(btn => {
     if (btn.dataset.tab === 'studytype-requests') loadStudyTypeRequests();
     if (btn.dataset.tab === 'question-requests') loadQuestionRequests();
     if (btn.dataset.tab === 'notifications') loadNotificationRequests();
-    if (btn.dataset.tab === 'panel') loadPanel();
   };
 });
 
@@ -508,17 +502,9 @@ async function loadNotificationRequests() {
   });
 }
 
-// FOUNDER INNOVATION (OFD-15C): shared panel — opt-in aggregate counts only.
-async function loadPanel() {
-  const d = await api('/ops/panel');
-  document.getElementById('panel-content').innerHTML =
-    '<p style="color:var(--muted);font-size:0.82rem;">' + esc(d.methodology) + '</p>' +
-    '<div class="metrics-row">' +
-    metric(d.optedInPanelSize, 'Panel size (opted in)') +
-    metric(d.optedInWithPushOptIn, 'Also opted in to push') +
-    metric(d.consumersWithParticipation, 'With ≥1 participation') +
-    '</div>';
-}
+// NOTE (forensic audit 2026-09-20): the OFD-15C shared-panel surface was
+// removed — the shared TAJRIBTI-managed panel is a REJECTED direction.
+// Opted-in aggregates exist only at same-company scope (/company/panel-insights).
 
 document.getElementById('btn-back').onclick = (e) => { e.preventDefault(); loadHome(); };
 

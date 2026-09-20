@@ -368,11 +368,11 @@ describe("consumer consent + panel (OFD-15)", () => {
     assert.equal(b.body.optedInPanelConsumers, 0);
   });
 
-  it("ops panel reports opt-in aggregates only", async () => {
-    const panel = await api("/api/ops/panel", { token: opsWorkerToken });
-    assert.equal(panel.status, 200);
-    assert.equal(panel.body.derived, true);
-    assert.ok(panel.body.optedInPanelSize >= 1);
+  it("no shared ops panel exists (OFD-15C rejected)", async () => {
+    // OFD-15C is REJECTED: TAJRIBTI must not expose a shared opt-in panel.
+    // The endpoint was removed in the post-innovation forensic audit.
+    const res = await api("/api/ops/panel", { token: opsWorkerToken });
+    assert.equal(res.status, 404);
   });
 });
 

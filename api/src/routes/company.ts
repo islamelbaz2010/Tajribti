@@ -842,8 +842,9 @@ router.get("/campaigns/:id/notification-requests", async (req, res) => {
 const MIN_PANEL_CELL = 5;
 
 router.get("/panel-insights", async (req, res) => {
-  const { companyId } = asEmployee(req);
-  await writeAccessAudit({ actorKind: "employee", actorId: asEmployee(req).employeeId, actorName: "employee", action: "PANEL_INSIGHTS_VIEW", targetType: "company", targetId: companyId });
+  const { companyId, employeeId } = asEmployee(req);
+  const actor = await prisma.employee.findUnique({ where: { id: employeeId }, select: { name: true } });
+  await writeAccessAudit({ actorKind: "employee", actorId: employeeId, actorName: actor?.name ?? "unknown", action: "PANEL_INSIGHTS_VIEW", targetType: "company", targetId: companyId });
 
   const campaigns = await prisma.campaign.findMany({ where: { companyId }, select: { id: true, name: true, status: true } });
   const campaignIds = campaigns.map((c) => c.id);

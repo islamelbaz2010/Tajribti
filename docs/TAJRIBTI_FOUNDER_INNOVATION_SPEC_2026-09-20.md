@@ -82,8 +82,10 @@ only. Small-cell suppression: any segment cell with n<5 is reported as `suppress
 (minimum defined by OFD-15's "small-cell / privacy protection" requirement — this threshold is
 a Founder-mandated privacy control, not an invented statistic).
 
-**Shared panel (15C):** `GET /ops/panel` returns platform-wide opted-in counts and per-company
-aggregate counts only — no consumer-level rows, no cross-company attributes.
+**Shared panel (15C) — SUPERSEDED:** the post-innovation forensic audit (2026-09-20) confirmed
+OFD-15C is a REJECTED direction under the authoritative Founder decision set. `GET /ops/panel`
+and its Operations UI tab were removed; no shared TAJRIBTI-managed panel surface exists.
+See `reports/TAJRIBTI_CORRECTIVE_IMPLEMENTATION_2026-09-20.md`.
 
 **15D marketplace:** NOT implemented (future only). **Cross-company intelligence: never.**
 

@@ -348,8 +348,6 @@ router.get("/campaigns/:id/report", async (req, res) => {
 // ===========================================================================
 
 // --- OFD-08: Operations user + role management (PLATFORM_ADMIN only) ---------
-const MIN_PANEL_CELL = 5;
-
 router.get("/ops-users", requirePlatformAdmin, async (_req, res) => {
   res.json(await prisma.opsUser.findMany({ select: { id: true, name: true, email: true, role: true, createdAt: true } }));
 });
@@ -431,9 +429,20 @@ async function writeQuestionAudit(
 // immutable to preserve the Benchmark's answer-history contract.
 router.post("/question-change-requests/:id/apply", async (req, res) => {
   const { opsUserId } = asOps(req);
+  // Concurrency guard (same conditional-updateMany pattern as the
+  // study-type flow): atomically claim the request PENDING -> APPLYING so
+  // two reviewers/double-clicks can never apply the same change twice.
+  const claimed = await prisma.questionChangeRequest.updateMany({
+    where: { id: req.params.id, status: "PENDING" },
+    data: { status: "APPLYING" },
+  });
+  if (claimed.count === 0) {
+    const existing = await prisma.questionChangeRequest.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: "Request not found" });
+    return res.status(409).json({ error: `Request already ${existing.status}` });
+  }
   const request = await prisma.questionChangeRequest.findUnique({ where: { id: req.params.id }, include: { campaign: true } });
   if (!request) return res.status(404).json({ error: "Request not found" });
-  if (request.status !== "PENDING") return res.status(409).json({ error: `Request already ${request.status}` });
   const question = request.questionId ? await prisma.question.findUnique({ where: { id: request.questionId } }) : null;
   if (!question || question.campaignId !== request.campaignId) {
     await prisma.questionChangeRequest.update({ where: { id: request.id }, data: { status: "REJECTED", reviewNote: "Question no longer exists" } });
@@ -459,6 +468,8 @@ router.post("/question-change-requests/:id/apply", async (req, res) => {
     if (typeof payload.order === "number") data.order = payload.order;
     if (typeof payload.required === "boolean") data.required = payload.required;
     if (Object.keys(data).length === 0) {
+      // Release the claim so the request can be corrected and re-applied.
+      await prisma.questionChangeRequest.update({ where: { id: request.id }, data: { status: "PENDING" } });
       return res.status(400).json({ error: "Request payload has no applicable fields" });
     }
     const updated = await prisma.question.update({ where: { id: question.id }, data });
@@ -474,15 +485,18 @@ router.post("/question-change-requests/:id/apply", async (req, res) => {
 
 router.post("/question-change-requests/:id/reject", async (req, res) => {
   const { opsUserId } = asOps(req);
-  const request = await prisma.questionChangeRequest.findUnique({ where: { id: req.params.id } });
-  if (!request) return res.status(404).json({ error: "Request not found" });
-  if (request.status !== "PENDING") return res.status(409).json({ error: `Request already ${request.status}` });
   const note = typeof req.body?.note === "string" ? req.body.note : null;
-  const updated = await prisma.questionChangeRequest.update({
-    where: { id: request.id },
+  // Conditional flip — same PENDING-guard pattern as apply above.
+  const flipped = await prisma.questionChangeRequest.updateMany({
+    where: { id: req.params.id, status: "PENDING" },
     data: { status: "REJECTED", performedById: opsUserId, performedAt: new Date(), reviewNote: note },
   });
-  res.json(updated);
+  if (flipped.count === 0) {
+    const existing = await prisma.questionChangeRequest.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: "Request not found" });
+    return res.status(409).json({ error: `Request already ${existing.status}` });
+  }
+  res.json(await prisma.questionChangeRequest.findUnique({ where: { id: req.params.id } }));
 });
 
 router.get("/campaigns/:id/question-audit", async (req, res) => {
@@ -510,7 +524,6 @@ router.post("/notification-requests/:id/launch", async (req, res) => {
   const { opsUserId } = asOps(req);
   const request = await prisma.campaignNotificationRequest.findUnique({ where: { id: req.params.id }, include: { campaign: true } });
   if (!request) return res.status(404).json({ error: "Request not found" });
-  if (request.status !== "PENDING") return res.status(409).json({ error: `Request already ${request.status}` });
   if (request.campaign.status !== "ACTIVE") {
     return res.status(409).json({ error: "Campaign is not ACTIVE — launch only once the campaign is live" });
   }
@@ -522,8 +535,10 @@ router.post("/notification-requests/:id/launch", async (req, res) => {
       participations: { some: { campaign: { companyId: request.campaign.companyId } } },
     },
   });
-  const updated = await prisma.campaignNotificationRequest.update({
-    where: { id: request.id },
+  // Conditional flip guards a double-launch race (same pattern as the
+  // question-change and study-type flows).
+  const flipped = await prisma.campaignNotificationRequest.updateMany({
+    where: { id: request.id, status: "PENDING" },
     data: {
       status: "LAUNCHED",
       deliveryStatus: "PENDING_DELIVERY",
@@ -532,40 +547,32 @@ router.post("/notification-requests/:id/launch", async (req, res) => {
       launchedAt: new Date(),
     },
   });
-  await writeAccessAudit({ actorKind: "ops", actorId: opsUserId, actorName: "ops", action: "NOTIFICATION_LAUNCH", targetType: "campaign", targetId: request.campaignId });
-  res.json(updated);
+  if (flipped.count === 0) return res.status(409).json({ error: "Request is not pending" });
+  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+  await writeAccessAudit({ actorKind: "ops", actorId: opsUserId, actorName: actor?.name ?? "unknown", action: "NOTIFICATION_LAUNCH", targetType: "campaign", targetId: request.campaignId });
+  res.json(await prisma.campaignNotificationRequest.findUnique({ where: { id: request.id } }));
 });
 
 router.post("/notification-requests/:id/reject", async (req, res) => {
   const { opsUserId } = asOps(req);
-  const request = await prisma.campaignNotificationRequest.findUnique({ where: { id: req.params.id } });
-  if (!request) return res.status(404).json({ error: "Request not found" });
-  if (request.status !== "PENDING") return res.status(409).json({ error: `Request already ${request.status}` });
   const note = typeof req.body?.note === "string" ? req.body.note : null;
-  res.json(await prisma.campaignNotificationRequest.update({
-    where: { id: request.id },
+  const flipped = await prisma.campaignNotificationRequest.updateMany({
+    where: { id: req.params.id, status: "PENDING" },
     data: { status: "REJECTED", reviewNote: note, launchedById: opsUserId },
-  }));
+  });
+  if (flipped.count === 0) {
+    const existing = await prisma.campaignNotificationRequest.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: "Request not found" });
+    return res.status(409).json({ error: `Request already ${existing.status}` });
+  }
+  res.json(await prisma.campaignNotificationRequest.findUnique({ where: { id: req.params.id } }));
 });
 
-// --- OFD-15C: TAJRIBTI-managed shared panel (opt-in aggregates only) ----------
-router.get("/panel", async (_req, res) => {
-  const optedIn = await prisma.consumer.count({ where: { panelOptIn: true } });
-  const optedInWithPush = await prisma.consumer.count({ where: { panelOptIn: true, pushOptIn: true } });
-  const optInsWithParticipation = await prisma.participation.groupBy({
-    by: ["consumerId"],
-    where: { consumer: { panelOptIn: true } },
-    _count: { _all: true },
-  });
-  res.json({
-    derived: true,
-    methodology: "Opted-in panel consumers only (OFD-15C). Aggregate counts — no PII surfaced through this endpoint.",
-    optedInPanelSize: optedIn,
-    optedInWithPushOptIn: optedInWithPush,
-    consumersWithParticipation: optInsWithParticipation.length,
-    minCellSuppression: MIN_PANEL_CELL,
-  });
-});
+// NOTE (post-innovation forensic audit, 2026-09-20): no /ops/panel endpoint
+// exists. OFD-15C (shared TAJRIBTI-managed opt-in panel) is REJECTED under the
+// authoritative Founder decisions — the earlier aggregate endpoint and its ops
+// UI tab were removed. Opted-in panel data is exposed only as same-company
+// aggregates via /company/panel-insights (OFD-15B).
 
 // --- OFD-06: derived advanced intelligence ------------------------------------
 router.get("/campaigns/:id/intelligence", async (req, res) => {

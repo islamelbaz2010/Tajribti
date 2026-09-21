@@ -142,6 +142,7 @@ model Consumer {
 
   otpCodes       OtpCode[]
   participations Participation[]
+  campaignVerifications CampaignOtpVerification[]
 }
 
 model OtpCode {
@@ -150,11 +151,37 @@ model OtpCode {
   consumerId String?
   consumer   Consumer? @relation(fields: [consumerId], references: [id])
   code       String
+  // FOUNDER DECISION FD-07a (2026-09-21): OTP is required fresh for every
+  // campaign participation. When set, this code is bound to one campaign —
+  // verifying it produces a CampaignOtpVerification for that campaign only.
+  campaignId String?
   expiresAt  DateTime
   consumedAt DateTime?
   createdAt  DateTime  @default(now())
 
   @@index([phone])
+  @@index([phone, campaignId])
+}
+
+// FOUNDER DECISION FD-07a (2026-09-21): proof that a consumer completed a
+// fresh OTP verification bound to a specific campaign. Created by
+// /consumer/auth/otp/verify when the code was requested with a campaignId;
+// consumed atomically by POST /consumer/campaigns/:id/eligibility, which
+// requires a live, unconsumed verification for (consumer, campaign). A
+// verification for Campaign A can never authorize Campaign B — the pair is
+// checked, never a flag on the session.
+model CampaignOtpVerification {
+  id         String   @id @default(cuid())
+  consumerId String
+  consumer   Consumer @relation(fields: [consumerId], references: [id])
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  otpCodeId  String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([consumerId, campaignId])
 }
 
 // ---------------------------------------------------------------------------
@@ -235,6 +262,7 @@ model Campaign {
   media                   CampaignMedia[]
   questionChangeRequests  QuestionChangeRequest[]
   notificationRequests    CampaignNotificationRequest[]
+  otpVerifications        CampaignOtpVerification[]
 
   @@index([companyId])
 }

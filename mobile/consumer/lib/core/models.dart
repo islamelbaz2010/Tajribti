@@ -6,14 +6,14 @@ import 'dart:convert';
 // return — not the retired backend's shape. Two deliberate choices to
 // minimize churn across ~10 screen files while staying honest to current
 // data:
-//   - Field NAMES (productName, brandName, rewardPoints, textAr, ...) are
-//     kept where practical so existing screen widgets keep compiling
-//     unchanged; only fromJson() changes what they are populated from.
-//   - rewardPoints / totalPoints are always 0: the current product has no
-//     points/rewards system (Benchmark defines none; a historical Rewards
-//     Pilot was not carried into this rebuild). Every "if (x.rewardPoints
-//     > 0)" guard already in the UI therefore hides itself automatically
-//     — no reward UI is shown, without editing each of those call sites.
+//   - Field NAMES (productName, brandName, textAr, ...) are kept where
+//     practical so existing screen widgets keep compiling unchanged; only
+//     fromJson() changes what they are populated from.
+//   - rewardPoints / totalPoints are gone entirely (G-M2, 2026-09-21):
+//     the current product has no points/rewards system (Benchmark defines
+//     none; a historical Rewards Pilot was not carried into this rebuild)
+//     and no consumer-visible reward language may remain — the fields and
+//     every render site were removed rather than hidden behind a 0.
 //   - textAr / optionsAr are populated from the same text/options the
 //     current Question model actually stores (single-language — the
 //     current schema has no Arabic-translation column for
@@ -28,7 +28,10 @@ class Campaign {
   final String description; // Campaign.objective (or product.description if present)
   final String locationName; // no current equivalent — always ''
   final String productImage; // Campaign.product?.imageUrl ?? ''
-  final int rewardPoints; // no current equivalent — always 0
+  // OFD-12 / G-M6 (2026-09-21): campaign media as returned by
+  // GET /consumer/campaigns/:id — url already resolved server-side
+  // (resolveMediaUrls), order preserved as returned.
+  final List<CampaignMedia> media;
   final List<SurveyQuestion> eligibilityQuestions;
   final String status;
   final String? startDate;
@@ -41,7 +44,7 @@ class Campaign {
     required this.description,
     required this.locationName,
     required this.productImage,
-    required this.rewardPoints,
+    this.media = const [],
     required this.eligibilityQuestions,
     this.status = 'ACTIVE',
     this.startDate,
@@ -54,6 +57,12 @@ class Campaign {
     final questions = (json['questions'] as List<dynamic>? ?? [])
         .map((q) => SurveyQuestion.fromJson(q as Map<String, dynamic>))
         .toList();
+    // G-M6: tolerate malformed media — a non-map item is dropped rather
+    // than crashing the whole campaign view.
+    final media = (json['media'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(CampaignMedia.fromJson)
+        .toList();
     return Campaign(
       id: json['id'] as String,
       productName: json['name'] as String? ?? '',
@@ -61,7 +70,7 @@ class Campaign {
       description: (product?['description'] as String?) ?? (json['objective'] as String? ?? ''),
       locationName: '',
       productImage: (product?['imageUrl'] as String?) ?? '',
-      rewardPoints: 0,
+      media: media,
       eligibilityQuestions: questions,
       status: json['status'] as String? ?? 'ACTIVE',
       startDate: json['startDate'] as String?,
@@ -155,6 +164,25 @@ class SurveyQuestion {
   }
 }
 
+// CampaignMedia row (OFD-12 / D-5): kind is one of PRODUCT_IMAGE /
+// PACKAGING_IMAGE / CAMPAIGN_MEDIA / CREATIVE; url is already resolved
+// server-side (signed GET for hosted rows, plain value for URL rows).
+// Rendering must still restrict to http(s) — same rule as the web
+// consumer — and fail per-item rather than breaking the page.
+class CampaignMedia {
+  final String url;
+  final String? caption;
+  final String kind;
+
+  const CampaignMedia({required this.url, this.caption, this.kind = 'CAMPAIGN_MEDIA'});
+
+  factory CampaignMedia.fromJson(Map<String, dynamic> json) => CampaignMedia(
+        url: json['url'] as String? ?? '',
+        caption: json['caption'] as String?,
+        kind: json['kind'] as String? ?? 'CAMPAIGN_MEDIA',
+      );
+}
+
 class QrResolution {
   final String campaignId;
   final String sourceId;
@@ -174,7 +202,6 @@ class ParticipationRecord {
   final String campaignId;
   final String? productName; // Participation.campaign.name
   final String? brandName; // no current nested company name on this endpoint — null
-  final int rewardPoints; // always 0 — no current equivalent
   final String? productImage; // always null — no current equivalent
   final DateTime redeemedAt;
   final String status;
@@ -184,7 +211,6 @@ class ParticipationRecord {
     required this.campaignId,
     this.productName,
     this.brandName,
-    required this.rewardPoints,
     this.productImage,
     required this.redeemedAt,
     required this.status,
@@ -197,7 +223,6 @@ class ParticipationRecord {
       campaignId: json['campaignId'] as String,
       productName: campaign?['name'] as String?,
       brandName: null,
-      rewardPoints: 0,
       productImage: null,
       redeemedAt: DateTime.parse(json['enteredAt'] as String),
       status: json['status'] as String? ?? campaign?['status'] as String? ?? 'ENTERED',

@@ -380,6 +380,7 @@ router.delete("/campaigns/:id", requireCompanyAdmin, async (req, res) => {
     prisma.campaignNotificationRequest.deleteMany({ where: { campaignId: campaign.id } }),
     prisma.operationalIssue.deleteMany({ where: { campaignId: campaign.id } }),
     prisma.campaignMedia.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.campaignOtpVerification.deleteMany({ where: { campaignId: campaign.id } }),
     prisma.question.deleteMany({ where: { campaignId: campaign.id } }),
     prisma.qrSource.deleteMany({ where: { campaignId: campaign.id } }),
     prisma.campaign.delete({ where: { id: campaign.id } }),

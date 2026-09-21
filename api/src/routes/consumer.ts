@@ -104,6 +104,21 @@ router.post("/campaigns/:id/eligibility", requireConsumer, async (req, res) => {
     return res.status(409).json({ error: "Already participated in this campaign", participation: existing });
   }
 
+  // FOUNDER DECISION FD-07a (2026-09-21): a fresh OTP verification bound to
+  // THIS campaign is required before a participation can be created. The
+  // check runs after the duplicate-participation check so an existing
+  // participation still reports its real state (409) instead of re-asking
+  // for OTP. The verification is consumed inside the participation
+  // transaction below — it authorizes exactly one eligibility submission,
+  // for this consumer, for this campaign only.
+  const verification = await prisma.campaignOtpVerification.findFirst({
+    where: { consumerId, campaignId: campaign.id, consumedAt: null, expiresAt: { gt: new Date() } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!verification) {
+    return res.status(403).json({ error: "Campaign verification required", code: "CAMPAIGN_OTP_REQUIRED" });
+  }
+
   // QR/source → campaign binding (Benchmark §10 campaign ownership
   // isolation): a source identifier is only valid for the campaign it was
   // created on. Unknown ids and sources belonging to another campaign get
@@ -161,6 +176,13 @@ router.post("/campaigns/:id/eligibility", requireConsumer, async (req, res) => {
   // answers on a participation that failed to be created) would be
   // corrupt evidence.
   const participation = await prisma.$transaction(async (tx) => {
+    // Consume the campaign-bound verification atomically with the
+    // participation it authorizes — a spent verification can never be
+    // replayed, and a failed transaction never consumes one.
+    await tx.campaignOtpVerification.update({
+      where: { id: verification.id },
+      data: { consumedAt: new Date() },
+    });
     const created = await tx.participation.create({
       data: {
         campaignId: campaign.id,

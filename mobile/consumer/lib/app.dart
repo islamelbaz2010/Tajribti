@@ -14,6 +14,7 @@ import 'screens/thank_you_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/activity_screen.dart';
+import 'screens/qr_entry_screen.dart';
 import 'screens/services_screen.dart';
 import 'screens/employee/employee_login_screen.dart';
 import 'screens/employee/employee_home_screen.dart';
@@ -34,6 +35,16 @@ final _router = GoRouter(
   initialLocation: '/',
   routes: [
     GoRoute(path: '/', builder: (_, __) => const SplashScreen()),
+    // FD-M7 (2026-09-21): Android App Link target. The campaign QR encodes
+    // https://<api-host>/app/consumer/?qr=<code>; when the verified app is
+    // installed, that URL arrives here with the code in the query string.
+    // QrEntryScreen resolves it to a campaign (same endpoint the scanner
+    // uses) and continues the normal journey; when the app is absent the
+    // web Consumer at the same URL remains the fallback.
+    GoRoute(
+      path: '/app/consumer',
+      builder: (_, state) => QrEntryScreen(code: state.uri.queryParameters['qr']),
+    ),
     GoRoute(
       path: '/scanner',
       builder: (_, state) => ScannerScreen(verifyCampaignId: state.extra as String?),

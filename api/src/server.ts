@@ -8,6 +8,7 @@ import companyAuthRoutes from "./routes/companyAuth";
 import companyRoutes from "./routes/company";
 import opsAuthRoutes from "./routes/opsAuth";
 import opsRoutes from "./routes/ops";
+import { assetLinksHandler } from "./lib/appLinks";
 
 const app = express();
 app.disable("x-powered-by");
@@ -54,6 +55,10 @@ app.use("/api/company/auth", companyAuthRoutes);
 app.use("/api/company", companyRoutes);
 app.use("/api/ops/auth", opsAuthRoutes);
 app.use("/api/ops", opsRoutes);
+
+// FD-M7 (2026-09-21): Digital Asset Links for Android App Links —
+// /.well-known/assetlinks.json (see src/lib/appLinks.ts).
+app.get("/.well-known/assetlinks.json", assetLinksHandler);
 
 // Thin static web clients (Public / Consumer / Company / Operations),
 // served from the same process for simplicity (no product decision).

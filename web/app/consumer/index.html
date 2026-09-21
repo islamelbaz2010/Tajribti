@@ -119,7 +119,24 @@
       <div id="c-media" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;"></div>
     </div>
 
-    <div class="card" id="eligibility-card">
+    <!-- FD-07a (2026-09-21): a fresh OTP bound to THIS campaign is required
+         before participation. The consumer's account session is not
+         sufficient — the code is requested with campaignId and verified
+         against it, minting a campaign-bound verification the eligibility
+         call consumes. -->
+    <div class="card hidden" id="verify-card">
+      <h2>Campaign verification</h2>
+      <p class="muted">Entering this campaign requires a fresh verification code, sent to your phone (<b id="v-phone"></b>).</p>
+      <button id="btn-campaign-otp">Send code</button>
+      <div id="v-otp-step" class="hidden">
+        <label>Verification code</label>
+        <input id="v-otp" maxlength="6" />
+        <button id="btn-campaign-verify" class="secondary">Verify for this campaign</button>
+      </div>
+      <div class="msg" id="verify-msg"></div>
+    </div>
+
+    <div class="card hidden" id="eligibility-card">
       <h2>Eligibility</h2>
       <label>Your age</label>
       <input id="e-age" type="number" />
@@ -150,6 +167,11 @@
       <h2>Thank you 🎉</h2>
       <p class="muted">Your feedback has been recorded for this campaign.</p>
     </div>
+
+    <div class="card hidden" id="ineligible-card">
+      <h2>Not eligible</h2>
+      <p class="muted">Sorry, you are not eligible for this campaign.</p>
+    </div>
   </div>
 
 </main>
@@ -161,7 +183,7 @@ const API = '/api';
 // GET /consumer/qr/:code with date-gating — this just wires an existing,
 // already-scoped endpoint into the consumer entry point via ?qr=CODE.
 const qrCodeParam = new URLSearchParams(window.location.search).get('qr');
-let state = { token: localStorage.getItem('tj_consumer_token') || null, campaign: null, participation: null, eligibilityQuestions: [], qrSourceId: null };
+let state = { token: localStorage.getItem('tj_consumer_token') || null, campaign: null, participation: null, eligibilityQuestions: [], qrSourceId: null, phone: null, campaignVerified: false };
 
 // Security hardening: campaign/product/company names and question/option
 // text originate from Company input and are persisted, unsanitized, at
@@ -186,7 +208,12 @@ async function api(path, opts = {}) {
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+  if (!res.ok) {
+    const err = new Error(data.error || ('Request failed (' + res.status + ')'));
+    err.status = res.status;
+    err.code = data.code;
+    throw err;
+  }
   return data;
 }
 
@@ -232,6 +259,7 @@ document.getElementById('btn-verify-otp').onclick = async () => {
   try {
     const r = await api('/consumer/auth/otp/verify', { method: 'POST', body: { phone, code, name: name || undefined } });
     state.token = r.token;
+    state.phone = r.consumer?.phone || phone;
     localStorage.setItem('tj_consumer_token', r.token);
     if (qrCodeParam) { await enterViaQr(qrCodeParam); } else { await loadDiscover(); }
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
@@ -241,6 +269,7 @@ async function loadDiscover() {
   // FOUNDER INNOVATION (OFD-15A): reflect persisted panel consent.
   try {
     const p = await api('/consumer/profile');
+    state.phone = p.phone || state.phone;
     document.getElementById('opt-panel').checked = p.panelOptIn === true;
   } catch (_) { /* consent card stays unchecked; endpoint failure is non-fatal */ }
   const campaigns = await api('/consumer/campaigns');
@@ -373,12 +402,93 @@ async function openCampaign(id) {
     qDiv.appendChild(block);
   });
 
-  document.getElementById('eligibility-card').classList.remove('hidden');
+  document.getElementById('verify-card').classList.add('hidden');
+  document.getElementById('eligibility-card').classList.add('hidden');
   document.getElementById('redeem-card').classList.add('hidden');
   document.getElementById('survey-card').classList.add('hidden');
   document.getElementById('done-card').classList.add('hidden');
+  document.getElementById('ineligible-card').classList.add('hidden');
+  state.campaignVerified = false;
+
+  // FD-M3 (2026-09-21): resume, never dead-end. The backend is the source
+  // of truth — an existing participation routes to its real state instead
+  // of re-running eligibility (which would 409). A second participation is
+  // never created.
+  const existing = (state.token
+    ? await api('/consumer/participations').catch(() => [])
+    : []
+  ).find(p => p.campaignId === c.id);
+  if (existing) {
+    state.participation = existing;
+    if (existing.status === 'TRIAL_REDEEMED') {
+      document.getElementById('survey-card').classList.remove('hidden');
+      show('view-campaign');
+      await loadSurvey();
+      return;
+    }
+    if (existing.status === 'SURVEY_COMPLETE') {
+      document.getElementById('done-card').classList.remove('hidden');
+    } else if (existing.status === 'INELIGIBLE') {
+      document.getElementById('ineligible-card').classList.remove('hidden');
+    } else {
+      // ENTERED — eligible, not yet redeemed.
+      document.getElementById('redeem-card').classList.remove('hidden');
+    }
+    show('view-campaign');
+    return;
+  }
+
+  // No participation yet — FD-07a requires a campaign-bound OTP before the
+  // eligibility form is usable. The account phone may be unknown on direct
+  // QR entry (profile is otherwise loaded by loadDiscover).
+  if (!state.phone) {
+    try { state.phone = (await api('/consumer/profile')).phone || null; } catch (_) { /* surfaced on send */ }
+  }
+  document.getElementById('v-phone').textContent = state.phone || '';
+  document.getElementById('v-otp').value = '';
+  document.getElementById('v-otp-step').classList.add('hidden');
+  const vMsg = document.getElementById('verify-msg');
+  vMsg.textContent = ''; vMsg.className = 'msg';
+  document.getElementById('verify-card').classList.remove('hidden');
   show('view-campaign');
 }
+
+// FD-07a: request/verify a code bound to state.campaign.id. The request is
+// rejected server-side for non-ACTIVE campaigns, and the minted
+// verification authorizes exactly one eligibility submission on exactly
+// this campaign.
+document.getElementById('btn-campaign-otp').onclick = async () => {
+  const msg = document.getElementById('verify-msg');
+  msg.textContent = ''; msg.className = 'msg';
+  try {
+    const proofs = await collectOtpProofs();
+    const r = await api('/consumer/auth/otp/request', {
+      method: 'POST',
+      body: { phone: state.phone, campaignId: state.campaign.id, ...proofs },
+    });
+    document.getElementById('v-otp-step').classList.remove('hidden');
+    document.getElementById('v-otp').value = r.devOnlyCode || '';
+    msg.textContent = r.devOnlyCode ? 'Code sent (dev mode: pre-filled below).' : 'Code sent.';
+    msg.className = 'msg ok';
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+};
+
+document.getElementById('btn-campaign-verify').onclick = async () => {
+  const msg = document.getElementById('verify-msg');
+  const code = document.getElementById('v-otp').value.trim();
+  try {
+    const r = await api('/consumer/auth/otp/verify', {
+      method: 'POST',
+      body: { phone: state.phone, code, campaignId: state.campaign.id },
+    });
+    // Same identity, fresh session — keep the newest token.
+    if (r.token) { state.token = r.token; localStorage.setItem('tj_consumer_token', r.token); }
+    state.campaignVerified = true;
+    msg.textContent = '';
+    document.getElementById('verify-card').classList.add('hidden');
+    document.getElementById('eligibility-card').classList.remove('hidden');
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+};
 
 document.getElementById('btn-back-discover').onclick = (e) => { e.preventDefault(); state.qrSourceId = null; loadDiscover(); };
 
@@ -410,7 +520,17 @@ document.getElementById('btn-submit-eligibility').onclick = async () => {
     } else {
       msg.textContent = 'Sorry, you are not eligible for this campaign.'; msg.className = 'msg error';
     }
-  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+  } catch (e) {
+    if (e.code === 'CAMPAIGN_OTP_REQUIRED') {
+      // Campaign-bound verification expired or was never completed —
+      // resurface the verification step instead of a dead-end error.
+      state.campaignVerified = false;
+      document.getElementById('eligibility-card').classList.add('hidden');
+      document.getElementById('verify-card').classList.remove('hidden');
+      return;
+    }
+    msg.textContent = e.message; msg.className = 'msg error';
+  }
 };
 
 document.getElementById('btn-redeem').onclick = async () => {
@@ -496,6 +616,8 @@ function resetConsumerSession() {
   state.participation = null;
   state.eligibilityQuestions = [];
   state.qrSourceId = null;
+  state.phone = null;
+  state.campaignVerified = false;
   document.getElementById('phone').value = '';
   document.getElementById('otp').value = '';
   document.getElementById('name').value = '';

@@ -12,14 +12,17 @@ import '../widgets/lang_toggle.dart';
 
 // Mobile Recovery + Current-Backend Alignment (2026-09-15): rewritten
 // against the current phone+OTP contract (api/src/routes/consumerAuth.ts).
-// Removed entirely, with no current-backend equivalent:
-//   - campaign-scoped OTP (old: campaignId+phone -> transactionReqID) —
-//     the current backend's OTP is a plain phone-only account mechanism,
-//     not bound to one campaign.
+// FD-07a (2026-09-21): when reached mid-campaign-entry (JourneySession
+// carries a campaignId) the OTP request AND verify are bound to that
+// campaign — a fresh code is required for every campaign participation,
+// and a code issued for one campaign cannot verify for another. An
+// account-level (unscoped) OTP remains for plain sign-in.
 // Akedly V1.2 Shield: the client-side PoW contract is now live — this
 // screen fetches the challenge via the backend proxy (GET
 // /consumer/auth/otp/challenge) and solves it locally (akedly_pow.dart)
-// before requesting the OTP.
+// before requesting the OTP. FD-M5: mobile is PoW-only — a
+// Turnstile-required pipeline fails into the retryable error path; no
+// Turnstile token or WebView is ever used on mobile.
 // After verify, this screen hands the journey to /eligibility — the real
 // eligibility collection step (screener answers + audience demographics).
 // The eligibility -> redeem -> survey sequence itself now lives in
@@ -67,7 +70,11 @@ class _OtpScreenState extends State<OtpScreen> {
         );
         powSolution = {'challengeToken': challenge['challengeToken'], 'nonce': nonce};
       }
-      await apiClient.requestOtp(phone: widget.phone, powSolution: powSolution);
+      await apiClient.requestOtp(
+        phone: widget.phone,
+        campaignId: JourneySession.campaignId,
+        powSolution: powSolution,
+      );
       _startCountdown();
     } catch (_) {
       if (mounted) setState(() => _error = context.l10n.challengeError);
@@ -106,7 +113,11 @@ class _OtpScreenState extends State<OtpScreen> {
 
     setState(() { _loading = true; _error = null; });
     try {
-      final result = await apiClient.verifyOtp(phone: widget.phone, code: _otp);
+      final result = await apiClient.verifyOtp(
+        phone: widget.phone,
+        code: _otp,
+        campaignId: JourneySession.campaignId,
+      );
       final token = result['token'] as String;
       final consumer = result['consumer'] as Map<String, dynamic>;
       await AuthService.saveSession(

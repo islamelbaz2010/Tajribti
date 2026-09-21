@@ -62,32 +62,39 @@ class ApiClient {
     return (res.data['data'] ?? <String, dynamic>{}) as Map<String, dynamic>;
   }
 
-  // powSolution/turnstileToken are the client-solved Shield proofs,
-  // forwarded by the backend to Akedly unchanged.
+  // powSolution is the client-solved Shield proof, forwarded by the
+  // backend to Akedly unchanged. FD-M5 (2026-09-21): mobile is PoW-only —
+  // no Turnstile token is ever sent from this client. FD-07a: when
+  // campaignId is supplied the issued code is bound to that campaign — a
+  // code requested for Campaign A cannot verify for Campaign B.
   Future<Map<String, dynamic>> requestOtp({
     required String phone,
+    String? campaignId,
     Map<String, dynamic>? powSolution,
-    String? turnstileToken,
   }) async {
     final res = await _dio.post('/consumer/auth/otp/request', data: {
       'phone': phone,
+      if (campaignId != null) 'campaignId': campaignId,
       if (powSolution != null) 'powSolution': powSolution,
-      if (turnstileToken != null) 'turnstileToken': turnstileToken,
     });
     return res.data as Map<String, dynamic>;
   }
 
   // Returns { token, consumer: { id, phone, name } } — the caller must
-  // persist it via AuthService.saveSession (no separate profile endpoint
-  // exists to fetch it again later).
+  // persist it via AuthService.saveSession. FD-07a: verifying with a
+  // campaignId additionally mints the campaign-bound verification that
+  // POST /consumer/campaigns/:id/eligibility consumes; a code bound to a
+  // different campaign is invisible to this lookup and returns 401.
   Future<Map<String, dynamic>> verifyOtp({
     required String phone,
     required String code,
+    String? campaignId,
     String? name,
   }) async {
     final res = await _dio.post('/consumer/auth/otp/verify', data: {
       'phone': phone,
       'code': code,
+      if (campaignId != null) 'campaignId': campaignId,
       if (name != null) 'name': name,
     });
     return res.data as Map<String, dynamic>;
@@ -172,10 +179,9 @@ class ApiClient {
     await _dio.post(value ? '/consumer/panel/opt-in' : '/consumer/panel/opt-out');
   }
 
-  Future<void> setPushOptIn(bool value, {String? pushToken}) async {
-    await _dio.post(value ? '/consumer/push/opt-in' : '/consumer/push/opt-out',
-        data: {if (pushToken != null) 'pushToken': pushToken});
-  }
+  // Founder decision 2026-09-20 (G-M1): consumers receive NO push
+  // notifications — the /consumer/push/* endpoints do not exist on the
+  // current backend, and no client call or UI for them may remain.
 }
 
 final apiClient = ApiClient();

@@ -22,6 +22,22 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- FD-M7 (2026-09-21): Android App Links — the campaign QR
+                 encodes https://<api-host>/app/consumer/?qr=<code> (the
+                 same URL the web Consumer reads). Scanning it with the
+                 normal camera opens this app when installed and verified;
+                 the web Consumer remains the fallback when it is not.
+                 autoVerify requires /.well-known/assetlinks.json on the
+                 domain naming this package + release cert SHA-256
+                 (served by the API; see api/src/server.ts). -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                      android:host="api-production-266c.up.railway.app"
+                      android:pathPrefix="/app/consumer" />
+            </intent-filter>
         </activity>
         <meta-data
             android:name="flutterEmbedding"

@@ -10,10 +10,27 @@ import companyAuthRoutes from "../src/routes/companyAuth";
 import opsAuthRoutes from "../src/routes/opsAuth";
 import opsRoutes from "../src/routes/ops";
 import companyRoutes from "../src/routes/company";
+import { assetLinksHandler } from "../src/lib/appLinks";
 import { signToken } from "../src/lib/auth";
 import { apiRoot, dbPath } from "./env";
 
 export { prisma, signToken };
+
+// FD-07a fixture: eligibility now requires a live, unconsumed
+// campaign-bound OTP verification (created by POST /otp/verify with a
+// campaignId). Tests exercising the eligibility endpoint grant it directly
+// at the persistence layer — the end-to-end OTP path itself is covered by
+// campaign-otp.test.ts.
+export async function grantCampaignVerification(consumerId: string, campaignId: string) {
+  return prisma.campaignOtpVerification.create({
+    data: {
+      consumerId,
+      campaignId,
+      otpCodeId: "test-fixture",
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+    },
+  });
+}
 
 export interface ApiCall {
   (path: string, opts?: { method?: string; token?: string; body?: unknown; raw?: boolean }): Promise<{ status: number; body: any; headers?: Record<string, string>; raw?: Buffer }>;
@@ -39,6 +56,7 @@ export async function startApi(): Promise<{ api: ApiCall; stop: () => Promise<vo
   app.use("/api/company", companyRoutes);
   app.use("/api/ops/auth", opsAuthRoutes);
   app.use("/api/ops", opsRoutes);
+  app.get("/.well-known/assetlinks.json", assetLinksHandler);
   app.use((_err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     res.status(500).json({ error: "Internal server error" });
   });

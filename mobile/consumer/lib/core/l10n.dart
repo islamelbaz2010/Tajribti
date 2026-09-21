@@ -85,15 +85,16 @@ class AppStr {
   String get howItWorks     => ar ? 'كيف يعمل؟'                   : 'How it works';
   String get step1          => ar ? 'امسح رمز QR'                  : 'Scan the QR code';
   String get step2          => ar ? 'تحقق برقم هاتفك'              : 'Verify with your phone';
-  String get step3          => ar ? 'واحصل على نقاطك'             : 'Earn your reward points';
-  String rewardPoints(int n)=> ar ? '$n نقطة مكافأة'              : '$n reward points';
-  String get rewardDetail   => ar ? 'عند إتمام التجربة'           : 'on completing the trial';
+  String get step3          => ar ? 'جرّب المنتج وشارك رأيك'        : 'Try it & share feedback';
   String get startTrial     => ar ? 'ابدأ التجربة'                 : 'Start the Trial';
+  // FD-M3 (2026-09-21): resume affordance for a TRIAL_REDEEMED
+  // participation whose survey was never completed.
+  String get resumeSurvey   => ar ? 'استئناف الاستبيان'            : 'Resume Survey';
   String get campaignError  => ar ? 'تعذر تحميل بيانات الحملة'    : 'Could not load campaign';
   String get campaignNotFound=> ar ? 'لم يتم التعرف على الحملة'   : 'Campaign not recognized';
   String get entryError          => ar ? 'تعذر الدخول إلى الحملة. حاول مرة أخرى.' : 'Could not enter campaign. Please try again.';
   String get alreadyParticipated => ar ? 'شاركت سابقاً'                            : 'Already Participated';
-  String get alreadyParticipatedSub => ar ? 'شاركت في هذه الحملة من قبل وحصلت على مكافأتك.'  : 'You already participated in this campaign and earned your reward.';
+  String get alreadyParticipatedSub => ar ? 'شاركت في هذه الحملة من قبل.'  : 'You already participated in this campaign.';
   String get campaignNotActive    => ar ? 'هذه الحملة غير متاحة حالياً' : 'This Campaign Isn\'t Available';
   String get campaignNotActiveSub => ar ? 'لم تعد هذه الحملة تقبل مشاركات جديدة في الوقت الحالي.' : 'This campaign is not currently accepting new participation.';
   String get campaignComingSoonTitle => ar ? 'الحملة قريباً' : 'Coming Soon';
@@ -191,25 +192,22 @@ class AppStr {
   // ── Thank You ─────────────────────────────────────────────────────────────
   String get thankYou       => ar ? 'شكراً لك!'                   : 'Thank You!';
   String get feedbackSent   => ar ? 'تم إرسال رأيك بنجاح'        : 'Your feedback was sent successfully';
-  String get pointsAddedLabel => ar ? 'نقطة أُضيفت لحسابك'        : 'points added to your account';
   String get backHome       => ar ? 'العودة للرئيسية'             : 'Back to Home';
 
   // ── Home / Discovery ─────────────────────────────────────────────────────
   String get homeTitle          => ar ? 'تجربتي'                            : 'Tajribti';
   String get heroTagline        => ar ? 'جرّب منتجات حقيقية. مجاناً.'        : 'Try real products. For free.';
-  String get heroSub            => ar ? 'اكتشف عروضاً قريبة منك، جرّب المنتج، شارك رأيك، واكسب نقاطاً.'
-                                       : 'Discover offers near you, try the product, share your opinion, and earn points.';
+  String get heroSub            => ar ? 'اكتشف عروضاً قريبة منك، جرّب المنتج، وشارك رأيك.'
+                                       : 'Discover offers near you, try the product, and share your opinion.';
   String get heroStepDiscover    => ar ? 'اكتشف' : 'Discover';
   String get heroStepTry         => ar ? 'جرّب'   : 'Try';
   String get heroStepShare       => ar ? 'شارك'   : 'Share';
-  String get heroStepEarn        => ar ? 'اكسب'   : 'Earn';
   String get availableCampaigns => ar ? 'العروض المتاحة'                    : 'Available Campaigns';
   String get noCampaignsTitle   => ar ? 'لا توجد عروض حالياً'               : 'No campaigns yet';
   String get noCampaignsSub     => ar ? 'ترقّب عروضاً جديدة قريباً'         : 'New campaigns are coming soon';
   String get logout             => ar ? 'تسجيل الخروج'                      : 'Sign Out';
   String get myActivity         => ar ? 'نشاطي السابق'                      : 'My Activity';
   String get welcomeBack        => ar ? 'مرحباً'                            : 'Hello';
-  String get pointsLabel        => ar ? 'نقطة'                              : 'pts';
   String get startTrialCard     => ar ? 'جرّب الآن'                         : 'Try Now';
   String get loadError          => ar ? 'تعذّر تحميل البيانات'               : 'Could not load data';
 
@@ -234,14 +232,12 @@ class AppStr {
   String get seeAll          => ar ? 'عرض الكل'                  : 'See all';
 
   // ── Privacy & participation (Founder Innovation OFD-15A / OFD-14C) ────────
-  // Explicit opt-in controls only — panel membership enables same-company
-  // cross-campaign intelligence; push opt-in enables company-requested,
-  // operations-launched activation notifications. Both default off.
+  // Explicit opt-in control — panel membership enables same-company
+  // cross-campaign intelligence. The push opt-in was removed (Founder
+  // decision 2026-09-20: consumers receive NO push notifications; G-M1).
   String get privacySection    => ar ? 'الخصوصية والمشاركة'          : 'Privacy & Participation';
   String get panelOptInLabel   => ar ? 'انضم إلى لوحة تجربتي'        : 'Join the Tajribti panel';
   String get panelOptInSub     => ar ? 'يسمح بتجميع إجاباتك عبر حملات الشركة نفسها — إجماليات مجهولة فقط.' : 'Lets your responses count toward same-company insights — anonymous aggregates only.';
-  String get pushOptInLabel    => ar ? 'إشعارات الحملات'             : 'Campaign notifications';
-  String get pushOptInSub      => ar ? 'إشعارات عند إطلاق حملات جديدة قد تناسبك.' : 'Get notified when new campaigns you may fit go live.';
   String get optInSaved        => ar ? 'تم الحفظ'                    : 'Saved';
 
   // ── Settings ─────────────────────────────────────────────────────────────
@@ -289,17 +285,20 @@ class AppStr {
   String get loginToSeeActivity => ar ? 'سجّل الدخول لعرض نشاطك' : 'Sign in to view your activity';
   String get signIn             => ar ? 'تسجيل الدخول'          : 'Sign In';
   String get activityCompleted  => ar ? 'مكتمل'                 : 'Completed';
+  // FD-M3: real per-participation status labels — a TRIAL_REDEEMED /
+  // ENTERED record is in progress, not completed.
+  String get activityInProgress => ar ? 'قيد التنفيذ'             : 'In progress';
+  String get activityIneligible => ar ? 'غير مؤهل'                : 'Not eligible';
 
   // ── Services / About ─────────────────────────────────────────────────────
   String get servicesTitle     => ar ? 'عن تجربتي'                        : 'About Tajribti';
   String get servicesTagline   => ar ? 'منصّة تجربة المنتجات ورأيك'      : 'The product-trial and feedback platform';
-  String get servicesIntro     => ar ? 'تجربتي تربطك بعينات مجانية من علامات تجارية حقيقية. تجرّب المنتج، تشارك رأيك الصادق في استبيان قصير، وتحصل على نقاط مقابل وقتك.'
-                                       : 'Tajribti connects you with free samples from real brands. Try the product, share your honest opinion in a short survey, and earn points for your time.';
+  String get servicesIntro     => ar ? 'تجربتي تربطك بعينات مجانية من علامات تجارية حقيقية. تجرّب المنتج وتشارك رأيك الصادق في استبيان قصير.'
+                                       : 'Tajribti connects you with free samples from real brands. Try the product and share your honest opinion in a short survey.';
   String get servicesHowItWorks    => ar ? 'كيف تعمل تجربتي'              : 'How Tajribti works';
   String get servicesStepDiscover  => ar ? 'اكتشف عروضاً قريبة منك أو امسح رمز QR في نقطة التفعيل' : 'Discover offers near you, or scan a QR code at an activation point';
   String get servicesStepTry       => ar ? 'جرّب المنتج مجاناً'            : 'Try the product for free';
   String get servicesStepShare     => ar ? 'شارك رأيك في استبيان قصير'    : 'Share your opinion in a short survey';
-  String get servicesStepEarn      => ar ? 'اكسب نقاط مكافأة'             : 'Earn reward points';
   String get servicesCategories    => ar ? 'الفئات المتاحة'               : 'What you can try';
   String get servicesCategoriesSub => ar ? 'منتجات استهلاكية سريعة، مستحضرات تجميل، ومنتجات صيدلانية بدون وصفة طبية' : 'FMCG, beauty, and pharma-OTC products';
   String get servicesFooter        => ar ? 'العروض المتاحة تظهر في الصفحة الرئيسية عند إطلاقها من قبل العلامات التجارية الشريكة.' : 'Available offers appear on the Home screen as partner brands launch them.';

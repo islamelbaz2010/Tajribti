@@ -22,6 +22,12 @@ class _CampaignScreenState extends State<CampaignScreen> {
   bool _loading = true;
   bool _entering = false;
   bool _alreadyCompleted = false;
+  // FD-M3 (2026-09-21): an existing participation resumes instead of
+  // dead-ending — TRIAL_REDEEMED/ENTERED show a Resume affordance,
+  // INELIGIBLE shows the ineligible state, SURVEY_COMPLETE the completed
+  // one. No second participation is ever created.
+  bool _ineligible = false;
+  String? _resumeStatus;
   String? _error;
 
   @override
@@ -53,10 +59,24 @@ class _CampaignScreenState extends State<CampaignScreen> {
       // participation history (GET /consumer/participations), which does
       // exist and requires no new backend capability.
       var alreadyCompleted = false;
+      var ineligible = false;
+      String? resumeStatus;
       if (await AuthService.isLoggedIn()) {
         try {
           final participations = await apiClient.getParticipations();
-          alreadyCompleted = participations.any((p) => p.campaignId == id && p.status == 'SURVEY_COMPLETE');
+          final existing = participations
+              .where((p) => p.campaignId == id)
+              .firstOrNull;
+          // FD-M3: route on the real server-side status — completed and
+          // ineligible keep their dedicated states; a partial
+          // participation (ENTERED / TRIAL_REDEEMED) surfaces as resumable.
+          if (existing != null) {
+            alreadyCompleted = existing.status == 'SURVEY_COMPLETE';
+            ineligible = existing.status == 'INELIGIBLE';
+            if (existing.status == 'TRIAL_REDEEMED' || existing.status == 'ENTERED') {
+              resumeStatus = existing.status;
+            }
+          }
         } catch (_) {
           // Non-fatal: show the campaign normally; the server still
           // enforces this (409) if the consumer actually tries to re-enter.
@@ -65,6 +85,8 @@ class _CampaignScreenState extends State<CampaignScreen> {
       setState(() {
         _campaign = campaign;
         _alreadyCompleted = alreadyCompleted;
+        _ineligible = ineligible;
+        _resumeStatus = resumeStatus;
         _loading = false;
       });
     } catch (_) {
@@ -76,6 +98,19 @@ class _CampaignScreenState extends State<CampaignScreen> {
     if (_entering) return;
     setState(() => _entering = true);
     try {
+      // FD-M3: resume before anything else — an existing participation for
+      // this campaign continues from its real state (survey for
+      // TRIAL_REDEEMED, redemption for ENTERED) rather than re-scanning
+      // into a 409. QR attribution was already captured at entry.
+      if (_resumeStatus != null) {
+        if (_resumeStatus == 'TRIAL_REDEEMED') {
+          context.go('/survey', extra: _campaign!.id);
+        } else {
+          context.go('/eligibility');
+        }
+        return;
+      }
+
       final scanned = await context.push<bool>('/scanner', extra: JourneySession.campaignId);
       if (scanned != true || !mounted) return;
 
@@ -87,11 +122,19 @@ class _CampaignScreenState extends State<CampaignScreen> {
         return;
       }
 
-      // Mobile Eligibility gap closure (2026-09-20): eligibility is now a
-      // real collection step (screener answers + audience demographics on
-      // /eligibility), not a silent empty submit. The server remains the
-      // eligibility authority; this screen no longer submits it.
-      await context.push('/eligibility');
+      // FD-07a (2026-09-21): an account session alone does not authorize
+      // participation — every campaign entry requires a fresh OTP bound
+      // to this campaign. A logged-in consumer skips phone entry (the
+      // account phone is already known) and goes straight to the
+      // campaign-bound code step; the OTP screen binds request+verify to
+      // JourneySession.campaignId.
+      final phone = await AuthService.getPhone();
+      if (!mounted) return;
+      if (phone == null || phone.isEmpty) {
+        await context.push('/phone');
+        return;
+      }
+      await context.push('/otp', extra: phone);
     } finally {
       if (mounted) setState(() => _entering = false);
     }
@@ -209,6 +252,75 @@ class _CampaignScreenState extends State<CampaignScreen> {
                     Text(
                       s.alreadyParticipatedSub,
                       style: TextStyle(fontSize: 15, color: Colors.grey.shade600, height: 1.5),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 36),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: () => context.go('/home'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kBrand,
+                          foregroundColor: kPrimary,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          elevation: 0,
+                        ),
+                        child: Text(s.backHome, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // FD-M3: an existing INELIGIBLE participation shows the ineligible
+    // state — reopening must never re-offer the trial or a second
+    // participation.
+    if (_ineligible) {
+      return Directionality(
+        textDirection: context.dir,
+        child: Scaffold(
+          backgroundColor: kBackground,
+          appBar: AppBar(
+            backgroundColor: kSurface,
+            surfaceTintColor: kSurface,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: kPrimary),
+              onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
+            ),
+            actions: const [
+              Padding(padding: EdgeInsets.only(right: 12), child: Center(child: LangToggle())),
+            ],
+          ),
+          body: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(color: Colors.orange.shade50, shape: BoxShape.circle),
+                      child: Icon(Icons.person_off_rounded, color: Colors.orange.shade400, size: 40),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      s.notEligibleTitle,
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: kPrimary),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      s.notEligibleSub,
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade600, height: 1.5),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 36),
@@ -612,55 +724,57 @@ class _CampaignScreenState extends State<CampaignScreen> {
                           ),
                         ],
 
-                        // ── Reward Card ───────────────────────────────────
-                        if (campaign.rewardPoints > 0) ...[
+                        // ── Campaign Media (OFD-12 / G-M6) ──────────────
+                        // Company-configured stimulus — same contract as
+                        // the web consumer: http(s) URLs only, order
+                        // preserved, per-item failure degrades silently.
+                        if (campaign.media.isNotEmpty) ...[
                           const SizedBox(height: 20),
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFFEF3C7), Color(0xFFFEF9C3)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFFFDE68A)),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 48,
-                                  height: 48,
-                                  decoration: const BoxDecoration(
-                                    color: kGold,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.stars_rounded, color: Colors.white, size: 26),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${campaign.rewardPoints} ${s.pointsLabel}',
-                                        style: const TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w900,
-                                          color: Color(0xFF92400E),
+                          SizedBox(
+                            height: 120,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: campaign.media.length,
+                              separatorBuilder: (_, __) => const SizedBox(width: 10),
+                              itemBuilder: (_, i) {
+                                final m = campaign.media[i];
+                                if (!m.url.startsWith('http://') && !m.url.startsWith('https://')) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.network(
+                                        m.url,
+                                        width: 120,
+                                        height: 88,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          width: 120,
+                                          height: 88,
+                                          color: kPrimary.withOpacity(0.06),
+                                          child: const Icon(Icons.image_outlined, color: kPrimary, size: 22),
                                         ),
                                       ),
-                                      Text(
-                                        s.rewardDetail,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          color: Color(0xFFB45309),
+                                    ),
+                                    if (m.caption != null && m.caption!.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: SizedBox(
+                                          width: 120,
+                                          child: Text(
+                                            m.caption!,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                                          ),
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                                  ],
+                                );
+                              },
                             ),
                           ),
                         ],
@@ -689,7 +803,11 @@ class _CampaignScreenState extends State<CampaignScreen> {
                                     child: CircularProgressIndicator(color: kPrimary, strokeWidth: 2),
                                   )
                                 : Text(
-                                    s.startTrial,
+                                    // FD-M3: a partial participation shows
+                                    // Resume, not Start — it continues the
+                                    // existing participation, never a new
+                                    // one.
+                                    _resumeStatus != null ? s.resumeSurvey : s.startTrial,
                                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                                   ),
                           ),

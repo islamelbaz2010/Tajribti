@@ -304,7 +304,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           delegate: SliverChildBuilderDelegate(
                             (_, i) {
                               final alreadyParticipated = _loggedIn &&
-                                  _participations.any((r) => r.campaignId == _campaigns[i].id);
+                                  _participations.any(
+                                      (r) => r.campaignId == _campaigns[i].id && r.status == 'SURVEY_COMPLETE');
                               return _CampaignCard(
                                 campaign: _campaigns[i],
                                 s: s,
@@ -312,7 +313,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 // Must match the badge above: a campaign already shown as
                                 // "Completed" has to open the same completed state as
                                 // My Activity, not re-enter the QR/OTP/Survey flow.
-                                onTap: alreadyParticipated
+                                // FD-M3: a partial or ineligible record is NOT
+                                // completed — route through Campaign Detail,
+                                // which resumes/renders the real status.
+                                onTap: _loggedIn &&
+                                        _participations.any(
+                                            (r) => r.campaignId == _campaigns[i].id && r.status == 'SURVEY_COMPLETE')
                                     ? () => _openCompletedCampaign(_campaigns[i].id)
                                     : () => _enterCampaign(_campaigns[i].id),
                               );
@@ -375,7 +381,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             (_, i) => _ActivityTile(
                               record: _participations[i],
                               s: s,
-                              onTap: () => _openCompletedCampaign(_participations[i].campaignId),
+                              // FD-M3: only a SURVEY_COMPLETE record opens
+                              // the completed state directly; every other
+                              // status resumes via Campaign Detail.
+                              onTap: () => _participations[i].status == 'SURVEY_COMPLETE'
+                                  ? _openCompletedCampaign(_participations[i].campaignId)
+                                  : _enterCampaign(_participations[i].campaignId),
                             ),
                             childCount: _participations.length,
                           ),
@@ -546,7 +557,6 @@ class _HeroBanner extends StatelessWidget {
       (Icons.explore_rounded, s.heroStepDiscover),
       (Icons.inventory_2_rounded, s.heroStepTry),
       (Icons.rate_review_rounded, s.heroStepShare),
-      (Icons.stars_rounded, s.heroStepEarn),
     ];
     // Consumer Visual System (2026-09-02): the bright lime-gradient hero
     // this replaced a dark-navy one with (2026-09-01) is itself the large
@@ -835,32 +845,7 @@ class _CampaignCard extends StatelessWidget {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    if (campaign.rewardPoints > 0) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF3C7),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.stars_rounded, size: 14, color: kGold),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${campaign.rewardPoints} ${s.pointsLabel}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFFB45309),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Spacer(),
-                    ] else
-                      const Spacer(),
+                    const Spacer(),
                     GestureDetector(
                       // Campaign End-Date Gate (2026-09-01, pass 2): same
                       // pattern as isComingSoon above — tapping still
@@ -1020,22 +1005,6 @@ class _ActivityTile extends StatelessWidget {
                 ],
               ),
             ),
-            if (record.rewardPoints > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD1FAE5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '+${record.rewardPoints}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: kSuccess,
-                  ),
-                ),
-              ),
           ],
         ),
       ),

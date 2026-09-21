@@ -89,8 +89,6 @@ class ServicesScreen extends StatelessWidget {
             _StepCard(icon: Icons.inventory_2_rounded, text: s.servicesStepTry, number: 2),
             const SizedBox(height: 10),
             _StepCard(icon: Icons.rate_review_rounded, text: s.servicesStepShare, number: 3),
-            const SizedBox(height: 10),
-            _StepCard(icon: Icons.stars_rounded, text: s.servicesStepEarn, number: 4),
             const SizedBox(height: 32),
 
             // ── Categories ────────────────────────────────────────────────

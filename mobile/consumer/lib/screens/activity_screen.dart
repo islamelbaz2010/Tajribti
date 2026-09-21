@@ -45,9 +45,17 @@ class _ActivityScreenState extends State<ActivityScreen> {
     }
   }
 
-  void _openCompleted(String campaignId) {
-    JourneySession.start(campaignId);
-    context.push('/campaign', extra: true);
+  // FD-M3 (2026-09-21): tapping a record resumes it at its real state —
+  // a partial participation (TRIAL_REDEEMED) goes straight back into its
+  // survey on the SAME participation identity; every other status opens
+  // Campaign Detail, which routes on the server-side status itself.
+  void _openRecord(ParticipationRecord record) {
+    JourneySession.start(record.campaignId);
+    if (record.status == 'TRIAL_REDEEMED') {
+      context.push('/survey', extra: record.campaignId);
+      return;
+    }
+    context.push('/campaign');
   }
 
   @override
@@ -86,7 +94,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     ? _NotLoggedIn(s: s)
                     : _records.isEmpty
                         ? _ActivityEmpty(s: s)
-                        : _ActivityList(records: _records, s: s, onTap: _openCompleted),
+                        : _ActivityList(records: _records, s: s, onTap: _openRecord),
       ),
     );
   }
@@ -95,7 +103,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
 class _ActivityList extends StatelessWidget {
   final List<ParticipationRecord> records;
   final AppStr s;
-  final void Function(String campaignId) onTap;
+  final void Function(ParticipationRecord record) onTap;
   const _ActivityList({required this.records, required this.s, required this.onTap});
 
   @override
@@ -112,7 +120,7 @@ class _ActivityList extends StatelessWidget {
 class _ActivityCard extends StatelessWidget {
   final ParticipationRecord record;
   final AppStr s;
-  final void Function(String campaignId) onTap;
+  final void Function(ParticipationRecord record) onTap;
   const _ActivityCard({required this.record, required this.s, required this.onTap});
 
   String _formatDate(DateTime d) {
@@ -136,7 +144,7 @@ class _ActivityCard extends StatelessWidget {
       shadowColor: kCardShadow,
       elevation: 2,
       child: InkWell(
-        onTap: () => onTap(record.campaignId),
+        onTap: () => onTap(record),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -195,30 +203,9 @@ class _ActivityCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  if (record.rewardPoints > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD1FAE5),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.stars_rounded, size: 12, color: kSuccess),
-                          const SizedBox(width: 3),
-                          Text(
-                            '+${record.rewardPoints}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: kSuccess,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: 6),
+                  // FD-M3: the pill reflects the real participation status —
+                  // a partial record says "In progress"/"Not eligible", not
+                  // "Completed".
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
@@ -228,10 +215,22 @@ class _ActivityCard extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.check_rounded, size: 12, color: kPrimary),
+                        Icon(
+                          record.status == 'SURVEY_COMPLETE'
+                              ? Icons.check_rounded
+                              : record.status == 'INELIGIBLE'
+                                  ? Icons.person_off_rounded
+                                  : Icons.timelapse_rounded,
+                          size: 12,
+                          color: kPrimary,
+                        ),
                         const SizedBox(width: 3),
                         Text(
-                          s.activityCompleted,
+                          record.status == 'SURVEY_COMPLETE'
+                              ? s.activityCompleted
+                              : record.status == 'INELIGIBLE'
+                                  ? s.activityIneligible
+                                  : s.activityInProgress,
                           style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,

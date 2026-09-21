@@ -59,10 +59,54 @@ class _EligibilityScreenState extends State<EligibilityScreen> {
       final campaign = await apiClient.getCampaignById(id);
       if (!mounted) return;
       setState(() { _campaign = campaign; _loading = false; });
+      // FD-M3 (2026-09-21): if a participation already exists for this
+      // campaign, continue it from its real status instead of showing a
+      // form that can only 409.
+      await _resumeIfExisting(campaign.id);
     } catch (_) {
       if (!mounted) return;
       setState(() { _error = '_loadFail'; _loading = false; });
     }
+  }
+
+  // FD-M3 resume router — the backend is the source of truth. An existing
+  // participation for this campaign is continued, never duplicated:
+  //   ENTERED          -> eligible, not yet redeemed -> redeem -> survey
+  //   TRIAL_REDEEMED   -> survey not yet completed   -> survey
+  //   SURVEY_COMPLETE  -> done                       -> completed view
+  //   INELIGIBLE       -> terminal                   -> ineligible state
+  // Returns true when it navigated/rendered a resume state.
+  Future<bool> _resumeIfExisting(String campaignId) async {
+    ParticipationRecord? existing;
+    try {
+      final parts = await apiClient.getParticipations();
+      existing = parts.where((p) => p.campaignId == campaignId).firstOrNull;
+    } catch (_) {
+      return false; // lookup failure — fall through to the normal form
+    }
+    if (existing == null || !mounted) return false;
+    switch (existing.status) {
+      case 'TRIAL_REDEEMED':
+        context.go('/survey', extra: campaignId);
+        return true;
+      case 'ENTERED':
+        try {
+          await apiClient.redeemTrial(campaignId);
+          if (!mounted) return true;
+          JourneySession.markRedeemed();
+          context.go('/survey', extra: campaignId);
+        } catch (_) {
+          if (mounted) context.go('/campaign', extra: true);
+        }
+        return true;
+      case 'SURVEY_COMPLETE':
+        context.go('/campaign', extra: true);
+        return true;
+      case 'INELIGIBLE':
+        setState(() { _ineligible = true; });
+        return true;
+    }
+    return false;
   }
 
   Future<void> _submit(EligibilityFormData data) async {
@@ -90,7 +134,25 @@ class _EligibilityScreenState extends State<EligibilityScreen> {
     } catch (e) {
       if (!mounted) return;
       if (e is DioException && e.response?.statusCode == 409) {
+        // A participation already exists — resume it from its real status
+        // rather than assuming completion.
+        if (await _resumeIfExisting(campaignId)) return;
+        if (!mounted) return;
         context.go('/campaign', extra: true);
+        return;
+      }
+      if (e is DioException && e.response?.statusCode == 403 &&
+          (e.response?.data is Map) && e.response?.data['code'] == 'CAMPAIGN_OTP_REQUIRED') {
+        // FD-07a: the campaign-bound verification expired or was never
+        // completed — send the consumer through a fresh campaign OTP on
+        // the account phone instead of dead-ending.
+        final phone = await AuthService.getPhone();
+        if (!mounted) return;
+        if (phone != null && phone.isNotEmpty) {
+          context.push('/otp', extra: phone);
+        } else {
+          context.push('/phone');
+        }
         return;
       }
       if (e is DioException && e.response?.statusCode == 401) {

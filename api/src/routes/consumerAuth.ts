@@ -24,6 +24,11 @@ function generateOtp(): string {
 // end-to-end without fabricating delivery.
 const requestSchema = z.object({
   phone: z.string().min(6).max(20),
+  // FOUNDER DECISION FD-07a (2026-09-21): OTP is required fresh for every
+  // campaign participation. Supplying campaignId binds the issued code to
+  // that campaign; verify only matches a code whose campaignId is identical
+  // — a code bound to Campaign A can never verify for Campaign B.
+  campaignId: z.string().optional(),
   // Client-side Shield proofs, forwarded to Akedly unchanged. The client
   // obtains the challenge via GET /otp/challenge, solves PoW itself, and
   // submits the result here — the server never solves it.
@@ -54,7 +59,17 @@ router.post(
   async (req, res) => {
     const parsed = requestSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid phone" });
-    const { phone, powSolution, turnstileToken } = parsed.data;
+    const { phone, campaignId, powSolution, turnstileToken } = parsed.data;
+
+    if (campaignId) {
+      // Campaign binding is established at request time and only for a
+      // campaign that can actually be entered — the code must never be
+      // minted against a draft/closed/nonexistent campaign.
+      const campaign = await prisma.campaign.findUnique({ where: { id: campaignId }, select: { status: true } });
+      if (!campaign || campaign.status !== "ACTIVE") {
+        return res.status(404).json({ error: "Campaign is not available" });
+      }
+    }
 
     if (isAkedlyEnabled()) {
       // Real delivery. The OtpCode row carries the Akedly transactionReqID
@@ -65,7 +80,7 @@ router.post(
         console.warn(`[OTP] Akedly send failed for phone=${phone}: status=${sent.status} ${sent.message}`);
         return res.status(sent.status).json({ error: "OTP could not be sent. Please try again later." });
       }
-      await prisma.otpCode.create({ data: { phone, code: sent.transactionReqID, expiresAt: sent.expiresAt } });
+      await prisma.otpCode.create({ data: { phone, campaignId: campaignId ?? null, code: sent.transactionReqID, expiresAt: sent.expiresAt } });
       return res.json({ sent: true, expiresAt: sent.expiresAt });
     }
 
@@ -77,7 +92,7 @@ router.post(
 
     const code = generateOtp();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-    await prisma.otpCode.create({ data: { phone, code, expiresAt } });
+    await prisma.otpCode.create({ data: { phone, campaignId: campaignId ?? null, code, expiresAt } });
     // eslint-disable-next-line no-console
     console.log(`[OTP] phone=${phone} code=${code} (no SMS gateway integrated — dev delivery)`);
     res.json({ sent: true, devOnlyCode: code, expiresAt });
@@ -89,6 +104,9 @@ const verifySchema = z.object({
   // Akedly pipelines may issue 4–6 digit codes — never hardcode 6.
   code: z.string().regex(/^\d{4,6}$/),
   name: z.string().optional(),
+  // FD-07a: when present, only a code bound to this exact campaignId
+  // satisfies the lookup — cross-campaign reuse is impossible.
+  campaignId: z.string().optional(),
 });
 
 router.post(
@@ -97,14 +115,18 @@ router.post(
   async (req, res) => {
     const parsed = verifySchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
-    const { phone, code, name } = parsed.data;
+    const { phone, code, name, campaignId } = parsed.data;
 
+    // FD-07a campaign binding: the code lookup matches campaignId exactly
+    // (null matches only unscoped codes, a campaign-scoped code matches only
+    // that campaign) — a code issued for Campaign A is invisible here when
+    // the client claims Campaign B.
     let otp: { id: string };
     if (isAkedlyEnabled()) {
       // The stored `code` is the Akedly transactionReqID; the user-entered
       // code is checked by Akedly, not compared here.
       const latest = await prisma.otpCode.findFirst({
-        where: { phone, consumedAt: null, expiresAt: { gt: new Date() } },
+        where: { phone, campaignId: campaignId ?? null, consumedAt: null, expiresAt: { gt: new Date() } },
         orderBy: { createdAt: "desc" },
       });
       if (!latest) return res.status(401).json({ error: "Invalid or expired code" });
@@ -115,7 +137,7 @@ router.post(
       otp = latest;
     } else {
       const found = await prisma.otpCode.findFirst({
-        where: { phone, code, consumedAt: null, expiresAt: { gt: new Date() } },
+        where: { phone, code, campaignId: campaignId ?? null, consumedAt: null, expiresAt: { gt: new Date() } },
         orderBy: { createdAt: "desc" },
       });
       if (!found) return res.status(401).json({ error: "Invalid or expired code" });
@@ -129,6 +151,21 @@ router.post(
       consumer = await prisma.consumer.create({ data: { phone, name } });
     } else if (name && !consumer.name) {
       consumer = await prisma.consumer.update({ where: { id: consumer.id }, data: { name } });
+    }
+
+    if (campaignId) {
+      // Mint the campaign-bound participation authorization. It is consumed
+      // atomically by POST /consumer/campaigns/:id/eligibility — one
+      // verification authorizes exactly one eligibility submission for
+      // exactly this campaign, for exactly this consumer.
+      await prisma.campaignOtpVerification.create({
+        data: {
+          consumerId: consumer.id,
+          campaignId,
+          otpCodeId: otp.id,
+          expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+        },
+      });
     }
 
     const token = signToken({ kind: "consumer", consumerId: consumer.id });

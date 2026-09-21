@@ -1,6 +1,6 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { prisma, signToken, startApi, ApiCall } from "./helpers";
+import { prisma, signToken, startApi, grantCampaignVerification, ApiCall } from "./helpers";
 
 // FOUNDER INNOVATION regression suite (docs/TAJRIBTI_FOUNDER_INNOVATION_
 // SPEC_2026-09-20.md). Exercises the real HTTP boundary for the approved
@@ -106,6 +106,8 @@ before(async () => {
   // One completed journey on campaignA so report/narrative/intelligence
   // have real evidence and the choice question has an attached answer.
   const c1 = await mkConsumer({ panelOptIn: true, pushOptIn: true });
+  // FD-07a: participation requires a campaign-bound OTP verification.
+  await grantCampaignVerification(c1.id, campaignAId);
   const elig = await api(`/api/consumer/campaigns/${campaignAId}/eligibility`, { method: "POST", token: c1.token, body: {} });
   assert.equal(elig.status, 200, JSON.stringify(elig.body));
   await api(`/api/consumer/campaigns/${campaignAId}/redeem`, { method: "POST", token: c1.token });

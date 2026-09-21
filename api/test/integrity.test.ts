@@ -1,6 +1,7 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { prisma, signToken, startApi, ApiCall } from "./helpers";
+import { prisma, signToken, startApi, grantCampaignVerification, ApiCall } from "./helpers";
+import { verifyToken } from "../src/lib/auth";
 import { _setAkedlyFetch } from "../src/lib/akedly";
 
 // Focused evidence-integrity regression suite (Benchmark §10 campaign
@@ -65,7 +66,17 @@ async function mkConsumer() {
   return { id: consumer.id, token: signToken({ kind: "consumer", consumerId: consumer.id }) };
 }
 
+// FD-07a (2026-09-21): eligibility requires a campaign-bound OTP
+// verification. Fixture-granted here; the real request→verify→consume path
+// is covered end-to-end by campaign-otp.test.ts.
+async function grantOtp(token: string, campaignId: string) {
+  const claims = verifyToken(token);
+  assert.ok(claims?.kind === "consumer");
+  await grantCampaignVerification(claims.consumerId, campaignId);
+}
+
 async function eligibleOn(campaignId: string, token: string, body: Record<string, unknown> = {}) {
+  await grantOtp(token, campaignId);
   const res = await api(`/api/consumer/campaigns/${campaignId}/eligibility`, { method: "POST", token, body });
   assert.equal(res.status, 200, `eligibility failed: ${JSON.stringify(res.body)}`);
   return res.body.participation;
@@ -286,6 +297,7 @@ describe("product → company ownership", () => {
 describe("QR source → campaign binding", () => {
   it("Q1: same-campaign QR source participates normally", async () => {
     const consumer = await mkConsumer();
+    await grantOtp(consumer.token, campaignCA1Id);
     const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/eligibility`, {
       method: "POST",
       token: consumer.token,
@@ -298,6 +310,7 @@ describe("QR source → campaign binding", () => {
 
   it("Q2/Q4: QR source of another campaign is rejected with no participation", async () => {
     const consumer = await mkConsumer();
+    await grantOtp(consumer.token, campaignCA1Id);
     const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/eligibility`, {
       method: "POST",
       token: consumer.token,
@@ -310,6 +323,7 @@ describe("QR source → campaign binding", () => {
 
   it("Q3: QR source of another company's campaign is rejected", async () => {
     const consumer = await mkConsumer();
+    await grantOtp(consumer.token, campaignCA1Id);
     const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/eligibility`, {
       method: "POST",
       token: consumer.token,
@@ -322,6 +336,7 @@ describe("QR source → campaign binding", () => {
 
   it("Q4b: unknown QR source id is rejected identically", async () => {
     const consumer = await mkConsumer();
+    await grantOtp(consumer.token, campaignCA1Id);
     const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/eligibility`, {
       method: "POST",
       token: consumer.token,
@@ -339,6 +354,7 @@ describe("QR source → campaign binding", () => {
 describe("answer → question → campaign binding (eligibility)", () => {
   it("rejects a screener answer targeting another campaign's question", async () => {
     const consumer = await mkConsumer();
+    await grantOtp(consumer.token, campaignCA1Id);
     const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/eligibility`, {
       method: "POST",
       token: consumer.token,
@@ -351,6 +367,7 @@ describe("answer → question → campaign binding (eligibility)", () => {
 
   it("rejects a screener answer targeting a POST_TRIAL question of the same campaign", async () => {
     const consumer = await mkConsumer();
+    await grantOtp(consumer.token, campaignCA1Id);
     const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/eligibility`, {
       method: "POST",
       token: consumer.token,
@@ -362,6 +379,7 @@ describe("answer → question → campaign binding (eligibility)", () => {
 
   it("rejects a screener answer carrying no value", async () => {
     const consumer = await mkConsumer();
+    await grantOtp(consumer.token, campaignCA1Id);
     const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/eligibility`, {
       method: "POST",
       token: consumer.token,
@@ -382,6 +400,7 @@ describe("answer → question → campaign binding (eligibility)", () => {
 describe("audience gates & eligibility decisions", () => {
   it("E7+E6: an unanswered required screener produces INELIGIBLE, and INELIGIBLE cannot redeem", async () => {
     const consumer = await mkConsumer();
+    await grantOtp(consumer.token, campaignCA1Id);
     const res = await api(`/api/consumer/campaigns/${campaignCA1Id}/eligibility`, {
       method: "POST",
       token: consumer.token,
@@ -401,6 +420,7 @@ describe("audience gates & eligibility decisions", () => {
     const mk = () => mkConsumer();
 
     const inside = await mk();
+    await grantOtp(inside.token, campaignCGId);
     const ok = await api(`/api/consumer/campaigns/${campaignCGId}/eligibility`, {
       method: "POST",
       token: inside.token,
@@ -413,6 +433,7 @@ describe("audience gates & eligibility decisions", () => {
     assert.equal(ok.body.participation.cityAtEntry, "Cairo");
 
     const tooOld = await mk();
+    await grantOtp(tooOld.token, campaignCGId);
     const ageFail = await api(`/api/consumer/campaigns/${campaignCGId}/eligibility`, {
       method: "POST",
       token: tooOld.token,
@@ -422,6 +443,7 @@ describe("audience gates & eligibility decisions", () => {
     assert.equal(ageFail.body.participation.status, "INELIGIBLE");
 
     const wrongGender = await mk();
+    await grantOtp(wrongGender.token, campaignCGId);
     const genderFail = await api(`/api/consumer/campaigns/${campaignCGId}/eligibility`, {
       method: "POST",
       token: wrongGender.token,
@@ -430,6 +452,7 @@ describe("audience gates & eligibility decisions", () => {
     assert.equal(genderFail.body.eligible, false);
 
     const wrongCity = await mk();
+    await grantOtp(wrongCity.token, campaignCGId);
     const cityFail = await api(`/api/consumer/campaigns/${campaignCGId}/eligibility`, {
       method: "POST",
       token: wrongCity.token,
@@ -440,6 +463,7 @@ describe("audience gates & eligibility decisions", () => {
 
   it("E12: a second eligibility submission on the same campaign is rejected", async () => {
     const consumer = await mkConsumer();
+    await grantOtp(consumer.token, campaignCGId);
     const first = await api(`/api/consumer/campaigns/${campaignCGId}/eligibility`, {
       method: "POST",
       token: consumer.token,

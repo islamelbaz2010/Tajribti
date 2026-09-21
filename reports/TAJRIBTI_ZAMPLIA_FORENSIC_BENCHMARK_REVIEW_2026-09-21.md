@@ -243,8 +243,12 @@ just-completed Web pass is explicitly not to be redesigned by this gate.
 
 ## Final Verification
 
-- HEAD: `5b0152072d481bf5213fecd31bf830bdd7c6d3a7` (pre-review), unchanged by this pass.
-- Working tree: modified only by adding this report; no code touched.
+- HEAD at review time: `5b0152072d481bf5213fecd31bf830bdd7c6d3a7`; no code was
+  modified during the review. This report was subsequently committed as
+  `d56caeaa3c70438b59b7867227577a27949af816` — a one-file commit containing only
+  this report (verified via `git show --stat`). HEAD after commit: `d56caea`.
+- Working tree: only pre-existing untracked Founder workbooks and the
+  `doc/Consumer Insights & Feedback/` reference directory; no tracked file modified.
 - Benchmark SHA-256: `648d2031c3148298d0bef5e125dcf27f32f1fb9a30b7c8cc0abaac76bd52534a` — unchanged.
 - Tests: none run — no code changed.
 - Production / mobile / commercial: untouched.

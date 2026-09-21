@@ -81,10 +81,18 @@ flutter build ios --release        # iOS (requires Mac + Xcode)
 flutter install                    # install to connected device
 ```
 
-## Known Limitations (this recovery pass)
+## Android App Links
 
-- No ELIGIBILITY-stage screener-question UI yet — a campaign configured
-  with required screener questions will correctly come back as not
-  currently eligible on mobile (the app does not fabricate answers).
+The manifest's App Links host is the build-time token `__APP_LINKS_HOST__`.
+CI (`build-consumer-current.yml`) replaces it with the host derived from
+`CURRENT_API_BASE` — the same host the API encodes into campaign QR URLs.
+Until a real host is injected, the filter matches nothing and the web
+Consumer is the fallback. Auto-verification additionally requires
+`ANDROID_APP_LINKS_SHA256` (release-cert fingerprint) set on the API
+environment for `/.well-known/assetlinks.json`.
+
+## Known Limitations
+
 - No email concept for Consumer identity (phone+OTP only, matching the
   current backend and the released web Consumer app exactly).
+- iOS Universal Links deferred (FD-M7) — Android App Links only for now.

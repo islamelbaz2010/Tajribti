@@ -99,6 +99,7 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   void _onDigitChanged(int index, String value) {
+    setState(() {});
     if (value.isNotEmpty && index < 5) {
       _focusNodes[index + 1].requestFocus();
     }
@@ -108,8 +109,12 @@ class _OtpScreenState extends State<OtpScreen> {
     if (_otp.length == 6) _verify();
   }
 
+  // The backend accepts 4–6 digit codes (consumerAuth.ts: Akedly pipelines
+  // may issue codes shorter than 6). Six digits still auto-verifies; the
+  // button below lets a 4–5 digit code be submitted manually instead of
+  // dead-ending the entry.
   Future<void> _verify() async {
-    if (_otp.length < 6 || _loading) return;
+    if (_otp.length < 4 || _loading) return;
 
     setState(() { _loading = true; _error = null; });
     try {
@@ -248,6 +253,20 @@ class _OtpScreenState extends State<OtpScreen> {
           ],
         ),
         const Spacer(),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: (_otp.length >= 4 && !_loading) ? _verify : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kPrimary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            child: Text(s.continueBtn, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          ),
+        ),
+        const SizedBox(height: 16),
         if (_loading)
           Center(
             child: Column(

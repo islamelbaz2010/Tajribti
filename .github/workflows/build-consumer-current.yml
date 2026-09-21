@@ -76,6 +76,23 @@ jobs:
           grep "CAMERA" android/app/src/main/AndroidManifest.xml && echo "CAMERA permission: OK" || (echo "ERROR: CAMERA permission missing" && exit 1)
           grep "INTERNET" android/app/src/main/AndroidManifest.xml && echo "INTERNET permission: OK" || (echo "ERROR: INTERNET permission missing" && exit 1)
 
+      # FD-M7: the App Links intent-filter host is a placeholder in-repo —
+      # the QR entry URL is host-dynamic (generated from the request host),
+      # so the APK must claim links for the same host CURRENT_API_BASE
+      # points at. Deriving it here keeps the repo free of any hardcoded
+      # deployment host and never the legacy Railway API.
+      - name: Inject App Links host
+        working-directory: mobile/consumer
+        run: |
+          HOST=$(echo "${{ vars.CURRENT_API_BASE }}" | sed -E 's|^https?://||; s|/.*$||')
+          if [ -z "$HOST" ]; then
+            echo "::error::Could not derive App Links host from CURRENT_API_BASE."
+            exit 1
+          fi
+          sed -i.bak "s|__APP_LINKS_HOST__|$HOST|g" android/app/src/main/AndroidManifest.xml
+          rm -f android/app/src/main/AndroidManifest.xml.bak
+          grep 'android:host' android/app/src/main/AndroidManifest.xml
+
       - name: Install Flutter dependencies
         working-directory: mobile/consumer
         run: flutter pub get

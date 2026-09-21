@@ -23,19 +23,24 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
             <!-- FD-M7 (2026-09-21): Android App Links — the campaign QR
-                 encodes https://<api-host>/app/consumer/?qr=<code> (the
-                 same URL the web Consumer reads). Scanning it with the
-                 normal camera opens this app when installed and verified;
-                 the web Consumer remains the fallback when it is not.
-                 autoVerify requires /.well-known/assetlinks.json on the
-                 domain naming this package + release cert SHA-256
-                 (served by the API; see api/src/server.ts). -->
+                 encodes https://<api-host>/app/consumer/?qr=<code>, where
+                 <api-host> is whatever host serves the CURRENT API (the QR
+                 URL is generated from the request host — see
+                 api/src/routes/company.ts). __APP_LINKS_HOST__ is replaced
+                 at build time with the host derived from CURRENT_API_BASE
+                 (see .github/workflows/build-consumer-current.yml); it is
+                 intentionally NOT the legacy Railway API host. Until a
+                 real host is injected the token matches nothing and the
+                 web Consumer remains the fallback. autoVerify requires
+                 /.well-known/assetlinks.json on that domain naming this
+                 package + release cert SHA-256 (served by the API; see
+                 api/src/server.ts). -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https"
-                      android:host="api-production-266c.up.railway.app"
+                      android:host="__APP_LINKS_HOST__"
                       android:pathPrefix="/app/consumer" />
             </intent-filter>
         </activity>

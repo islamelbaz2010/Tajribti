@@ -107,11 +107,13 @@ before(async () => {
   companyAId = companyA.id;
   companyBId = companyB.id;
 
+  // FD-WEB-01: COMPANY_MEMBER is reporting/read-only — the employees that
+  // drive mutation routes in this suite must be COMPANY_ADMIN.
   const employeeA = await prisma.employee.create({
-    data: { companyId: companyAId, email: "a@example.test", name: "Emp A", passwordHash: "x" },
+    data: { companyId: companyAId, email: "a@example.test", name: "Emp A", passwordHash: "x", role: "COMPANY_ADMIN" },
   });
   const employeeB = await prisma.employee.create({
-    data: { companyId: companyBId, email: "b@example.test", name: "Emp B", passwordHash: "x" },
+    data: { companyId: companyBId, email: "b@example.test", name: "Emp B", passwordHash: "x", role: "COMPANY_ADMIN" },
   });
   employeeAToken = signToken({ kind: "employee", employeeId: employeeA.id, companyId: companyAId });
   employeeBToken = signToken({ kind: "employee", employeeId: employeeB.id, companyId: companyBId });

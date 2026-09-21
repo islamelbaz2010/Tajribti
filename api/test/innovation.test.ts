@@ -31,6 +31,7 @@ let empMemberAToken: string;
 let empBToken: string;
 let opsAdminToken: string;
 let opsWorkerToken: string;
+let opsManagerToken: string;
 let campaignAId: string;
 let campaignBId: string;
 let campaignDraftAId: string;
@@ -75,8 +76,12 @@ before(async () => {
   const opsWorker = await prisma.opsUser.create({
     data: { email: "worker@ops.test", name: "Ops Worker", passwordHash: "x", role: "OPERATIONS" },
   });
+  const opsManager = await prisma.opsUser.create({
+    data: { email: "manager@ops.test", name: "Ops Manager", passwordHash: "x", role: "OPERATIONS_MANAGER" },
+  });
   opsAdminToken = signToken({ kind: "ops", opsUserId: opsAdmin.id });
   opsWorkerToken = signToken({ kind: "ops", opsUserId: opsWorker.id });
+  opsManagerToken = signToken({ kind: "ops", opsUserId: opsManager.id });
 
   const mkCampaign = async (companyId: string, name: string, status: string) => {
     const c = await prisma.campaign.create({
@@ -217,6 +222,79 @@ describe("role gates (OFD-08)", () => {
     assert.equal(ok.status, 201, JSON.stringify(ok.body));
     assert.equal(ok.body.role, "OPERATIONS");
   });
+
+  // FD-WEB-01 (2026-09-21): COMPANY_MEMBER is reporting/read-only — every
+  // mutating company route rejects it; every read surface still works.
+  it("COMPANY_MEMBER is read-only across all mutation surfaces", async () => {
+    const mutations: [string, object | undefined][] = [
+      ["/api/company/profile", { name: "X" }],
+      ["/api/company/products", { name: "P" }],
+      ["/api/company/campaigns", { name: "C", objective: "O", startDate: "2026-01-01", endDate: "2026-02-01" }],
+      [`/api/company/campaigns/${campaignDraftAId}`, { name: "X" }],
+      [`/api/company/campaigns/${campaignDraftAId}/submit-for-review`, undefined],
+      [`/api/company/campaigns/${campaignDraftAId}/study-type-requests`, { requestedStudyType: "CONCEPT_TESTING" }],
+      [`/api/company/campaigns/${campaignDraftAId}/questions`, { stage: "ELIGIBILITY", type: "TEXT", text: "q", order: 1 }],
+      [`/api/company/campaigns/${campaignDraftAId}/questions/apply-template`, { templateKey: "CONCEPT_TESTING" }],
+      [`/api/company/campaigns/${campaignDraftAId}/qr-sources`, { label: "L", code: "QR-MEMBER", activeFrom: "2026-01-01", activeTo: "2026-02-01" }],
+      [`/api/company/campaigns/${campaignDraftAId}/media`, { kind: "CREATIVE", url: "https://cdn.example.com/x.png" }],
+      [`/api/company/campaigns/${campaignDraftAId}/media/upload-init`, { kind: "CREATIVE", contentType: "image/png", sizeBytes: 100 }],
+      [`/api/company/campaigns/${campaignAId}/question-change-requests`, { action: "DELETE", questionId: qChoiceId }],
+    ];
+    for (const [path, body] of mutations) {
+      const method = path === "/api/company/profile" || path.endsWith(campaignDraftAId) ? "PATCH" : "POST";
+      const r = await api(path, { method, token: empMemberAToken, body });
+      assert.equal(r.status, 403, `${method} ${path} must be 403 for COMPANY_MEMBER, got ${r.status}`);
+    }
+    // Reads remain available.
+    for (const path of [
+      "/api/company/profile", "/api/company/products", "/api/company/campaigns", "/api/company/employees",
+      "/api/company/study-templates", `/api/company/campaigns/${campaignAId}`,
+      `/api/company/campaigns/${campaignAId}/live`, `/api/company/campaigns/${campaignAId}/insights`,
+      `/api/company/campaigns/${campaignAId}/report`, `/api/company/campaigns/${campaignAId}/question-audit`,
+      `/api/company/campaigns/${campaignAId}/media`, `/api/company/panel-insights`,
+    ]) {
+      const r = await api(path, { token: empMemberAToken });
+      assert.equal(r.status, 200, `GET ${path} must be 200 for COMPANY_MEMBER, got ${r.status}`);
+    }
+  });
+
+  // FD-WEB-03 (2026-09-21): OPERATIONS_MANAGER creates companies and keeps
+  // the Operations scope — without inheriting Platform Admin powers.
+  it("OPERATIONS_MANAGER can create companies but not Platform Admin surfaces", async () => {
+    const created = await api("/api/ops/companies", {
+      method: "POST", token: opsManagerToken,
+      body: { name: "Mgr Co", employeeName: "E", employeeEmail: "mgr-co@x.test", employeePassword: "Password123" },
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    const audit = await prisma.accessAuditEvent.findFirst({
+      where: { action: "COMPANY_CREATE", targetId: created.body.id },
+    });
+    assert.ok(audit, "company creation by OPERATIONS_MANAGER must be audited");
+
+    // Operations scope retained.
+    assert.equal((await api("/api/ops/campaigns", { token: opsManagerToken })).status, 200);
+    assert.equal((await api(`/api/ops/campaigns/${campaignAId}/live`, { token: opsManagerToken })).status, 200);
+
+    // Platform Admin powers are NOT inherited.
+    assert.equal((await api(`/api/ops/campaigns/${campaignAId}/participants`, { token: opsManagerToken })).status, 403);
+    assert.equal((await api("/api/ops/ops-users", { token: opsManagerToken })).status, 403);
+    assert.equal((await api("/api/ops/audit-events", { token: opsManagerToken })).status, 403);
+
+    // And plain OPERATIONS still cannot create companies.
+    const denied = await api("/api/ops/companies", {
+      method: "POST", token: opsWorkerToken,
+      body: { name: "Nope", employeeName: "E", employeeEmail: "e2@x.test", employeePassword: "Password123" },
+    });
+    assert.equal(denied.status, 403);
+
+    // PLATFORM_ADMIN can assign the new role.
+    const ok = await api("/api/ops/ops-users", {
+      method: "POST", token: opsAdminToken,
+      body: { name: "M2", email: "m2@ops.test", password: "Password123", role: "OPERATIONS_MANAGER" },
+    });
+    assert.equal(ok.status, 201);
+    assert.equal(ok.body.role, "OPERATIONS_MANAGER");
+  });
 });
 
 // --- OFD-12: campaign media ----------------------------------------------------
@@ -311,6 +389,90 @@ describe("question audit + change requests (OFD-19)", () => {
     assert.equal(applied.status, 409);
     const q = await prisma.question.findUnique({ where: { id: qChoiceId } });
     assert.ok(q, "question with answers must survive");
+  });
+});
+
+// --- FD-WEB-04 (2026-09-21): request workflow gains the third review
+// outcome — Approve / Reject / Request Changes — audited, company-visible --
+describe("request-changes review outcome (FD-WEB-04)", () => {
+  it("study-type request can be sent back with a note; company sees it and may re-file", async () => {
+    const filed = await api(`/api/company/campaigns/${campaignDraftAId}/study-type-requests`, {
+      method: "POST", token: empAdminAToken, body: { requestedStudyType: "CONCEPT_TESTING" },
+    });
+    assert.equal(filed.status, 201, JSON.stringify(filed.body));
+
+    // note is required
+    const noNote = await api(`/api/ops/study-type-requests/${filed.body.id}/request-changes`, {
+      method: "POST", token: opsWorkerToken, body: {},
+    });
+    assert.equal(noNote.status, 400);
+
+    const sentBack = await api(`/api/ops/study-type-requests/${filed.body.id}/request-changes`, {
+      method: "POST", token: opsWorkerToken, body: { note: "Clarify the research objective first" },
+    });
+    assert.equal(sentBack.status, 200, JSON.stringify(sentBack.body));
+    assert.equal(sentBack.body.status, "CHANGES_REQUESTED");
+    assert.equal(sentBack.body.reviewNote, "Clarify the research objective first");
+
+    // the campaign is untouched — nothing was applied
+    const campaign = await prisma.campaign.findUnique({ where: { id: campaignDraftAId } });
+    assert.equal(campaign!.studyType, null);
+
+    // the decision is audited (Platform Admin audit surface)
+    const audit = await prisma.accessAuditEvent.findFirst({
+      where: { action: "STUDY_TYPE_REQUEST_CHANGES_REQUESTED", targetId: filed.body.id },
+    });
+    assert.ok(audit);
+
+    // company sees the outcome + note on its own requests list
+    const list = await api(`/api/company/campaigns/${campaignDraftAId}/study-type-requests`, { token: empMemberAToken });
+    assert.equal(list.body[0].status, "CHANGES_REQUESTED");
+    assert.equal(list.body[0].reviewNote, "Clarify the research objective first");
+
+    // and may re-file — a CHANGES_REQUESTED request does not block a new one
+    const refiled = await api(`/api/company/campaigns/${campaignDraftAId}/study-type-requests`, {
+      method: "POST", token: empAdminAToken, body: { requestedStudyType: "BRAND_PERCEPTION" },
+    });
+    assert.equal(refiled.status, 201, JSON.stringify(refiled.body));
+
+    // ops can then reject the re-filed one — closing the loop
+    const rejected = await api(`/api/ops/study-type-requests/${refiled.body.id}/reject`, {
+      method: "POST", token: opsWorkerToken, body: { reason: "Not this quarter" },
+    });
+    assert.equal(rejected.status, 200);
+    const rejectAudit = await prisma.accessAuditEvent.findFirst({
+      where: { action: "STUDY_TYPE_REQUEST_REJECTED", targetId: refiled.body.id },
+    });
+    assert.ok(rejectAudit);
+  });
+
+  it("question change request can be sent back with a note; audited and company-visible", async () => {
+    const filed = await api(`/api/company/campaigns/${campaignAId}/question-change-requests`, {
+      method: "POST", token: empAdminAToken,
+      body: { action: "EDIT", questionId: qChoiceId, payload: { text: "Reworded?" }, reason: "clarity" },
+    });
+    assert.equal(filed.status, 201, JSON.stringify(filed.body));
+
+    const sentBack = await api(`/api/ops/question-change-requests/${filed.body.id}/request-changes`, {
+      method: "POST", token: opsWorkerToken, body: { note: "Keep the original wording; add a new question instead" },
+    });
+    assert.equal(sentBack.status, 200, JSON.stringify(sentBack.body));
+    assert.equal(sentBack.body.status, "CHANGES_REQUESTED");
+
+    // question is untouched
+    const question = await prisma.question.findUnique({ where: { id: qChoiceId } });
+    assert.notEqual(question!.text, "Reworded?");
+
+    const audit = await prisma.accessAuditEvent.findFirst({
+      where: { action: "QUESTION_CHANGE_CHANGES_REQUESTED", targetId: filed.body.id },
+    });
+    assert.ok(audit);
+
+    // company-visible outcome
+    const list = await api(`/api/company/campaigns/${campaignAId}/question-change-requests`, { token: empMemberAToken });
+    const row = (list.body as { id: string; status: string; reviewNote?: string }[]).find(r => r.id === filed.body.id);
+    assert.equal(row!.status, "CHANGES_REQUESTED");
+    assert.equal(row!.reviewNote, "Keep the original wording; add a new question instead");
   });
 });
 

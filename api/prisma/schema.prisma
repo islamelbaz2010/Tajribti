@@ -27,11 +27,15 @@ datasource db {
 
 // FOUNDER INNOVATION (OFD-08, spec docs/TAJRIBTI_FOUNDER_INNOVATION_SPEC_
 // 2026-09-20.md §H–L) — NOT Benchmark-required. Two Innovation-layer roles:
-// "PLATFORM_ADMIN" (platform administration: company creation, ops-user
-// management, audited consumer-PII access) and "OPERATIONS" (campaign
-// pipeline/monitoring/issues/change-request review — no consumer-PII lists).
-// Migration backfills existing rows to PLATFORM_ADMIN so no current user
-// loses capability. Both are Innovation-layer names, not Benchmark truth.
+// "PLATFORM_ADMIN" (platform administration: ops-user management, audited
+// consumer-PII access, audit log) and "OPERATIONS" (campaign
+// pipeline/monitoring/issues/change-request review — no consumer-PII
+// lists). Migration backfills existing rows to PLATFORM_ADMIN so no
+// current user loses capability. Both are Innovation-layer names, not
+// Benchmark truth.
+// FOUNDER DECISION FD-WEB-03 (2026-09-21): "OPERATIONS_MANAGER" — full
+// Operations scope plus the authority to create Companies. Deliberately
+// not collapsed into PLATFORM_ADMIN: it gets no PII/ops-user/audit powers.
 model OpsUser {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -71,12 +75,15 @@ model Company {
 // Benchmark actually names is company-level "employee company isolation"
 // (§10), which is enforced by scoping every query to companyId.
 // FOUNDER INNOVATION (OFD-08) — multiple Company roles. "COMPANY_ADMIN" has
-// full company capability including employee management and change requests;
-// "COMPANY_MEMBER" can author campaigns/products/questions and view reporting
-// but cannot manage employees or file requests. Existing rows are backfilled
-// to COMPANY_ADMIN by the migration (preserves current capability — the
-// removed-role history above is superseded only because the Founder has now
-// explicitly authorized multiple company roles as Innovation).
+// full company capability including employee management and change requests.
+// FOUNDER DECISION FD-WEB-01 (2026-09-21) supersedes the OFD-08 member
+// matrix: "COMPANY_MEMBER" is reporting/read-only — it views company
+// campaigns, results and reports but cannot create or edit campaigns,
+// products, questions, QR sources or media, file requests, or manage
+// employees. Existing rows are backfilled to COMPANY_ADMIN by the earlier
+// migration (preserves current capability — the removed-role history above
+// is superseded only because the Founder has now explicitly authorized
+// multiple company roles as Innovation).
 model Employee {
   id           String   @id @default(cuid())
   companyId    String
@@ -279,7 +286,9 @@ model Campaign {
 // implementation brief's own §4/§17 prohibition) — this table only ever
 // represents "change this one campaign's studyType tag from A to B",
 // nothing else is ever requested through it.
-// status: "PENDING" | "APPROVED" | "REJECTED"
+// status: "PENDING" | "APPROVED" | "REJECTED" | "CHANGES_REQUESTED"
+// (FD-WEB-04: approve / reject / request-changes are the three named
+// Operations review outcomes; reviewNote carries the send-back note).
 model StudyTypeChangeRequest {
   id         String   @id @default(cuid())
   campaignId String
@@ -301,6 +310,8 @@ model StudyTypeChangeRequest {
   reviewedBy      OpsUser?  @relation(fields: [reviewedById], references: [id])
   reviewedAt      DateTime?
   rejectionReason String?
+  // FD-WEB-04: reviewer note for the CHANGES_REQUESTED outcome.
+  reviewNote      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -458,7 +469,8 @@ model CampaignMedia {
 // files a request that TAJRIBTI Operations performs. action: "EDIT"|"DELETE".
 // payload: for EDIT, the new question field values (text/options/required/
 // order — type/stage changes are rejected; delete+create is the honest path).
-// status: "PENDING" | "APPLIED" | "REJECTED"
+// status: "PENDING" | "APPLYING" | "PERFORMED" | "REJECTED" |
+// "CHANGES_REQUESTED" (FD-WEB-04 request-changes outcome).
 model QuestionChangeRequest {
   id         String   @id @default(cuid())
   campaignId String

@@ -68,9 +68,27 @@ export async function requirePlatformAdmin(req: Request, res: Response, next: Ne
   next();
 }
 
-// Company-role gate: COMPANY_ADMIN only (employee management, change
-// requests). COMPANY_MEMBER retains campaign/product/question authoring and
-// reporting — see spec §H–L for the minimal matrix.
+// FOUNDER DECISION FD-WEB-03 (2026-09-21): OPERATIONS_MANAGER — an
+// operations role that may create Companies and work the full Operations
+// scope, without inheriting Platform Admin privileges (ops-user management,
+// participant-PII access, audit log). PLATFORM_ADMIN retains company
+// creation as the superset administration layer. OPERATIONS alone cannot
+// create companies.
+export async function requireOpsManager(req: Request, res: Response, next: NextFunction) {
+  const claims = req.claims as OpsClaims | undefined;
+  if (!claims || claims.kind !== "ops") return res.status(403).json({ error: "TAJRIBTI Operations authentication required" });
+  const user = await prisma.opsUser.findUnique({ where: { id: claims.opsUserId }, select: { role: true } });
+  if (!user || (user.role !== "OPERATIONS_MANAGER" && user.role !== "PLATFORM_ADMIN")) {
+    return res.status(403).json({ error: "Operations Manager role required" });
+  }
+  next();
+}
+
+// Company-role gate: COMPANY_ADMIN only. FOUNDER DECISION FD-WEB-01
+// (2026-09-21) supersedes the earlier OFD-08 matrix: COMPANY_MEMBER is now
+// reporting/read-only — every mutating company route below carries this
+// gate (profile, products, campaigns, questions/templates, QR sources,
+// media, request filing, submit-for-review). MEMBER keeps all GET surfaces.
 export async function requireCompanyAdmin(req: Request, res: Response, next: NextFunction) {
   const claims = req.claims as EmployeeClaims | undefined;
   if (!claims || claims.kind !== "employee") {

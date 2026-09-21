@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { requireOps, requirePlatformAdmin, asOps } from "../middleware/auth";
+import { requireOps, requirePlatformAdmin, requireOpsManager, asOps } from "../middleware/auth";
 import { resolveMediaUrls } from "../lib/media";
 import { checkReadiness } from "../lib/readiness";
 import { buildIntelligence } from "../lib/intelligence";
@@ -58,9 +58,11 @@ const createCompanySchema = z.object({
   employeePassword: z.string().min(8),
 });
 
-// FOUNDER INNOVATION (OFD-08): company creation is PLATFORM_ADMIN-only and
-// audited. OPERATIONS retains all campaign-pipeline/monitoring capability.
-router.post("/companies", requirePlatformAdmin, async (req, res) => {
+// FOUNDER DECISION FD-WEB-03 (2026-09-21): company creation is authorized
+// for OPERATIONS_MANAGER (and PLATFORM_ADMIN as the superset layer) and is
+// audited. Plain OPERATIONS retains all campaign-pipeline/monitoring
+// capability but cannot create companies.
+router.post("/companies", requireOpsManager, async (req, res) => {
   const { opsUserId } = asOps(req);
   const parsed = createCompanySchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
@@ -219,6 +221,9 @@ router.post("/study-type-requests/:id/approve", async (req, res) => {
   });
 
   if (!outcome) return res.status(409).json({ error: "Request was already reviewed" });
+  // FD-WEB-04 audit trail: every request decision is an auditable ops
+  // action, visible on the Platform Admin audit surface.
+  await auditOpsAction(opsUserId, "STUDY_TYPE_REQUEST_APPROVED", "study-type-request", request.id);
   const updatedRequest = await prisma.studyTypeChangeRequest.findUnique({ where: { id: request.id } });
   res.json({ request: updatedRequest, campaign: outcome });
 });
@@ -242,9 +247,38 @@ router.post("/study-type-requests/:id/reject", async (req, res) => {
     data: { status: "REJECTED", reviewedById: opsUserId, reviewedAt: new Date(), rejectionReason: parsed.data.reason },
   });
   if (flipped.count === 0) return res.status(409).json({ error: "Request was already reviewed" });
+  await auditOpsAction(opsUserId, "STUDY_TYPE_REQUEST_REJECTED", "study-type-request", request.id);
 
   const updatedRequest = await prisma.studyTypeChangeRequest.findUnique({ where: { id: request.id } });
   res.json(updatedRequest);
+});
+
+// FD-WEB-04: the third named review outcome — send the request back to the
+// company with a note instead of approving or rejecting outright. The
+// request record becomes the visible outcome (the company reads it on its
+// own requests list); no notification mechanism is invented — status +
+// audit are the channel.
+const requestChangesSchema = z.object({ note: z.string().min(1) });
+
+router.post("/study-type-requests/:id/request-changes", async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const parsed = requestChangesSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "A note describing the required changes is required" });
+
+  const request = await prisma.studyTypeChangeRequest.findUnique({ where: { id: req.params.id } });
+  if (!request) return res.status(404).json({ error: "Request not found" });
+  if (request.status !== "PENDING") return res.status(409).json({ error: "Request is not pending" });
+
+  // Request-changes never mutates the campaign — the company may re-file
+  // after adjusting. Same conditional-flip guard as reject.
+  const flipped = await prisma.studyTypeChangeRequest.updateMany({
+    where: { id: request.id, status: "PENDING" },
+    data: { status: "CHANGES_REQUESTED", reviewedById: opsUserId, reviewedAt: new Date(), reviewNote: parsed.data.note },
+  });
+  if (flipped.count === 0) return res.status(409).json({ error: "Request was already reviewed" });
+  await auditOpsAction(opsUserId, "STUDY_TYPE_REQUEST_CHANGES_REQUESTED", "study-type-request", request.id);
+
+  res.json(await prisma.studyTypeChangeRequest.findUnique({ where: { id: request.id } }));
 });
 
 // --- Participants (Benchmark §4 OPERATIONS "Participants") -----------------
@@ -359,7 +393,8 @@ router.post("/ops-users", requirePlatformAdmin, async (req, res) => {
     name: z.string().min(1),
     email: z.string().email(),
     password: z.string().min(8),
-    role: z.enum(["PLATFORM_ADMIN", "OPERATIONS"]).optional(),
+    // FD-WEB-03: OPERATIONS_MANAGER is a real assignable role.
+    role: z.enum(["PLATFORM_ADMIN", "OPERATIONS", "OPERATIONS_MANAGER"]).optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
@@ -399,6 +434,14 @@ router.get("/question-change-requests", async (_req, res) => {
   const byId = new Map(questions.map((q) => [q.id, q]));
   res.json(requests.map((r) => ({ ...r, question: r.questionId ? byId.get(r.questionId) ?? null : null })));
 });
+
+// FD-WEB-04: request review decisions are auditable ops actions — written
+// to AccessAuditEvent so the Platform Admin audit surface retains full
+// visibility of the request workflow, not just question mutations.
+async function auditOpsAction(opsUserId: string, action: string, targetType: string, targetId?: string) {
+  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+  await writeAccessAudit({ actorKind: "ops", actorId: opsUserId, actorName: actor?.name ?? "unknown", action, targetType, targetId });
+}
 
 async function writeQuestionAudit(
   opsUserId: string,
@@ -481,6 +524,7 @@ router.post("/question-change-requests/:id/apply", async (req, res) => {
     where: { id: request.id },
     data: { status: "PERFORMED", performedById: opsUserId, performedAt: new Date() },
   });
+  await auditOpsAction(opsUserId, "QUESTION_CHANGE_APPLIED", "question-change-request", request.id);
   res.json(done);
 });
 
@@ -497,6 +541,26 @@ router.post("/question-change-requests/:id/reject", async (req, res) => {
     if (!existing) return res.status(404).json({ error: "Request not found" });
     return res.status(409).json({ error: `Request already ${existing.status}` });
   }
+  await auditOpsAction(opsUserId, "QUESTION_CHANGE_REJECTED", "question-change-request", req.params.id);
+  res.json(await prisma.questionChangeRequest.findUnique({ where: { id: req.params.id } }));
+});
+
+// FD-WEB-04: send a question change request back with a note — the
+// company sees the outcome and may file a corrected request.
+router.post("/question-change-requests/:id/request-changes", async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const parsed = requestChangesSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "A note describing the required changes is required" });
+  const flipped = await prisma.questionChangeRequest.updateMany({
+    where: { id: req.params.id, status: "PENDING" },
+    data: { status: "CHANGES_REQUESTED", performedById: opsUserId, performedAt: new Date(), reviewNote: parsed.data.note },
+  });
+  if (flipped.count === 0) {
+    const existing = await prisma.questionChangeRequest.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: "Request not found" });
+    return res.status(409).json({ error: `Request already ${existing.status}` });
+  }
+  await auditOpsAction(opsUserId, "QUESTION_CHANGE_CHANGES_REQUESTED", "question-change-request", req.params.id);
   res.json(await prisma.questionChangeRequest.findUnique({ where: { id: req.params.id } }));
 });
 

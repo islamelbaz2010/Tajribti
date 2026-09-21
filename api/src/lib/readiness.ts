@@ -35,9 +35,15 @@ import { getTextQuestionResponseCounts } from "./report";
 // - "dates: start before end": pure chronological validity with no
 //   business threshold chosen (no minimum duration, no cutoff date) —
 //   TECHNICAL-ONLY.
+// - "at least one QR/source": an earlier pass removed this check as
+//   Benchmark-unauthorized; FOUNDER DECISION FD-WEB-05 (2026-09-21)
+//   explicitly re-authorizes it — "QR is mandatory for every Campaign",
+//   and no campaign path may bypass the QR/source concept. A campaign
+//   with zero sources cannot produce a scannable entry and must not
+//   reach READY/ACTIVE.
 //
 // BLOCKED — BENCHMARK DOES NOT SPECIFY THE REQUIRED READINESS CHECKLIST
-// beyond these two items. No approval hierarchy, approval chain, or
+// beyond these items. No approval hierarchy, approval chain, or
 // compliance engine is invented; the Benchmark does not describe one.
 export interface ReadinessCheck {
   key: string;
@@ -89,12 +95,22 @@ export async function checkReadiness(campaignId: string): Promise<{
     where: { id: campaignId },
   });
 
+  // FD-WEB-05: QR/source presence is now a Founder-authorized readiness
+  // check — see the header comment. Counted here (not via include) so the
+  // campaign read stays light.
+  const qrSourceCount = await prisma.qrSource.count({ where: { campaignId } });
+
   const checks: ReadinessCheck[] = [
     { key: "objective", label: "Campaign objective is set", ok: campaign.objective.trim().length > 0 },
     {
       key: "dates",
       label: "Start date is before end date",
       ok: campaign.startDate < campaign.endDate,
+    },
+    {
+      key: "qr-source",
+      label: "At least one QR/source is configured",
+      ok: qrSourceCount > 0,
     },
   ];
 

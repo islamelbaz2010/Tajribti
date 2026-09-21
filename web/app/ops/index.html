@@ -95,8 +95,9 @@
     <div class="card tab-panel hidden" id="tab-companies">
       <h2>Companies</h2>
       <div id="company-list"></div>
-      <!-- OFD-08: company onboarding is PLATFORM_ADMIN-only (backend
-           enforces); the form is hidden for OPERATIONS users. -->
+      <!-- FD-WEB-03 (2026-09-21): company onboarding is authorized for
+           PLATFORM_ADMIN and OPERATIONS_MANAGER (backend enforces); the
+           form is hidden for plain OPERATIONS users. -->
       <div id="company-onboard-block">
       <h3 style="font-size:0.95rem;">Onboard new company</h3>
       <label>Company name</label><input id="nco-name" />
@@ -122,6 +123,7 @@
           <option value="">All</option>
           <option value="APPROVED">Approved</option>
           <option value="REJECTED">Rejected</option>
+          <option value="CHANGES_REQUESTED">Changes requested</option>
         </select>
       </div>
       <div id="studytype-requests-list"></div>
@@ -149,6 +151,9 @@
         <div><label>Role</label>
           <select id="nou-role">
             <option value="OPERATIONS">Operations</option>
+            <!-- FD-WEB-03: can create companies + full Operations scope,
+                 without Platform Admin powers. -->
+            <option value="OPERATIONS_MANAGER">Operations Manager</option>
             <option value="PLATFORM_ADMIN">Platform Admin</option>
           </select>
         </div>
@@ -383,8 +388,9 @@ async function loadCompanies() {
   list.querySelectorAll('.company-row').forEach(row => {
     row.onclick = () => showCampaignsForCompany(row.dataset.id, row.dataset.name);
   });
-  // OFD-08: company onboarding is PLATFORM_ADMIN-only.
-  document.getElementById('company-onboard-block').classList.toggle('hidden', currentOpsRole !== 'PLATFORM_ADMIN');
+  // FD-WEB-03: company onboarding is PLATFORM_ADMIN or OPERATIONS_MANAGER.
+  document.getElementById('company-onboard-block').classList.toggle('hidden',
+    currentOpsRole !== 'PLATFORM_ADMIN' && currentOpsRole !== 'OPERATIONS_MANAGER');
 }
 
 document.getElementById('btn-create-company').onclick = async () => {
@@ -429,9 +435,10 @@ async function loadStudyTypeRequests() {
       '<p style="font-size:0.88rem;margin:8px 0 0;">Current: <strong>' + esc(studyTypeLabel(r.currentStudyType)) + '</strong> &rarr; Requested: <strong>' + esc(studyTypeLabel(r.requestedStudyType)) + '</strong></p>' +
       '<p style="color:var(--muted);font-size:0.8rem;margin:2px 0 0;">Requested by ' + esc(r.requestedBy.name) + ' (' + esc(r.requestedBy.email) + ') on ' + new Date(r.createdAt).toLocaleString() + '</p>' +
       (r.status !== 'PENDING' ?
-        '<p style="color:var(--muted);font-size:0.8rem;margin:2px 0 0;">' + (r.status === 'APPROVED' ? 'Approved' : 'Rejected') +
+        '<p style="color:var(--muted);font-size:0.8rem;margin:2px 0 0;">' +
+        (r.status === 'APPROVED' ? 'Approved' : r.status === 'CHANGES_REQUESTED' ? 'Changes requested' : 'Rejected') +
         (r.reviewedBy ? ' by ' + esc(r.reviewedBy.name) : '') + (r.reviewedAt ? ' on ' + new Date(r.reviewedAt).toLocaleString() : '') +
-        (r.rejectionReason ? ': &ldquo;' + esc(r.rejectionReason) + '&rdquo;' : '.') + '</p>'
+        (r.rejectionReason ? ': &ldquo;' + esc(r.rejectionReason) + '&rdquo;' : (r.reviewNote ? ': &ldquo;' + esc(r.reviewNote) + '&rdquo;' : '.')) + '</p>'
         // Review pass 2026-09-20: a PENDING request on a locked campaign
         // (backend returns 409 "no longer configurable" on approve) must
         // not offer Approve — show why, keep Reject to clear the stale row.
@@ -443,6 +450,8 @@ async function loadStudyTypeRequests() {
           : '<div class="row" id="str-actions-' + esc(r.id) + '" style="margin-top:8px;">' +
           '<button class="small" data-approve="' + esc(r.id) + '">Approve</button>' +
           '<button class="small secondary" data-reject="' + esc(r.id) + '">Reject</button>' +
+          // FD-WEB-04: third named review outcome — send back for changes.
+          '<button class="small secondary" data-sendback="' + esc(r.id) + '">Request changes</button>' +
           '</div><div class="msg" id="str-msg-' + esc(r.id) + '"></div>'));
     list.appendChild(div);
   });
@@ -478,6 +487,26 @@ async function loadStudyTypeRequests() {
       };
     };
   });
+  // FD-WEB-04: send back to the company with a required note (the note IS
+  // the request — the company reads it on its own requests list).
+  list.querySelectorAll('button[data-sendback]').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.sendback;
+      const container = document.getElementById('str-actions-' + id);
+      container.innerHTML =
+        '<input id="str-note-' + esc(id) + '" placeholder="What should the company change?" style="width:auto;flex:1;min-width:180px;" />' +
+        '<button class="small" id="str-confirm-sendback-' + esc(id) + '">Send back</button>';
+      document.getElementById('str-confirm-sendback-' + id).onclick = async () => {
+        const msg = document.getElementById('str-msg-' + id);
+        const note = document.getElementById('str-note-' + id).value.trim();
+        if (!note) { msg.textContent = 'A note describing the required changes is required.'; msg.className = 'msg error'; return; }
+        try {
+          await api('/ops/study-type-requests/' + id + '/request-changes', { method: 'POST', body: { note } });
+          await loadStudyTypeRequests();
+        } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+      };
+    };
+  });
 }
 
 document.getElementById('str-filter').onchange = loadStudyTypeRequests;
@@ -501,8 +530,15 @@ async function loadQuestionRequests() {
       (r.payload ? '<p style="color:var(--muted);font-size:0.8rem;margin:2px 0 0;">Requested change: ' + esc(r.payload) + '</p>' : '') +
       (r.reason ? '<p style="color:var(--muted);font-size:0.8rem;margin:2px 0 0;">Reason: ' + esc(r.reason) + '</p>' : '') +
       '<p style="color:var(--muted);font-size:0.8rem;margin:2px 0 0;">Requested by ' + esc(r.requestedBy.name) + ' on ' + new Date(r.createdAt).toLocaleString() + '</p>' +
+      // FD-WEB-04: decided rows show the outcome + reviewer note.
+      (r.status !== 'PENDING' && (r.reviewNote || r.performedBy)
+        ? '<p style="color:var(--muted);font-size:0.8rem;margin:2px 0 0;">' +
+          (r.status === 'PERFORMED' ? 'Applied' : r.status === 'CHANGES_REQUESTED' ? 'Changes requested' : 'Rejected') +
+          (r.performedBy ? ' by ' + esc(r.performedBy.name) : '') +
+          (r.reviewNote ? ': &ldquo;' + esc(r.reviewNote) + '&rdquo;' : '') + '</p>'
+        : '') +
       (r.status === 'PENDING'
-        ? '<div class="row" style="margin-top:8px;"><button class="small" data-apply="' + esc(r.id) + '">Apply</button><button class="small secondary" data-qreject="' + esc(r.id) + '">Reject</button></div><div class="msg" id="qr-msg-' + esc(r.id) + '"></div>'
+        ? '<div class="row" style="margin-top:8px;"><button class="small" data-apply="' + esc(r.id) + '">Apply</button><button class="small secondary" data-qreject="' + esc(r.id) + '">Reject</button><button class="small secondary" data-qsendback="' + esc(r.id) + '">Request changes</button></div><div class="msg" id="qr-msg-' + esc(r.id) + '"></div>'
         : '');
     list.appendChild(div);
   });
@@ -518,6 +554,24 @@ async function loadQuestionRequests() {
       const note = window.prompt('Rejection note (optional):', '');
       try { await api('/ops/question-change-requests/' + btn.dataset.qreject + '/reject', { method: 'POST', body: { note } }); await loadQuestionRequests(); }
       catch (e) { alert(e.message); }
+    };
+  });
+  // FD-WEB-04: send back with a required note — same inline pattern as
+  // the study-type queue (no prompt() for a required field).
+  list.querySelectorAll('button[data-qsendback]').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.qsendback;
+      const msg = document.getElementById('qr-msg-' + id);
+      const row = btn.parentElement;
+      row.innerHTML =
+        '<input id="qr-note-' + esc(id) + '" placeholder="What should the company change?" style="width:auto;flex:1;min-width:180px;" />' +
+        '<button class="small" id="qr-confirm-' + esc(id) + '">Send back</button>';
+      document.getElementById('qr-confirm-' + id).onclick = async () => {
+        const note = document.getElementById('qr-note-' + id).value.trim();
+        if (!note) { msg.textContent = 'A note describing the required changes is required.'; msg.className = 'msg error'; return; }
+        try { await api('/ops/question-change-requests/' + id + '/request-changes', { method: 'POST', body: { note } }); await loadQuestionRequests(); }
+        catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+      };
     };
   });
 }
@@ -603,7 +657,14 @@ function loadConfig() {
     '<p><strong>Dates</strong><br/>' + new Date(c.startDate).toLocaleDateString() + ' – ' + new Date(c.endDate).toLocaleDateString() + '</p>' +
     '<p><strong>Audience</strong><br/>' + (audienceParts.length ? audienceParts.join(' · ') : 'No audience filter set') + '</p>' +
     // Founder-approved strategic differentiation, not Benchmark-required.
-    (c.studyType ? '<p><strong>Study type</strong><br/>' + esc(studyTypeLabel(c.studyType)) + '</p>' : '');
+    (c.studyType ? '<p><strong>Study type</strong><br/>' + esc(studyTypeLabel(c.studyType)) + '</p>' : '') +
+    // OFD-12 media is already in this same authorized read (GET
+    // /ops/campaigns/:id includes media) — surfaced read-only so Ops can
+    // review what consumers see; no new endpoint or edit action.
+    '<p><strong>Campaign media</strong><br/>' +
+    ((c.media && c.media.length)
+      ? c.media.map(m => esc(m.kind) + ' — ' + (m.url ? '<a href="' + esc(m.url) + '" target="_blank" rel="noopener">view</a>' : esc(m.status || 'PENDING')) + (m.caption ? ' (' + esc(m.caption) + ')' : '')).join('<br/>')
+      : 'None configured') + '</p>';
 }
 
 async function loadReadiness() {

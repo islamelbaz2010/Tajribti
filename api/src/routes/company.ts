@@ -31,6 +31,9 @@ import {
 
 const router = Router();
 router.use(requireEmployee);
+// FOUNDER DECISION FD-WEB-01 (2026-09-21): COMPANY_MEMBER is
+// reporting/read-only. Every mutating route below additionally carries
+// requireCompanyAdmin; GET routes remain available to both roles.
 
 // --- Study Templates (FOUNDER-APPROVED STRATEGIC DIFFERENTIATION — see
 // governance/FOUNDER_DECISION_STRATEGIC_DIFFERENTIATION.md; NOT
@@ -59,7 +62,7 @@ router.get("/profile", async (req, res) => {
   res.json(company);
 });
 
-router.patch("/profile", async (req, res) => {
+router.patch("/profile", requireCompanyAdmin, async (req, res) => {
   const { companyId } = asEmployee(req);
   const schema = z.object({ name: z.string().min(1).optional(), industry: z.string().optional() });
   const parsed = schema.safeParse(req.body);
@@ -138,7 +141,7 @@ const productSchema = z.object({
   claims: z.array(z.string().min(1)).optional(),
 });
 
-router.post("/products", async (req, res) => {
+router.post("/products", requireCompanyAdmin, async (req, res) => {
   const { companyId } = asEmployee(req);
   const parsed = productSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
@@ -147,7 +150,7 @@ router.post("/products", async (req, res) => {
   res.status(201).json(product);
 });
 
-router.patch("/products/:pid", async (req, res) => {
+router.patch("/products/:pid", requireCompanyAdmin, async (req, res) => {
   const { companyId } = asEmployee(req);
   const parsed = productSchema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
@@ -197,7 +200,7 @@ const createCampaignSchema = z.object({
     .refine((v) => v == null || v === "" || findTemplate(v) != null, { message: "Unknown study type" }),
 });
 
-router.post("/campaigns", async (req, res) => {
+router.post("/campaigns", requireCompanyAdmin, async (req, res) => {
   const { companyId } = asEmployee(req);
   const parsed = createCampaignSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
@@ -294,7 +297,7 @@ async function assertStudyTypeChangeAllowed(campaignId: string, res: Response): 
   return true;
 }
 
-router.patch("/campaigns/:id", async (req, res) => {
+router.patch("/campaigns/:id", requireCompanyAdmin, async (req, res) => {
   const { companyId } = asEmployee(req);
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
@@ -404,7 +407,7 @@ const studyTypeRequestSchema = z.object({
     .refine((v) => v === "" || findTemplate(v) != null, { message: "Unknown study type" }),
 });
 
-router.post("/campaigns/:id/study-type-requests", async (req, res) => {
+router.post("/campaigns/:id/study-type-requests", requireCompanyAdmin, async (req, res) => {
   const { employeeId } = asEmployee(req);
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
@@ -456,6 +459,7 @@ router.get("/campaigns/:id/study-type-requests", async (req, res) => {
       createdAt: true,
       reviewedAt: true,
       rejectionReason: true,
+      reviewNote: true,
       requestedBy: { select: { name: true } },
       reviewedBy: { select: { name: true } },
     },
@@ -480,7 +484,7 @@ router.get("/campaigns/:id/readiness", async (req, res) => {
 // Configure -> Review/Ready is a company-driven step (Benchmark §2.4);
 // Launch/Pause/Close remains TAJRIBTI Operations-controlled (§4 OPERATIONS
 // "Launch / Pause / Close"; §8 hybrid model).
-router.post("/campaigns/:id/submit-for-review", async (req, res) => {
+router.post("/campaigns/:id/submit-for-review", requireCompanyAdmin, async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
   if (campaign.status !== "DRAFT") return res.status(409).json({ error: "Only a DRAFT campaign can be submitted for review" });
@@ -528,7 +532,7 @@ const questionSchema = z
     }
   });
 
-router.post("/campaigns/:id/questions", async (req, res) => {
+router.post("/campaigns/:id/questions", requireCompanyAdmin, async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
   if (!assertConfigurable(campaign, res)) return;
@@ -558,7 +562,7 @@ router.post("/campaigns/:id/questions", async (req, res) => {
   res.status(201).json(question);
 });
 
-router.delete("/campaigns/:id/questions/:qid", async (req, res) => {
+router.delete("/campaigns/:id/questions/:qid", requireCompanyAdmin, async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
   if (!assertConfigurable(campaign, res)) return;
@@ -608,7 +612,7 @@ router.delete("/campaigns/:id/questions/:qid", async (req, res) => {
 //
 // Skipped questions are reported back so the Company UI can show
 // exactly what happened.
-router.post("/campaigns/:id/questions/apply-template", async (req, res) => {
+router.post("/campaigns/:id/questions/apply-template", requireCompanyAdmin, async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
   if (!assertConfigurable(campaign, res)) return;
@@ -661,7 +665,7 @@ const qrSchema = z.object({
   activeTo: z.string(),
 });
 
-router.post("/campaigns/:id/qr-sources", async (req, res) => {
+router.post("/campaigns/:id/qr-sources", requireCompanyAdmin, async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
   if (!assertConfigurable(campaign, res)) return;
@@ -878,7 +882,7 @@ router.get("/campaigns/:id/media", async (req, res) => {
   res.json(await resolveMediaUrls(media));
 });
 
-router.post("/campaigns/:id/media", async (req, res) => {
+router.post("/campaigns/:id/media", requireCompanyAdmin, async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
   if (!assertConfigurable(campaign, res)) return;
@@ -891,7 +895,7 @@ router.post("/campaigns/:id/media", async (req, res) => {
 });
 
 // D-5 hosted upload step 1: declare the asset, get a signed PUT URL.
-router.post("/campaigns/:id/media/upload-init", async (req, res) => {
+router.post("/campaigns/:id/media/upload-init", requireCompanyAdmin, async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
   if (!assertConfigurable(campaign, res)) return;
@@ -915,7 +919,7 @@ router.post("/campaigns/:id/media/upload-init", async (req, res) => {
 
 // D-5 hosted upload step 2: confirm the stored object matches the
 // declared type+size, then mark the row READY.
-router.post("/campaigns/:id/media/:mid/confirm", async (req, res) => {
+router.post("/campaigns/:id/media/:mid/confirm", requireCompanyAdmin, async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
   const media = await prisma.campaignMedia.findFirst({ where: { id: req.params.mid, campaignId: campaign.id } });
@@ -926,7 +930,7 @@ router.post("/campaigns/:id/media/:mid/confirm", async (req, res) => {
   res.json(await prisma.campaignMedia.update({ where: { id: media.id }, data: { status: "READY" } }));
 });
 
-router.delete("/campaigns/:id/media/:mid", async (req, res) => {
+router.delete("/campaigns/:id/media/:mid", requireCompanyAdmin, async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
   if (!assertConfigurable(campaign, res)) return;

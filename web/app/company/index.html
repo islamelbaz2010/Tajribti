@@ -113,6 +113,10 @@
            partially usable. imageUrl is a plain URL string field, not
            a file-upload mechanism: the Benchmark names no upload
            methodology, so none is invented here. -->
+      <!-- FD-WEB-01 (2026-09-21): COMPANY_MEMBER is reporting/read-only —
+           this whole authoring block is hidden for members (the backend
+           enforces 403 regardless). -->
+      <div id="product-add-form">
       <label>New product name</label>
       <input id="np-name" />
       <label>Description (optional)</label>
@@ -130,6 +134,7 @@
       <label>Claims (optional, comma-separated)</label>
       <input id="np-claims" placeholder="e.g. Sugar-free, Vitamin C enriched" />
       <button class="secondary small" id="btn-add-product">Add product</button>
+      </div>
     </div>
 
     <!-- FOUNDER INNOVATION (OFD-15B): same-company cross-campaign panel
@@ -352,6 +357,11 @@ let currentEmployeeRole = localStorage.getItem('tj_company_role') || 'COMPANY_ME
 let currentCampaignId = null;
 let currentCampaignStudyType = '';
 let currentCampaignLocked = false; // status !== DRAFT/READY — see UI/UX lock fix in openCampaign()
+// FD-WEB-01: COMPANY_MEMBER is reporting/read-only. Lifecycle lock and
+// role lock are different concepts — member view must stay read-only even
+// on a DRAFT campaign, and even the request-filing affordances are
+// admin-only.
+function isMember() { return currentEmployeeRole !== 'COMPANY_ADMIN'; }
 let currentCampaignHasQuestions = false; // forensic audit 2026-09-15, Decision 1 — see refreshStudyTypeGovernanceUI()
 let latestStudyTypeRequest = null; // most recent StudyTypeChangeRequest for the open campaign, if any
 let studyTemplates = []; // cached from GET /company/study-templates
@@ -396,8 +406,11 @@ function show(id) {
 // purely a client-side token discard — the JWT itself has no server-side
 // session to revoke (Benchmark §10 "OTP/JWT flow" is stateless by design).
 function renderWho(name) {
+  // FD-WEB-01: the role is shown so a member can see at a glance why no
+  // editing controls are offered.
   document.getElementById('who').innerHTML =
     (name ? '<span>' + esc(name) + '</span>' : '') +
+    ' <span class="pill">' + (isMember() ? 'Member — read only' : 'Admin') + '</span>' +
     ' <button class="secondary small" id="btn-signout">Sign out</button>';
   document.getElementById('btn-signout').onclick = () => {
     token = null;
@@ -457,10 +470,24 @@ document.getElementById('btn-add-product').onclick = async () => {
   await loadProducts(document.getElementById('nc-product'));
 };
 
+// FD-WEB-01: COMPANY_MEMBER sees the workspace read-only — no creation or
+// editing affordances anywhere (the API returns 403 regardless; hiding is
+// the honest UI for a reporting role).
+function applyRoleUI() {
+  const readOnly = isMember();
+  document.getElementById('btn-new-campaign').classList.toggle('hidden', readOnly);
+  if (readOnly) document.getElementById('new-campaign-card').classList.add('hidden');
+  document.getElementById('product-add-form').classList.toggle('hidden', readOnly);
+  ['cp-name', 'cp-industry'].forEach(id => { document.getElementById(id).disabled = readOnly; });
+  document.getElementById('btn-save-profile').classList.toggle('hidden', readOnly);
+}
+
 async function loadCampaigns() {
   const campaigns = await api('/company/campaigns');
   const list = document.getElementById('campaign-list');
-  list.innerHTML = campaigns.length ? '' : '<p style="color:var(--muted)">No campaigns yet — create one below.</p>';
+  list.innerHTML = campaigns.length ? '' : (isMember()
+    ? '<p style="color:var(--muted)">No campaigns yet.</p>'
+    : '<p style="color:var(--muted)">No campaigns yet — create one below.</p>');
   campaigns.forEach(c => {
     const div = document.createElement('div');
     div.className = 'campaign-item';
@@ -473,6 +500,7 @@ async function loadCampaigns() {
   await loadProfile();
   await loadEmployees();
   await loadPanelInsights();
+  applyRoleUI();
   show('view-campaigns');
 }
 
@@ -631,32 +659,41 @@ async function openCampaign(id) {
   // fields and buttons; it does not change what the backend enforces.
   const campaignLocked = c.status !== 'DRAFT' && c.status !== 'READY';
   currentCampaignLocked = campaignLocked;
+  // FD-WEB-01: members get the same read-only rendering as a locked
+  // campaign — plus no request-filing affordances (handled below).
+  const memberReadOnly = isMember();
+  const setupReadOnly = campaignLocked || memberReadOnly;
   ['s-name', 's-objective', 's-start', 's-end', 's-product', 's-studytype', 's-agemin', 's-agemax', 's-gender', 's-city']
-    .forEach(id => { document.getElementById(id).disabled = campaignLocked; });
-  document.getElementById('btn-save-setup').classList.toggle('hidden', campaignLocked);
+    .forEach(id => { document.getElementById(id).disabled = setupReadOnly; });
+  document.getElementById('btn-save-setup').classList.toggle('hidden', setupReadOnly);
   const setupMsg = document.getElementById('setup-msg');
-  if (campaignLocked) {
+  if (memberReadOnly) {
+    setupMsg.textContent = 'Read-only — Company Member accounts cannot edit campaign configuration.';
+    setupMsg.className = 'msg';
+  } else if (campaignLocked) {
     setupMsg.textContent = 'Configuration is locked once launched — view only.';
     setupMsg.className = 'msg';
   } else {
     setupMsg.textContent = ''; setupMsg.className = 'msg';
   }
-  ['q-stage', 'q-type', 'q-text', 'q-options'].forEach(id => { document.getElementById(id).disabled = campaignLocked; });
-  document.getElementById('btn-add-question').classList.toggle('hidden', campaignLocked);
+  ['q-stage', 'q-type', 'q-text', 'q-options'].forEach(id => { document.getElementById(id).disabled = setupReadOnly; });
+  document.getElementById('btn-add-question').classList.toggle('hidden', setupReadOnly);
   const questionMsg = document.getElementById('question-msg');
-  if (campaignLocked) { questionMsg.textContent = 'Locked once launched — view only.'; questionMsg.className = 'msg'; }
+  if (setupReadOnly) { questionMsg.textContent = memberReadOnly ? 'Read-only for your role.' : 'Locked once launched — view only.'; questionMsg.className = 'msg'; }
   else { questionMsg.textContent = ''; questionMsg.className = 'msg'; }
-  ['qr-label', 'qr-code', 'qr-from', 'qr-to'].forEach(id => { document.getElementById(id).disabled = campaignLocked; });
-  document.getElementById('btn-add-qr').classList.toggle('hidden', campaignLocked);
+  ['qr-label', 'qr-code', 'qr-from', 'qr-to'].forEach(id => { document.getElementById(id).disabled = setupReadOnly; });
+  document.getElementById('btn-add-qr').classList.toggle('hidden', setupReadOnly);
   const qrMsg = document.getElementById('qr-msg');
-  if (campaignLocked) { qrMsg.textContent = 'Locked once launched — view only.'; qrMsg.className = 'msg'; }
+  if (setupReadOnly) { qrMsg.textContent = memberReadOnly ? 'Read-only for your role.' : 'Locked once launched — view only.'; qrMsg.className = 'msg'; }
   else { qrMsg.textContent = ''; qrMsg.className = 'msg'; }
-  // OFD-12 media follows the same DRAFT/READY configurability lock.
-  document.getElementById('media-add-form').classList.toggle('hidden', campaignLocked);
+  // OFD-12 media follows the same DRAFT/READY configurability lock; for
+  // members it is additionally read-only under FD-WEB-01.
+  document.getElementById('media-add-form').classList.toggle('hidden', setupReadOnly);
 
   const actions = document.getElementById('cd-actions');
   actions.innerHTML = '';
-  if (c.status === 'DRAFT') {
+  // FD-WEB-01: submit/delete are lifecycle mutations — admin-only.
+  if (c.status === 'DRAFT' && !memberReadOnly) {
     const b = document.createElement('button'); b.className='small'; b.textContent = 'Submit for review';
     b.onclick = async () => {
       const msg = document.getElementById('cd-msg');
@@ -742,7 +779,10 @@ function renderQuestions(questions) {
   const list = document.getElementById('question-list');
   list.innerHTML = questions.length ? '<table><tr><th>Stage</th><th>Type</th><th>Text</th><th></th></tr>' +
     questions.map(q => '<tr><td>' + q.stage + '</td><td>' + q.type + '</td><td>' + esc(q.text) + '</td><td>' +
-      (currentCampaignLocked
+      (isMember()
+        // FD-WEB-01: members neither edit nor file change requests.
+        ? ''
+        : currentCampaignLocked
         // OFD-19: once locked, company requests the change; Operations performs it.
         ? '<button class="small secondary" data-req-qid="' + esc(q.id) + '">Request change</button>'
         : '<button class="small secondary" data-qid="' + esc(q.id) + '">Delete</button>') +
@@ -800,14 +840,16 @@ function renderTemplateApplyRow() {
   // does, and that's a POST with the full server-side catalog behind it.
   // Reading `tpl.questions.length` here (an earlier version's bug) throws
   // because `tpl.questions` is undefined on this response shape.
-  if (currentCampaignLocked) {
+  if (currentCampaignLocked || isMember()) {
     // Same lock as Setup/Add question/Add QR-source — the button would
     // only 409 once clicked (assertConfigurable), and its count reflects
     // the live catalog, not necessarily what this already-launched
     // campaign was actually configured with (the catalog can gain
     // content after a campaign launches — see studyTemplates.ts history
     // — without retroactively changing an already-running campaign).
-    row.innerHTML = '<strong>' + esc(tpl.label) + '</strong> — ' + esc(tpl.decision) + ' <span style="color:var(--muted);">(locked once launched — view only)</span>';
+    // FD-WEB-01: members get the label, never the apply affordance.
+    row.innerHTML = '<strong>' + esc(tpl.label) + '</strong> — ' + esc(tpl.decision) +
+      ' <span style="color:var(--muted);">(' + (isMember() && !currentCampaignLocked ? 'read-only for your role' : 'locked once launched — view only') + ')</span>';
     return;
   }
   row.innerHTML = '<strong>' + esc(tpl.label) + '</strong> — ' + esc(tpl.decision) +
@@ -842,7 +884,18 @@ async function refreshStudyTypeGovernanceUI(questionCount) {
   const select = document.getElementById('s-studytype');
   const block = document.getElementById('study-type-request-block');
 
-  if (currentCampaignLocked) {
+  if (currentCampaignLocked || isMember()) {
+    // FD-WEB-01: filing a study-type change request is admin-only; for
+    // members the block still shows the latest request's outcome (below),
+    // just never the filing form.
+    if (isMember() && !currentCampaignLocked) {
+      select.disabled = true;
+      const requests = await api('/company/campaigns/' + currentCampaignId + '/study-type-requests');
+      latestStudyTypeRequest = requests[0] || null;
+      if (latestStudyTypeRequest) { block.classList.remove('hidden'); renderStudyTypeRequestBlock(); }
+      else { block.classList.add('hidden'); block.innerHTML = ''; }
+      return;
+    }
     // The disable-loop in openCampaign() already locks every Setup field,
     // including this select; the request workflow itself is also DRAFT/
     // READY-only (assertConfigurable on the backend), so there is nothing
@@ -880,6 +933,14 @@ function renderStudyTypeRequestBlock() {
       (latestStudyTypeRequest.reviewedBy ? ' by ' + esc(latestStudyTypeRequest.reviewedBy.name) : '') +
       (latestStudyTypeRequest.rejectionReason ? ': "' + esc(latestStudyTypeRequest.rejectionReason) + '"' : '.') +
       ' The current study type is unchanged.</p>';
+  } else if (latestStudyTypeRequest && latestStudyTypeRequest.status === 'CHANGES_REQUESTED') {
+    // FD-WEB-04: Operations sent the request back — the note tells the
+    // company what to fix before re-filing.
+    statusHtml = '<p class="msg">Operations requested changes on the last request — change to ' +
+      esc(studyTypeLabel(latestStudyTypeRequest.requestedStudyType)) +
+      (latestStudyTypeRequest.reviewedBy ? ' (reviewed by ' + esc(latestStudyTypeRequest.reviewedBy.name) + ')' : '') +
+      (latestStudyTypeRequest.reviewNote ? ': "' + esc(latestStudyTypeRequest.reviewNote) + '"' : '.') +
+      ' You may file a corrected request below.</p>';
   } else if (latestStudyTypeRequest && latestStudyTypeRequest.status === 'APPROVED') {
     statusHtml = '<p class="msg ok">Last request was approved' + (latestStudyTypeRequest.reviewedAt ? ' on ' + new Date(latestStudyTypeRequest.reviewedAt).toLocaleString() : '') + '.</p>';
   }
@@ -890,13 +951,13 @@ function renderStudyTypeRequestBlock() {
   block.innerHTML =
     '<p style="color:var(--muted);font-size:0.85rem;margin:0 0 6px;">This campaign already has configured survey questions, so its study type can no longer be changed directly here — request a change for TAJRIBTI Operations to review instead. Existing questions are never removed automatically.</p>' +
     statusHtml +
-    (pending ? '' :
+    (pending || isMember() ? '' :
       '<label>Request a different study type</label>' +
       '<select id="st-request-select">' + options + '</select>' +
       '<button class="secondary small" id="btn-request-studytype-change">Request change</button>' +
       '<p class="msg" id="st-request-msg"></p>');
 
-  if (!pending) {
+  if (!pending && !isMember()) {
     document.getElementById('st-request-select').value = currentCampaignStudyType;
     document.getElementById('btn-request-studytype-change').onclick = async () => {
       const msg = document.getElementById('st-request-msg');
@@ -1010,7 +1071,8 @@ async function loadQuestionChangeRequests(locked) {
           ' <span style="color:var(--muted);font-size:0.82rem;">requested ' + new Date(r.createdAt).toLocaleString() +
           (r.performedBy ? ' · handled by ' + esc(r.performedBy.name) : '') +
           (r.reviewNote ? ' · "' + esc(r.reviewNote) + '"' : '') + '</span></li>').join('') + '</ul>'
-      : '<p style="color:var(--muted);font-size:0.85rem;">Configuration is locked. Use "Request change" on a question below to ask TAJRIBTI Operations to edit or remove it.</p>';
+      : '<p style="color:var(--muted);font-size:0.85rem;">Configuration is locked.' +
+        (isMember() ? '' : ' Use "Request change" on a question below to ask TAJRIBTI Operations to edit or remove it.') + '</p>';
   } catch { block.classList.add('hidden'); }
 }
 
@@ -1022,7 +1084,7 @@ function renderMedia(media) {
   list.innerHTML = media.length ? '<table><tr><th>Type</th><th>Source</th><th>URL</th><th>Caption</th><th></th></tr>' +
     media.map(m => '<tr><td>' + esc(m.kind) + '</td><td>' + esc(m.source || 'URL') + (m.status && m.status !== 'READY' ? ' (' + esc(m.status) + ')' : '') + '</td><td style="word-break:break-all;">' +
       (m.url ? (m.url.startsWith('http') && (m.source || 'URL') === 'URL' ? esc(m.url) : '<a href="' + esc(m.url) + '" target="_blank" rel="noopener">view</a>') : '—') + '</td><td>' + esc(m.caption || '') + '</td><td>' +
-      (currentCampaignLocked ? '' : '<button class="small secondary" data-mid="' + esc(m.id) + '">Remove</button>') +
+      (currentCampaignLocked || isMember() ? '' : '<button class="small secondary" data-mid="' + esc(m.id) + '">Remove</button>') +
       '</td></tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No media attached yet.</p>';
   list.querySelectorAll('button[data-mid]').forEach(btn => {

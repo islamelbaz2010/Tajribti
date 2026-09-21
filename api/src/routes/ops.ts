@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma";
 import { requireOps, requirePlatformAdmin, requireOpsManager, asOps } from "../middleware/auth";
 import { resolveMediaUrls } from "../lib/media";
 import { checkReadiness } from "../lib/readiness";
+import { isValidIndustry, isValidSubIndustry } from "../lib/industries";
 import { buildIntelligence } from "../lib/intelligence";
 import { writeAccessAudit } from "../lib/audit";
 import {
@@ -53,10 +54,22 @@ router.get("/companies", async (_req, res) => {
 const createCompanySchema = z.object({
   name: z.string().min(1),
   industry: z.string().optional(),
+  subIndustry: z.string().optional(),
   employeeName: z.string().min(1),
   employeeEmail: z.string().email(),
   employeePassword: z.string().min(8),
 });
+
+// Founder direction 2026-09-21: Industry/Sub-industry are controlled
+// selections — writes must come from the canonical taxonomy
+// (src/lib/industries.ts), never free text.
+function industryPairValid(industry: string | undefined, subIndustry: string | undefined): boolean {
+  if (industry !== undefined && !isValidIndustry(industry)) return false;
+  if (subIndustry !== undefined) {
+    if (!industry || !isValidSubIndustry(industry, subIndustry)) return false;
+  }
+  return true;
+}
 
 // FOUNDER DECISION FD-WEB-03 (2026-09-21): company creation is authorized
 // for OPERATIONS_MANAGER (and PLATFORM_ADMIN as the superset layer) and is
@@ -67,6 +80,9 @@ router.post("/companies", requireOpsManager, async (req, res) => {
   const parsed = createCompanySchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
   const d = parsed.data;
+  if (!industryPairValid(d.industry, d.subIndustry)) {
+    return res.status(400).json({ error: "Industry and sub-industry must be valid selections" });
+  }
   const passwordHash = await bcrypt.hash(d.employeePassword, 10);
   try {
     // Security hardening: select only safe fields for the response. The
@@ -78,6 +94,7 @@ router.post("/companies", requireOpsManager, async (req, res) => {
       data: {
         name: d.name,
         industry: d.industry,
+        subIndustry: d.subIndustry,
         employees: {
           create: { name: d.employeeName, email: d.employeeEmail, passwordHash },
         },
@@ -86,6 +103,7 @@ router.post("/companies", requireOpsManager, async (req, res) => {
         id: true,
         name: true,
         industry: true,
+        subIndustry: true,
         createdAt: true,
         employees: { select: { id: true, name: true, email: true, role: true, createdAt: true } },
       },

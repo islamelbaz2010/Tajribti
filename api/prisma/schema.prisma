@@ -55,10 +55,14 @@ model OpsUser {
 // ---------------------------------------------------------------------------
 
 model Company {
-  id        String   @id @default(cuid())
-  name      String
-  industry  String?
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  name        String
+  industry    String?
+  // Founder direction 2026-09-21: industry/sub-industry are controlled
+  // selections from the canonical taxonomy in src/lib/industries.ts —
+  // validated on write, never free text on new writes.
+  subIndustry String?
+  createdAt   DateTime @default(now())
 
   employees Employee[]
   products  Product[]

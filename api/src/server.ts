@@ -9,6 +9,7 @@ import companyRoutes from "./routes/company";
 import opsAuthRoutes from "./routes/opsAuth";
 import opsRoutes from "./routes/ops";
 import { assetLinksHandler } from "./lib/appLinks";
+import { INDUSTRY_TAXONOMY } from "./lib/industries";
 
 const app = express();
 app.disable("x-powered-by");
@@ -59,6 +60,11 @@ app.use("/api/ops", opsRoutes);
 // FD-M7 (2026-09-21): Digital Asset Links for Android App Links —
 // /.well-known/assetlinks.json (see src/lib/appLinks.ts).
 app.get("/.well-known/assetlinks.json", assetLinksHandler);
+
+// Canonical industry/sub-industry taxonomy (Founder direction 2026-09-21)
+// — one source served to every surface that renders the controlled
+// Industry → Sub-industry selects. Reference data, not sensitive.
+app.get("/api/meta/industries", (_req, res) => res.json(INDUSTRY_TAXONOMY));
 
 // Thin static web clients (Public / Consumer / Company / Operations),
 // served from the same process for simplicity (no product decision).

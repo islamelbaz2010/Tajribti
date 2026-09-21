@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireEmployee, requireCompanyAdmin, asEmployee } from "../middleware/auth";
 import { checkReadiness } from "../lib/readiness";
+import { isValidIndustry, isValidSubIndustry } from "../lib/industries";
 import { buildIntelligence } from "../lib/intelligence";
 import { writeAccessAudit } from "../lib/audit";
 import {
@@ -64,10 +65,29 @@ router.get("/profile", async (req, res) => {
 
 router.patch("/profile", requireCompanyAdmin, async (req, res) => {
   const { companyId } = asEmployee(req);
-  const schema = z.object({ name: z.string().min(1).optional(), industry: z.string().optional() });
+  const schema = z.object({
+    name: z.string().min(1).optional(),
+    industry: z.string().optional(),
+    subIndustry: z.string().optional(),
+  });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
-  const company = await prisma.company.update({ where: { id: companyId }, data: parsed.data });
+  const d = parsed.data;
+  // Founder direction 2026-09-21: Industry/Sub-industry are controlled
+  // selections from the canonical taxonomy (src/lib/industries.ts). A
+  // sub-industry is only valid under its own industry; a sub-industry
+  // without an industry is rejected. Explicit null clears are not part of
+  // this schema — omission preserves the stored value.
+  if (d.industry !== undefined && !isValidIndustry(d.industry)) {
+    return res.status(400).json({ error: "Industry must be a valid selection" });
+  }
+  if (d.subIndustry !== undefined) {
+    const effectiveIndustry = d.industry ?? (await prisma.company.findUnique({ where: { id: companyId }, select: { industry: true } }))?.industry;
+    if (!effectiveIndustry || !isValidSubIndustry(effectiveIndustry, d.subIndustry)) {
+      return res.status(400).json({ error: "Sub-industry must belong to the selected industry" });
+    }
+  }
+  const company = await prisma.company.update({ where: { id: companyId }, data: d });
   res.json(company);
 });
 
@@ -247,7 +267,10 @@ router.get("/campaigns/:id", async (req, res) => {
     where: { id: campaign.id },
     include: { product: true, questions: { orderBy: { order: "asc" } }, qrSources: true, media: true },
   });
-  res.json({ ...full, media: await resolveMediaUrls(full!.media) });
+  // hostedMediaConfigured lets the UI show the hosted-upload pending
+  // state proactively (FD-WEB-14: code complete, infrastructure staged)
+  // instead of only surfacing it as a 503 after a failed upload attempt.
+  res.json({ ...full, media: await resolveMediaUrls(full!.media), hostedMediaConfigured: isHostedMediaConfigured() });
 });
 
 function assertConfigurable(campaign: { status: string }, res: Response): boolean {

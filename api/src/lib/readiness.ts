@@ -41,6 +41,13 @@ import { getTextQuestionResponseCounts } from "./report";
 //   and no campaign path may bypass the QR/source concept. A campaign
 //   with zero sources cannot produce a scannable entry and must not
 //   reach READY/ACTIVE.
+// - "a product is linked": Benchmark §5's CAMPAIGN object names Product a
+//   core component alongside Company/Objective/Audience/Dates, and §2.1
+//   states "Campaigns are designed around product, audience and goals" —
+//   the trial exists to put a specific product in consumers' hands. The
+//   2026-09-21 Founder Web Review confirmed a product-less campaign
+//   showing "Ready to launch" as a defect. BENCHMARK-DERIVABLE +
+//   Founder-confirmed.
 //
 // BLOCKED — BENCHMARK DOES NOT SPECIFY THE REQUIRED READINESS CHECKLIST
 // beyond these items. No approval hierarchy, approval chain, or
@@ -111,6 +118,11 @@ export async function checkReadiness(campaignId: string): Promise<{
       key: "qr-source",
       label: "At least one QR/source is configured",
       ok: qrSourceCount > 0,
+    },
+    {
+      key: "product",
+      label: "A product is linked",
+      ok: campaign.productId != null,
     },
   ];
 

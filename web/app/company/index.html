@@ -44,6 +44,40 @@
   a.back { color: var(--muted); font-size: 0.85rem; text-decoration:none; display:inline-block; margin-bottom:10px; }
   /* FOUNDER INNOVATION (OFD-13): print/PDF output. Only the report card
      prints; RTL Arabic narrative lines keep direction in print. */
+  /* Final-report deliverable presentation — cover, executive summary and
+     section hierarchy matching the professional Consumer Insights &
+     Feedback report structure. All content still comes from buildReport();
+     this is presentation only. */
+  .rep-cover {
+    background: linear-gradient(135deg, #241914 0%, #3a2a20 100%);
+    color: #f6ede4;
+    border-radius: 16px;
+    padding: 26px 26px 22px;
+    margin-bottom: 22px;
+  }
+  .rep-cover .rc-eyebrow { color: var(--primary); font-weight: 800; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+  .rep-cover .rc-title { font-size: 1.35rem; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .rep-cover .rc-meta { color: #cbb8ab; font-size: 0.85rem; line-height: 1.55; }
+  .rep-cover .rc-tag {
+    display: inline-block; margin-top: 14px;
+    border: 1px solid rgba(255,255,255,0.28); border-radius: 999px;
+    padding: 5px 13px; font-size: 0.75rem; color: #f6ede4;
+  }
+  .rep-label { color: var(--primary); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.72rem; margin: 24px 0 10px; }
+  .rep-exec {
+    background: var(--bg);
+    border-left: 4px solid var(--primary);
+    border-radius: 0 12px 12px 0;
+    padding: 14px 18px;
+    font-size: 0.92rem;
+  }
+  .rep-exec ul { margin: 0; padding-left: 18px; }
+  .rep-exec li { margin-bottom: 6px; }
+  .rep-dist { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  .rep-dist td { padding: 7px 0; border-bottom: 1px dashed var(--line); }
+  .rep-dist td:last-child { text-align: right; font-weight: 700; }
+  .rep-dist tr:last-child td { border-bottom: none; }
+  .rep-method { background: var(--bg); border-radius: 12px; padding: 14px 18px; font-size: 0.85rem; }
   @media print {
     header, .tabs, #cd-actions, .back, #view-campaigns, #tab-setup, #tab-questions, #tab-qr, #tab-live, #tab-insights, .tab-panel:not(#tab-report), #btn-print-report, button { display:none !important; }
     .hidden { display:block !important; }
@@ -148,7 +182,12 @@
       <h2>Company profile</h2>
       <div class="grid2">
         <div><label>Company name</label><input id="cp-name" /></div>
-        <div><label>Industry</label><input id="cp-industry" /></div>
+        <div><label>Industry</label><select id="cp-industry"></select></div>
+        <!-- Founder direction 2026-09-21: Industry/Sub-industry are
+             controlled selections from the canonical taxonomy served by
+             GET /api/meta/industries — Sub-industry depends on the chosen
+             Industry. -->
+        <div><label>Sub-industry</label><select id="cp-sub-industry"></select></div>
       </div>
       <button class="small" id="btn-save-profile">Save</button>
       <div class="msg" id="cp-msg"></div>
@@ -479,6 +518,10 @@ function applyRoleUI() {
   if (readOnly) document.getElementById('new-campaign-card').classList.add('hidden');
   document.getElementById('product-add-form').classList.toggle('hidden', readOnly);
   ['cp-name', 'cp-industry'].forEach(id => { document.getElementById(id).disabled = readOnly; });
+  // Sub-industry is disabled for members, or whenever no industry is
+  // selected (it is a dependent selection of Industry).
+  const subSel = document.getElementById('cp-sub-industry');
+  subSel.disabled = readOnly || !document.getElementById('cp-industry').value;
   document.getElementById('btn-save-profile').classList.toggle('hidden', readOnly);
 }
 
@@ -505,17 +548,61 @@ async function loadCampaigns() {
 }
 
 // --- Company Profile (Benchmark §4 COMPANY "Company Profile") --------------
+// Canonical industry taxonomy — one source (GET /api/meta/industries);
+// Industry is a controlled select and Sub-industry is dependent on it.
+// A stored legacy value outside the taxonomy is shown as a non-selectable
+// "current value" option so existing data is never silently rewritten.
+let INDUSTRY_GROUPS = null;
+async function loadIndustryTaxonomy() {
+  if (INDUSTRY_GROUPS) return INDUSTRY_GROUPS;
+  INDUSTRY_GROUPS = await api('/meta/industries');
+  return INDUSTRY_GROUPS;
+}
+
+function fillIndustrySelect(sel, current) {
+  sel.innerHTML = '<option value="">Select industry</option>' +
+    INDUSTRY_GROUPS.map(g => '<option value="' + esc(g.industry) + '"' + (g.industry === current ? ' selected' : '') + '>' + esc(g.industry) + '</option>').join('');
+  if (current && !INDUSTRY_GROUPS.some(g => g.industry === current)) {
+    sel.innerHTML += '<option value="' + esc(current) + '" data-legacy="1" selected>' + esc(current) + ' (existing)</option>';
+  }
+}
+
+function fillSubIndustrySelect(sel, industry, current) {
+  const group = (INDUSTRY_GROUPS || []).find(g => g.industry === industry);
+  sel.innerHTML = '<option value="">' + (group ? 'Select sub-industry' : '—') + '</option>' +
+    (group ? group.subIndustries.map(s => '<option value="' + esc(s) + '"' + (s === current ? ' selected' : '') + '>' + esc(s) + '</option>').join('') : '');
+  if (current && (!group || !group.subIndustries.includes(current))) {
+    sel.innerHTML += '<option value="' + esc(current) + '" selected>' + esc(current) + ' (existing)</option>';
+  }
+  sel.disabled = !group || isMember();
+}
+
+document.getElementById('cp-industry').addEventListener('change', () => {
+  fillSubIndustrySelect(document.getElementById('cp-sub-industry'), document.getElementById('cp-industry').value, '');
+});
+
 async function loadProfile() {
   const c = await api('/company/profile');
+  await loadIndustryTaxonomy();
   document.getElementById('cp-name').value = c.name || '';
-  document.getElementById('cp-industry').value = c.industry || '';
+  fillIndustrySelect(document.getElementById('cp-industry'), c.industry || '');
+  fillSubIndustrySelect(document.getElementById('cp-sub-industry'), c.industry || '', c.subIndustry || '');
 }
 document.getElementById('btn-save-profile').onclick = async () => {
   const msg = document.getElementById('cp-msg');
   try {
+    // If the stored industry is a legacy (non-taxonomy) value shown as
+    // "(existing)", omit both fields rather than resubmitting a value the
+    // backend would reject — the stored legacy value is preserved on read
+    // until the company picks a controlled industry.
+    const indSel = document.getElementById('cp-industry');
+    const legacy = indSel.selectedOptions[0] && indSel.selectedOptions[0].dataset.legacy;
     await api('/company/profile', { method: 'PATCH', body: {
       name: document.getElementById('cp-name').value.trim(),
-      industry: document.getElementById('cp-industry').value.trim() || undefined,
+      ...(legacy ? {} : {
+        industry: indSel.value || undefined,
+        subIndustry: document.getElementById('cp-sub-industry').value || undefined,
+      }),
     }});
     msg.textContent = 'Saved.'; msg.className = 'msg ok';
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
@@ -726,6 +813,17 @@ async function openCampaign(id) {
   renderTemplateApplyRow();
   renderQrSources(c.qrSources || []);
   renderMedia(c.media || []);
+  // FD-WEB-14: hosted upload is code-complete but storage is provisioned
+  // separately — show the pending state up front instead of only failing
+  // on submit (503). URL-referenced media remains fully available.
+  const uploadMsg = document.getElementById('media-upload-msg');
+  if (c.hostedMediaConfigured === false) {
+    uploadMsg.textContent = 'Hosted media storage is not yet provisioned for this environment. URL-referenced media is fully available; file upload is pending infrastructure.';
+    uploadMsg.className = 'msg';
+  } else {
+    uploadMsg.textContent = '';
+    uploadMsg.className = 'msg';
+  }
   await refreshStudyTypeGovernanceUI((c.questions || []).length);
   await loadQuestionChangeRequests(campaignLocked);
   await loadEvidenceCoverage();
@@ -1228,54 +1326,68 @@ function renderAudienceDifferences(ad) {
 
 async function loadReport() {
   const r = await api('/company/campaigns/' + currentCampaignId + '/report');
+  const studyLabel = r.campaign.studyType ? ((studyTemplates.find(t => t.key === r.campaign.studyType) || {}).label || r.campaign.studyType) : '';
+  const companyName = document.getElementById('cp-name').value.trim();
   document.getElementById('report-content').innerHTML =
-    '<p style="color:var(--muted);font-size:0.85rem;">Generated ' + new Date(r.generatedAt).toLocaleString() + ' · Evidence level: <strong>' + r.evidence.level + '</strong> (sample size ' + r.evidence.sampleSize + ')</p>' +
-    '<h3 style="font-size:0.95rem;">Campaign</h3><p>' + esc(r.campaign.name) + ' — ' + esc(r.campaign.objective) + '<br/>' +
-    'Product: ' + (r.campaign.product ? esc(r.campaign.product) : 'No product linked') + '<br/>' +
-    'Dates: ' + new Date(r.campaign.startDate).toLocaleDateString() + ' – ' + new Date(r.campaign.endDate).toLocaleDateString() + '<br/>' +
-    'Status: ' + esc(r.campaign.status) +
-    (r.campaign.studyType ? '<br/>Study type: ' + esc((studyTemplates.find(t => t.key === r.campaign.studyType) || {}).label || r.campaign.studyType) : '') + '</p>' +
-    '<h3 style="font-size:0.95rem;">Participant / trial metrics</h3>' +
+    '<div class="rep-cover">' +
+    '<div class="rc-eyebrow">TAJRIBTI · Consumer Insights &amp; Feedback Report</div>' +
+    '<div class="rc-title">' + esc(r.campaign.name) + '</div>' +
+    '<div class="rc-meta">' +
+      (companyName ? esc(companyName) + ' · ' : '') + (studyLabel ? esc(studyLabel) + ' · ' : '') + esc(r.campaign.status) + '<br/>' +
+      'Product: ' + (r.campaign.product ? esc(r.campaign.product) : 'No product linked') + ' · ' +
+      new Date(r.campaign.startDate).toLocaleDateString() + ' – ' + new Date(r.campaign.endDate).toLocaleDateString() +
+    '</div>' +
+    '<span class="rc-tag">' + r.evidence.sampleSize + ' completed survey response' + (r.evidence.sampleSize === 1 ? '' : 's') +
+      ' · Evidence level: ' + esc(r.evidence.level) + ' · Generated ' + new Date(r.generatedAt).toLocaleDateString() + '</span>' +
+    '</div>' +
+    (r.campaign.objective ? '<div class="rep-label">Research objective</div><p style="font-size:0.9rem;margin-top:0;">' + esc(r.campaign.objective) + '</p>' : '') +
+    // FOUNDER INNOVATION (OFD-03): bilingual deterministic narrative as the
+    // executive summary — rendered verbatim from computed values. Arabic
+    // lines keep dir="rtl", including in print/PDF output.
+    (r.narrative ?
+      '<div class="rep-label">Executive summary</div><div class="rep-exec">' +
+      '<p style="color:var(--muted);font-size:0.78rem;margin:0 0 8px;">' + esc(r.narrative.methodology) + '</p>' +
+      '<ul>' + r.narrative.en.map(s => '<li>' + esc(s) + '</li>').join('') + '</ul>' +
+      '<ul dir="rtl" lang="ar" style="margin-top:10px;">' + r.narrative.ar.map(s => '<li>' + esc(s) + '</li>').join('') + '</ul></div>'
+      : '') +
+    '<div class="rep-label">Consumer / sample profile</div>' +
+    '<p class="hint" style="margin-top:0;">' + r.demographics.sampleSize + ' eligibility profile(s) · average age ' + (r.demographics.averageAge ?? '—') + ' (eligibility snapshot)</p>' +
+    '<table class="rep-dist">' +
+    '<tr><td>Gender</td><td>' + breakdownLine(r.demographics.genderBreakdown) + '</td></tr>' +
+    '<tr><td>City</td><td>' + breakdownLine(r.demographics.cityBreakdown) + '</td></tr>' +
+    '</table>' +
+    '<div class="rep-label">Trial participation</div>' +
     '<div class="metrics-row">' +
     metric(r.funnel.entered, 'Entered') + metric(r.funnel.eligible, 'Eligible') +
     metric(r.funnel.trialRedeemed, 'Trial redeemed') + metric(r.funnel.surveyComplete, 'Survey complete') +
     '</div>' +
-    '<h3 style="font-size:0.95rem;">Sources</h3>' +
-    (r.sources.length ? '<table><tr><th>Source</th><th>Entered</th><th>Trial redeemed</th><th>Survey complete</th></tr>' +
-      r.sources.map(s => '<tr><td>' + esc(s.label) + '</td><td>' + s.entered + '</td><td>' + s.trialRedeemed + '</td><td>' + s.surveyComplete + '</td></tr>').join('') + '</table>'
+    (r.sources.length ? '<table class="rep-dist"><tr><td style="color:var(--muted);">Source</td><td style="color:var(--muted);">Entered → Survey complete</td></tr>' +
+      r.sources.map(s => '<tr><td>' + esc(s.label) + '</td><td>' + s.entered + ' → ' + s.surveyComplete + '</td></tr>').join('') + '</table>'
       : '<p style="color:var(--muted)">No QR/sources configured for this campaign.</p>') +
-    '<h3 style="font-size:0.95rem;">Demographics</h3><p>Sample size: ' + r.demographics.sampleSize + ', average age: ' + (r.demographics.averageAge ?? '—') + '<br/>' +
-    'Gender: ' + breakdownLine(r.demographics.genderBreakdown) + '<br/>' +
-    'City: ' + breakdownLine(r.demographics.cityBreakdown) + '</p>' +
-    '<h3 style="font-size:0.95rem;">Audience Differences</h3>' + renderAudienceDifferences(r.audienceDifferences) +
-    '<h3 style="font-size:0.95rem;">Purchase intent</h3>' + (r.purchaseIntent.questionText ? '<p style="color:var(--muted);font-size:0.85rem;margin-bottom:2px;">' + esc(r.purchaseIntent.questionText) + '</p>' : '') + '<p>' + (r.purchaseIntent.averageScore ?? '—') + ' / 5 (' + r.purchaseIntent.responses + ' responses)</p>' +
-    '<h3 style="font-size:0.95rem;">Satisfaction</h3>' + (r.satisfaction.questionText ? '<p style="color:var(--muted);font-size:0.85rem;margin-bottom:2px;">' + esc(r.satisfaction.questionText) + '</p>' : '') + '<p>' + (r.satisfaction.averageScore ?? '—') + ' / 5 (' + r.satisfaction.responses + ' responses)</p>' +
-    '<h3 style="font-size:0.95rem;">Campaign-specific questions</h3>' +
-    (r.campaignSpecificQuestions.length ? r.campaignSpecificQuestions.map(q => '<p><strong>' + esc(q.text) + '</strong> (' + q.responses + ' responses)<br/>' + q.breakdown.map(b => esc(b.label) + ': ' + b.count).join(' · ') + '</p>').join('') : '<p style="color:var(--muted)">No choice-question responses yet.</p>') +
-    '<h3 style="font-size:0.95rem;">Consumer voice</h3>' +
+    '<div class="rep-label">Product experience</div>' +
+    (r.satisfaction.questionText ? '<p style="color:var(--muted);font-size:0.82rem;margin-bottom:2px;">' + esc(r.satisfaction.questionText) + '</p>' : '') +
+    '<p style="font-size:1.2rem;font-weight:700;margin:0 0 4px;">' + (r.satisfaction.averageScore ?? '—') + ' / 5 <span style="font-size:0.8rem;color:var(--muted);font-weight:400;">across ' + r.satisfaction.responses + ' responses</span></p>' +
+    '<div class="rep-label">Purchase intent</div>' +
+    (r.purchaseIntent.questionText ? '<p style="color:var(--muted);font-size:0.82rem;margin-bottom:2px;">' + esc(r.purchaseIntent.questionText) + '</p>' : '') +
+    '<p style="font-size:1.2rem;font-weight:700;margin:0;">' + (r.purchaseIntent.averageScore ?? '—') + ' / 5 <span style="font-size:0.8rem;color:var(--muted);font-weight:400;">across ' + r.purchaseIntent.responses + ' responses</span></p>' +
+    '<div class="rep-label">Campaign-specific questions</div>' +
+    (r.campaignSpecificQuestions.length ? r.campaignSpecificQuestions.map(q => '<p style="margin:0 0 8px;"><strong>' + esc(q.text) + '</strong> <span class="hint">(' + q.responses + ' responses)</span><br/>' + q.breakdown.map(b => esc(b.label) + ': ' + b.count).join(' · ') + '</p>').join('') : '<p style="color:var(--muted)">No choice-question responses yet.</p>') +
+    '<div class="rep-label">Consumer voice</div>' +
     (r.consumerVoice.length ? r.consumerVoice.map(v => '<div class="verbatim">"' + esc(v.response) + '"<br/><span style="color:var(--muted);font-size:0.78rem;">' + esc(v.question) + '</span></div>').join('') : '<p style="color:var(--muted)">No open-text responses yet.</p>') +
-    '<h3 style="font-size:0.95rem;">Findings</h3><ul>' + r.findings.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul>' +
-    '<h3 style="font-size:0.95rem;">Recommendations</h3><ul>' + (r.recommendations.length ? r.recommendations.map(f => '<li>' + esc(f) + '</li>').join('') : '<li>None yet — insufficient evidence.</li>') + '</ul>' +
-    // FOUNDER INNOVATION (OFD-03): bilingual deterministic narrative,
-    // rendered verbatim from the report's own computed values. Arabic
-    // lines keep dir="rtl" — including in print/PDF output.
-    (r.narrative ?
-      '<h3 style="font-size:0.95rem;">Executive narrative <span class="pill">derived</span></h3>' +
-      '<p style="color:var(--muted);font-size:0.8rem;">' + esc(r.narrative.methodology) + '</p>' +
-      '<ul>' + r.narrative.en.map(s => '<li>' + esc(s) + '</li>').join('') + '</ul>' +
-      '<ul dir="rtl" lang="ar">' + r.narrative.ar.map(s => '<li>' + esc(s) + '</li>').join('') + '</ul>'
-      : '') +
+    '<div class="rep-label">Audience differences</div>' + renderAudienceDifferences(r.audienceDifferences) +
+    '<div class="rep-label">Key findings</div><ul>' + r.findings.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul>' +
+    '<div class="rep-label">Recommendations</div><ul>' + (r.recommendations.length ? r.recommendations.map(f => '<li>' + esc(f) + '</li>').join('') : '<li>None yet — insufficient evidence.</li>') + '</ul>' +
     // FOUNDER INNOVATION (D-3, 2026-09-20): per-study-type methodology
     // profile — objective, method, per-type limitations, and an explicit
     // "not claimed" block so each of the 8 study types reads differently.
     (r.studyProfile ?
-      '<h3 style="font-size:0.95rem;">Study methodology — ' + esc((studyTemplates.find(t => t.key === r.studyProfile.key) || {}).label || r.studyProfile.key) + '</h3>' +
-      '<p style="color:var(--muted);font-size:0.85rem;"><strong>Objective:</strong> ' + esc(r.studyProfile.objective) + '<br/><strong>Method:</strong> ' + esc(r.studyProfile.methodology) + '</p>' +
-      '<h4 style="font-size:0.88rem;margin:8px 0 4px;">Study-type limitations</h4><ul>' + r.studyProfile.limitations.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>' +
-      '<h4 style="font-size:0.88rem;margin:8px 0 4px;">This report does not claim</h4><ul>' + r.studyProfile.notClaimed.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>'
+      '<div class="rep-label">Study methodology — ' + esc((studyTemplates.find(t => t.key === r.studyProfile.key) || {}).label || r.studyProfile.key) + '</div>' +
+      '<div class="rep-method"><p style="margin:0 0 6px;"><strong>Objective:</strong> ' + esc(r.studyProfile.objective) + '<br/><strong>Method:</strong> ' + esc(r.studyProfile.methodology) + '</p>' +
+      '<p style="margin:8px 0 4px;color:var(--muted);font-size:0.78rem;font-weight:700;">Study-type limitations</p><ul style="margin:0;padding-left:18px;">' + r.studyProfile.limitations.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>' +
+      '<p style="margin:8px 0 4px;color:var(--muted);font-size:0.78rem;font-weight:700;">This report does not claim</p><ul style="margin:0;padding-left:18px;">' + r.studyProfile.notClaimed.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul></div>'
       : '') +
-    '<h3 style="font-size:0.95rem;">Methodology</h3><p style="color:var(--muted);font-size:0.85rem;">' + esc(r.methodology) + '</p>' +
-    '<h3 style="font-size:0.95rem;">Limitations</h3><ul>' + r.limitations.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>';
+    '<div class="rep-label">Methodology</div><p style="color:var(--muted);font-size:0.85rem;">' + esc(r.methodology) + '</p>' +
+    '<div class="rep-label">Limitations</div><ul>' + r.limitations.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>';
 }
 
 // FOUNDER INNOVATION (OFD-13): print → Save as PDF (browser-native; the

@@ -69,54 +69,21 @@
   }
   nav a.navlink.secondary { color: var(--muted); font-weight: 600; }
 
-  /* ---------- unified login menu ---------- */
-  .login-menu { position: relative; }
-  .login-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    background: none;
-    border: none;
-    color: var(--muted);
-    font: inherit;
-    font-size: 0.92rem;
-    font-weight: 600;
-    cursor: pointer;
-    padding: 6px 2px;
-  }
-  .login-toggle:hover { color: var(--ink); }
-  .login-toggle:focus-visible, .login-item:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 2px;
-    border-radius: 6px;
-  }
-  .login-toggle .caret { font-size: 0.7em; transition: transform 0.18s ease; }
-  .login-toggle[aria-expanded="true"] .caret { transform: rotate(180deg); }
-  .login-panel {
-    position: absolute;
-    top: calc(100% + 12px);
-    right: 0;
-    min-width: 260px;
+  /* ---------- study type cards ---------- */
+  .study-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 18px 0 22px; text-align: left; }
+  @media (max-width: 960px) { .study-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 620px) { .study-grid { grid-template-columns: 1fr; } }
+  .study-card {
     background: var(--card);
     border: 1px solid var(--line);
     border-radius: 16px;
-    box-shadow: 0 20px 46px -18px rgba(60, 30, 10, 0.32);
-    padding: 8px;
-    z-index: 30;
+    padding: 18px 20px;
   }
-  .login-item {
-    display: block;
-    padding: 12px 14px;
-    border-radius: 10px;
-    text-decoration: none;
-    color: var(--ink);
-  }
-  .login-item:hover, .login-item:focus-visible { background: var(--bg); }
-  .login-item-label { display: block; font-weight: 700; font-size: 0.94rem; }
-  .login-item-desc { display: block; color: var(--muted); font-size: 0.8rem; margin-top: 2px; }
-  @media (max-width: 760px) {
-    .login-panel { left: 0; right: auto; }
-  }
+  .study-card h3 { margin: 0 0 6px; font-size: 0.95rem; }
+  .study-purpose { margin: 0 0 10px; color: var(--muted); font-size: 0.82rem; }
+  .study-questions { margin: 0; padding-left: 18px; }
+  .study-questions li { color: var(--ink); font-size: 0.8rem; margin-bottom: 4px; font-style: italic; }
+  .study-questions li:last-child { margin-bottom: 0; }
 
   .cta {
     background: var(--primary);
@@ -130,7 +97,7 @@
   }
   .cta:hover { background: var(--primary-ink); }
   @media (max-width: 760px) {
-    nav a.navlink:not(.cta) { display: none; }
+    nav a.navlink:not(.cta):not(.login-link) { display: none; }
   }
   @media (max-width: 420px) {
     .cta { font-size: 0.84rem; padding: 9px 16px; }
@@ -307,16 +274,33 @@
   .sector-card h3 { margin: 0 0 8px; font-size: 1.05rem; }
   .sector-card p { margin: 0; color: var(--muted); font-size: 0.88rem; }
   .sector-note { text-align: center; color: var(--muted); font-size: 0.85rem; max-width: 60ch; margin: 0 auto; }
-  .study-pills { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 18px 0 22px; }
-  .study-pill {
-    background: var(--bg-alt);
-    color: var(--ink);
-    font-size: 0.8rem;
-    font-weight: 700;
-    padding: 8px 16px;
-    border-radius: 999px;
-    border: 1px solid var(--line);
-  }
+  /* ---------- report visuals ---------- */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 760px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+  .kpi-card { background: var(--bg); border-radius: 14px; padding: 14px 16px; text-align: center; }
+  .kpi-card .kpi-n { font-size: 1.5rem; font-weight: 800; }
+  .kpi-card .kpi-l { color: var(--muted); font-size: 0.74rem; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .dist-row { display: grid; grid-template-columns: minmax(140px, 1.2fr) 2fr auto; align-items: center; gap: 12px; padding: 7px 0; border-bottom: 1px dashed var(--line); font-size: 0.85rem; }
+  .dist-row:last-child { border-bottom: none; }
+  .dist-row .dist-label { color: var(--ink); }
+  .dist-bars { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .dist-bar { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+  .dist-bar .fill { height: 10px; border-radius: 999px; background: var(--primary); display: inline-block; }
+  .dist-bar .fill.soft { background: var(--primary-soft, #e8c9a8); }
+  .dist-bar .cnt { color: var(--muted); font-size: 0.74rem; white-space: nowrap; }
+  .finding-card { background: var(--bg); border-left: 3px solid var(--primary); border-radius: 0 12px 12px 0; padding: 12px 16px; margin-bottom: 10px; font-size: 0.88rem; }
+  .finding-card:last-child { margin-bottom: 0; }
+  .idr-chain { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 760px) { .idr-chain { grid-template-columns: 1fr; } }
+  .idr-step { background: var(--bg); border-radius: 14px; padding: 14px 16px; position: relative; }
+  .idr-step .idr-label { color: var(--primary); font-weight: 700; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .idr-step p { margin: 0; font-size: 0.84rem; }
+  /* ---------- FAQ ---------- */
+  .faq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; text-align: left; }
+  @media (max-width: 720px) { .faq-grid { grid-template-columns: 1fr; } }
+  .faq-item { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; }
+  .faq-item h3 { margin: 0 0 8px; font-size: 0.95rem; }
+  .faq-item p { margin: 0; color: var(--muted); font-size: 0.85rem; }
 
   /* ---------- deliverable list ---------- */
   .deliver-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
@@ -455,28 +439,14 @@
 <header>
   <div class="logo">TAJRIBTI<span>.</span></div>
   <nav>
-    <a class="navlink" href="#journey">Journey</a>
+    <a class="navlink" href="#how">How it works</a>
     <a class="navlink" href="#sectors">Sectors</a>
     <a class="navlink" href="#report">Sample report</a>
-    <div class="login-menu">
-      <button type="button" class="login-toggle" id="login-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="login-panel">
-        Log in <span class="caret" aria-hidden="true">▾</span>
-      </button>
-      <div class="login-panel" id="login-panel" role="menu" aria-labelledby="login-toggle" hidden>
-        <a class="login-item" href="/app/company" role="menuitem">
-          <span class="login-item-label">Company</span>
-          <span class="login-item-desc">Access your company workspace</span>
-        </a>
-        <a class="login-item" href="/app/consumer" role="menuitem">
-          <span class="login-item-label">Consumer</span>
-          <span class="login-item-desc">Enter a campaign with your phone number</span>
-        </a>
-      </div>
-    </div>
-    <!-- FD-WEB-10: the commercial CTA is Book a demo — the public site is
-         a B2B surface, not a consumer entry point. Operations Console is
-         deliberately absent from the public marketing surface (internal
-         system; access stays at /app/ops). -->
+    <!-- FD-WEB-10 + Founder 2nd review: ONE unified staff login entry at
+         /login — the public site is B2B/company-facing only. Consumers
+         use the mobile app (OTP), never a web login. Operations Console
+         is deliberately absent from the public marketing surface. -->
+    <a class="navlink login-link" href="/login">Log in</a>
     <a class="cta" href="#contact">Book a demo</a>
   </nav>
 </header>
@@ -619,7 +589,7 @@
       </div>
     </div>
     <div class="sector-card">
-      <img src="/assets/img/product-home.jpg" alt="Home and household product context" />
+      <img src="/assets/img/product-cleaning.jpg" alt="Unbranded household spray cleaner — a product a consumer can actually trial" />
       <div class="sector-body">
         <h3>Home Care / Household</h3>
         <p>Ease of use and repeat-purchase after real household use.</p>
@@ -633,17 +603,80 @@
        and predictive analytics are approved directions only — they are
        named here explicitly as NOT yet executable, never marketed as
        available. -->
-  <p class="sector-note" style="font-weight:700;color:var(--ink);">Available now — every study below runs on the live trial → survey → report pipeline.</p>
-  <div class="study-pills">
-    <span class="study-pill">Post-Trial — Differentiation &amp; Appeal</span>
-    <span class="study-pill">Packaging &amp; Claims Reaction</span>
-    <span class="study-pill">Usage &amp; Attitude</span>
-    <span class="study-pill">Concept Testing</span>
-    <span class="study-pill">Pricing Perception</span>
-    <span class="study-pill">Packaging Evaluation</span>
-    <span class="study-pill">Advertising / Message Testing</span>
-    <span class="study-pill">Brand Perception</span>
-    <span class="study-pill">Segmentation</span>
+  <p class="sector-note" style="font-weight:700;color:var(--ink);">Available now — every study below runs on the live trial → survey → report pipeline. Example questions are real template questions from the platform.</p>
+  <div class="study-grid">
+    <div class="study-card">
+      <h3>Post-Trial — Differentiation &amp; Appeal</h3>
+      <p class="study-purpose">How appealing and differentiated is the product after a real trial — and what purchase intent does it generate?</p>
+      <ul class="study-questions">
+        <li>"Is this product appealing to you?"</li>
+        <li>"How different is this product from what you can already buy?"</li>
+      </ul>
+    </div>
+    <div class="study-card">
+      <h3>Packaging &amp; Claims Reaction</h3>
+      <p class="study-purpose">Does the packaging and its claim communicate the intended proposition?</p>
+      <ul class="study-questions">
+        <li>"Was the product's main benefit clear from the packaging?"</li>
+        <li>"How believable is the product's main claim?"</li>
+      </ul>
+    </div>
+    <div class="study-card">
+      <h3>Usage &amp; Attitude</h3>
+      <p class="study-purpose">How does the category currently behave, and what drives choice within it?</p>
+      <ul class="study-questions">
+        <li>"How often do you use products in this category?"</li>
+        <li>"What usually drives your choice of product in this category?"</li>
+      </ul>
+    </div>
+    <div class="study-card">
+      <h3>Concept Testing</h3>
+      <p class="study-purpose">Is the product or approved concept appealing and differentiated enough to proceed?</p>
+      <ul class="study-questions">
+        <li>"How appealing is this product or concept to you?"</li>
+        <li>"How likely are you to choose this if it were available?"</li>
+      </ul>
+    </div>
+    <div class="study-card">
+      <h3>Pricing Perception</h3>
+      <p class="study-purpose">Is the perceived price acceptable for the value delivered?</p>
+      <ul class="study-questions">
+        <li>"How would you describe the price of this product?"</li>
+        <li>"How good is the value for money of this product?"</li>
+      </ul>
+    </div>
+    <div class="study-card">
+      <h3>Packaging Evaluation</h3>
+      <p class="study-purpose">Does the pack attract, communicate, and function in real use?</p>
+      <ul class="study-questions">
+        <li>"How attractive is the packaging?"</li>
+        <li>"Was it clear from the packaging what this product is and does?"</li>
+      </ul>
+    </div>
+    <div class="study-card">
+      <h3>Advertising / Message Testing</h3>
+      <p class="study-purpose">Does the intended message land with consumers after exposure?</p>
+      <ul class="study-questions">
+        <li>"Do you remember the message shown with this product?"</li>
+        <li>"How relevant was the message to you personally?"</li>
+      </ul>
+    </div>
+    <div class="study-card">
+      <h3>Brand Perception</h3>
+      <p class="study-purpose">How is the brand perceived by consumers who tried the product?</p>
+      <ul class="study-questions">
+        <li>"Which words describe this brand to you now?"</li>
+        <li>"Did trying this product change how you see the brand?"</li>
+      </ul>
+    </div>
+    <div class="study-card">
+      <h3>Segmentation</h3>
+      <p class="study-purpose">Do meaningful audience groups respond differently to this product?</p>
+      <ul class="study-questions">
+        <li>"Who usually buys this kind of product in your household?"</li>
+        <li>"How likely are you to purchase this product?"</li>
+      </ul>
+    </div>
   </div>
   <p class="sector-note">Approved directions — methodology in development, not yet executable: formal price-sensitivity instruments (e.g. Van Westendorp), shelf simulation, longitudinal brand tracking, and predictive analytics.</p>
 </section>
@@ -678,6 +711,16 @@
       </div>
 
       <div class="report-body">
+
+        <div class="report-block">
+          <div class="report-block-label">Campaign snapshot</div>
+          <div class="kpi-grid">
+            <div class="kpi-card"><div class="kpi-n">412</div><div class="kpi-l">Entered</div></div>
+            <div class="kpi-card"><div class="kpi-n">305</div><div class="kpi-l">Eligible</div></div>
+            <div class="kpi-card"><div class="kpi-n">184</div><div class="kpi-l">Survey complete</div></div>
+            <div class="kpi-card"><div class="kpi-n">3.8/5</div><div class="kpi-l">Purchase intent</div></div>
+          </div>
+        </div>
 
         <div class="report-block">
           <div class="report-block-label">Executive summary</div>
@@ -715,11 +758,29 @@
 
         <div class="report-block">
           <div class="report-block-label">Campaign-specific questions</div>
-          <table class="dist-table">
-            <tr><td>"Did the taste meet your expectations?"</td><td>Yes: 121 · No: 63</td></tr>
-            <tr><td>"Would you pick it up again at your usual store?"</td><td>Yes: 112 · Maybe: 48 · No: 24</td></tr>
-            <tr><td>"How did the packaging feel?"</td><td>Premium: 99 · Ordinary: 70 · Poor: 15</td></tr>
-          </table>
+          <div class="dist-row">
+            <div class="dist-label">"Did the taste meet your expectations?" <span class="cnt" style="color:var(--muted);font-size:0.74rem;">(n=184)</span></div>
+            <div class="dist-bars">
+              <span class="dist-bar"><span class="fill" style="width:132px;"></span><span class="cnt">Yes 121</span></span>
+              <span class="dist-bar"><span class="fill soft" style="width:69px;"></span><span class="cnt">No 63</span></span>
+            </div>
+          </div>
+          <div class="dist-row">
+            <div class="dist-label">"Would you pick it up again at your usual store?" <span style="color:var(--muted);font-size:0.74rem;">(n=184)</span></div>
+            <div class="dist-bars">
+              <span class="dist-bar"><span class="fill" style="width:122px;"></span><span class="cnt">Yes 112</span></span>
+              <span class="dist-bar"><span class="fill soft" style="width:52px;"></span><span class="cnt">Maybe 48</span></span>
+              <span class="dist-bar"><span class="fill soft" style="width:26px;"></span><span class="cnt">No 24</span></span>
+            </div>
+          </div>
+          <div class="dist-row">
+            <div class="dist-label">"How did the packaging feel?" <span style="color:var(--muted);font-size:0.74rem;">(n=184)</span></div>
+            <div class="dist-bars">
+              <span class="dist-bar"><span class="fill" style="width:108px;"></span><span class="cnt">Premium 99</span></span>
+              <span class="dist-bar"><span class="fill soft" style="width:76px;"></span><span class="cnt">Ordinary 70</span></span>
+              <span class="dist-bar"><span class="fill soft" style="width:16px;"></span><span class="cnt">Poor 15</span></span>
+            </div>
+          </div>
         </div>
 
         <div class="report-block">
@@ -746,13 +807,33 @@
 
         <div class="report-block">
           <div class="report-block-label">Findings</div>
-          <ul class="finding-list">
-            <li>184 completed survey response(s) are available. Findings should be treated as directional, not conclusive.</li>
-            <li>Journey completion rate (entered → survey complete) is 45% (184/412).</li>
-            <li>Average purchase intent across 184 response(s) is 3.8/5.</li>
-            <li>Average satisfaction rating across 179 response(s) is 4.1/5.</li>
-            <li>The most common response to 'Did the taste meet your expectations?' was 'Yes', selected by 121 of 184 respondent(s).</li>
-          </ul>
+          <div class="finding-card">184 completed survey response(s) are available. Findings should be treated as directional, not conclusive.</div>
+          <div class="finding-card">Journey completion rate (entered → survey complete) is 45% (184/412).</div>
+          <div class="finding-card">Average purchase intent across 184 response(s) is 3.8/5.</div>
+          <div class="finding-card">Average satisfaction rating across 179 response(s) is 4.1/5.</div>
+          <div class="finding-card">The most common response to 'Did the taste meet your expectations?' was 'Yes', selected by 121 of 184 respondent(s).</div>
+        </div>
+
+        <div class="report-block">
+          <div class="report-block-label">Insight → decision</div>
+          <div class="idr-chain">
+            <div class="idr-step">
+              <div class="idr-label">Finding</div>
+              <p>Purchase intent averaged 3.8/5 across 184 responses; taste met expectations for 121 of 184.</p>
+            </div>
+            <div class="idr-step">
+              <div class="idr-label">Insight</div>
+              <p>Response is positive overall but not uniform — female and Cairo segments rate highest at this sample size.</p>
+            </div>
+            <div class="idr-step">
+              <div class="idr-label">Decision implication</div>
+              <p>Directional support to proceed — weighted toward the stronger segments — pending a larger confirmatory wave.</p>
+            </div>
+            <div class="idr-step">
+              <div class="idr-label">Recommendation</div>
+              <p>Review purchase intent (3.8/5, n=184) and product experience (4.1/5, n=179) together before drawing any conclusion.</p>
+            </div>
+          </div>
         </div>
 
         <div class="report-block">
@@ -807,20 +888,40 @@
   </div>
 </section>
 
+<section id="faq" class="reveal">
+  <h2 class="section-title">Questions companies ask</h2>
+  <div class="faq-grid">
+    <div class="faq-item">
+      <h3>How do consumers take part?</h3>
+      <p>Through the TAJRIBTI mobile app — they enter a campaign, pass eligibility screening, try the product, then answer the post-trial survey. There is no consumer web login.</p>
+    </div>
+    <div class="faq-item">
+      <h3>Who uses the web workspaces?</h3>
+      <p>Company teams (admins and read-only members) and TAJRIBTI Operations. One staff login routes each account to the right workspace.</p>
+    </div>
+    <div class="faq-item">
+      <h3>What does a report contain?</h3>
+      <p>The participation funnel, purchase intent, product-experience rating, campaign-question breakdowns, consumer verbatims, findings and recommendations — each figure with its sample size.</p>
+    </div>
+    <div class="faq-item">
+      <h3>Where do the numbers come from?</h3>
+      <p>Only from persisted participation and survey records for that campaign — computed live, never estimated or AI-generated. Figures below the minimum evidence threshold are suppressed, not smoothed over.</p>
+    </div>
+  </div>
+</section>
+
 <section id="contact" class="final-cta reveal">
   <h2>Book a demo.</h2>
   <p>Tell us about the product and what you need to learn — we'll walk you through how a TAJRIBTI trial and report would work for it.</p>
   <div class="btn-row">
     <a class="btn btn-primary" href="mailto:hello@tajribti.com?subject=Demo%20request">Book a demo</a>
   </div>
-  <div class="btn-row" style="margin-top:18px;">
-    <a class="btn btn-secondary" href="/app/company">Company Login</a>
-  </div>
 </section>
 
 <footer>
   <div>TAJRIBTI — Consumer Intelligence Platform</div>
   <div>Built from governance/REFERENCE_PRODUCT_BENCHMARK.md</div>
+  <div style="font-size:0.72rem;margin-top:6px;">Product imagery: Unsplash (free license) · Household cleaner photo: bmstores, <a href="https://creativecommons.org/licenses/by/2.0/" style="color:inherit;" rel="noopener">CC BY 2.0</a> via Openverse</div>
 </footer>
 
 <script>
@@ -841,33 +942,6 @@
       });
     }, { threshold: 0.12 });
     revealEls.forEach(function (el) { revealObserver.observe(el); });
-  }
-
-  // Unified Login menu: accessible disclosure (toggle, Escape, outside click).
-  var loginToggle = document.getElementById('login-toggle');
-  var loginPanel = document.getElementById('login-panel');
-  if (loginToggle && loginPanel) {
-    function closeLoginMenu(focusToggle) {
-      loginPanel.hidden = true;
-      loginToggle.setAttribute('aria-expanded', 'false');
-      if (focusToggle) loginToggle.focus();
-    }
-    function openLoginMenu() {
-      loginPanel.hidden = false;
-      loginToggle.setAttribute('aria-expanded', 'true');
-    }
-    loginToggle.addEventListener('click', function (e) {
-      e.stopPropagation();
-      if (loginPanel.hidden) openLoginMenu(); else closeLoginMenu(false);
-    });
-    document.addEventListener('click', function (e) {
-      if (!loginPanel.hidden && !loginPanel.contains(e.target) && e.target !== loginToggle) {
-        closeLoginMenu(false);
-      }
-    });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') closeLoginMenu(true);
-    });
   }
 
   // Journey stage strip: highlight the stage in view as the visitor scrolls.

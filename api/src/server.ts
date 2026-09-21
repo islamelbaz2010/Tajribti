@@ -8,6 +8,7 @@ import companyAuthRoutes from "./routes/companyAuth";
 import companyRoutes from "./routes/company";
 import opsAuthRoutes from "./routes/opsAuth";
 import opsRoutes from "./routes/ops";
+import staffAuthRoutes from "./routes/staffAuth";
 import { assetLinksHandler } from "./lib/appLinks";
 import { INDUSTRY_TAXONOMY } from "./lib/industries";
 
@@ -56,6 +57,10 @@ app.use("/api/company/auth", companyAuthRoutes);
 app.use("/api/company", companyRoutes);
 app.use("/api/ops/auth", opsAuthRoutes);
 app.use("/api/ops", opsRoutes);
+// Unified staff login (Founder 2nd Web Review §19) — single web credential
+// check for Company + Operations accounts; the per-surface auth endpoints
+// above remain intact for compatibility.
+app.use("/api/staff", staffAuthRoutes);
 
 // FD-M7 (2026-09-21): Digital Asset Links for Android App Links —
 // /.well-known/assetlinks.json (see src/lib/appLinks.ts).
@@ -69,6 +74,9 @@ app.get("/api/meta/industries", (_req, res) => res.json(INDUSTRY_TAXONOMY));
 // Thin static web clients (Public / Consumer / Company / Operations),
 // served from the same process for simplicity (no product decision).
 const webRoot = path.join(__dirname, "..", "..", "web");
+// Unified staff login page — must be registered BEFORE the "/" static mount
+// so /login resolves to the page rather than a static-file miss.
+app.get("/login", (_req, res) => res.sendFile(path.join(webRoot, "public", "login.html")));
 app.use("/app/consumer", express.static(path.join(webRoot, "app", "consumer")));
 app.use("/app/company", express.static(path.join(webRoot, "app", "company")));
 app.use("/app/ops", express.static(path.join(webRoot, "app", "ops")));

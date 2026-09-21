@@ -111,6 +111,20 @@
         <h2>Campaigns</h2>
         <button class="small" id="btn-new-campaign">+ New campaign</button>
       </div>
+      <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        <input id="cf-search" placeholder="Search campaigns" style="flex:1;min-width:150px;margin:0;" />
+        <select id="cf-status" style="margin:0;width:auto;">
+          <option value="">All statuses</option>
+          <option value="DRAFT">Draft</option>
+          <option value="READY">Ready</option>
+          <option value="ACTIVE">Active</option>
+          <option value="PAUSED">Paused</option>
+          <option value="COMPLETED">Completed</option>
+        </select>
+        <select id="cf-studytype" style="margin:0;width:auto;"><option value="">All study types</option></select>
+        <input id="cf-from" type="date" title="Start date on or after" style="margin:0;width:auto;" />
+        <button class="small secondary" id="cf-reset">Reset</button>
+      </div>
       <div id="campaign-list"></div>
     </div>
 
@@ -525,27 +539,57 @@ function applyRoleUI() {
   document.getElementById('btn-save-profile').classList.toggle('hidden', readOnly);
 }
 
-async function loadCampaigns() {
-  const campaigns = await api('/company/campaigns');
+let allCampaigns = []; // last fetched list — filter bar renders subsets client-side
+function renderCampaignList() {
+  const q = (document.getElementById('cf-search').value || '').trim().toLowerCase();
+  const status = document.getElementById('cf-status').value;
+  const studyType = document.getElementById('cf-studytype').value;
+  const from = document.getElementById('cf-from').value; // YYYY-MM-DD, startDate on/after
+  const campaigns = allCampaigns.filter(c =>
+    (!q || c.name.toLowerCase().includes(q)) &&
+    (!status || c.status === status) &&
+    (!studyType || c.studyType === studyType) &&
+    (!from || (c.startDate && c.startDate.slice(0, 10) >= from))
+  );
   const list = document.getElementById('campaign-list');
-  list.innerHTML = campaigns.length ? '' : (isMember()
-    ? '<p style="color:var(--muted)">No campaigns yet.</p>'
-    : '<p style="color:var(--muted)">No campaigns yet — create one below.</p>');
+  list.innerHTML = campaigns.length ? '' : (allCampaigns.length
+    ? '<p style="color:var(--muted)">No campaigns match these filters.</p>'
+    : (isMember()
+      ? '<p style="color:var(--muted)">No campaigns yet.</p>'
+      : '<p style="color:var(--muted)">No campaigns yet — create one below.</p>'));
   campaigns.forEach(c => {
     const div = document.createElement('div');
     div.className = 'campaign-item';
-    div.innerHTML = '<div><strong>' + esc(c.name) + '</strong><div style="color:var(--muted);font-size:0.85rem;">' + (c.product ? esc(c.product.name) : 'No product linked') + '</div></div><span class="pill">' + c.status + '</span>';
+    div.innerHTML = '<div><strong>' + esc(c.name) + '</strong><div style="color:var(--muted);font-size:0.85rem;">' + (c.product ? esc(c.product.name) : 'No product linked') + (c.studyType ? ' · ' + esc(studyTypeLabel(c.studyType)) : '') + '</div></div><span class="pill">' + c.status + '</span>';
     div.onclick = () => openCampaign(c.id);
     list.appendChild(div);
   });
+}
+
+async function loadCampaigns() {
+  allCampaigns = await api('/company/campaigns');
   await loadProducts(document.getElementById('nc-product'));
   await loadStudyTemplates();
+  const cfStudy = document.getElementById('cf-studytype');
+  if (cfStudy.options.length <= 1) {
+    cfStudy.innerHTML = '<option value="">All study types</option>' +
+      studyTemplates.map(t => '<option value="' + esc(t.key) + '">' + esc(t.label) + '</option>').join('');
+  }
+  renderCampaignList();
   await loadProfile();
   await loadEmployees();
   await loadPanelInsights();
   applyRoleUI();
   show('view-campaigns');
 }
+
+['cf-search', 'cf-status', 'cf-studytype', 'cf-from'].forEach(id => {
+  document.getElementById(id).addEventListener('input', renderCampaignList);
+});
+document.getElementById('cf-reset').onclick = () => {
+  ['cf-search', 'cf-status', 'cf-studytype', 'cf-from'].forEach(id => { document.getElementById(id).value = ''; });
+  renderCampaignList();
+};
 
 // --- Company Profile (Benchmark §4 COMPANY "Company Profile") --------------
 // Canonical industry taxonomy — one source (GET /api/meta/industries);

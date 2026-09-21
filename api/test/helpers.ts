@@ -9,6 +9,7 @@ import consumerAuthRoutes from "../src/routes/consumerAuth";
 import companyAuthRoutes from "../src/routes/companyAuth";
 import opsAuthRoutes from "../src/routes/opsAuth";
 import opsRoutes from "../src/routes/ops";
+import staffAuthRoutes from "../src/routes/staffAuth";
 import companyRoutes from "../src/routes/company";
 import { assetLinksHandler } from "../src/lib/appLinks";
 import { signToken } from "../src/lib/auth";
@@ -56,6 +57,7 @@ export async function startApi(): Promise<{ api: ApiCall; stop: () => Promise<vo
   app.use("/api/company", companyRoutes);
   app.use("/api/ops/auth", opsAuthRoutes);
   app.use("/api/ops", opsRoutes);
+  app.use("/api/staff", staffAuthRoutes);
   app.get("/.well-known/assetlinks.json", assetLinksHandler);
   app.use((_err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     res.status(500).json({ error: "Internal server error" });

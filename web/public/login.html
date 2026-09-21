@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Log in — TAJRIBTI</title>
+<style>
+  :root {
+    --primary: #EB6B45;
+    --primary-ink: #b74d2c;
+    --ink: #2b1a12;
+    --muted: #7d6a5f;
+    --bg: #FBF5F0;
+    --card: #ffffff;
+    --line: #eee0d5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--line);
+    background: var(--card);
+  }
+  .logo { font-weight: 800; font-size: 1.15rem; letter-spacing: 0.04em; text-decoration: none; color: var(--ink); }
+  .logo span { color: var(--primary); }
+  header a.back { color: var(--muted); text-decoration: none; font-size: 0.88rem; font-weight: 600; }
+  header a.back:hover { color: var(--ink); }
+  main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 36px 34px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 20px 46px -24px rgba(60, 30, 10, 0.25);
+  }
+  h1 { margin: 0 0 6px; font-size: 1.4rem; }
+  .sub { margin: 0 0 24px; color: var(--muted); font-size: 0.88rem; }
+  label { display: block; font-size: 0.82rem; font-weight: 700; margin: 0 0 6px; }
+  input {
+    width: 100%;
+    padding: 11px 13px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font: inherit;
+    font-size: 0.92rem;
+    margin-bottom: 16px;
+    background: #fff;
+  }
+  input:focus { outline: 2px solid var(--primary); outline-offset: 1px; border-color: var(--primary); }
+  button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 12px;
+    background: var(--primary);
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  button:hover { background: var(--primary-ink); }
+  button:disabled { opacity: 0.6; cursor: default; }
+  .msg { min-height: 1.2em; font-size: 0.84rem; margin-top: 12px; }
+  .msg.error { color: #b3261e; }
+  .note { margin-top: 20px; padding-top: 16px; border-top: 1px dashed var(--line); color: var(--muted); font-size: 0.78rem; text-align: center; }
+  footer { text-align: center; color: var(--muted); font-size: 0.78rem; padding: 20px; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="/">TAJRIBTI<span>.</span></a>
+  <a class="back" href="/">← Back to site</a>
+</header>
+
+<main>
+  <form class="card" id="login-form" autocomplete="on">
+    <h1>Staff login</h1>
+    <p class="sub">Company and TAJRIBTI Operations sign in here — you'll be taken to the right workspace automatically.</p>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username" required />
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" required />
+    <button id="btn" type="submit">Log in</button>
+    <div class="msg" id="msg" role="alert"></div>
+    <div class="note">Consumers take part through the TAJRIBTI mobile app — there is no consumer web login.</div>
+  </form>
+</main>
+
+<footer>TAJRIBTI — Consumer Intelligence Platform</footer>
+
+<script>
+(function () {
+  var form = document.getElementById('login-form');
+  var msg = document.getElementById('msg');
+  var btn = document.getElementById('btn');
+
+  // Workspace destinations the server is allowed to return. Anything else is
+  // rejected — the redirect target must come from authenticated server-side
+  // authorization, never from user input or the URL.
+  var ALLOWED = { '/app/company': 'tj_company_token', '/app/ops': 'tj_ops_token' };
+  var ROLE_KEYS = { '/app/company': 'tj_company_role', '/app/ops': 'tj_ops_role' };
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    msg.textContent = '';
+    btn.disabled = true;
+    try {
+      var res = await fetch('/api/staff/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: document.getElementById('email').value.trim(),
+          password: document.getElementById('password').value
+        })
+      });
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok) {
+        msg.textContent = data.error === 'Invalid input' ? 'Enter a valid email and password.' : (data.error || 'Login failed.');
+        msg.className = 'msg error';
+        return;
+      }
+      var workspace = data.workspace;
+      if (!ALLOWED[workspace]) {
+        msg.textContent = 'Unexpected workspace destination.';
+        msg.className = 'msg error';
+        return;
+      }
+      localStorage.setItem(ALLOWED[workspace], data.token);
+      localStorage.setItem(ROLE_KEYS[workspace], data.role || '');
+      window.location.href = workspace;
+    } catch (err) {
+      msg.textContent = 'Network error — please try again.';
+      msg.className = 'msg error';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+
+</body>
+</html>

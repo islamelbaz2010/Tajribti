@@ -79,8 +79,9 @@
         <span class="pill">Company: <span id="pipeline-company-name"></span></span>
         <button class="small secondary" id="btn-clear-company-filter">Show all companies</button>
       </div>
-      <div class="row">
-        <select id="pipeline-filter">
+      <div class="row" style="gap:8px;flex-wrap:wrap;">
+        <input id="pipeline-search" placeholder="Search campaigns or companies" style="flex:1;min-width:150px;margin:0;" />
+        <select id="pipeline-filter" style="margin:0;width:auto;">
           <option value="">All statuses</option>
           <option value="DRAFT">Draft</option>
           <option value="READY">Ready</option>
@@ -88,12 +89,21 @@
           <option value="PAUSED">Paused</option>
           <option value="COMPLETED">Completed</option>
         </select>
+        <select id="pipeline-studytype" style="margin:0;width:auto;"><option value="">All study types</option></select>
+        <input id="pipeline-from" type="date" title="Start date on or after" style="margin:0;width:auto;" />
+        <button class="small secondary" id="pipeline-reset">Reset</button>
       </div>
       <div id="pipeline-list"></div>
     </div>
 
     <div class="card tab-panel hidden" id="tab-companies">
       <h2>Companies</h2>
+      <div class="row" style="gap:8px;flex-wrap:wrap;">
+        <input id="co-search" placeholder="Search companies" style="flex:1;min-width:150px;margin:0;" />
+        <select id="co-industry" style="margin:0;width:auto;"><option value="">All industries</option></select>
+        <select id="co-sub-industry" style="margin:0;width:auto;"><option value="">All sub-industries</option></select>
+        <button class="small secondary" id="co-reset">Reset</button>
+      </div>
       <div id="company-list"></div>
       <!-- FD-WEB-03 (2026-09-21): company onboarding is authorized for
            PLATFORM_ADMIN and OPERATIONS_MANAGER (backend enforces); the
@@ -121,8 +131,9 @@
          application. -->
     <div class="card tab-panel hidden" id="tab-studytype-requests">
       <h2>Study-type change requests</h2>
-      <div class="row">
-        <select id="str-filter">
+      <div class="row" style="gap:8px;flex-wrap:wrap;">
+        <input id="str-search" placeholder="Search campaign or company" style="flex:1;min-width:150px;margin:0;" />
+        <select id="str-filter" style="margin:0;width:auto;">
           <option value="PENDING">Pending</option>
           <option value="">All</option>
           <option value="APPROVED">Approved</option>
@@ -138,6 +149,16 @@
          question with historical answers is refused server-side. -->
     <div class="card tab-panel hidden" id="tab-question-requests">
       <h2>Question change requests</h2>
+      <div class="row" style="gap:8px;flex-wrap:wrap;">
+        <input id="qcr-search" placeholder="Search campaign or company" style="flex:1;min-width:150px;margin:0;" />
+        <select id="qcr-status" style="margin:0;width:auto;">
+          <option value="PENDING">Pending</option>
+          <option value="">All</option>
+          <option value="PERFORMED">Applied</option>
+          <option value="REJECTED">Rejected</option>
+          <option value="CHANGES_REQUESTED">Changes requested</option>
+        </select>
+      </div>
       <div id="question-requests-list"></div>
     </div>
 
@@ -177,6 +198,7 @@
       <h2 id="cc-name"></h2>
       <p id="cc-meta" style="color:var(--muted);"></p>
       <div class="row" id="cc-actions"></div>
+      <div id="cc-overview" class="metrics-row" style="margin:10px 0 4px;"></div>
       <div class="msg" id="cc-msg"></div>
     </div>
 
@@ -195,7 +217,21 @@
     <div class="card ctab-panel hidden" id="ctab-config"><h2>Campaign configuration</h2><div id="config-content"></div></div>
     <div class="card ctab-panel" id="ctab-readiness"><h2>Readiness</h2><div id="readiness-content"></div></div>
     <div class="card ctab-panel hidden" id="ctab-qr"><h2>QR / Journey operations</h2><div id="qr-ops-content"></div></div>
-    <div class="card ctab-panel hidden" id="ctab-participants"><h2>Participants</h2><div id="participants-content"></div></div>
+    <div class="card ctab-panel hidden" id="ctab-participants"><h2>Participants</h2>
+      <div class="row" id="participants-filter-row" style="gap:8px;flex-wrap:wrap;">
+        <input id="pt-search" placeholder="Search name or phone" style="flex:1;min-width:140px;margin:0;" />
+        <select id="pt-status" style="margin:0;width:auto;">
+          <option value="">All statuses</option>
+          <option value="ENTERED">Entered</option>
+          <option value="ELIGIBLE">Eligible</option>
+          <option value="INELIGIBLE">Ineligible</option>
+          <option value="TRIAL_REDEEMED">Trial redeemed</option>
+          <option value="SURVEY_COMPLETE">Survey complete</option>
+        </select>
+        <select id="pt-source" style="margin:0;width:auto;"><option value="">All sources</option></select>
+        <button class="small secondary" id="pt-reset">Reset</button>
+      </div>
+      <div id="participants-content"></div></div>
     <div class="card ctab-panel hidden" id="ctab-live"><h2>Live monitoring</h2><div id="live-content"></div></div>
     <div class="card ctab-panel hidden" id="ctab-issues">
       <h2>Operational issues</h2>
@@ -342,27 +378,55 @@ document.getElementById('pipeline-filter').onchange = loadPipeline;
 // companies". Kept as page state, not a URL param — this console has no
 // router — same pattern as currentCampaignId elsewhere in this file.
 let pipelineCompanyFilter = null; // { id, name } | null
+let pipelineCampaigns = []; // last server-filtered fetch — search/study-type/date refine client-side
+
+function renderPipelineList() {
+  const q = (document.getElementById('pipeline-search').value || '').trim().toLowerCase();
+  const studyType = document.getElementById('pipeline-studytype').value;
+  const from = document.getElementById('pipeline-from').value;
+  const campaigns = pipelineCampaigns.filter(c =>
+    (!q || c.name.toLowerCase().includes(q) || (c.company && c.company.name.toLowerCase().includes(q))) &&
+    (!studyType || c.studyType === studyType) &&
+    (!from || (c.startDate && c.startDate.slice(0, 10) >= from))
+  );
+  const list = document.getElementById('pipeline-list');
+  list.innerHTML = campaigns.length ? '' : '<p style="color:var(--muted)">No campaigns match these filters.</p>';
+  campaigns.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'item';
+    div.innerHTML = '<div><strong>' + esc(c.name) + '</strong><div style="color:var(--muted);font-size:0.85rem;">' + esc(c.company.name) + (c.studyType ? ' · ' + esc(studyTypeLabel(c.studyType)) : '') + '</div></div><span class="pill">' + c.status + '</span>';
+    div.onclick = () => openCampaign(c.id);
+    list.appendChild(div);
+  });
+}
 
 async function loadPipeline() {
   const status = document.getElementById('pipeline-filter').value;
   const params = [];
   if (status) params.push('status=' + encodeURIComponent(status));
   if (pipelineCompanyFilter) params.push('companyId=' + encodeURIComponent(pipelineCompanyFilter.id));
-  const campaigns = await api('/ops/campaigns' + (params.length ? '?' + params.join('&') : ''));
+  pipelineCampaigns = await api('/ops/campaigns' + (params.length ? '?' + params.join('&') : ''));
+
+  const pfStudy = document.getElementById('pipeline-studytype');
+  if (pfStudy.options.length <= 1 && studyTemplates.length) {
+    pfStudy.innerHTML = '<option value="">All study types</option>' +
+      studyTemplates.map(t => '<option value="' + esc(t.key) + '">' + esc(t.label) + '</option>').join('');
+  }
 
   document.getElementById('pipeline-company-filter-row').style.display = pipelineCompanyFilter ? 'flex' : 'none';
   if (pipelineCompanyFilter) document.getElementById('pipeline-company-name').textContent = pipelineCompanyFilter.name;
 
-  const list = document.getElementById('pipeline-list');
-  list.innerHTML = campaigns.length ? '' : '<p style="color:var(--muted)">No campaigns.</p>';
-  campaigns.forEach(c => {
-    const div = document.createElement('div');
-    div.className = 'item';
-    div.innerHTML = '<div><strong>' + esc(c.name) + '</strong><div style="color:var(--muted);font-size:0.85rem;">' + esc(c.company.name) + '</div></div><span class="pill">' + c.status + '</span>';
-    div.onclick = () => openCampaign(c.id);
-    list.appendChild(div);
-  });
+  renderPipelineList();
 }
+
+['pipeline-search', 'pipeline-studytype', 'pipeline-from'].forEach(id => {
+  document.getElementById(id).addEventListener('input', renderPipelineList);
+});
+document.getElementById('pipeline-reset').onclick = () => {
+  ['pipeline-search', 'pipeline-filter', 'pipeline-studytype', 'pipeline-from'].forEach(id => { document.getElementById(id).value = ''; });
+  pipelineCompanyFilter = null;
+  loadPipeline();
+};
 
 document.getElementById('btn-clear-company-filter').onclick = () => {
   pipelineCompanyFilter = null;
@@ -382,13 +446,22 @@ function showCampaignsForCompany(id, name) {
   loadPipeline();
 }
 
-async function loadCompanies() {
-  const companies = await api('/ops/companies');
+let allCompanies = []; // last fetch — the filter bar renders subsets client-side
+
+function renderCompanyList() {
+  const q = (document.getElementById('co-search').value || '').trim().toLowerCase();
+  const ind = document.getElementById('co-industry').value;
+  const sub = document.getElementById('co-sub-industry').value;
+  const companies = allCompanies.filter(c =>
+    (!q || c.name.toLowerCase().includes(q)) &&
+    (!ind || c.industry === ind) &&
+    (!sub || c.subIndustry === sub)
+  );
   const list = document.getElementById('company-list');
   list.innerHTML = companies.length ?
     '<table><tr><th>Name</th><th>Industry</th><th>Employees</th><th>Campaigns</th></tr>' +
     companies.map(c => '<tr class="company-row" style="cursor:pointer;" data-id="' + esc(c.id) + '" data-name="' + esc(c.name) + '"><td>' + esc(c.name) + '</td><td>' + (c.industry ? esc(c.industry) + (c.subIndustry ? ' — ' + esc(c.subIndustry) : '') : '—') + '</td><td>' + c._count.employees + '</td><td>' + c._count.campaigns + '</td></tr>').join('') + '</table>'
-    : '<p style="color:var(--muted)">No companies yet.</p>';
+    : '<p style="color:var(--muted)">' + (allCompanies.length ? 'No companies match these filters.' : 'No companies yet.') + '</p>';
   list.querySelectorAll('.company-row').forEach(row => {
     row.onclick = () => showCampaignsForCompany(row.dataset.id, row.dataset.name);
   });
@@ -397,6 +470,38 @@ async function loadCompanies() {
   document.getElementById('company-onboard-block').classList.toggle('hidden', !canOnboard);
   if (canOnboard) loadIndustrySelects();
 }
+
+async function loadCompanies() {
+  allCompanies = await api('/ops/companies');
+  if (!INDUSTRY_GROUPS) INDUSTRY_GROUPS = await api('/meta/industries');
+  const indSel = document.getElementById('co-industry');
+  const subSel = document.getElementById('co-sub-industry');
+  if (indSel.options.length <= 1) {
+    indSel.innerHTML = '<option value="">All industries</option>' +
+      INDUSTRY_GROUPS.map(g => '<option value="' + esc(g.industry) + '">' + esc(g.industry) + '</option>').join('');
+  }
+  const fillFilterSub = () => {
+    const group = INDUSTRY_GROUPS.find(g => g.industry === indSel.value);
+    subSel.innerHTML = '<option value="">' + (group ? 'All sub-industries' : 'All sub-industries') + '</option>' +
+      (group ? group.subIndustries.map(s => '<option value="' + esc(s) + '">' + esc(s) + '</option>').join('') : '');
+    subSel.disabled = !group;
+    renderCompanyList();
+  };
+  indSel.onchange = fillFilterSub;
+  renderCompanyList();
+}
+
+['co-search', 'co-sub-industry'].forEach(id => {
+  document.getElementById(id).addEventListener('input', renderCompanyList);
+});
+document.getElementById('co-reset').onclick = () => {
+  document.getElementById('co-search').value = '';
+  document.getElementById('co-industry').value = '';
+  const subSel = document.getElementById('co-sub-industry');
+  subSel.innerHTML = '<option value="">All sub-industries</option>';
+  subSel.disabled = true;
+  renderCompanyList();
+};
 
 // Canonical industry taxonomy — same source as the company workspace
 // (GET /api/meta/industries); Industry select feeds the dependent
@@ -442,7 +547,11 @@ document.getElementById('btn-create-company').onclick = async () => {
 // other surface.
 async function loadStudyTypeRequests() {
   const status = document.getElementById('str-filter').value;
-  const requests = await api('/ops/study-type-requests' + (status ? '?status=' + encodeURIComponent(status) : ''));
+  const allRequests = await api('/ops/study-type-requests' + (status ? '?status=' + encodeURIComponent(status) : ''));
+  const q = (document.getElementById('str-search').value || '').trim().toLowerCase();
+  const requests = q ? allRequests.filter(r =>
+    r.campaign.name.toLowerCase().includes(q) || r.campaign.company.name.toLowerCase().includes(q)
+  ) : allRequests;
   const list = document.getElementById('studytype-requests-list');
   list.innerHTML = '';
   if (!requests.length) { list.innerHTML = '<p style="color:var(--muted)">No requests.</p>'; return; }
@@ -536,12 +645,19 @@ async function loadStudyTypeRequests() {
 }
 
 document.getElementById('str-filter').onchange = loadStudyTypeRequests;
+document.getElementById('str-search').addEventListener('input', loadStudyTypeRequests);
 
 // FOUNDER INNOVATION (OFD-19): review queue for company-filed question
 // change requests. Apply performs the whitelisted change and writes an
 // audit event; reject requires no payload.
 async function loadQuestionRequests() {
-  const requests = await api('/ops/question-change-requests');
+  const allRequests = await api('/ops/question-change-requests');
+  const q = (document.getElementById('qcr-search').value || '').trim().toLowerCase();
+  const status = document.getElementById('qcr-status').value;
+  const requests = allRequests.filter(r =>
+    (!status || r.status === status) &&
+    (!q || r.campaign.name.toLowerCase().includes(q) || r.campaign.company.name.toLowerCase().includes(q))
+  );
   const list = document.getElementById('question-requests-list');
   list.innerHTML = '';
   if (!requests.length) { list.innerHTML = '<p style="color:var(--muted)">No requests.</p>'; return; }
@@ -602,6 +718,9 @@ async function loadQuestionRequests() {
   });
 }
 
+document.getElementById('qcr-search').addEventListener('input', loadQuestionRequests);
+document.getElementById('qcr-status').addEventListener('change', loadQuestionRequests);
+
 // NOTE (forensic audit 2026-09-20): the OFD-14 activation-notification
 // request/launch surface was removed — consumers receive NO push
 // notifications under the Founder decision of 2026-09-20, so there is no
@@ -647,12 +766,39 @@ async function openCampaign(id) {
   // paused campaign can only be closed.
   if (c.status === 'PAUSED') { actions.appendChild(mkBtn('Close', () => act('close'), 'danger')); }
 
+  // Operational overview strip (Founder 2nd review §13): one glance at the
+  // campaign's operational state — readiness, funnel, open issues — pulled
+  // from the same already-authorized endpoints the detail tabs use. No new
+  // backend query shape, no new capability.
+  loadOpsOverview(id);
+
   document.querySelectorAll('#view-campaign .tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelector('#view-campaign .tab-btn[data-ctab="readiness"]').classList.add('active');
   document.querySelectorAll('.ctab-panel').forEach(p => p.classList.add('hidden'));
   document.getElementById('ctab-readiness').classList.remove('hidden');
   await loadReadiness();
   show('view-campaign');
+}
+
+// Compact operational summary rendered in the campaign header. Best-effort:
+// a failure on any sub-fetch degrades that cell, never blocks the campaign
+// view (the authoritative details remain in their dedicated tabs).
+async function loadOpsOverview(id) {
+  const el = document.getElementById('cc-overview');
+  el.innerHTML = '';
+  const [readiness, live, issues] = await Promise.all([
+    api('/ops/campaigns/' + id + '/readiness').catch(() => null),
+    api('/ops/campaigns/' + id + '/live').catch(() => null),
+    api('/ops/campaigns/' + id + '/issues').catch(() => null),
+  ]);
+  const f = live && live.funnel ? live.funnel : {};
+  const openIssues = issues ? issues.filter(i => i.status !== 'RESOLVED').length : '—';
+  el.innerHTML =
+    metric(readiness ? (readiness.ready ? 'Ready' : 'Not ready') : '—', 'Readiness') +
+    metric(f.entered ?? '—', 'Entered') +
+    metric(f.trialRedeemed ?? '—', 'Trial redeemed') +
+    metric(f.surveyComplete ?? '—', 'Survey complete') +
+    metric(openIssues, 'Open issues');
 }
 
 // Campaign Configuration (Benchmark §4 OPERATIONS names this as a
@@ -722,20 +868,47 @@ function loadQrOps() {
     : '<p style="color:var(--muted)">No QR/sources configured for this campaign.</p>';
 }
 
+let allParticipants = []; // PLATFORM_ADMIN fetch — filter bar renders subsets client-side
+
+function renderParticipants() {
+  const q = (document.getElementById('pt-search').value || '').trim().toLowerCase();
+  const status = document.getElementById('pt-status').value;
+  const source = document.getElementById('pt-source').value;
+  const list = allParticipants.filter(p =>
+    (!q || (p.consumer.name || '').toLowerCase().includes(q) || (p.consumer.phone || '').includes(q)) &&
+    (!status || p.status === status) &&
+    (!source || (p.qrSource && p.qrSource.id === source))
+  );
+  document.getElementById('participants-content').innerHTML = list.length ?
+    '<table><tr><th>Consumer</th><th>Status</th><th>Source</th><th>Entered</th></tr>' +
+    list.map(p => '<tr><td>' + esc(p.consumer.name || p.consumer.phone) + '</td><td>' + p.status + '</td><td>' + (p.qrSource ? esc(p.qrSource.label) : '—') + '</td><td>' + new Date(p.enteredAt).toLocaleString() + '</td></tr>').join('') + '</table>'
+    : '<p style="color:var(--muted)">' + (allParticipants.length ? 'No participants match these filters.' : 'No participants yet.') + '</p>';
+}
+
 async function loadParticipants() {
   // OFD-08: participant PII (name/phone) is PLATFORM_ADMIN-only and
   // audited server-side; OPERATIONS sees an explicit notice instead.
   if (currentOpsRole !== 'PLATFORM_ADMIN') {
+    document.getElementById('participants-filter-row').style.display = 'none';
     document.getElementById('participants-content').innerHTML =
       '<p style="color:var(--muted)">Consumer identity data is restricted to Platform Admin accounts. All PII access is audited.</p>';
     return;
   }
-  const list = await api('/ops/campaigns/' + currentCampaignId + '/participants');
-  document.getElementById('participants-content').innerHTML = list.length ?
-    '<table><tr><th>Consumer</th><th>Status</th><th>Source</th><th>Entered</th></tr>' +
-    list.map(p => '<tr><td>' + esc(p.consumer.name || p.consumer.phone) + '</td><td>' + p.status + '</td><td>' + (p.qrSource ? esc(p.qrSource.label) : '—') + '</td><td>' + new Date(p.enteredAt).toLocaleString() + '</td></tr>').join('') + '</table>'
-    : '<p style="color:var(--muted)">No participants yet.</p>';
+  document.getElementById('participants-filter-row').style.display = 'flex';
+  allParticipants = await api('/ops/campaigns/' + currentCampaignId + '/participants');
+  const srcSel = document.getElementById('pt-source');
+  const sources = [...new Map(allParticipants.filter(p => p.qrSource).map(p => [p.qrSource.id, p.qrSource.label])).entries()];
+  srcSel.innerHTML = '<option value="">All sources</option>' + sources.map(([id, label]) => '<option value="' + esc(id) + '">' + esc(label) + '</option>').join('');
+  renderParticipants();
 }
+
+['pt-search', 'pt-status', 'pt-source'].forEach(id => {
+  document.getElementById(id).addEventListener('input', renderParticipants);
+});
+document.getElementById('pt-reset').onclick = () => {
+  ['pt-search', 'pt-status', 'pt-source'].forEach(id => { document.getElementById(id).value = ''; });
+  renderParticipants();
+};
 
 function metric(n, label) { return '<div class="metric"><div class="metric-num">' + n + '</div><div class="metric-label">' + label + '</div></div>'; }
 

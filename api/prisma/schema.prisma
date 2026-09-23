@@ -576,3 +576,41 @@ model AccessAuditEvent {
   @@index([actorKind, actorId])
   @@index([createdAt])
 }
+
+// FOUNDER DIRECTION 2026-09-24 — Public Website content management.
+// NOT a generic CMS: a fixed set of structured public-site sections
+// (hero, how-it-works, sectors, study types, sample-report marketing,
+// global CTA) plus a small media library. PLATFORM_ADMIN only; edits go
+// Draft → Preview → Publish — the public site renders `published` and
+// falls back to its static markup when a section has never been
+// published. `draft`/`published` hold validated JSON payloads whose
+// shapes are enforced by zod schemas in src/lib/siteContent.ts.
+model SiteContentSection {
+  key         String    @id
+  draft       String?
+  published   String?
+  draftBy     String?
+  draftAt     DateTime?
+  publishedBy String?
+  publishedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+}
+
+// Public Website media library. Images are stored as bytes in the
+// database and served from GET /api/public/site/media/:id — the hosted
+// campaign-media bucket (lib/media.ts) is private/signed-URL by design
+// and is not configured in every environment, so it is not reused for
+// publicly addressable site imagery.
+model SiteMedia {
+  id          String   @id @default(cuid())
+  name        String
+  mime        String
+  data        Bytes
+  alt         String?
+  attribution String?
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

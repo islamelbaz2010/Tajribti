@@ -80,6 +80,7 @@
     padding: 18px 20px;
   }
   .study-card h3 { margin: 0 0 6px; font-size: 0.95rem; }
+  .study-status { display:inline-block; background:var(--bg); color:var(--primary); font-size:0.68rem; font-weight:700; padding:2px 9px; border-radius:999px; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.04em; }
   .study-purpose { margin: 0 0 10px; color: var(--muted); font-size: 0.82rem; }
   .study-questions { margin: 0; padding-left: 18px; }
   .study-questions li { color: var(--ink); font-size: 0.8rem; margin-bottom: 4px; font-style: italic; }
@@ -277,8 +278,8 @@
   /* ---------- report visuals ---------- */
   .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
   @media (max-width: 760px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
-  .kpi-card { background: var(--bg); border-radius: 14px; padding: 14px 16px; text-align: center; }
-  .kpi-card .kpi-n { font-size: 1.5rem; font-weight: 800; }
+  .kpi-card { background: var(--bg); border-radius: 14px; padding: 18px 16px; text-align: center; }
+  .kpi-card .kpi-n { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.01em; }
   .kpi-card .kpi-l { color: var(--muted); font-size: 0.74rem; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
   .dist-row { display: grid; grid-template-columns: minmax(140px, 1.2fr) 2fr auto; align-items: center; gap: 12px; padding: 7px 0; border-bottom: 1px dashed var(--line); font-size: 0.85rem; }
   .dist-row:last-child { border-bottom: none; }
@@ -288,6 +289,20 @@
   .dist-bar .fill { height: 10px; border-radius: 999px; background: var(--primary); display: inline-block; }
   .dist-bar .fill.soft { background: var(--primary-soft, #e8c9a8); }
   .dist-bar .cnt { color: var(--muted); font-size: 0.74rem; white-space: nowrap; }
+  /* Label | proportional bar | count·% rows (2026-09-24 report pass) —
+     replaces the cramped inline bar+label chips so response categories,
+     counts and shares never collide. Bar width = share of respondents. */
+  .chart-row { display: grid; grid-template-columns: minmax(120px, 0.9fr) 2fr minmax(92px, auto); align-items: center; gap: 10px; padding: 5px 0; }
+  .chart-row .cr-label { font-size: 0.8rem; color: var(--ink); }
+  .chart-row .cr-track { background: #f3e7dd; border-radius: 999px; height: 12px; overflow: hidden; }
+  .chart-row .cr-track i { display: block; height: 100%; border-radius: 999px; background: var(--primary); }
+  .chart-row .cr-track i.soft { background: #e3b294; }
+  .chart-row .cr-val { font-size: 0.78rem; font-weight: 700; text-align: right; white-space: nowrap; }
+  .chart-row .cr-val span { color: var(--muted); font-weight: 400; }
+  .q-block { border-top: 1px dashed var(--line); padding: 12px 0 8px; }
+  .q-block:first-child { border-top: none; padding-top: 0; }
+  .q-block .q-title { font-size: 0.85rem; margin-bottom: 6px; }
+  .q-block .q-title span { color: var(--muted); font-size: 0.74rem; }
   .finding-card { background: var(--bg); border-left: 3px solid var(--primary); border-radius: 0 12px 12px 0; padding: 12px 16px; margin-bottom: 10px; font-size: 0.88rem; }
   .finding-card:last-child { margin-bottom: 0; }
   .idr-chain { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
@@ -386,6 +401,8 @@
   .segment-col h4 { margin: 0 0 8px; font-size: 0.82rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
   .segment-line { font-size: 0.86rem; padding: 6px 0; border-bottom: 1px dashed var(--line); }
   .segment-line:last-child { border-bottom: none; }
+  .voice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .voice-grid { grid-template-columns: 1fr; } }
   .voice-quote { background: var(--bg); border-radius: 14px; padding: 14px 18px; margin-bottom: 10px; font-size: 0.9rem; font-style: italic; }
   .voice-quote:last-child { margin-bottom: 0; }
   .voice-quote .vq-src { display: block; font-style: normal; color: var(--muted); font-size: 0.76rem; margin-top: 6px; }
@@ -462,7 +479,7 @@
       </p>
       <div class="btn-row">
         <a class="btn btn-primary" href="#contact">Book a demo</a>
-        <a class="btn btn-secondary" href="#report">See a sample report</a>
+        <a class="btn btn-secondary" id="js-sample-cta" href="#report">See a sample report</a>
       </div>
     </div>
     <div class="hero-photos" aria-hidden="true">
@@ -605,72 +622,81 @@
        available. -->
   <p class="sector-note" style="font-weight:700;color:var(--ink);">Available now — every study below runs on the live trial → survey → report pipeline. Example questions are real template questions from the platform.</p>
   <div class="study-grid">
-    <div class="study-card">
+    <div class="study-card" data-study-key="post-trial-differentiation">
       <h3>Post-Trial — Differentiation &amp; Appeal</h3>
+      <span class="study-status">Available now</span>
       <p class="study-purpose">How appealing and differentiated is the product after a real trial — and what purchase intent does it generate?</p>
       <ul class="study-questions">
         <li>"Is this product appealing to you?"</li>
         <li>"How different is this product from what you can already buy?"</li>
       </ul>
     </div>
-    <div class="study-card">
+    <div class="study-card" data-study-key="packaging-claims">
       <h3>Packaging &amp; Claims Reaction</h3>
+      <span class="study-status">Available now</span>
       <p class="study-purpose">Does the packaging and its claim communicate the intended proposition?</p>
       <ul class="study-questions">
         <li>"Was the product's main benefit clear from the packaging?"</li>
         <li>"How believable is the product's main claim?"</li>
       </ul>
     </div>
-    <div class="study-card">
+    <div class="study-card" data-study-key="usage-attitude">
       <h3>Usage &amp; Attitude</h3>
+      <span class="study-status">Available now</span>
       <p class="study-purpose">How does the category currently behave, and what drives choice within it?</p>
       <ul class="study-questions">
         <li>"How often do you use products in this category?"</li>
         <li>"What usually drives your choice of product in this category?"</li>
       </ul>
     </div>
-    <div class="study-card">
+    <div class="study-card" data-study-key="concept-test">
       <h3>Concept Testing</h3>
+      <span class="study-status">Available now</span>
       <p class="study-purpose">Is the product or approved concept appealing and differentiated enough to proceed?</p>
       <ul class="study-questions">
         <li>"How appealing is this product or concept to you?"</li>
         <li>"How likely are you to choose this if it were available?"</li>
       </ul>
     </div>
-    <div class="study-card">
+    <div class="study-card" data-study-key="pricing-perception">
       <h3>Pricing Perception</h3>
+      <span class="study-status">Available now</span>
       <p class="study-purpose">Is the perceived price acceptable for the value delivered?</p>
       <ul class="study-questions">
         <li>"How would you describe the price of this product?"</li>
         <li>"How good is the value for money of this product?"</li>
       </ul>
     </div>
-    <div class="study-card">
+    <div class="study-card" data-study-key="packaging-evaluation">
       <h3>Packaging Evaluation</h3>
+      <span class="study-status">Available now</span>
       <p class="study-purpose">Does the pack attract, communicate, and function in real use?</p>
       <ul class="study-questions">
         <li>"How attractive is the packaging?"</li>
         <li>"Was it clear from the packaging what this product is and does?"</li>
       </ul>
     </div>
-    <div class="study-card">
+    <div class="study-card" data-study-key="ad-message">
       <h3>Advertising / Message Testing</h3>
+      <span class="study-status">Available now</span>
       <p class="study-purpose">Does the intended message land with consumers after exposure?</p>
       <ul class="study-questions">
         <li>"Do you remember the message shown with this product?"</li>
         <li>"How relevant was the message to you personally?"</li>
       </ul>
     </div>
-    <div class="study-card">
+    <div class="study-card" data-study-key="brand-perception">
       <h3>Brand Perception</h3>
+      <span class="study-status">Available now</span>
       <p class="study-purpose">How is the brand perceived by consumers who tried the product?</p>
       <ul class="study-questions">
         <li>"Which words describe this brand to you now?"</li>
         <li>"Did trying this product change how you see the brand?"</li>
       </ul>
     </div>
-    <div class="study-card">
+    <div class="study-card" data-study-key="segmentation">
       <h3>Segmentation</h3>
+      <span class="study-status">Available now</span>
       <p class="study-purpose">Do meaningful audience groups respond differently to this product?</p>
       <ul class="study-questions">
         <li>"Who usually buys this kind of product in your household?"</li>
@@ -747,24 +773,24 @@
               <div class="q">"Would you buy this product?"</div>
               <div class="score">3.8/5</div>
               <div class="n">across 184 responses</div>
-              <div class="dist-bars" style="margin-top:10px;">
-                <span class="dist-bar"><span class="fill" style="width:72px;"></span><span class="cnt">Definitely 66</span></span>
-                <span class="dist-bar"><span class="fill" style="width:61px;opacity:0.8;"></span><span class="cnt">Probably 56</span></span>
-                <span class="dist-bar"><span class="fill soft" style="width:37px;"></span><span class="cnt">Might 34</span></span>
-                <span class="dist-bar"><span class="fill soft" style="width:20px;"></span><span class="cnt">Probably not 18</span></span>
-                <span class="dist-bar"><span class="fill soft" style="width:11px;"></span><span class="cnt">Definitely not 10</span></span>
+              <div style="margin-top:12px;">
+                <div class="chart-row"><span class="cr-label">Definitely</span><span class="cr-track"><i style="width:36%;"></i></span><span class="cr-val">66 <span>· 36%</span></span></div>
+                <div class="chart-row"><span class="cr-label">Probably</span><span class="cr-track"><i style="width:30%;opacity:0.8;"></i></span><span class="cr-val">56 <span>· 30%</span></span></div>
+                <div class="chart-row"><span class="cr-label">Might</span><span class="cr-track"><i class="soft" style="width:19%;"></i></span><span class="cr-val">34 <span>· 19%</span></span></div>
+                <div class="chart-row"><span class="cr-label">Probably not</span><span class="cr-track"><i class="soft" style="width:10%;"></i></span><span class="cr-val">18 <span>· 10%</span></span></div>
+                <div class="chart-row"><span class="cr-label">Definitely not</span><span class="cr-track"><i class="soft" style="width:5%;"></i></span><span class="cr-val">10 <span>· 5%</span></span></div>
               </div>
             </div>
             <div class="metric-card">
               <div class="q">"Overall, how would you rate this product?"</div>
               <div class="score">4.1/5</div>
               <div class="n">across 179 responses</div>
-              <div class="dist-bars" style="margin-top:10px;">
-                <span class="dist-bar"><span class="fill" style="width:85px;"></span><span class="cnt">5 · Very positive 78</span></span>
-                <span class="dist-bar"><span class="fill" style="width:65px;opacity:0.8;"></span><span class="cnt">4 · Positive 60</span></span>
-                <span class="dist-bar"><span class="fill soft" style="width:28px;"></span><span class="cnt">3 · Neutral 26</span></span>
-                <span class="dist-bar"><span class="fill soft" style="width:11px;"></span><span class="cnt">2 · Negative 10</span></span>
-                <span class="dist-bar"><span class="fill soft" style="width:6px;"></span><span class="cnt">1 · Very negative 5</span></span>
+              <div style="margin-top:12px;">
+                <div class="chart-row"><span class="cr-label">5 · Very positive</span><span class="cr-track"><i style="width:44%;"></i></span><span class="cr-val">78 <span>· 44%</span></span></div>
+                <div class="chart-row"><span class="cr-label">4 · Positive</span><span class="cr-track"><i style="width:33%;opacity:0.8;"></i></span><span class="cr-val">60 <span>· 33%</span></span></div>
+                <div class="chart-row"><span class="cr-label">3 · Neutral</span><span class="cr-track"><i class="soft" style="width:14%;"></i></span><span class="cr-val">26 <span>· 14%</span></span></div>
+                <div class="chart-row"><span class="cr-label">2 · Negative</span><span class="cr-track"><i class="soft" style="width:6%;"></i></span><span class="cr-val">10 <span>· 6%</span></span></div>
+                <div class="chart-row"><span class="cr-label">1 · Very negative</span><span class="cr-track"><i class="soft" style="width:3%;"></i></span><span class="cr-val">5 <span>· 3%</span></span></div>
               </div>
             </div>
           </div>
@@ -772,28 +798,22 @@
 
         <div class="report-block">
           <div class="report-block-label">Campaign-specific questions</div>
-          <div class="dist-row">
-            <div class="dist-label">"Did the taste meet your expectations?" <span class="cnt" style="color:var(--muted);font-size:0.74rem;">(n=184)</span></div>
-            <div class="dist-bars">
-              <span class="dist-bar"><span class="fill" style="width:132px;"></span><span class="cnt">Yes 121</span></span>
-              <span class="dist-bar"><span class="fill soft" style="width:69px;"></span><span class="cnt">No 63</span></span>
-            </div>
+          <div class="q-block">
+            <div class="q-title">"Did the taste meet your expectations?" <span>(n=184)</span></div>
+            <div class="chart-row"><span class="cr-label">Yes</span><span class="cr-track"><i style="width:66%;"></i></span><span class="cr-val">121 <span>· 66%</span></span></div>
+            <div class="chart-row"><span class="cr-label">No</span><span class="cr-track"><i class="soft" style="width:34%;"></i></span><span class="cr-val">63 <span>· 34%</span></span></div>
           </div>
-          <div class="dist-row">
-            <div class="dist-label">"Would you pick it up again at your usual store?" <span style="color:var(--muted);font-size:0.74rem;">(n=184)</span></div>
-            <div class="dist-bars">
-              <span class="dist-bar"><span class="fill" style="width:122px;"></span><span class="cnt">Yes 112</span></span>
-              <span class="dist-bar"><span class="fill soft" style="width:52px;"></span><span class="cnt">Maybe 48</span></span>
-              <span class="dist-bar"><span class="fill soft" style="width:26px;"></span><span class="cnt">No 24</span></span>
-            </div>
+          <div class="q-block">
+            <div class="q-title">"Would you pick it up again at your usual store?" <span>(n=184)</span></div>
+            <div class="chart-row"><span class="cr-label">Yes</span><span class="cr-track"><i style="width:61%;"></i></span><span class="cr-val">112 <span>· 61%</span></span></div>
+            <div class="chart-row"><span class="cr-label">Maybe</span><span class="cr-track"><i class="soft" style="width:26%;"></i></span><span class="cr-val">48 <span>· 26%</span></span></div>
+            <div class="chart-row"><span class="cr-label">No</span><span class="cr-track"><i class="soft" style="width:13%;"></i></span><span class="cr-val">24 <span>· 13%</span></span></div>
           </div>
-          <div class="dist-row">
-            <div class="dist-label">"How did the packaging feel?" <span style="color:var(--muted);font-size:0.74rem;">(n=184)</span></div>
-            <div class="dist-bars">
-              <span class="dist-bar"><span class="fill" style="width:108px;"></span><span class="cnt">Premium 99</span></span>
-              <span class="dist-bar"><span class="fill soft" style="width:76px;"></span><span class="cnt">Ordinary 70</span></span>
-              <span class="dist-bar"><span class="fill soft" style="width:16px;"></span><span class="cnt">Poor 15</span></span>
-            </div>
+          <div class="q-block">
+            <div class="q-title">"How did the packaging feel?" <span>(n=184)</span></div>
+            <div class="chart-row"><span class="cr-label">Premium</span><span class="cr-track"><i style="width:54%;"></i></span><span class="cr-val">99 <span>· 54%</span></span></div>
+            <div class="chart-row"><span class="cr-label">Ordinary</span><span class="cr-track"><i class="soft" style="width:38%;"></i></span><span class="cr-val">70 <span>· 38%</span></span></div>
+            <div class="chart-row"><span class="cr-label">Poor</span><span class="cr-track"><i class="soft" style="width:8%;"></i></span><span class="cr-val">15 <span>· 8%</span></span></div>
           </div>
         </div>
 
@@ -801,22 +821,24 @@
           <div class="report-block-label">Audience differences</div>
           <div class="segment-cols">
             <div class="segment-col">
-              <h4>Gender</h4>
-              <div class="segment-line">Among Female respondents (n=101), average purchase intent was 4.0/5.</div>
-              <div class="segment-line">Among Male respondents (n=83), average purchase intent was 3.5/5.</div>
+              <h4>Gender — avg. purchase intent</h4>
+              <div class="chart-row"><span class="cr-label">Female</span><span class="cr-track"><i style="width:80%;"></i></span><span class="cr-val">4.0/5 <span>· n=101</span></span></div>
+              <div class="chart-row"><span class="cr-label">Male</span><span class="cr-track"><i class="soft" style="width:70%;"></i></span><span class="cr-val">3.5/5 <span>· n=83</span></span></div>
             </div>
             <div class="segment-col">
-              <h4>City</h4>
-              <div class="segment-line">Among Cairo respondents (n=120), the average rating was 4.2/5.</div>
-              <div class="segment-line">Among Alexandria respondents (n=64), the average rating was 3.9/5.</div>
+              <h4>City — avg. product rating</h4>
+              <div class="chart-row"><span class="cr-label">Cairo</span><span class="cr-track"><i style="width:84%;"></i></span><span class="cr-val">4.2/5 <span>· n=120</span></span></div>
+              <div class="chart-row"><span class="cr-label">Alexandria</span><span class="cr-track"><i class="soft" style="width:78%;"></i></span><span class="cr-val">3.9/5 <span>· n=64</span></span></div>
             </div>
           </div>
         </div>
 
         <div class="report-block">
           <div class="report-block-label">Consumer voice</div>
-          <div class="voice-quote">"Loved the taste — would definitely pick it up again on my next shop."<span class="vq-src">Open-text response · What did you like or dislike?</span></div>
-          <div class="voice-quote">"Good but a bit too sweet for my taste."<span class="vq-src">Open-text response · What did you like or dislike?</span></div>
+          <div class="voice-grid">
+            <div class="voice-quote">"Loved the taste — would definitely pick it up again on my next shop."<span class="vq-src">Open-text response · What did you like or dislike?</span></div>
+            <div class="voice-quote">"Good but a bit too sweet for my taste."<span class="vq-src">Open-text response · What did you like or dislike?</span></div>
+          </div>
         </div>
 
         <div class="report-block">
@@ -973,6 +995,114 @@
       stages.forEach(function (s) { stageObserver.observe(s); });
     }
   }
+})();
+
+// Public Website content hydration (Founder direction 2026-09-24):
+// published structured content overrides the matching static markup.
+// Any missing/unpublished section simply keeps the markup already in
+// this file — content management can never blank the homepage.
+// ?cms_preview=1 additionally applies the Platform Admin's saved
+// working draft stashed in localStorage (same-origin) and shows a
+// preview banner; draft content is never served by the public API.
+(function () {
+  function setText(sel, value) {
+    var el = document.querySelector(sel);
+    if (el && typeof value === 'string' && value) el.textContent = value;
+  }
+  function setLink(sel, label, href) {
+    var el = document.querySelector(sel);
+    if (!el) return;
+    if (label) el.textContent = label;
+    if (href) el.setAttribute('href', href);
+  }
+  function mediaUrl(ref) {
+    if (!ref) return '';
+    if (ref.indexOf('media:') === 0) return '/api/public/site/media/' + ref.slice(6);
+    return ref;
+  }
+  function applySiteContent(sections) {
+    var hero = sections.hero;
+    if (hero) {
+      setText('.hero .eyebrow', hero.eyebrow);
+      setText('.hero h1', hero.headline);
+      setText('.hero .lead', hero.sub);
+      setLink('.hero .btn-primary', hero.primaryCtaLabel, hero.primaryCtaHref);
+      setLink('.hero .btn-secondary', hero.secondaryCtaLabel, hero.secondaryCtaHref);
+    }
+    var how = sections.howItWorks;
+    if (how && Array.isArray(how.steps)) {
+      var cards = document.querySelectorAll('.how-card');
+      how.steps.forEach(function (step, i) {
+        var card = cards[i];
+        if (!card) return;
+        var h = card.querySelector('h3'), p = card.querySelector('p');
+        if (h && step.title) h.textContent = step.title;
+        if (p && step.text) p.textContent = step.text;
+      });
+    }
+    var sectors = sections.sectors;
+    if (sectors && Array.isArray(sectors.items)) {
+      var grid = document.querySelector('.sector-grid');
+      if (grid) {
+        var items = sectors.items.filter(function (i) { return i.active; })
+          .sort(function (a, b) { return a.order - b.order; });
+        grid.innerHTML = items.map(function (i) {
+          return '<div class="sector-card"><img src="' + mediaUrl(i.image).replace(/"/g, '&quot;') + '" alt="' + String(i.alt || '').replace(/"/g, '&quot;') + '" />' +
+            '<div class="sector-body"><h3></h3><p></p></div></div>';
+        }).join('');
+        items.forEach(function (item, i) {
+          var card = grid.children[i];
+          card.querySelector('h3').textContent = item.name;
+          card.querySelector('p').textContent = item.description;
+        });
+      }
+    }
+    var studies = sections.studyTypes;
+    if (studies && Array.isArray(studies.items)) {
+      var sgrid = document.querySelector('.study-grid');
+      if (sgrid) {
+        studies.items.slice().sort(function (a, b) { return a.order - b.order; }).forEach(function (item) {
+          var card = sgrid.querySelector('[data-study-key="' + item.key + '"]');
+          if (!card) return;
+          if (!item.active) { card.remove(); return; }
+          var h = card.querySelector('h3'), p = card.querySelector('.study-purpose'), st = card.querySelector('.study-status');
+          if (h) h.textContent = item.title;
+          if (p) p.textContent = item.purpose;
+          if (st) st.textContent = item.statusLabel;
+          sgrid.appendChild(card); // reorder
+        });
+      }
+    }
+    var sr = sections.sampleReport;
+    if (sr) {
+      setText('#report .section-title', sr.title);
+      setText('#report .section-lead', sr.supportingText);
+      setLink('#js-sample-cta', sr.ctaLabel, sr.ctaHref);
+    }
+    var cta = sections.cta;
+    if (cta) {
+      setText('#contact h2', cta.headline);
+      setText('#contact p', cta.supportingText);
+      setLink('#contact .btn-primary', cta.ctaLabel, cta.ctaHref);
+    }
+  }
+  var preview = /[?&]cms_preview=1/.test(location.search);
+  if (preview) {
+    try {
+      var draft = JSON.parse(localStorage.getItem('tj_cms_preview') || 'null');
+      if (draft) {
+        applySiteContent(draft);
+        var banner = document.createElement('div');
+        banner.textContent = 'Draft preview — unpublished content, visible only in this tab';
+        banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#241914;color:#FAF1EB;text-align:center;padding:10px;font-size:13px;font-weight:700;z-index:9999;';
+        document.body.appendChild(banner);
+      }
+    } catch (e) { /* malformed draft — fall back to published/static */ }
+    return;
+  }
+  fetch('/api/public/site').then(function (r) { return r.json(); }).then(function (d) {
+    if (d && d.sections) applySiteContent(d.sections);
+  }).catch(function () { /* offline/no published content — static markup stands */ });
 })();
 </script>
 

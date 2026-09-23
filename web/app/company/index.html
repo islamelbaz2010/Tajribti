@@ -128,12 +128,15 @@
 </head>
 <body>
 <header>
-  <a href="/" class="logo">TAJRIBTI<span>.</span> <span style="font-weight:400;color:var(--muted);font-size:0.8rem;">Company</span></a>
+  <a href="/" class="logo">TAJRIBTI<span>.</span></a>
   <div id="who" class="row"></div>
 </header>
 <main>
 
-  <div id="view-login" class="card">
+  <!-- Starts hidden: showing it by default produced a visible "Company sign
+       in" flash for authenticated users on load/logout. The init script
+       reveals it only when no token exists. -->
+  <div id="view-login" class="card hidden">
     <h2>Company sign in</h2>
     <p style="color:var(--muted);font-size:0.85rem;margin-top:-6px;">Your campaigns, evidence and reports.</p>
     <label>Email</label>
@@ -577,15 +580,17 @@ function renderWho(name) {
   // FD-WEB-01: the role is shown so a member can see at a glance why no
   // editing controls are offered.
   document.getElementById('who').innerHTML =
-    (name ? '<span>' + esc(name) + '</span>' : '') +
+    (name ? '<span style="font-weight:600;">' + esc(name) + '</span>' : '') +
     ' <span class="pill">' + (isMember() ? 'Member — read only' : 'Admin') + '</span>' +
     ' <button class="secondary small" id="btn-signout">Sign out</button>';
   document.getElementById('btn-signout').onclick = () => {
     token = null;
     localStorage.removeItem('tj_company_token');
     localStorage.removeItem('tj_company_role');
-    document.getElementById('who').innerHTML = '';
-    show('view-login');
+    localStorage.removeItem('tj_company_name');
+    // Go straight back to the public sign-in page — never re-render the
+    // in-app login card (that's the stale-screen flash the Founder saw).
+    window.location.href = '/login';
   };
 }
 
@@ -600,6 +605,7 @@ document.getElementById('btn-login').onclick = async () => {
     currentEmployeeRole = r.employee.role || 'COMPANY_MEMBER';
     localStorage.setItem('tj_company_token', token);
     localStorage.setItem('tj_company_role', currentEmployeeRole);
+    localStorage.setItem('tj_company_name', r.employee.name || '');
     renderWho(r.employee.name);
     await loadCampaigns();
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
@@ -1700,7 +1706,7 @@ document.getElementById('btn-load-intelligence').onclick = async () => {
 
 (async () => {
   if (token) {
-    try { renderWho(''); await loadCampaigns(); return; } catch { localStorage.removeItem('tj_company_token'); token = null; }
+    try { renderWho(localStorage.getItem('tj_company_name') || ''); await loadCampaigns(); return; } catch { localStorage.removeItem('tj_company_token'); token = null; }
   }
   show('view-login');
 })();

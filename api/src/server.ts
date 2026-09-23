@@ -9,6 +9,8 @@ import companyAuthRoutes from "./routes/companyAuth";
 import companyRoutes from "./routes/company";
 import opsAuthRoutes from "./routes/opsAuth";
 import opsRoutes from "./routes/ops";
+import siteAdminRoutes from "./routes/siteAdmin";
+import sitePublicRoutes from "./routes/sitePublic";
 import staffAuthRoutes from "./routes/staffAuth";
 import { assetLinksHandler } from "./lib/appLinks";
 import { INDUSTRY_TAXONOMY } from "./lib/industries";
@@ -40,6 +42,11 @@ app.use((_req, res, next) => {
   next();
 });
 
+// Public-Website media uploads (PLATFORM_ADMIN) carry base64 image data —
+// they need a larger JSON body than the global default. Scoped here so the
+// rest of the API keeps the standard limit; body-parser skips re-parsing
+// once a request body is already consumed.
+app.use("/api/ops/site/media", express.json({ limit: "8mb" }));
 app.use(express.json());
 
 // `dev` reflects the standard NODE_ENV convention already implied by this
@@ -58,6 +65,11 @@ app.use("/api/company/auth", companyAuthRoutes);
 app.use("/api/company", companyRoutes);
 app.use("/api/ops/auth", opsAuthRoutes);
 app.use("/api/ops", opsRoutes);
+// Public Website content management (Founder direction 2026-09-24):
+// PLATFORM_ADMIN writes under /api/ops/site; the public site reads only
+// `published` payloads from /api/public/site (drafts never exposed).
+app.use("/api/ops/site", siteAdminRoutes);
+app.use("/api/public", sitePublicRoutes);
 // Unified staff login (Founder 2nd Web Review §19) — single web credential
 // check for Company + Operations accounts; the per-surface auth endpoints
 // above remain intact for compatibility.

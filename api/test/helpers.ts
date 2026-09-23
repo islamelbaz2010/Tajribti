@@ -9,6 +9,8 @@ import consumerAuthRoutes from "../src/routes/consumerAuth";
 import companyAuthRoutes from "../src/routes/companyAuth";
 import opsAuthRoutes from "../src/routes/opsAuth";
 import opsRoutes from "../src/routes/ops";
+import siteAdminRoutes from "../src/routes/siteAdmin";
+import sitePublicRoutes from "../src/routes/sitePublic";
 import staffAuthRoutes from "../src/routes/staffAuth";
 import companyRoutes from "../src/routes/company";
 import { assetLinksHandler } from "../src/lib/appLinks";
@@ -50,6 +52,7 @@ export async function startApi(): Promise<{ api: ApiCall; stop: () => Promise<vo
   });
 
   const app = express();
+  app.use("/api/ops/site/media", express.json({ limit: "8mb" }));
   app.use(express.json());
   app.use("/api/consumer/auth", consumerAuthRoutes);
   app.use("/api/consumer", consumerRoutes);
@@ -57,6 +60,8 @@ export async function startApi(): Promise<{ api: ApiCall; stop: () => Promise<vo
   app.use("/api/company", companyRoutes);
   app.use("/api/ops/auth", opsAuthRoutes);
   app.use("/api/ops", opsRoutes);
+  app.use("/api/ops/site", siteAdminRoutes);
+  app.use("/api/public", sitePublicRoutes);
   app.use("/api/staff", staffAuthRoutes);
   app.get("/.well-known/assetlinks.json", assetLinksHandler);
   app.use((_err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

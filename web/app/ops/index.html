@@ -46,16 +46,62 @@
   .status-card.active { border-color:var(--primary); box-shadow:0 0 0 1px var(--primary); }
   .status-card .sc-n { font-size:1.2rem; font-weight:800; }
   .status-card .sc-l { font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:700; }
+  /* Workspace shell (consolidated pass 2026-09-24): same left-sidebar
+     navigation pattern as the company workspace — role-specific items
+     (pipeline/companies/requests; Administration + Public Website for
+     PLATFORM_ADMIN only). */
+  .app-shell { display:flex; align-items:flex-start; }
+  .sidebar { width:220px; flex:none; position:sticky; top:16px; background:var(--card); border:1px solid #f1e6dc; border-radius:16px; padding:16px 12px; margin-right:18px; }
+  .side-co { font-size:0.82rem; color:var(--muted); padding:2px 10px 12px; border-bottom:1px solid #f1e6dc; margin-bottom:10px; word-break:break-word; font-weight:700; }
+  .snav { display:flex; flex-direction:column; gap:2px; }
+  .snav button { background:none; color:var(--ink); border:none; padding:9px 12px; border-radius:10px; font-weight:600; font-size:0.88rem; cursor:pointer; margin-top:0; text-align:left; width:100%; }
+  .snav button:hover { background:var(--bg); }
+  .snav button.active { background:var(--bg); color:var(--primary); }
+  .page-area { flex:1; min-width:0; }
+  @media (max-width: 800px) {
+    .app-shell { flex-direction:column; align-items:stretch; }
+    .sidebar { width:100%; position:static; margin:0 0 14px; padding:12px; }
+    .snav { flex-direction:row; flex-wrap:wrap; }
+    .snav button { width:auto; }
+    .page-area { width:100%; }
+  }
+  /* Public Website content management (Platform Admin only). */
+  .cms-row { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns:1fr; } }
+  .cms-sections { width:190px; flex:none; }
+  .cms-sections button { display:block; width:100%; text-align:left; background:none; color:var(--ink); border:none; padding:8px 12px; border-radius:10px; font-weight:600; font-size:0.85rem; cursor:pointer; margin-top:0; }
+  .cms-sections button:hover { background:var(--bg); }
+  .cms-sections button.active { background:var(--bg); color:var(--primary); }
+  .cms-editor { flex:1; min-width:0; }
+  .cms-item { border:1px solid #f1e6dc; border-radius:12px; padding:12px; margin-bottom:10px; }
+  .cms-item .row { gap:8px; }
+  .cms-item input, .cms-item textarea { font-size:0.85rem; }
+  .cms-item textarea { min-height:56px; }
+  .cms-num { width:64px !important; flex:none; }
+  .cms-check { display:flex; align-items:center; gap:6px; font-size:0.82rem; color:var(--muted); }
+  .cms-check input { width:auto; }
+  .cms-status { font-size:0.78rem; color:var(--muted); margin:10px 0; line-height:1.6; }
+  .cms-status b { color:var(--ink); }
+  .media-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin:10px 0; }
+  .media-card { border:1px solid #f1e6dc; border-radius:10px; padding:8px; font-size:0.75rem; }
+  .media-card img { width:100%; height:80px; object-fit:cover; border-radius:6px; background:var(--bg); }
+  .media-card .mc-name { font-weight:700; margin-top:6px; word-break:break-all; }
+  .media-card .mc-meta { color:var(--muted); }
+  .media-card button { margin-top:6px; }
 </style>
 </head>
 <body>
 <header>
-  <a href="/" class="logo">TAJRIBTI<span>.</span> <span style="font-weight:400;color:var(--muted);font-size:0.8rem;">Operations</span></a>
-  <div id="who"></div>
+  <a href="/" class="logo">TAJRIBTI<span>.</span></a>
+  <div id="who" class="row"></div>
 </header>
 <main>
 
-  <div id="view-login" class="card">
+  <!-- Starts hidden: showing it by default is what produced the visible
+       "Operations sign in" flash for authenticated users on load/logout.
+       The init script reveals it only when no token exists. -->
+  <div id="view-login" class="card hidden">
     <h2>Operations sign in</h2>
     <label>Email</label><input id="login-email" autocomplete="username" />
     <label>Password</label><input id="login-password" type="password" autocomplete="current-password" />
@@ -64,19 +110,28 @@
   </div>
 
   <div id="view-home" class="hidden">
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="pipeline">Campaign Pipeline</button>
-      <button class="tab-btn" data-tab="companies">Companies</button>
-      <button class="tab-btn" data-tab="studytype-requests">Study-Type Requests</button>
-      <!-- FOUNDER INNOVATION: OFD-19 question change requests.
-           (OFD-15C shared panel and OFD-14 consumer push were both
-           REJECTED — neither tab exists.) -->
-      <button class="tab-btn" data-tab="question-requests">Question Requests</button>
-      <!-- OFD-08: Platform Admin console surface — ops-user management
-           and audit log. The tab is hidden for OPERATIONS users; backend
-           requirePlatformAdmin remains the authoritative guard. -->
-      <button class="tab-btn hidden" data-tab="admin" id="tab-btn-admin">Administration</button>
-    </div>
+    <div class="app-shell">
+    <aside class="sidebar">
+      <div class="side-co">Operations workspace</div>
+      <nav class="snav" id="snav">
+        <button class="active" data-tab="pipeline">Campaign Pipeline</button>
+        <button data-tab="companies">Companies</button>
+        <button data-tab="studytype-requests">Study-Type Requests</button>
+        <!-- FOUNDER INNOVATION: OFD-19 question change requests.
+             (OFD-15C shared panel and OFD-14 consumer push were both
+             REJECTED — neither tab exists.) -->
+        <button data-tab="question-requests">Question Requests</button>
+        <!-- OFD-08: Platform Admin console surface — ops-user management
+             and audit log. The tab is hidden for OPERATIONS users; backend
+             requirePlatformAdmin remains the authoritative guard. -->
+        <button class="hidden" data-tab="admin" id="tab-btn-admin">Administration</button>
+        <!-- Public Website content management — PLATFORM_ADMIN only
+             (Founder direction 2026-09-24). Not a generic CMS: fixed
+             structured sections, Draft → Preview → Publish. -->
+        <button class="hidden" data-tab="site" id="tab-btn-site">Public Website</button>
+      </nav>
+    </aside>
+    <div class="page-area">
 
     <div class="card tab-panel" id="tab-pipeline">
       <h2>Campaign pipeline</h2>
@@ -203,6 +258,33 @@
       <div id="audit-events-list"></div>
     </div>
 
+    <!-- Public Website content management — PLATFORM_ADMIN only.
+         Structured sections only (no HTML/CSS editing, no page builder);
+         edits are saved as a draft, previewed, then explicitly published. -->
+    <div class="card tab-panel hidden" id="tab-site">
+      <h2>Public website content</h2>
+      <p style="color:var(--muted);font-size:0.85rem;margin-top:0;">
+        Edit structured content, save a draft, preview it on the public homepage, then publish.
+        Published content stays live until the next publish. Only Platform Admin accounts can change it.
+      </p>
+      <div class="cms-row">
+        <div class="cms-sections" id="cms-sections"></div>
+        <div class="cms-editor">
+          <div id="cms-form"></div>
+          <div class="cms-status" id="cms-status"></div>
+          <div class="row">
+            <button class="secondary small" id="cms-save-draft">Save draft</button>
+            <button class="secondary small" id="cms-preview">Preview draft</button>
+            <button class="small" id="cms-publish">Publish</button>
+          </div>
+          <div class="msg" id="cms-msg"></div>
+        </div>
+      </div>
+    </div>
+
+    </div>
+    </div>
+
   </div>
 
   <div id="view-campaign" class="hidden">
@@ -307,16 +389,20 @@ function show(id) { ['view-login','view-home','view-campaign'].forEach(v => docu
 // to clear it short of manually clearing browser storage. Signing out is
 // purely a client-side token discard — the JWT itself has no server-side
 // session to revoke (Benchmark §10 "OTP/JWT flow" is stateless by design).
+const OPS_ROLE_LABELS = { OPERATIONS: 'Operations', OPERATIONS_MANAGER: 'Operations Manager', PLATFORM_ADMIN: 'Platform Admin' };
 function renderWho(name) {
   document.getElementById('who').innerHTML =
-    (name ? '<span>' + esc(name) + '</span>' : '') +
+    (name ? '<span style="font-weight:600;">' + esc(name) + '</span>' : '') +
+    ' <span class="pill">' + esc(OPS_ROLE_LABELS[currentOpsRole] || 'Operations') + '</span>' +
     ' <button class="secondary small" id="btn-signout">Sign out</button>';
   document.getElementById('btn-signout').onclick = () => {
     token = null;
     localStorage.removeItem('tj_ops_token');
     localStorage.removeItem('tj_ops_role');
-    document.getElementById('who').innerHTML = '';
-    show('view-login');
+    localStorage.removeItem('tj_ops_name');
+    // Go straight back to the public sign-in page — never re-render the
+    // in-app login card (that's the stale-screen flash the Founder saw).
+    window.location.href = '/login';
   };
 }
 
@@ -330,14 +416,15 @@ document.getElementById('btn-login').onclick = async () => {
     token = r.token; localStorage.setItem('tj_ops_token', token);
     currentOpsRole = r.opsUser.role || 'OPERATIONS';
     localStorage.setItem('tj_ops_role', currentOpsRole);
+    localStorage.setItem('tj_ops_name', r.opsUser.name || '');
     renderWho(r.opsUser.name);
     await loadHome();
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };
 
-document.querySelectorAll('#view-home .tab-btn').forEach(btn => {
+document.querySelectorAll('#snav button').forEach(btn => {
   btn.onclick = () => {
-    document.querySelectorAll('#view-home .tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#snav button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     document.querySelectorAll('#view-home .tab-panel').forEach(p => p.classList.add('hidden'));
     document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
@@ -345,6 +432,7 @@ document.querySelectorAll('#view-home .tab-btn').forEach(btn => {
     if (btn.dataset.tab === 'studytype-requests') loadStudyTypeRequests();
     if (btn.dataset.tab === 'question-requests') loadQuestionRequests();
     if (btn.dataset.tab === 'admin') loadAdmin();
+    if (btn.dataset.tab === 'site') loadSiteCms();
   };
 });
 
@@ -352,6 +440,9 @@ async function loadHome() {
   if (!studyTemplates.length) studyTemplates = await api('/ops/study-templates');
   // OFD-08: Administration tab is PLATFORM_ADMIN-only.
   document.getElementById('tab-btn-admin').classList.toggle('hidden', currentOpsRole !== 'PLATFORM_ADMIN');
+  // Public Website content management is PLATFORM_ADMIN-only too —
+  // backend requirePlatformAdmin is the authoritative guard either way.
+  document.getElementById('tab-btn-site').classList.toggle('hidden', currentOpsRole !== 'PLATFORM_ADMIN');
   await loadPipeline();
   show('view-home');
 }
@@ -480,8 +571,8 @@ document.getElementById('btn-clear-company-filter').onclick = () => {
 // independent lists with no relationship a user can act on.
 function showCampaignsForCompany(id, name) {
   pipelineCompanyFilter = { id, name };
-  document.querySelectorAll('#view-home .tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('#view-home .tab-btn[data-tab="pipeline"]').classList.add('active');
+  document.querySelectorAll('#snav button').forEach(b => b.classList.remove('active'));
+  document.querySelector('#snav button[data-tab="pipeline"]').classList.add('active');
   document.querySelectorAll('#view-home .tab-panel').forEach(p => p.classList.add('hidden'));
   document.getElementById('tab-pipeline').classList.remove('hidden');
   loadPipeline();
@@ -1086,9 +1177,261 @@ async function loadOpsReport() {
     '<h3 style="font-size:0.95rem;">Limitations</h3><ul>' + r.limitations.map(l => '<li>' + esc(l) + '</li>').join('') + '</ul>';
 }
 
+// ---- Public Website content management (PLATFORM_ADMIN) ------------------
+// Founder direction 2026-09-24. Fixed structured sections — no HTML/CSS
+// editing, no page builder. Working copies are held client-side;
+// "Save draft" persists to the server, "Publish" copies the draft to the
+// public payload. Preview loads the homepage in preview mode which reads
+// the draft map from localStorage (same origin) — drafts are never
+// served by the public content endpoint.
+const CMS_SECTIONS = [
+  { key: 'hero', label: 'Homepage hero' },
+  { key: 'howItWorks', label: 'How it works' },
+  { key: 'sectors', label: 'Sector cards' },
+  { key: 'studyTypes', label: 'Study type cards' },
+  { key: 'sampleReport', label: 'Sample report' },
+  { key: 'cta', label: 'Global CTA / contact' },
+  { key: 'media', label: 'Media library' },
+];
+const CMS_FIELD_LABELS = {
+  eyebrow: 'Eyebrow', headline: 'Headline', sub: 'Supporting text',
+  primaryCtaLabel: 'Primary CTA label', primaryCtaHref: 'Primary CTA target',
+  secondaryCtaLabel: 'Secondary CTA label', secondaryCtaHref: 'Secondary CTA target',
+  title: 'Title', supportingText: 'Supporting text', ctaLabel: 'CTA label', ctaHref: 'CTA target',
+  name: 'Name', description: 'Description', alt: 'Image alt text',
+  purpose: 'Purpose', statusLabel: 'Status label', text: 'Text',
+};
+let cmsMeta = {};   // key → {defaults, draft, published, draftBy, draftAt, publishedBy, publishedAt}
+let cmsWorking = {}; // key → editable working copy (draft || published || defaults)
+let cmsMedia = [];
+let cmsCurrent = 'hero';
+
+function cmsClone(v) { return JSON.parse(JSON.stringify(v)); }
+
+async function loadSiteCms() {
+  const msg = document.getElementById('cms-msg');
+  msg.textContent = ''; msg.className = 'msg';
+  try {
+    const [sections, media] = await Promise.all([
+      api('/ops/site/sections'),
+      api('/ops/site/media'),
+    ]);
+    cmsMeta = {}; cmsWorking = {};
+    for (const s of sections) {
+      cmsMeta[s.key] = s;
+      cmsWorking[s.key] = cmsClone(s.draft || s.published || s.defaults);
+    }
+    cmsMedia = media;
+    renderCmsSections();
+    renderCmsEditor();
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+}
+
+function renderCmsSections() {
+  document.getElementById('cms-sections').innerHTML = CMS_SECTIONS.map(s =>
+    '<button data-key="' + s.key + '" class="' + (s.key === cmsCurrent ? 'active' : '') + '">' + s.label + '</button>'
+  ).join('');
+  document.querySelectorAll('#cms-sections button').forEach(b => {
+    b.onclick = () => { cmsCurrent = b.dataset.key; renderCmsSections(); renderCmsEditor(); };
+  });
+}
+
+function cmsField(key, field, label, isArea) {
+  const v = cmsWorking[key][field] ?? '';
+  const input = isArea
+    ? '<textarea data-f="' + field + '">' + esc(v) + '</textarea>'
+    : '<input data-f="' + field + '" value="' + esc(v) + '" />';
+  return '<label>' + label + '</label>' + input;
+}
+
+function mediaSelect(value, extraClass) {
+  const v = String(value || '');
+  const isMedia = v.startsWith('media:');
+  const known = isMedia && cmsMedia.some(m => 'media:' + m.id === v);
+  const cur = isMedia ? (cmsMedia.find(m => 'media:' + m.id === v) || {}).name || v : v;
+  const opts = cmsMedia.map(m => '<option value="media:' + esc(m.id) + '"' + (v === 'media:' + m.id ? ' selected' : '') + '>' + esc(m.name) + '</option>').join('');
+  // Emit the current value as a selected "Current:" option only when it
+  // isn't already represented by a media-library option — avoids two
+  // selected options pointing at the same value.
+  const current = known ? '' : '<option value="' + esc(v) + '" selected>Current: ' + esc(cur) + '</option>';
+  return '<select data-f="image" class="' + (extraClass || '') + '">' + current + opts + '</select>';
+}
+
+function renderCmsEditor() {
+  const form = document.getElementById('cms-form');
+  const status = document.getElementById('cms-status');
+  const meta = cmsMeta[cmsCurrent];
+  status.innerHTML = meta && meta.key !== 'media'
+    ? (meta.published
+        ? 'Published by <b>' + esc(meta.publishedBy || '—') + '</b> ' + (meta.publishedAt ? new Date(meta.publishedAt).toLocaleString() : '') + '. '
+        : 'Never published — the site shows the built-in content. ') +
+      (meta.draft ? 'Draft saved by <b>' + esc(meta.draftBy || '—') + '</b> ' + (meta.draftAt ? new Date(meta.draftAt).toLocaleString() : '') + '.' : '')
+    : '';
+
+  if (cmsCurrent === 'media') { renderCmsMedia(); return; }
+
+  const w = cmsWorking[cmsCurrent];
+  if (cmsCurrent === 'hero') {
+    form.innerHTML =
+      cmsField('hero', 'eyebrow', 'Eyebrow') + cmsField('hero', 'headline', 'Headline') +
+      cmsField('hero', 'sub', 'Supporting text', true) +
+      '<div class="grid2"><div>' + cmsField('hero', 'primaryCtaLabel', 'Primary CTA label') + '</div>' +
+      '<div>' + cmsField('hero', 'primaryCtaHref', 'Primary CTA target') + '</div></div>' +
+      '<div class="grid2"><div>' + cmsField('hero', 'secondaryCtaLabel', 'Secondary CTA label') + '</div>' +
+      '<div>' + cmsField('hero', 'secondaryCtaHref', 'Secondary CTA target') + '</div></div>';
+    bindCmsFields('hero');
+  } else if (cmsCurrent === 'cta' || cmsCurrent === 'sampleReport') {
+    form.innerHTML =
+      cmsField(cmsCurrent, cmsCurrent === 'cta' ? 'headline' : 'title', cmsCurrent === 'cta' ? 'Headline' : 'Title') +
+      cmsField(cmsCurrent, 'supportingText', 'Supporting text', true) +
+      '<div class="grid2"><div>' + cmsField(cmsCurrent, 'ctaLabel', 'CTA label') + '</div>' +
+      '<div>' + cmsField(cmsCurrent, 'ctaHref', 'CTA target') + '</div></div>';
+    bindCmsFields(cmsCurrent);
+  } else if (cmsCurrent === 'howItWorks') {
+    form.innerHTML = w.steps.map((s, i) =>
+      '<div class="cms-item"><div class="row"><b style="font-size:0.85rem;">Step ' + (i + 1) + '</b>' +
+      '<button class="secondary small cms-del" data-i="' + i + '" style="margin-left:auto;">Remove</button></div>' +
+      '<label>Title</label><input data-i="' + i + '" data-f="title" value="' + esc(s.title) + '" />' +
+      '<label>Text</label><textarea data-i="' + i + '" data-f="text">' + esc(s.text) + '</textarea></div>'
+    ).join('') + '<button class="secondary small" id="cms-add-item" ' + (w.steps.length >= 6 ? 'disabled' : '') + '>+ Add step</button>';
+    bindCmsItems('howItWorks', 'steps');
+  } else if (cmsCurrent === 'sectors') {
+    form.innerHTML = w.items.map((s, i) =>
+      '<div class="cms-item"><div class="row"><b style="font-size:0.85rem;">' + esc(s.name || 'Sector ' + (i + 1)) + '</b>' +
+      '<label class="cms-check" style="margin-left:auto;"><input type="checkbox" data-i="' + i + '" data-f="active"' + (s.active ? ' checked' : '') + ' /> Active</label>' +
+      '<button class="secondary small cms-del" data-i="' + i + '">Remove</button></div>' +
+      '<label>Sector name</label><input data-i="' + i + '" data-f="name" value="' + esc(s.name) + '" />' +
+      '<label>Description</label><textarea data-i="' + i + '" data-f="description">' + esc(s.description) + '</textarea>' +
+      '<label>Image (media library or current path)</label>' + mediaSelect(s.image).replace('data-f="image"', 'data-i="' + i + '" data-f="image"') +
+      '<label>Image alt text</label><input data-i="' + i + '" data-f="alt" value="' + esc(s.alt || '') + '" />' +
+      '<label>Display order</label><input class="cms-num" type="number" data-i="' + i + '" data-f="order" value="' + s.order + '" /></div>'
+    ).join('') + '<button class="secondary small" id="cms-add-item">+ Add sector</button>';
+    bindCmsItems('sectors', 'items');
+  } else if (cmsCurrent === 'studyTypes') {
+    form.innerHTML = w.items.map((s, i) =>
+      '<div class="cms-item"><div class="row"><b style="font-size:0.85rem;">' + esc(s.title) + '</b>' +
+      '<label class="cms-check" style="margin-left:auto;"><input type="checkbox" data-i="' + i + '" data-f="active"' + (s.active ? ' checked' : '') + ' /> Visible</label></div>' +
+      '<label>Title</label><input data-i="' + i + '" data-f="title" value="' + esc(s.title) + '" />' +
+      '<label>Purpose</label><textarea data-i="' + i + '" data-f="purpose">' + esc(s.purpose) + '</textarea>' +
+      '<div class="grid2"><div><label>Status label</label><input data-i="' + i + '" data-f="statusLabel" value="' + esc(s.statusLabel) + '" /></div>' +
+      '<div><label>Display order</label><input type="number" data-i="' + i + '" data-f="order" value="' + s.order + '" /></div></div></div>'
+    ).join('');
+    bindCmsItems('studyTypes', 'items');
+  }
+}
+
+function bindCmsFields(key) {
+  document.querySelectorAll('#cms-form [data-f]').forEach(el => {
+    el.oninput = () => { cmsWorking[key][el.dataset.f] = el.value; };
+  });
+}
+
+function bindCmsItems(key, arrField) {
+  document.querySelectorAll('#cms-form [data-f]').forEach(el => {
+    el.oninput = () => {
+      const item = cmsWorking[key][arrField][Number(el.dataset.i)];
+      item[el.dataset.f] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? Number(el.value) : el.value);
+    };
+  });
+  document.querySelectorAll('#cms-form .cms-del').forEach(b => {
+    b.onclick = () => { cmsWorking[key][arrField].splice(Number(b.dataset.i), 1); renderCmsEditor(); };
+  });
+  const add = document.getElementById('cms-add-item');
+  if (add) add.onclick = () => {
+    const arr = cmsWorking[key][arrField];
+    if (key === 'howItWorks') arr.push({ title: '', text: '' });
+    else if (key === 'sectors') arr.push({ name: '', description: '', image: '/assets/img/product-cans.jpg', alt: '', order: arr.length, active: true });
+    renderCmsEditor();
+  };
+}
+
+async function renderCmsMedia() {
+  const form = document.getElementById('cms-form');
+  form.innerHTML =
+    '<h3 style="font-size:0.95rem;margin-top:0;">Upload image</h3>' +
+    '<input type="file" id="media-file" accept="image/jpeg,image/png,image/webp" />' +
+    '<div class="grid2"><div><label>Name</label><input id="media-name" /></div>' +
+    '<div><label>Display order</label><input id="media-order" type="number" value="0" /></div></div>' +
+    '<label>Alt text</label><input id="media-alt" />' +
+    '<label>Attribution / license</label><input id="media-attr" placeholder="e.g. Photographer, CC BY 2.0" />' +
+    '<button class="secondary small" id="media-upload">Upload</button>' +
+    '<h3 style="font-size:0.95rem;margin-top:18px;">Library</h3>' +
+    '<div class="media-grid">' + cmsMedia.map(m =>
+      '<div class="media-card"><img src="/api/ops/site/media/' + esc(m.id) + '/raw" alt="" />' +
+      '<div class="mc-name">' + esc(m.name) + '</div>' +
+      '<div class="mc-meta">' + esc(m.mime) + (m.active ? ' · active' : ' · inactive') + '</div>' +
+      '<div class="mc-meta">' + esc(m.attribution || '') + '</div>' +
+      '<button class="secondary small media-toggle" data-id="' + esc(m.id) + '" data-active="' + (m.active ? '1' : '0') + '">' + (m.active ? 'Deactivate' : 'Activate') + '</button></div>'
+    ).join('') + '</div>';
+  document.getElementById('media-upload').onclick = uploadSiteMedia;
+  document.querySelectorAll('.media-toggle').forEach(b => {
+    b.onclick = async () => {
+      await api('/ops/site/media/' + b.dataset.id, { method: 'PATCH', body: { active: b.dataset.active !== '1' } });
+      cmsMedia = await api('/ops/site/media');
+      renderCmsMedia();
+    };
+  });
+}
+
+async function uploadSiteMedia() {
+  const msg = document.getElementById('cms-msg');
+  const file = document.getElementById('media-file').files[0];
+  if (!file) { msg.textContent = 'Choose an image file first.'; msg.className = 'msg error'; return; }
+  if (file.size > 5 * 1024 * 1024) { msg.textContent = 'File exceeds 5 MB limit.'; msg.className = 'msg error'; return; }
+  const dataBase64 = await new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1]);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+  try {
+    await api('/ops/site/media', { method: 'POST', body: {
+      name: document.getElementById('media-name').value.trim() || file.name,
+      mime: file.type,
+      dataBase64,
+      alt: document.getElementById('media-alt').value.trim(),
+      attribution: document.getElementById('media-attr').value.trim(),
+      sortOrder: Number(document.getElementById('media-order').value) || 0,
+    }});
+    cmsMedia = await api('/ops/site/media');
+    msg.textContent = 'Uploaded.'; msg.className = 'msg ok';
+    renderCmsMedia();
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+}
+
+document.getElementById('cms-save-draft').onclick = async () => {
+  const msg = document.getElementById('cms-msg');
+  if (cmsCurrent === 'media') { msg.textContent = 'Media changes apply immediately — no draft needed.'; msg.className = 'msg'; return; }
+  try {
+    const r = await api('/ops/site/sections/' + cmsCurrent + '/draft', { method: 'PUT', body: { content: cmsWorking[cmsCurrent] } });
+    cmsMeta[cmsCurrent].draft = r.draft; cmsMeta[cmsCurrent].draftBy = r.draftBy; cmsMeta[cmsCurrent].draftAt = r.draftAt;
+    msg.textContent = 'Draft saved — nothing is live yet.'; msg.className = 'msg ok';
+    renderCmsEditor();
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+};
+
+document.getElementById('cms-preview').onclick = () => {
+  // Stash the full working map; the homepage reads it only in preview mode.
+  localStorage.setItem('tj_cms_preview', JSON.stringify(cmsWorking));
+  window.open('/?cms_preview=1', '_blank');
+};
+
+document.getElementById('cms-publish').onclick = async () => {
+  const msg = document.getElementById('cms-msg');
+  if (cmsCurrent === 'media') { msg.textContent = 'Media changes apply immediately — no publish step.'; msg.className = 'msg'; return; }
+  if (!confirm('Publish "' + cmsCurrent + '" to the live public website?')) return;
+  try {
+    await api('/ops/site/sections/' + cmsCurrent + '/draft', { method: 'PUT', body: { content: cmsWorking[cmsCurrent] } });
+    const r = await api('/ops/site/sections/' + cmsCurrent + '/publish', { method: 'POST' });
+    cmsMeta[cmsCurrent].published = r.published; cmsMeta[cmsCurrent].publishedBy = r.publishedBy; cmsMeta[cmsCurrent].publishedAt = r.publishedAt;
+    msg.textContent = 'Published — the public site now shows this content.'; msg.className = 'msg ok';
+    renderCmsEditor();
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+};
+
 (async () => {
   if (token) {
-    try { renderWho(''); await loadHome(); return; } catch { localStorage.removeItem('tj_ops_token'); token = null; }
+    try { renderWho(localStorage.getItem('tj_ops_name') || ''); await loadHome(); return; } catch { localStorage.removeItem('tj_ops_token'); token = null; }
   }
   show('view-login');
 })();

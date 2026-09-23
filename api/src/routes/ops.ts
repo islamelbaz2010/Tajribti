@@ -161,6 +161,7 @@ router.post("/campaigns/:id/launch", async (req, res) => {
   const readiness = await checkReadiness(campaign.id);
   if (!readiness.ready) return res.status(422).json({ error: "Campaign is not ready to launch", readiness });
   const updated = await prisma.campaign.update({ where: { id: campaign.id }, data: { status: "ACTIVE" } });
+  await auditOpsAction(asOps(req).opsUserId, "CAMPAIGN_LAUNCH", "campaign", campaign.id);
   res.json(updated);
 });
 
@@ -169,6 +170,7 @@ router.post("/campaigns/:id/pause", async (req, res) => {
   if (!campaign) return;
   if (campaign.status !== "ACTIVE") return res.status(409).json({ error: "Only an ACTIVE campaign can be paused" });
   const updated = await prisma.campaign.update({ where: { id: campaign.id }, data: { status: "PAUSED" } });
+  await auditOpsAction(asOps(req).opsUserId, "CAMPAIGN_PAUSE", "campaign", campaign.id);
   res.json(updated);
 });
 
@@ -184,6 +186,7 @@ router.post("/campaigns/:id/close", async (req, res) => {
     return res.status(409).json({ error: "Only an ACTIVE or PAUSED campaign can be closed" });
   }
   const updated = await prisma.campaign.update({ where: { id: campaign.id }, data: { status: "COMPLETED" } });
+  await auditOpsAction(asOps(req).opsUserId, "CAMPAIGN_CLOSE", "campaign", campaign.id);
   res.json(updated);
 });
 
@@ -349,6 +352,7 @@ router.post("/campaigns/:id/issues", async (req, res) => {
   const issue = await prisma.operationalIssue.create({
     data: { campaignId: campaign.id, openedById: opsUserId, type: parsed.data.type, description: parsed.data.description },
   });
+  await auditOpsAction(opsUserId, "ISSUE_CREATE", "issue", issue.id);
   res.status(201).json(issue);
 });
 
@@ -357,6 +361,7 @@ router.patch("/issues/:issueId/resolve", async (req, res) => {
     .update({ where: { id: req.params.issueId }, data: { status: "RESOLVED", resolvedAt: new Date() } })
     .catch(() => null);
   if (!issue) return res.status(404).json({ error: "Issue not found" });
+  await auditOpsAction(asOps(req).opsUserId, "ISSUE_RESOLVE", "issue", issue.id);
   res.json(issue);
 });
 

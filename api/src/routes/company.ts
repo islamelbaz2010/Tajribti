@@ -35,6 +35,15 @@ router.use(requireEmployee);
 // reporting/read-only. Every mutating route below additionally carries
 // requireCompanyAdmin; GET routes remain available to both roles.
 
+// Mirrors auditOpsAction in ops.ts: important company-side state changes
+// write an AccessAuditEvent so the Platform Admin audit surface covers
+// both sides of the company↔operations boundary.
+async function auditEmployeeAction(req: Request, action: string, targetType: string, targetId?: string | null) {
+  const { employeeId } = asEmployee(req);
+  const actor = await prisma.employee.findUnique({ where: { id: employeeId }, select: { name: true } });
+  await writeAccessAudit({ actorKind: "employee", actorId: employeeId, actorName: actor?.name ?? "unknown", action, targetType, targetId });
+}
+
 // --- Study Templates (FOUNDER-APPROVED STRATEGIC DIFFERENTIATION — see
 // governance/FOUNDER_DECISION_STRATEGIC_DIFFERENTIATION.md; NOT
 // Benchmark-required). Read-only catalog; no company/campaign data. -----
@@ -87,6 +96,7 @@ router.patch("/profile", requireCompanyAdmin, async (req, res) => {
   }
   const { industry: _industry, subIndustry: _subIndustry, ...updatable } = d;
   const company = await prisma.company.update({ where: { id: companyId }, data: updatable });
+  await auditEmployeeAction(req, "COMPANY_PROFILE_UPDATE", "company", companyId);
   res.json(company);
 });
 
@@ -119,6 +129,7 @@ router.post("/employees", requireCompanyAdmin, async (req, res) => {
     const employee = await prisma.employee.create({
       data: { companyId, name: parsed.data.name, email: parsed.data.email, passwordHash, role: parsed.data.role ?? "COMPANY_MEMBER" },
     });
+    await auditEmployeeAction(req, "EMPLOYEE_CREATE", "employee", employee.id);
     res.status(201).json({ id: employee.id, name: employee.name, email: employee.email, role: employee.role });
   } catch {
     res.status(409).json({ error: "Email already in use" });
@@ -140,6 +151,7 @@ router.patch("/employees/:eid/role", requireCompanyAdmin, async (req, res) => {
   });
   if (result.count === 0) return res.status(404).json({ error: "Employee not found" });
   const employee = await prisma.employee.findUnique({ where: { id: req.params.eid }, select: { id: true, name: true, email: true, role: true } });
+  await auditEmployeeAction(req, "EMPLOYEE_ROLE_CHANGE", "employee", req.params.eid);
   res.json(employee);
 });
 
@@ -166,6 +178,7 @@ router.post("/products", requireCompanyAdmin, async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
   const { claims, ...rest } = parsed.data;
   const product = await prisma.product.create({ data: { companyId, ...rest, claims: claims ? JSON.stringify(claims) : null } });
+  await auditEmployeeAction(req, "PRODUCT_CREATE", "product", product.id);
   res.status(201).json(product);
 });
 
@@ -180,6 +193,7 @@ router.patch("/products/:pid", requireCompanyAdmin, async (req, res) => {
     where: { id: req.params.pid },
     data: { ...rest, claims: claims ? JSON.stringify(claims) : undefined },
   });
+  await auditEmployeeAction(req, "PRODUCT_UPDATE", "product", req.params.pid);
   res.json(product);
 });
 
@@ -256,6 +270,7 @@ router.post("/campaigns", requireCompanyAdmin, async (req, res) => {
       status: "DRAFT",
     },
   });
+  await auditEmployeeAction(req, "CAMPAIGN_CREATE", "campaign", campaign.id);
   res.status(201).json(campaign);
 });
 
@@ -366,6 +381,7 @@ router.patch("/campaigns/:id", requireCompanyAdmin, async (req, res) => {
       endDate: d.endDate ? new Date(d.endDate) : undefined,
     },
   });
+  await auditEmployeeAction(req, "CAMPAIGN_UPDATE", "campaign", campaign.id);
   res.json(updated);
 });
 
@@ -464,6 +480,7 @@ router.post("/campaigns/:id/study-type-requests", requireCompanyAdmin, async (re
       status: "PENDING",
     },
   });
+  await auditEmployeeAction(req, "STUDY_TYPE_REQUESTED", "study-type-request", request.id);
   res.status(201).json(request);
 });
 
@@ -513,6 +530,7 @@ router.post("/campaigns/:id/submit-for-review", requireCompanyAdmin, async (req,
   const readiness = await checkReadiness(campaign.id);
   if (!readiness.ready) return res.status(422).json({ error: "Campaign is not ready", readiness });
   const updated = await prisma.campaign.update({ where: { id: campaign.id }, data: { status: "READY" } });
+  await auditEmployeeAction(req, "CAMPAIGN_SUBMIT_FOR_REVIEW", "campaign", campaign.id);
   res.json({ campaign: updated, readiness });
 });
 
@@ -704,6 +722,7 @@ router.post("/campaigns/:id/qr-sources", requireCompanyAdmin, async (req, res) =
         activeTo: new Date(d.activeTo),
       },
     });
+    await auditEmployeeAction(req, "QR_SOURCE_CREATE", "qr-source", source.id);
     res.status(201).json(source);
   } catch {
     res.status(409).json({ error: "QR/source code already in use" });
@@ -860,6 +879,7 @@ router.post("/campaigns/:id/question-change-requests", requireCompanyAdmin, asyn
       requestedById: employeeId,
     },
   });
+  await auditEmployeeAction(req, "QUESTION_CHANGE_REQUESTED", "question-change-request", request.id);
   res.status(201).json(request);
 });
 
@@ -913,6 +933,7 @@ router.post("/campaigns/:id/media", requireCompanyAdmin, async (req, res) => {
   const count = await prisma.campaignMedia.count({ where: { campaignId: campaign.id } });
   if (count >= MEDIA_LIMITS.maxPerCampaign) return res.status(400).json({ error: "Media limit reached (20 per campaign)" });
   const media = await prisma.campaignMedia.create({ data: { campaignId: campaign.id, ...parsed.data } });
+  await auditEmployeeAction(req, "CAMPAIGN_MEDIA_ADD", "campaign-media", media.id);
   res.status(201).json(media);
 });
 
@@ -962,6 +983,7 @@ router.delete("/campaigns/:id/media/:mid", requireCompanyAdmin, async (req, res)
     await deleteObject(media.storageKey).catch(() => undefined); // row delete proceeds; sweep covers orphans
   }
   await prisma.campaignMedia.delete({ where: { id: media.id } });
+  await auditEmployeeAction(req, "CAMPAIGN_MEDIA_DELETE", "campaign-media", media.id);
   res.status(204).end();
 });
 

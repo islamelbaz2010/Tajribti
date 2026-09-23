@@ -5,20 +5,24 @@
 // copies the seeded preview database into writable /tmp on cold start and
 // points Prisma at it. Preview writes therefore do NOT touch production data
 // and are not shared between instances — acceptable for Founder review.
+//
+// NOTE: literal-path fs calls below are intentional — Vercel's file tracer
+// only bundles files referenced through statically-resolvable expressions.
 import fs from "fs";
 import path from "path";
 
 const TMP_DB = "/tmp/tj-preview.db";
 
+// Force the Prisma query engine binary into the function bundle.
+fs.existsSync(
+  path.join(__dirname, "..", "node_modules", ".prisma", "client", "libquery_engine-rhel-openssl-3.0.x.so.node")
+);
+
 if (!fs.existsSync(TMP_DB)) {
-  const candidates = [
-    path.join(__dirname, "..", "prisma", "preview.db"),
-    path.join(__dirname, "..", "..", "prisma", "preview.db"),
-    path.join(process.cwd(), "api", "prisma", "preview.db"),
-    path.join(process.cwd(), "prisma", "preview.db"),
-  ];
-  const src = candidates.find((p) => fs.existsSync(p));
-  if (src) fs.copyFileSync(src, TMP_DB);
+  const bundled = path.join(__dirname, "..", "prisma", "preview.db");
+  const alt = path.join(__dirname, "..", "..", "prisma", "preview.db");
+  const src = fs.existsSync(bundled) ? bundled : alt;
+  fs.copyFileSync(src, TMP_DB);
 }
 
 process.env.DATABASE_URL = `file:${TMP_DB}`;

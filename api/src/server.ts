@@ -80,8 +80,10 @@ const webRoot =
   [
     path.join(__dirname, "..", "..", "web"),
     path.join(__dirname, "..", "..", "..", "web"),
+    path.join(__dirname, "..", "web-bundle"),
     path.join(process.cwd(), "web"),
     path.join(process.cwd(), "..", "web"),
+    path.join(process.cwd(), "api", "web-bundle"),
   ].find((p) => fs.existsSync(path.join(p, "public"))) ?? path.join(__dirname, "..", "..", "web");
 // Unified staff login page — must be registered BEFORE the "/" static mount
 // so /login resolves to the page rather than a static-file miss.

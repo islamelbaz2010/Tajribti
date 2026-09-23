@@ -11,7 +11,7 @@
     "db:generate": "prisma generate",
     "db:seed": "ts-node --transpile-only prisma/seed.ts",
     "test": "node --require ts-node/register --test test/*.test.ts",
-    "vercel-build": "tsc -p tsconfig.json && prisma generate && DATABASE_URL=\"file:./preview.db\" prisma migrate deploy && DATABASE_URL=\"file:./preview.db\" ts-node --transpile-only prisma/seed.ts && DATABASE_URL=\"file:./preview.db\" ts-node --transpile-only prisma/preview-seed.ts"
+    "vercel-build": "tsc -p tsconfig.json && prisma generate && DATABASE_URL=\"file:./preview.db\" prisma migrate deploy && DATABASE_URL=\"file:./preview.db\" ts-node --transpile-only prisma/seed.ts && DATABASE_URL=\"file:./preview.db\" ts-node --transpile-only prisma/preview-seed.ts && rm -rf web-bundle && cp -R ../web web-bundle"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1131.0",

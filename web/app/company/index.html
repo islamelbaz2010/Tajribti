@@ -31,8 +31,10 @@
   table { width:100%; border-collapse:collapse; font-size:0.88rem; }
   th, td { text-align:left; padding:8px 6px; border-bottom:1px solid #f1e6dc; }
   .pill { display:inline-block; background:var(--bg); color:var(--primary); font-size:0.72rem; font-weight:700; padding:3px 10px; border-radius:999px; }
-  .campaign-item { padding:14px; border:1px solid #f1e6dc; border-radius:12px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+  .campaign-item { padding:14px; border:1px solid #f1e6dc; border-radius:12px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:10px; }
   .campaign-item:hover { border-color: var(--primary); }
+  .campaign-item > div { min-width:0; }
+  .campaign-item .pill { flex:none; }
   .tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
   .tab-btn { padding:8px 14px; border-radius:999px; border:1px solid #e6d9cf; background:#fff; color:var(--ink); cursor:pointer; font-size:0.85rem; font-weight:600; }
   .tab-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
@@ -42,6 +44,43 @@
   .metrics-row { display:flex; gap:20px; flex-wrap:wrap; margin-bottom: 10px; }
   .verbatim { padding:10px; border-left:3px solid var(--primary); background:var(--bg); margin-bottom:8px; font-size:0.88rem; border-radius:6px; }
   a.back { color: var(--muted); font-size: 0.85rem; text-decoration:none; display:inline-block; margin-bottom:10px; }
+  /* Workspace IA (consolidated pass 2026-09-23): left sidebar navigation —
+     Overview/Campaigns/Products/Reports/Profile/Employees as first-class
+     pages instead of one stacked column. */
+  .app-shell { display:flex; align-items:flex-start; }
+  .sidebar { width:210px; flex:none; position:sticky; top:16px; background:var(--card); border:1px solid #f1e6dc; border-radius:16px; padding:16px 12px; margin-right:18px; }
+  .side-co { font-size:0.82rem; color:var(--muted); padding:2px 10px 12px; border-bottom:1px solid #f1e6dc; margin-bottom:10px; word-break:break-word; font-weight:700; }
+  .snav { display:flex; flex-direction:column; gap:2px; }
+  .snav button { background:none; color:var(--ink); border:none; padding:9px 12px; border-radius:10px; font-weight:600; font-size:0.88rem; cursor:pointer; margin-top:0; text-align:left; width:100%; }
+  .snav button:hover { background:var(--bg); }
+  .snav button.active { background:var(--bg); color:var(--primary); }
+  .side-cta { width:100%; margin-top:14px; }
+  .page-area { flex:1; min-width:0; }
+  .status-cards { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .status-card { background:#fff; border:1px solid #e6d9cf; border-radius:12px; padding:10px 14px; cursor:pointer; min-width:84px; text-align:center; }
+  .status-card:hover { border-color:var(--primary); }
+  .status-card.active { border-color:var(--primary); box-shadow:0 0 0 1px var(--primary); }
+  .status-card .sc-n { font-size:1.2rem; font-weight:800; }
+  .status-card .sc-l { font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:700; }
+  .kpi-strip { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:10px; margin-bottom:16px; }
+  .kpi { background:var(--bg); border-radius:12px; padding:14px 10px; text-align:center; }
+  .kpi .k-n { font-size:1.45rem; font-weight:800; color:var(--primary); }
+  .kpi .k-l { font-size:0.72rem; color:var(--muted); font-weight:600; }
+  .pager { display:flex; gap:10px; align-items:center; justify-content:flex-end; font-size:0.82rem; color:var(--muted); margin-top:10px; }
+  .pager button { margin-top:0; }
+  .prod-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; margin-bottom:14px; }
+  .prod-card { border:1px solid #f1e6dc; border-radius:12px; padding:12px; font-size:0.88rem; }
+  .prod-card img { width:100%; height:96px; object-fit:cover; border-radius:8px; margin-bottom:8px; background:var(--bg); }
+  .prod-card .prod-name { font-weight:700; }
+  .prod-card .prod-meta { color:var(--muted); font-size:0.8rem; margin-top:3px; }
+  @media (max-width:820px) {
+    .app-shell { flex-direction:column; align-items:stretch; }
+    .sidebar { width:100%; position:static; margin:0 0 14px; padding:12px; }
+    .snav { flex-direction:row; flex-wrap:wrap; }
+    .snav button { width:auto; }
+    .side-cta { width:auto; }
+    .page-area { width:100%; }
+  }
   /* FOUNDER INNOVATION (OFD-13): print/PDF output. Only the report card
      prints; RTL Arabic narrative lines keep direction in print. */
   /* Final-report deliverable presentation — cover, executive summary and
@@ -106,29 +145,69 @@
   </div>
 
   <div id="view-campaigns" class="hidden">
-    <div class="card">
-      <div class="row" style="justify-content:space-between;">
-        <h2>Campaigns</h2>
-        <button class="small" id="btn-new-campaign">+ New campaign</button>
-      </div>
-      <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-        <input id="cf-search" placeholder="Search campaigns" style="flex:1;min-width:150px;margin:0;" />
-        <select id="cf-status" style="margin:0;width:auto;">
-          <option value="">All statuses</option>
-          <option value="DRAFT">Draft</option>
-          <option value="READY">Ready</option>
-          <option value="ACTIVE">Active</option>
-          <option value="PAUSED">Paused</option>
-          <option value="COMPLETED">Completed</option>
-        </select>
-        <select id="cf-studytype" style="margin:0;width:auto;"><option value="">All study types</option></select>
-        <input id="cf-from" type="date" title="Start date on or after" style="margin:0;width:auto;" />
-        <button class="small secondary" id="cf-reset">Reset</button>
-      </div>
-      <div id="campaign-list"></div>
-    </div>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="side-co" id="side-co">Company</div>
+        <nav class="snav" id="snav">
+          <button class="active" data-page="overview">Overview</button>
+          <button data-page="campaigns">Campaigns</button>
+          <button data-page="products">Products</button>
+          <button data-page="reports">Reports</button>
+          <button data-page="profile">Company Profile</button>
+          <button data-page="employees">Employees</button>
+        </nav>
+        <button id="btn-new-campaign" class="side-cta">+ New campaign</button>
+      </aside>
+      <div class="page-area">
 
-    <div class="card hidden" id="new-campaign-card">
+        <section class="page" id="page-overview">
+          <div class="card">
+            <h2>Overview</h2>
+            <div class="kpi-strip" id="ov-kpis"></div>
+            <h3 style="font-size:0.95rem;">Campaigns by status</h3>
+            <div class="status-cards" id="ov-status"></div>
+            <h3 style="font-size:0.95rem;">Recent campaigns</h3>
+            <div id="ov-recent"></div>
+          </div>
+          <div class="card">
+            <h2>Products</h2>
+            <div id="ov-products"></div>
+          </div>
+          <!-- FOUNDER INNOVATION (OFD-15B): same-company cross-campaign
+               panel intelligence — opted-in consumers only, aggregates
+               only. -->
+          <div class="card">
+            <h2>Consumer panel <span class="pill">opted-in only</span></h2>
+            <div id="panel-insights-content" style="color:var(--muted);font-size:0.85rem;"></div>
+          </div>
+        </section>
+
+        <section class="page hidden" id="page-campaigns">
+          <div class="card">
+            <h2>Campaigns</h2>
+            <div class="status-cards" id="cf-cards"></div>
+            <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+              <input id="cf-search" placeholder="Search campaigns" style="flex:1;min-width:150px;margin:0;" />
+              <select id="cf-status" class="hidden" style="margin:0;width:auto;">
+                <option value="">All statuses</option>
+                <option value="DRAFT">Draft</option>
+                <option value="READY">Ready</option>
+                <option value="ACTIVE">Active</option>
+                <option value="PAUSED">Paused</option>
+                <option value="COMPLETED">Completed</option>
+              </select>
+              <select id="cf-studytype" style="margin:0;width:auto;max-width:220px;"><option value="">All study types</option></select>
+              <input id="cf-from" type="date" title="Campaign start date on or after" style="margin:0;width:auto;" />
+              <input id="cf-to" type="date" title="Campaign start date on or before" style="margin:0;width:auto;" />
+              <button class="small secondary" id="cf-reset">Reset</button>
+            </div>
+            <div id="campaign-list"></div>
+            <div class="pager" id="cf-pager"></div>
+          </div>
+        </section>
+
+        <section class="page hidden" id="page-newcampaign">
+    <div class="card" id="new-campaign-card">
       <h2>New campaign</h2>
       <!-- Founder-approved strategic differentiation (NOT Benchmark-
            required — see governance/FOUNDER_DECISION_STRATEGIC_
@@ -150,10 +229,12 @@
       <button id="btn-create-campaign">Create campaign</button>
       <div class="msg" id="nc-msg"></div>
     </div>
+        </section>
 
+        <section class="page hidden" id="page-products">
     <div class="card">
       <h2>Products</h2>
-      <div id="product-list"></div>
+      <div class="prod-grid" id="product-list"></div>
       <!-- POST /company/products already accepts description/imageUrl
            (see api/src/routes/company.ts, api/prisma/schema.prisma
            Product model) — this form previously exposed only name,
@@ -184,29 +265,49 @@
       <button class="secondary small" id="btn-add-product">Add product</button>
       </div>
     </div>
+        </section>
 
-    <!-- FOUNDER INNOVATION (OFD-15B): same-company cross-campaign panel
-         intelligence — opted-in consumers only, aggregates only. -->
-    <div class="card">
-      <h2>Consumer panel <span class="pill">opted-in only</span></h2>
-      <div id="panel-insights-content" style="color:var(--muted);font-size:0.85rem;"></div>
-    </div>
+        <section class="page hidden" id="page-reports">
+          <div class="card">
+            <h2>Reports</h2>
+            <p class="msg" style="margin-top:-4px;color:var(--muted);">Each campaign's evidence report — the same persisted data shown on the campaign's Report tab.</p>
+            <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+              <input id="rf-search" placeholder="Search campaigns" style="flex:1;min-width:150px;margin:0;" />
+              <select id="rf-status" style="margin:0;width:auto;">
+                <option value="">All statuses</option>
+                <option value="DRAFT">Draft</option>
+                <option value="READY">Ready</option>
+                <option value="ACTIVE">Active</option>
+                <option value="PAUSED">Paused</option>
+                <option value="COMPLETED">Completed</option>
+              </select>
+              <select id="rf-studytype" style="margin:0;width:auto;max-width:220px;"><option value="">All study types</option></select>
+              <input id="rf-from" type="date" title="Campaign start date on or after" style="margin:0;width:auto;" />
+              <input id="rf-to" type="date" title="Campaign start date on or before" style="margin:0;width:auto;" />
+              <button class="small secondary" id="rf-reset">Reset</button>
+            </div>
+            <div id="report-list"></div>
+          </div>
+        </section>
 
+        <section class="page hidden" id="page-profile">
     <div class="card">
       <h2>Company profile</h2>
       <div class="grid2">
         <div><label>Company name</label><input id="cp-name" /></div>
-        <div><label>Industry</label><select id="cp-industry"></select></div>
-        <!-- Founder direction 2026-09-21: Industry/Sub-industry are
-             controlled selections from the canonical taxonomy served by
-             GET /api/meta/industries — Sub-industry depends on the chosen
-             Industry. -->
-        <div><label>Sub-industry</label><select id="cp-sub-industry"></select></div>
+        <div><label>Industry</label><select id="cp-industry" disabled></select></div>
+        <!-- Founder direction 2026-09-23: Industry/Sub-industry are
+             creation-time classification set at company onboarding —
+             display-only here; PATCH /profile rejects any change. -->
+        <div><label>Sub-industry</label><select id="cp-sub-industry" disabled></select></div>
       </div>
-      <button class="small" id="btn-save-profile">Save</button>
+      <p class="msg" style="color:var(--muted);">Industry and sub-industry are fixed when the company is created and cannot be changed here.</p>
+      <button class="small" id="btn-save-profile">Save name</button>
       <div class="msg" id="cp-msg"></div>
     </div>
+        </section>
 
+        <section class="page hidden" id="page-employees">
     <div class="card">
       <h2>Employees</h2>
       <div id="employee-list"></div>
@@ -225,6 +326,10 @@
         <button class="secondary small" id="btn-add-employee">Add employee</button>
       </div>
       <p class="msg" id="employee-msg"></p>
+    </div>
+        </section>
+
+      </div>
     </div>
   </div>
 
@@ -451,6 +556,16 @@ function show(id) {
   ['view-login','view-campaigns','view-campaign-detail'].forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
 }
 
+// Workspace IA (consolidated pass 2026-09-23): sidebar page switching
+// inside view-campaigns. Campaign detail remains its own top-level view.
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+  const el = document.getElementById('page-' + page);
+  if (el) el.classList.remove('hidden');
+  document.querySelectorAll('#snav button').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+}
+document.querySelectorAll('#snav button').forEach(b => { b.onclick = () => showPage(b.dataset.page); });
+
 // Basic account safety/usability (not a Benchmark-named capability, but
 // every authenticated workspace needs a way to end a session from inside
 // it): the token otherwise persists in localStorage for its full 12h
@@ -492,19 +607,35 @@ document.getElementById('btn-login').onclick = async () => {
 
 async function loadProducts(selectEl) {
   const products = await api('/company/products');
-  document.getElementById('product-list').innerHTML = products.map(p => {
-    const attrs = [p.priceRange, p.packSize].filter(Boolean).join(' · ');
-    const claims = p.claims ? JSON.parse(p.claims) : [];
-    return '<div>• ' + esc(p.name) +
-      (p.description ? ' <span style="color:var(--muted);font-size:0.85rem;">— ' + esc(p.description) + '</span>' : '') +
-      (attrs ? ' <span style="color:var(--muted);font-size:0.85rem;">(' + esc(attrs) + ')</span>' : '') +
-      (claims.length ? ' <span style="color:var(--muted);font-size:0.8rem;">[' + claims.map(esc).join(', ') + ']</span>' : '') +
-      '</div>';
-  }).join('') || '<p style="color:var(--muted)">No products yet.</p>';
+  document.getElementById('product-list').innerHTML = products.length
+    ? products.map(productCardHtml).join('')
+    : '<p style="color:var(--muted)">No products yet.</p>';
   if (selectEl) {
     selectEl.innerHTML = '<option value="">— none —</option>' + products.map(p => '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>').join('');
   }
+  // Overview preview — first 4 products as compact cards.
+  const ov = document.getElementById('ov-products');
+  if (ov) {
+    ov.innerHTML = products.length
+      ? '<div class="prod-grid">' + products.slice(0, 4).map(productCardHtml).join('') + '</div>' +
+        (products.length > 4 ? '<p class="msg" style="color:var(--muted);">' + (products.length - 4) + ' more — see Products.</p>' : '')
+      : '<p style="color:var(--muted)">No products yet.</p>';
+  }
   return products;
+}
+
+function productCardHtml(p) {
+  const attrs = [p.priceRange, p.packSize].filter(Boolean).join(' · ');
+  const claims = p.claims ? JSON.parse(p.claims) : [];
+  const usedBy = allCampaigns.filter(c => c.productId === p.id).length;
+  return '<div class="prod-card">' +
+    (p.imageUrl ? '<img src="' + esc(p.imageUrl) + '" alt="" loading="lazy" />' : '') +
+    '<div class="prod-name">' + esc(p.name) + '</div>' +
+    (p.description ? '<div class="prod-meta">' + esc(p.description) + '</div>' : '') +
+    (attrs ? '<div class="prod-meta">' + esc(attrs) + '</div>' : '') +
+    (claims.length ? '<div class="prod-meta">Claims: ' + claims.map(esc).join(', ') + '</div>' : '') +
+    '<div class="prod-meta">' + usedBy + ' campaign(s)</div>' +
+    '</div>';
 }
 
 document.getElementById('btn-add-product').onclick = async () => {
@@ -529,39 +660,128 @@ document.getElementById('btn-add-product').onclick = async () => {
 function applyRoleUI() {
   const readOnly = isMember();
   document.getElementById('btn-new-campaign').classList.toggle('hidden', readOnly);
-  if (readOnly) document.getElementById('new-campaign-card').classList.add('hidden');
   document.getElementById('product-add-form').classList.toggle('hidden', readOnly);
-  ['cp-name', 'cp-industry'].forEach(id => { document.getElementById(id).disabled = readOnly; });
-  // Sub-industry is disabled for members, or whenever no industry is
-  // selected (it is a dependent selection of Industry).
-  const subSel = document.getElementById('cp-sub-industry');
-  subSel.disabled = readOnly || !document.getElementById('cp-industry').value;
+  // Industry/Sub-industry stay disabled for every role — creation-time
+  // classification (see the profile page note and PATCH /profile).
+  document.getElementById('cp-name').disabled = readOnly;
   document.getElementById('btn-save-profile').classList.toggle('hidden', readOnly);
 }
 
 let allCampaigns = []; // last fetched list — filter bar renders subsets client-side
+let cfPage = 0;
+const CF_PAGE_SIZE = 10;
+const CAMPAIGN_STATUSES = ['DRAFT', 'READY', 'ACTIVE', 'PAUSED', 'COMPLETED'];
+
+function campaignMatches(c, q, status, studyType, from, to) {
+  return (!q || c.name.toLowerCase().includes(q)) &&
+    (!status || c.status === status) &&
+    (!studyType || c.studyType === studyType) &&
+    (!from || (c.startDate && c.startDate.slice(0, 10) >= from)) &&
+    (!to || (c.startDate && c.startDate.slice(0, 10) <= to));
+}
+
+// Status summary cards — clicking a card sets the status filter.
+function renderStatusCards(el, activeStatus, onPick) {
+  const counts = { '': allCampaigns.length };
+  CAMPAIGN_STATUSES.forEach(s => { counts[s] = allCampaigns.filter(c => c.status === s).length; });
+  const cards = [['', 'All']].concat(CAMPAIGN_STATUSES.map(s => [s, s.charAt(0) + s.slice(1).toLowerCase()]));
+  el.innerHTML = cards.map(([v, l]) =>
+    '<div class="status-card' + (v === activeStatus ? ' active' : '') + '" data-status="' + v + '">' +
+    '<div class="sc-n">' + counts[v] + '</div><div class="sc-l">' + l + '</div></div>').join('');
+  el.querySelectorAll('.status-card').forEach(card => {
+    card.onclick = () => onPick(card.dataset.status);
+  });
+}
+
+function campaignItemHtml(c) {
+  return '<div><strong>' + esc(c.name) + '</strong><div style="color:var(--muted);font-size:0.85rem;">' + (c.product ? esc(c.product.name) : 'No product linked') + (c.studyType ? ' · ' + esc(studyTypeLabel(c.studyType)) : '') + (c.startDate ? ' · ' + esc(c.startDate.slice(0, 10)) : '') + '</div></div><span class="pill">' + c.status + '</span>';
+}
+
 function renderCampaignList() {
   const q = (document.getElementById('cf-search').value || '').trim().toLowerCase();
   const status = document.getElementById('cf-status').value;
   const studyType = document.getElementById('cf-studytype').value;
   const from = document.getElementById('cf-from').value; // YYYY-MM-DD, startDate on/after
-  const campaigns = allCampaigns.filter(c =>
-    (!q || c.name.toLowerCase().includes(q)) &&
-    (!status || c.status === status) &&
-    (!studyType || c.studyType === studyType) &&
-    (!from || (c.startDate && c.startDate.slice(0, 10) >= from))
-  );
+  const to = document.getElementById('cf-to').value;     // startDate on/before
+  const campaigns = allCampaigns.filter(c => campaignMatches(c, q, status, studyType, from, to));
+  renderStatusCards(document.getElementById('cf-cards'), status, (v) => {
+    document.getElementById('cf-status').value = v;
+    cfPage = 0;
+    renderCampaignList();
+  });
   const list = document.getElementById('campaign-list');
+  const pages = Math.max(1, Math.ceil(campaigns.length / CF_PAGE_SIZE));
+  if (cfPage >= pages) cfPage = pages - 1;
+  const slice = campaigns.slice(cfPage * CF_PAGE_SIZE, (cfPage + 1) * CF_PAGE_SIZE);
   list.innerHTML = campaigns.length ? '' : (allCampaigns.length
     ? '<p style="color:var(--muted)">No campaigns match these filters.</p>'
     : (isMember()
       ? '<p style="color:var(--muted)">No campaigns yet.</p>'
-      : '<p style="color:var(--muted)">No campaigns yet — create one below.</p>'));
+      : '<p style="color:var(--muted)">No campaigns yet — use + New campaign.</p>'));
+  slice.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'campaign-item';
+    div.innerHTML = campaignItemHtml(c);
+    div.onclick = () => openCampaign(c.id);
+    list.appendChild(div);
+  });
+  const pager = document.getElementById('cf-pager');
+  pager.innerHTML = pages > 1
+    ? '<button class="small secondary" id="cf-prev"' + (cfPage === 0 ? ' disabled' : '') + '>‹ Prev</button>' +
+      '<span>Page ' + (cfPage + 1) + ' of ' + pages + ' · ' + campaigns.length + ' campaign(s)</span>' +
+      '<button class="small secondary" id="cf-next"' + (cfPage >= pages - 1 ? ' disabled' : '') + '>Next ›</button>'
+    : (campaigns.length ? '<span>' + campaigns.length + ' campaign(s)</span>' : '');
+  const prev = document.getElementById('cf-prev');
+  const next = document.getElementById('cf-next');
+  if (prev) prev.onclick = () => { cfPage--; renderCampaignList(); };
+  if (next) next.onclick = () => { cfPage++; renderCampaignList(); };
+}
+
+// Overview page — KPI cards, status cards (click → filtered Campaigns
+// page), most recent campaigns, product preview (filled by loadProducts).
+function renderOverview() {
+  const byStatus = s => allCampaigns.filter(c => c.status === s).length;
+  document.getElementById('ov-kpis').innerHTML =
+    '<div class="kpi"><div class="k-n">' + allCampaigns.length + '</div><div class="k-l">Total campaigns</div></div>' +
+    '<div class="kpi"><div class="k-n">' + byStatus('ACTIVE') + '</div><div class="k-l">Active</div></div>' +
+    '<div class="kpi"><div class="k-n">' + byStatus('READY') + '</div><div class="k-l">In review</div></div>' +
+    '<div class="kpi"><div class="k-n">' + byStatus('COMPLETED') + '</div><div class="k-l">Completed</div></div>' +
+    '<div class="kpi"><div class="k-n">' + byStatus('DRAFT') + '</div><div class="k-l">Draft</div></div>';
+  renderStatusCards(document.getElementById('ov-status'), '', (v) => {
+    document.getElementById('cf-status').value = v;
+    cfPage = 0;
+    showPage('campaigns');
+    renderCampaignList();
+  });
+  const recent = allCampaigns.slice(0, 5); // already createdAt desc
+  const el = document.getElementById('ov-recent');
+  el.innerHTML = '';
+  if (!recent.length) el.innerHTML = '<p style="color:var(--muted)">No campaigns yet.</p>';
+  recent.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'campaign-item';
+    div.innerHTML = campaignItemHtml(c);
+    div.onclick = () => openCampaign(c.id);
+    el.appendChild(div);
+  });
+}
+
+// Reports page — campaign picker filtered the same way; opening a row
+// lands directly on that campaign's Report tab (same persisted evidence).
+function renderReportList() {
+  const q = (document.getElementById('rf-search').value || '').trim().toLowerCase();
+  const status = document.getElementById('rf-status').value;
+  const studyType = document.getElementById('rf-studytype').value;
+  const from = document.getElementById('rf-from').value;
+  const to = document.getElementById('rf-to').value;
+  const campaigns = allCampaigns.filter(c => campaignMatches(c, q, status, studyType, from, to));
+  const list = document.getElementById('report-list');
+  list.innerHTML = campaigns.length ? '' : '<p style="color:var(--muted)">No campaigns match these filters.</p>';
   campaigns.forEach(c => {
     const div = document.createElement('div');
     div.className = 'campaign-item';
-    div.innerHTML = '<div><strong>' + esc(c.name) + '</strong><div style="color:var(--muted);font-size:0.85rem;">' + (c.product ? esc(c.product.name) : 'No product linked') + (c.studyType ? ' · ' + esc(studyTypeLabel(c.studyType)) : '') + '</div></div><span class="pill">' + c.status + '</span>';
-    div.onclick = () => openCampaign(c.id);
+    div.innerHTML = campaignItemHtml(c);
+    div.onclick = () => openCampaign(c.id, 'report');
     list.appendChild(div);
   });
 }
@@ -571,11 +791,15 @@ async function loadCampaigns() {
   await loadProducts(document.getElementById('nc-product'));
   await loadStudyTemplates();
   const cfStudy = document.getElementById('cf-studytype');
+  const rfStudy = document.getElementById('rf-studytype');
   if (cfStudy.options.length <= 1) {
-    cfStudy.innerHTML = '<option value="">All study types</option>' +
-      studyTemplates.map(t => '<option value="' + esc(t.key) + '">' + esc(t.label) + '</option>').join('');
+    const opts = studyTemplates.map(t => '<option value="' + esc(t.key) + '">' + esc(t.label) + '</option>').join('');
+    cfStudy.innerHTML = '<option value="">All study types</option>' + opts;
+    rfStudy.innerHTML = '<option value="">All study types</option>' + opts;
   }
   renderCampaignList();
+  renderOverview();
+  renderReportList();
   await loadProfile();
   await loadEmployees();
   await loadPanelInsights();
@@ -583,12 +807,20 @@ async function loadCampaigns() {
   show('view-campaigns');
 }
 
-['cf-search', 'cf-status', 'cf-studytype', 'cf-from'].forEach(id => {
-  document.getElementById(id).addEventListener('input', renderCampaignList);
+['cf-search', 'cf-status', 'cf-studytype', 'cf-from', 'cf-to'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => { cfPage = 0; renderCampaignList(); });
 });
 document.getElementById('cf-reset').onclick = () => {
-  ['cf-search', 'cf-status', 'cf-studytype', 'cf-from'].forEach(id => { document.getElementById(id).value = ''; });
+  ['cf-search', 'cf-status', 'cf-studytype', 'cf-from', 'cf-to'].forEach(id => { document.getElementById(id).value = ''; });
+  cfPage = 0;
   renderCampaignList();
+};
+['rf-search', 'rf-status', 'rf-studytype', 'rf-from', 'rf-to'].forEach(id => {
+  document.getElementById(id).addEventListener('input', renderReportList);
+});
+document.getElementById('rf-reset').onclick = () => {
+  ['rf-search', 'rf-status', 'rf-studytype', 'rf-from', 'rf-to'].forEach(id => { document.getElementById(id).value = ''; });
+  renderReportList();
 };
 
 // --- Company Profile (Benchmark §4 COMPANY "Company Profile") --------------
@@ -628,26 +860,20 @@ document.getElementById('cp-industry').addEventListener('change', () => {
 async function loadProfile() {
   const c = await api('/company/profile');
   await loadIndustryTaxonomy();
+  document.getElementById('side-co').textContent = c.name || 'Company';
   document.getElementById('cp-name').value = c.name || '';
+  // Industry/Sub-industry render in disabled selects — display only,
+  // fixed at company creation (PATCH /profile rejects changes).
   fillIndustrySelect(document.getElementById('cp-industry'), c.industry || '');
   fillSubIndustrySelect(document.getElementById('cp-sub-industry'), c.industry || '', c.subIndustry || '');
 }
 document.getElementById('btn-save-profile').onclick = async () => {
   const msg = document.getElementById('cp-msg');
   try {
-    // If the stored industry is a legacy (non-taxonomy) value shown as
-    // "(existing)", omit both fields rather than resubmitting a value the
-    // backend would reject — the stored legacy value is preserved on read
-    // until the company picks a controlled industry.
-    const indSel = document.getElementById('cp-industry');
-    const legacy = indSel.selectedOptions[0] && indSel.selectedOptions[0].dataset.legacy;
     await api('/company/profile', { method: 'PATCH', body: {
       name: document.getElementById('cp-name').value.trim(),
-      ...(legacy ? {} : {
-        industry: indSel.value || undefined,
-        subIndustry: document.getElementById('cp-sub-industry').value || undefined,
-      }),
     }});
+    document.getElementById('side-co').textContent = document.getElementById('cp-name').value.trim() || 'Company';
     msg.textContent = 'Saved.'; msg.className = 'msg ok';
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };
@@ -717,7 +943,7 @@ async function loadPanelInsights() {
   } catch (e) { el.innerHTML = '<p class="msg error">' + esc(e.message) + '</p>'; }
 }
 
-document.getElementById('btn-new-campaign').onclick = () => document.getElementById('new-campaign-card').classList.toggle('hidden');
+document.getElementById('btn-new-campaign').onclick = () => showPage('newcampaign');
 
 document.getElementById('btn-create-campaign').onclick = async () => {
   const msg = document.getElementById('nc-msg');
@@ -730,13 +956,12 @@ document.getElementById('btn-create-campaign').onclick = async () => {
       productId: document.getElementById('nc-product').value || undefined,
       studyType: document.getElementById('nc-studytype').value || undefined,
     }});
-    document.getElementById('new-campaign-card').classList.add('hidden');
     await loadCampaigns();
     openCampaign(c.id);
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };
 
-document.getElementById('btn-back').onclick = (e) => { e.preventDefault(); loadCampaigns(); };
+document.getElementById('btn-back').onclick = (e) => { e.preventDefault(); loadCampaigns().then(() => showPage('campaigns')); };
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.onclick = () => {
@@ -750,7 +975,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   };
 });
 
-async function openCampaign(id) {
+async function openCampaign(id, tab) {
   currentCampaignId = id;
   const c = await api('/company/campaigns/' + id);
   document.getElementById('cd-status').textContent = c.status;
@@ -872,10 +1097,13 @@ async function openCampaign(id) {
   await loadQuestionChangeRequests(campaignLocked);
   await loadEvidenceCoverage();
 
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('.tab-btn[data-tab="setup"]').classList.add('active');
+  const landingTab = tab || 'setup';
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === landingTab));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
-  document.getElementById('tab-setup').classList.remove('hidden');
+  document.getElementById('tab-' + landingTab).classList.remove('hidden');
+  if (landingTab === 'live') loadLive();
+  if (landingTab === 'insights') loadInsights();
+  if (landingTab === 'report') loadReport();
 
   show('view-campaign-detail');
 }

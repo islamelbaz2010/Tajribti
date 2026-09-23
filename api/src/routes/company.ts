@@ -4,7 +4,6 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireEmployee, requireCompanyAdmin, asEmployee } from "../middleware/auth";
 import { checkReadiness } from "../lib/readiness";
-import { isValidIndustry, isValidSubIndustry } from "../lib/industries";
 import { buildIntelligence } from "../lib/intelligence";
 import { writeAccessAudit } from "../lib/audit";
 import {
@@ -73,21 +72,21 @@ router.patch("/profile", requireCompanyAdmin, async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
   const d = parsed.data;
-  // Founder direction 2026-09-21: Industry/Sub-industry are controlled
-  // selections from the canonical taxonomy (src/lib/industries.ts). A
-  // sub-industry is only valid under its own industry; a sub-industry
-  // without an industry is rejected. Explicit null clears are not part of
-  // this schema — omission preserves the stored value.
-  if (d.industry !== undefined && !isValidIndustry(d.industry)) {
-    return res.status(400).json({ error: "Industry must be a valid selection" });
+  // Founder direction 2026-09-23 (consolidated workspace pass):
+  // Industry/Sub-industry are creation-time classification set by
+  // Operations at company onboarding — they can no longer be changed
+  // through PATCH /profile. Resending the stored value is a harmless
+  // no-op; any different value is rejected. Legacy (non-taxonomy)
+  // stored values are preserved untouched — never rewritten here.
+  const existing = await prisma.company.findUnique({ where: { id: companyId }, select: { industry: true, subIndustry: true } });
+  if (d.industry !== undefined && d.industry !== (existing?.industry ?? null)) {
+    return res.status(400).json({ error: "Industry is set at company creation and cannot be changed" });
   }
-  if (d.subIndustry !== undefined) {
-    const effectiveIndustry = d.industry ?? (await prisma.company.findUnique({ where: { id: companyId }, select: { industry: true } }))?.industry;
-    if (!effectiveIndustry || !isValidSubIndustry(effectiveIndustry, d.subIndustry)) {
-      return res.status(400).json({ error: "Sub-industry must belong to the selected industry" });
-    }
+  if (d.subIndustry !== undefined && d.subIndustry !== (existing?.subIndustry ?? null)) {
+    return res.status(400).json({ error: "Sub-industry is set at company creation and cannot be changed" });
   }
-  const company = await prisma.company.update({ where: { id: companyId }, data: d });
+  const { industry: _industry, subIndustry: _subIndustry, ...updatable } = d;
+  const company = await prisma.company.update({ where: { id: companyId }, data: updatable });
   res.json(company);
 });
 

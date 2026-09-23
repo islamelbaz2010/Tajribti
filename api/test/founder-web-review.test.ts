@@ -162,30 +162,57 @@ describe("industry / sub-industry controlled taxonomy", () => {
     assert.equal(r.status, 403);
   });
 
-  it("company profile PATCH rejects an unknown industry", async () => {
+  // Founder direction 2026-09-23 (consolidated workspace pass): Industry
+  // and Sub-industry are creation-time classification — PATCH /profile may
+  // no longer change them. These tests replaced the earlier mutable-field
+  // tests for the same endpoint.
+  it("company profile PATCH rejects setting an industry after creation", async () => {
     const r = await api("/api/company/profile", {
       method: "PATCH", token: empToken, body: { industry: "Test" },
     });
     assert.equal(r.status, 400, JSON.stringify(r.body));
   });
 
-  it("company profile PATCH accepts a valid pair and persists it", async () => {
+  it("company profile PATCH rejects any industry/sub-industry change, preserves stored values", async () => {
+    // "Good Co" was onboarded above with industry "Food & Beverage" /
+    // sub-industry "Beverages". Its admin employee can still PATCH the
+    // name — and resending unchanged classification values is a no-op —
+    // but changing either classification field is rejected.
+    const goodCo = await prisma.company.findFirst({ where: { name: "Good Co" } });
+    assert.ok(goodCo);
+    const goodEmp = await prisma.employee.findFirst({ where: { companyId: goodCo.id } });
+    assert.ok(goodEmp);
+    // Onboarded employees default to COMPANY_MEMBER; promote for this test
+    // (PATCH /profile is requireCompanyAdmin).
+    await prisma.employee.update({ where: { id: goodEmp.id }, data: { role: "COMPANY_ADMIN" } });
+    const goodToken = signToken({ kind: "employee", employeeId: goodEmp.id, companyId: goodCo.id });
+
+    const change = await api("/api/company/profile", {
+      method: "PATCH", token: goodToken, body: { industry: "Beauty & Personal Care", subIndustry: "Skincare" },
+    });
+    assert.equal(change.status, 400);
+    const subOnly = await api("/api/company/profile", {
+      method: "PATCH", token: goodToken, body: { subIndustry: "Pet Food" },
+    });
+    assert.equal(subOnly.status, 400);
+
+    const sameValues = await api("/api/company/profile", {
+      method: "PATCH", token: goodToken,
+      body: { name: "Good Co Renamed", industry: "Food & Beverage", subIndustry: "Beverages" },
+    });
+    assert.equal(sameValues.status, 200, JSON.stringify(sameValues.body));
+    const row = await prisma.company.findUnique({ where: { id: goodCo.id } });
+    assert.equal(row?.name, "Good Co Renamed");
+    assert.equal(row?.industry, "Food & Beverage");
+    assert.equal(row?.subIndustry, "Beverages");
+  });
+
+  it("company profile PATCH on a company with no classification still rejects setting one", async () => {
     const r = await api("/api/company/profile", {
       method: "PATCH", token: empToken, body: { industry: "Beauty & Personal Care", subIndustry: "Skincare" },
     });
-    assert.equal(r.status, 200, JSON.stringify(r.body));
-    const reloaded = await api("/api/company/profile", { token: empToken });
-    assert.equal(reloaded.body.industry, "Beauty & Personal Care");
-    assert.equal(reloaded.body.subIndustry, "Skincare");
-    const row = await prisma.company.findUnique({ where: { id: companyId } });
-    assert.equal(row?.industry, "Beauty & Personal Care");
-    assert.equal(row?.subIndustry, "Skincare");
-  });
-
-  it("company profile PATCH rejects a sub-industry from a different industry", async () => {
-    const r = await api("/api/company/profile", {
-      method: "PATCH", token: empToken, body: { subIndustry: "Pet Food" },
-    });
     assert.equal(r.status, 400);
+    const row = await prisma.company.findUnique({ where: { id: companyId } });
+    assert.equal(row?.industry, null);
   });
 });

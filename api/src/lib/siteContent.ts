@@ -138,7 +138,7 @@ export const SITE_SECTION_DEFAULTS: Record<SiteSectionKey, unknown> = {
   sectors: {
     items: [
       { name: "Food & Beverage", description: "Trial-based repeat-purchase and taste/experience response.", image: "/assets/img/product-cans.jpg", alt: "Beverage cans — product trial", order: 0, active: true },
-      { name: "Beauty & Personal Care", description: "Did it perform as expected — and would they buy it again.", image: "/assets/img/product-shampoo.jpg", alt: "Shampoo and personal-care products — product trial", order: 1, active: true },
+      { name: "Beauty & Personal Care", description: "Did it perform as expected — and would they buy it again.", image: "/assets/img/product-skincare.jpg", alt: "Unbranded amber dropper bottle — personal-care product trial", order: 1, active: true },
       { name: "Home Care / Household", description: "Ease of use and repeat-purchase after real household use.", image: "/assets/img/product-cleaning.jpg", alt: "Unbranded household spray cleaner — a product a consumer can actually trial", order: 2, active: true },
     ],
   },

@@ -267,6 +267,10 @@
         Edit structured content, save a draft, preview it on the public homepage, then publish.
         Published content stays live until the next publish. Only Platform Admin accounts can change it.
       </p>
+      <p style="color:var(--muted);font-size:0.78rem;margin-top:-6px;">
+        Note: on Vercel preview deployments, content writes are stored in the instance-local preview
+        database and are not permanent — production persistence uses the service's persistent volume.
+      </p>
       <div class="cms-row">
         <div class="cms-sections" id="cms-sections"></div>
         <div class="cms-editor">

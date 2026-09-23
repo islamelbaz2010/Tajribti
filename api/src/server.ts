@@ -2,6 +2,7 @@ import "./lib/asyncSafety"; // must patch Router before any route file registers
 import express from "express";
 import cors from "cors";
 import path from "path";
+import fs from "fs";
 import consumerAuthRoutes from "./routes/consumerAuth";
 import consumerRoutes from "./routes/consumer";
 import companyAuthRoutes from "./routes/companyAuth";
@@ -73,7 +74,15 @@ app.get("/api/meta/industries", (_req, res) => res.json(INDUSTRY_TAXONOMY));
 
 // Thin static web clients (Public / Consumer / Company / Operations),
 // served from the same process for simplicity (no product decision).
-const webRoot = path.join(__dirname, "..", "..", "web");
+// Candidate list covers both the normal layout (api/dist → ../../web) and
+// serverless bundles where the function dir is the deployment root.
+const webRoot =
+  [
+    path.join(__dirname, "..", "..", "web"),
+    path.join(__dirname, "..", "..", "..", "web"),
+    path.join(process.cwd(), "web"),
+    path.join(process.cwd(), "..", "web"),
+  ].find((p) => fs.existsSync(path.join(p, "public"))) ?? path.join(__dirname, "..", "..", "web");
 // Unified staff login page — must be registered BEFORE the "/" static mount
 // so /login resolves to the page rather than a static-file miss.
 app.get("/login", (_req, res) => res.sendFile(path.join(webRoot, "public", "login.html")));
@@ -89,6 +98,12 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 });
 
 const PORT = Number(process.env.PORT) || 4000;
-app.listen(PORT, () => {
-  console.log(`TAJRIBTI Benchmark API listening on http://localhost:${PORT}`);
-});
+// Only listen when run directly (node dist/server.js / ts-node src/server.ts).
+// Serverless entries (src/vercel.ts) import `app` without binding a port.
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`TAJRIBTI Benchmark API listening on http://localhost:${PORT}`);
+  });
+}
+
+export default app;

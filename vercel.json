@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/dist/vercel.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "api/dist/**",
+          "api/prisma/preview.db",
+          "api/prisma/schema.prisma",
+          "api/node_modules/.prisma/**",
+          "api/node_modules/@prisma/**",
+          "web/**"
+        ]
+      }
+    }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "/api/dist/vercel.js" }
+  ]
+}

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../core/api_client.dart';
 import '../core/auth_service.dart';
 import '../core/constants.dart';
@@ -740,6 +741,45 @@ class _CampaignScreenState extends State<CampaignScreen> {
                                 final m = campaign.media[i];
                                 if (!m.url.startsWith('http://') && !m.url.startsWith('https://')) {
                                   return const SizedBox.shrink();
+                                }
+                                // Video: no in-app player pipeline — the
+                                // tile opens the original file in the
+                                // platform viewer (url_launcher). Images
+                                // render inline exactly as before.
+                                if (m.isVideo) {
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: InkWell(
+                                          onTap: () async {
+                                            final uri = Uri.parse(m.url);
+                                            if (await canLaunchUrl(uri)) await launchUrl(uri);
+                                          },
+                                          child: Container(
+                                            width: 120,
+                                            height: 88,
+                                            color: kPrimary.withOpacity(0.06),
+                                            child: const Icon(Icons.play_circle_outline, color: kPrimary, size: 30),
+                                          ),
+                                        ),
+                                      ),
+                                      if (m.caption != null && m.caption!.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 4),
+                                          child: SizedBox(
+                                            width: 120,
+                                            child: Text(
+                                              m.caption!,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  );
                                 }
                                 return Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,

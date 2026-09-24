@@ -20,11 +20,15 @@ import { STUDY_TEMPLATES, findTemplate } from "../lib/studyTemplates";
 import QRCode from "qrcode";
 import {
   MEDIA_LIMITS,
+  companyLogoStorageKey,
+  createReadUrl,
   createUploadUrl,
   deleteObject,
   isHostedMediaConfigured,
   mediaExtension,
+  mediaSizeLimit,
   mediaStorageKey,
+  mediaTypeOf,
   resolveMediaUrls,
   verifyStoredObject,
 } from "../lib/media";
@@ -68,7 +72,79 @@ async function loadOwnedCampaign(req: Request, res: Response) {
 router.get("/profile", async (req, res) => {
   const { companyId } = asEmployee(req);
   const company = await prisma.company.findUnique({ where: { id: companyId } });
-  res.json(company);
+  // Logo resolves to a fresh signed read URL — the object itself stays
+  // private; an unconfigured bucket degrades to no logo, never an error.
+  const logoUrl =
+    company?.logoStorageKey && isHostedMediaConfigured() ? await createReadUrl(company.logoStorageKey).catch(() => null) : null;
+  res.json({ ...company, logoUrl, hostedMediaConfigured: isHostedMediaConfigured() });
+});
+
+// Founder requirement 2026-09-24: company logo upload. Same hosted-media
+// contract as campaign media — init issues a signed PUT, confirm verifies
+// the stored object (content-type + size) before the company row points
+// at it, remove deletes object + fields. COMPANY_ADMIN only; images only.
+const logoInitSchema = z.object({
+  contentType: z.string(),
+  sizeBytes: z.number().int().positive(),
+});
+
+router.post("/profile/logo/upload-init", requireCompanyAdmin, async (req, res) => {
+  const { companyId } = asEmployee(req);
+  if (!isHostedMediaConfigured()) return res.status(503).json({ error: "Hosted media storage is not provisioned" });
+  const parsed = logoInitSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  const { contentType, sizeBytes } = parsed.data;
+  const ext = mediaExtension(contentType);
+  if (!ext || mediaTypeOf(contentType) !== "IMAGE") {
+    return res.status(400).json({ error: "Unsupported logo type — JPEG, PNG or WebP only" });
+  }
+  if (sizeBytes > MEDIA_LIMITS.maxBytes) return res.status(400).json({ error: "File too large — maximum 5 MB" });
+  const storageKey = companyLogoStorageKey(companyId, ext);
+  const uploadUrl = await createUploadUrl(storageKey, contentType);
+  res.status(201).json({ uploadUrl, storageKey, expiresIn: MEDIA_LIMITS.uploadUrlTtlSeconds });
+});
+
+const logoConfirmSchema = z.object({
+  contentType: z.string(),
+  sizeBytes: z.number().int().positive(),
+});
+
+router.post("/profile/logo/confirm", requireCompanyAdmin, async (req, res) => {
+  const { companyId } = asEmployee(req);
+  const parsed = logoConfirmSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  const { contentType, sizeBytes } = parsed.data;
+  const ext = mediaExtension(contentType);
+  if (!ext || mediaTypeOf(contentType) !== "IMAGE") return res.status(400).json({ error: "Unsupported logo type" });
+  // The key is recomputed server-side — a client cannot confirm an
+  // arbitrary object into the logo slot.
+  const storageKey = companyLogoStorageKey(companyId, ext);
+  const ok = await verifyStoredObject(storageKey, contentType, sizeBytes).catch(() => false);
+  if (!ok) return res.status(400).json({ error: "Uploaded object missing or does not match declared type/size" });
+  const company = await prisma.company.findUnique({ where: { id: companyId } });
+  if (company?.logoStorageKey && company.logoStorageKey !== storageKey && isHostedMediaConfigured()) {
+    await deleteObject(company.logoStorageKey).catch(() => undefined); // best-effort; sweep covers orphans
+  }
+  await prisma.company.update({
+    where: { id: companyId },
+    data: { logoStorageKey: storageKey, logoContentType: contentType, logoSizeBytes: sizeBytes },
+  });
+  await auditEmployeeAction(req, "COMPANY_LOGO_SET", "company", companyId);
+  res.json({ logoUrl: isHostedMediaConfigured() ? await createReadUrl(storageKey).catch(() => null) : null });
+});
+
+router.delete("/profile/logo", requireCompanyAdmin, async (req, res) => {
+  const { companyId } = asEmployee(req);
+  const company = await prisma.company.findUnique({ where: { id: companyId } });
+  if (company?.logoStorageKey && isHostedMediaConfigured()) {
+    await deleteObject(company.logoStorageKey).catch(() => undefined); // row clear proceeds; sweep covers orphans
+  }
+  await prisma.company.update({
+    where: { id: companyId },
+    data: { logoStorageKey: null, logoContentType: null, logoSizeBytes: null },
+  });
+  await auditEmployeeAction(req, "COMPANY_LOGO_REMOVE", "company", companyId);
+  res.status(204).end();
 });
 
 router.patch("/profile", requireCompanyAdmin, async (req, res) => {
@@ -932,7 +1008,10 @@ router.post("/campaigns/:id/media", requireCompanyAdmin, async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
   const count = await prisma.campaignMedia.count({ where: { campaignId: campaign.id } });
   if (count >= MEDIA_LIMITS.maxPerCampaign) return res.status(400).json({ error: "Media limit reached (20 per campaign)" });
-  const media = await prisma.campaignMedia.create({ data: { campaignId: campaign.id, ...parsed.data } });
+  // URL media has no declared content-type — infer IMAGE/VIDEO from the
+  // path extension so clients render the right element; default IMAGE.
+  const mediaType = /\.(mp4|webm)(\?|#|$)/i.test(parsed.data.url) ? "VIDEO" : "IMAGE";
+  const media = await prisma.campaignMedia.create({ data: { campaignId: campaign.id, ...parsed.data, mediaType } });
   await auditEmployeeAction(req, "CAMPAIGN_MEDIA_ADD", "campaign-media", media.id);
   res.status(201).json(media);
 });
@@ -947,12 +1026,18 @@ router.post("/campaigns/:id/media/upload-init", requireCompanyAdmin, async (req,
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
   const { kind, contentType, sizeBytes, caption } = parsed.data;
   const ext = mediaExtension(contentType);
-  if (!ext) return res.status(400).json({ error: "Unsupported media type — JPEG, PNG or WebP only" });
-  if (sizeBytes > MEDIA_LIMITS.maxBytes) return res.status(400).json({ error: "File too large — maximum 5 MB" });
+  const mediaType = mediaTypeOf(contentType);
+  if (!ext || !mediaType) {
+    return res.status(400).json({ error: "Unsupported media type — JPEG, PNG, WebP, MP4 or WebM only" });
+  }
+  const sizeLimit = mediaSizeLimit(contentType)!;
+  if (sizeBytes > sizeLimit) {
+    return res.status(400).json({ error: `File too large — maximum ${mediaType === "VIDEO" ? "50 MB" : "5 MB"} for ${mediaType.toLowerCase()}s` });
+  }
   const count = await prisma.campaignMedia.count({ where: { campaignId: campaign.id } });
   if (count >= MEDIA_LIMITS.maxPerCampaign) return res.status(400).json({ error: "Media limit reached (20 per campaign)" });
   const media = await prisma.campaignMedia.create({
-    data: { campaignId: campaign.id, kind, caption, url: "", source: "HOSTED", status: "PENDING", contentType, sizeBytes },
+    data: { campaignId: campaign.id, kind, caption, url: "", source: "HOSTED", status: "PENDING", mediaType, contentType, sizeBytes },
   });
   const storageKey = mediaStorageKey(campaign.id, media.id, ext);
   await prisma.campaignMedia.update({ where: { id: media.id }, data: { storageKey } });

@@ -63,6 +63,12 @@ model Company {
   // selections from the canonical taxonomy in src/lib/industries.ts —
   // validated on write, never free text on new writes.
   subIndustry String?
+  // Founder requirement 2026-09-24: company logo. Hosted object under
+  // companies/{id}/logo.{ext} in the same private bucket as campaign
+  // media; fields set only after confirm verifies the stored object.
+  logoStorageKey  String?
+  logoContentType String?
+  logoSizeBytes   Int?
   createdAt   DateTime @default(now())
 
   employees Employee[]
@@ -461,6 +467,9 @@ model CampaignMedia {
   caption     String?
   source      String   @default("URL")
   status      String   @default("READY")
+  // IMAGE | VIDEO — set at create (hosted: declared contentType; URL:
+  // inferred from the URL path extension, default IMAGE).
+  mediaType   String   @default("IMAGE")
   storageKey  String?
   contentType String?
   sizeBytes   Int?

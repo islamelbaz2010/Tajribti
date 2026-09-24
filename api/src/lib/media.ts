@@ -25,9 +25,16 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export const MEDIA_LIMITS = {
-  maxBytes: 5 * 1024 * 1024, // 5 MB per asset (spec §1)
+  maxBytes: 5 * 1024 * 1024, // 5 MB per image asset (spec §1)
+  // Founder requirement 2026-09-24: campaign VIDEO upload. Deliberately
+  // limited format set — MP4 (universal playback incl. iOS) and WebM.
+  // No transcoding pipeline: the original uploaded file is played back
+  // as-is, so formats outside this set are rejected rather than risk
+  // an unplayable asset.
+  maxVideoBytes: 50 * 1024 * 1024,
   maxPerCampaign: 20, // 20 assets per campaign (spec §1)
-  allowedContentTypes: ["image/jpeg", "image/png", "image/webp"] as const,
+  allowedContentTypes: ["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm"] as const,
+  allowedImageContentTypes: ["image/jpeg", "image/png", "image/webp"] as const,
   uploadUrlTtlSeconds: 300,
   readUrlTtlSeconds: 3600,
 };
@@ -75,9 +82,37 @@ export function mediaExtension(contentType: string): string | null {
       return "png";
     case "image/webp":
       return "webp";
+    case "video/mp4":
+      return "mp4";
+    case "video/webm":
+      return "webm";
     default:
       return null;
   }
+}
+
+// IMAGE | VIDEO — persisted on CampaignMedia.mediaType so every client
+// (company console, consumer web, consumer mobile) renders the right
+// element without sniffing URLs.
+export function mediaTypeOf(contentType: string): "IMAGE" | "VIDEO" | null {
+  if ((MEDIA_LIMITS.allowedImageContentTypes as readonly string[]).includes(contentType)) return "IMAGE";
+  if (contentType === "video/mp4" || contentType === "video/webm") return "VIDEO";
+  return null;
+}
+
+export function mediaSizeLimit(contentType: string): number | null {
+  const type = mediaTypeOf(contentType);
+  if (type === "IMAGE") return MEDIA_LIMITS.maxBytes;
+  if (type === "VIDEO") return MEDIA_LIMITS.maxVideoBytes;
+  return null;
+}
+
+// Company logo lives under a company-scoped prefix — same private-bucket,
+// signed-URL model as campaign media. One active logo per company: the
+// key is deterministic per extension so replacement overwrites, and the
+// previous object is deleted on confirm when the extension changed.
+export function companyLogoStorageKey(companyId: string, ext: string): string {
+  return `companies/${companyId}/logo.${ext}`;
 }
 
 export async function createUploadUrl(storageKey: string, contentType: string): Promise<string> {

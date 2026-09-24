@@ -191,6 +191,115 @@ describe("D-5 hosted media — URL path unchanged", () => {
   });
 });
 
+// Founder requirement 2026-09-24: campaign VIDEO upload. Limited format
+// set (MP4/WebM), 50 MB cap, mediaType=VIDEO persisted so clients render
+// the right element. No transcoding — original file playback only.
+describe("campaign video upload", () => {
+  it("accepts MP4 and persists mediaType=VIDEO", async () => {
+    const r = await api(`/api/company/campaigns/${campaignDraftId}/media/upload-init`, {
+      method: "POST", token: empAToken,
+      body: { kind: "CAMPAIGN_MEDIA", contentType: "video/mp4", sizeBytes: 20 * 1024 * 1024 },
+    });
+    assert.equal(r.status, 201, JSON.stringify(r.body));
+    assert.match(r.body.storageKey, /\.mp4$/);
+    const row = await prisma.campaignMedia.findUnique({ where: { id: r.body.mediaId } });
+    assert.equal(row?.mediaType, "VIDEO");
+    assert.equal(row?.source, "HOSTED");
+  });
+
+  it("accepts WebM and rejects arbitrary video/container types", async () => {
+    const ok = await api(`/api/company/campaigns/${campaignDraftId}/media/upload-init`, {
+      method: "POST", token: empAToken,
+      body: { kind: "CAMPAIGN_MEDIA", contentType: "video/webm", sizeBytes: 1000 },
+    });
+    assert.equal(ok.status, 201);
+    const bad = await api(`/api/company/campaigns/${campaignDraftId}/media/upload-init`, {
+      method: "POST", token: empAToken,
+      body: { kind: "CAMPAIGN_MEDIA", contentType: "video/quicktime", sizeBytes: 1000 },
+    });
+    assert.equal(bad.status, 400);
+  });
+
+  it("enforces the 50 MB video cap while images stay at 5 MB", async () => {
+    const overVideo = await api(`/api/company/campaigns/${campaignDraftId}/media/upload-init`, {
+      method: "POST", token: empAToken,
+      body: { kind: "CAMPAIGN_MEDIA", contentType: "video/mp4", sizeBytes: 51 * 1024 * 1024 },
+    });
+    assert.equal(overVideo.status, 400);
+  });
+
+  it("URL media ending in .mp4/.webm is classified VIDEO", async () => {
+    const r = await api(`/api/company/campaigns/${campaignDraftId}/media`, {
+      method: "POST", token: empAToken,
+      body: { kind: "CAMPAIGN_MEDIA", url: "https://example.com/clip.mp4" },
+    });
+    assert.equal(r.status, 201);
+    assert.equal(r.body.mediaType, "VIDEO");
+    await api(`/api/company/campaigns/${campaignDraftId}/media/${r.body.id}`, { method: "DELETE", token: empAToken });
+  });
+});
+
+// Founder requirement 2026-09-24: company logo via the same private
+// hosted-media architecture — company-scoped key, image-only, ≤5 MB,
+// COMPANY_ADMIN only, confirm verifies the stored object, audited.
+describe("company logo upload", () => {
+  it("requires COMPANY_ADMIN", async () => {
+    const member = await prisma.employee.create({
+      data: { companyId: companyAId, email: "member@media.test", name: "M", passwordHash: "x", role: "COMPANY_MEMBER" },
+    });
+    const memberToken = signToken({ kind: "employee", employeeId: member.id, companyId: companyAId });
+    const r = await api(`/api/company/profile/logo/upload-init`, {
+      method: "POST", token: memberToken,
+      body: { contentType: "image/png", sizeBytes: 1000 },
+    });
+    assert.equal(r.status, 403);
+  });
+
+  it("rejects non-image types and oversize before issuing a URL", async () => {
+    const bad = await api(`/api/company/profile/logo/upload-init`, {
+      method: "POST", token: empAToken,
+      body: { contentType: "video/mp4", sizeBytes: 1000 },
+    });
+    assert.equal(bad.status, 400);
+    const big = await api(`/api/company/profile/logo/upload-init`, {
+      method: "POST", token: empAToken,
+      body: { contentType: "image/png", sizeBytes: 6 * 1024 * 1024 },
+    });
+    assert.equal(big.status, 400);
+  });
+
+  it("issues a company-scoped key and confirm refuses an unverifiable object", async () => {
+    const init = await api(`/api/company/profile/logo/upload-init`, {
+      method: "POST", token: empAToken,
+      body: { contentType: "image/png", sizeBytes: 2048 },
+    });
+    assert.equal(init.status, 201, JSON.stringify(init.body));
+    assert.equal(init.body.storageKey, `companies/${companyAId}/logo.png`);
+    const conf = await api(`/api/company/profile/logo/confirm`, {
+      method: "POST", token: empAToken,
+      body: { contentType: "image/png", sizeBytes: 2048 },
+    });
+    assert.equal(conf.status, 400); // unreachable test bucket — object never really uploaded
+    const company = await prisma.company.findUnique({ where: { id: companyAId } });
+    assert.equal(company?.logoStorageKey, null);
+  });
+
+  it("remove clears logo fields and both operations write audit events", async () => {
+    await prisma.company.update({
+      where: { id: companyAId },
+      data: { logoStorageKey: `companies/${companyAId}/logo.png`, logoContentType: "image/png", logoSizeBytes: 2048 },
+    });
+    const del = await api(`/api/company/profile/logo`, { method: "DELETE", token: empAToken });
+    assert.equal(del.status, 204);
+    const company = await prisma.company.findUnique({ where: { id: companyAId } });
+    assert.equal(company?.logoStorageKey, null);
+    const audit = await prisma.accessAuditEvent.findFirst({
+      where: { action: "COMPANY_LOGO_REMOVE", targetId: companyAId },
+    });
+    assert.ok(audit);
+  });
+});
+
 describe("D-3 study-type methodology profiles in reports", () => {
   it("report carries the distinct profile for the campaign study type", async () => {
     const campaign = await prisma.campaign.create({

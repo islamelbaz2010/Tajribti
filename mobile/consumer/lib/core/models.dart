@@ -173,13 +173,20 @@ class CampaignMedia {
   final String url;
   final String? caption;
   final String kind;
+  // IMAGE | VIDEO — set server-side at create; video plays the original
+  // uploaded file (no transcoding pipeline — see api/src/lib/media.ts).
+  final String mediaType;
 
-  const CampaignMedia({required this.url, this.caption, this.kind = 'CAMPAIGN_MEDIA'});
+  const CampaignMedia({required this.url, this.caption, this.kind = 'CAMPAIGN_MEDIA', this.mediaType = 'IMAGE'});
+
+  bool get isVideo =>
+      mediaType == 'VIDEO' || RegExp(r'\.(mp4|webm)(\?|#|$)', caseSensitive: false).hasMatch(url);
 
   factory CampaignMedia.fromJson(Map<String, dynamic> json) => CampaignMedia(
         url: json['url'] as String? ?? '',
         caption: json['caption'] as String?,
         kind: json['kind'] as String? ?? 'CAMPAIGN_MEDIA',
+        mediaType: json['mediaType'] as String? ?? 'IMAGE',
       );
 }
 

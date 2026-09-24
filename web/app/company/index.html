@@ -307,6 +307,16 @@
       <p class="msg" style="color:var(--muted);">Industry and sub-industry are fixed when the company is created and cannot be changed here.</p>
       <button class="small" id="btn-save-profile">Save name</button>
       <div class="msg" id="cp-msg"></div>
+      <!-- Company logo (hosted media — private bucket, signed URLs).
+           COMPANY_ADMIN only; members see the current logo read-only. -->
+      <h3 style="font-size:0.95rem;margin-top:20px;">Company logo</h3>
+      <div id="logo-current"></div>
+      <div id="logo-form">
+        <input type="file" id="logo-file" accept="image/jpeg,image/png,image/webp" />
+        <button class="secondary small" id="btn-upload-logo">Upload logo</button>
+        <button class="secondary small" id="btn-remove-logo">Remove logo</button>
+      </div>
+      <div class="msg" id="logo-msg"></div>
     </div>
         </section>
 
@@ -403,8 +413,8 @@
       <div class="msg" id="setup-msg"></div>
       <!-- FOUNDER INNOVATION (OFD-12 + D-5): campaign media — URL-referenced
            assets and hosted file uploads (private Railway Bucket, signed
-           URLs; JPEG/PNG/WebP, max 5 MB, 20 per campaign). Editable while
-           configurable. -->
+           URLs; JPEG/PNG/WebP images max 5 MB, MP4/WebM video max 50 MB,
+           20 per campaign). Editable while configurable. -->
       <h3 style="font-size:0.95rem;margin-top:20px;">Campaign media</h3>
       <div id="media-list"></div>
       <div id="media-add-form">
@@ -420,8 +430,8 @@
         <button class="secondary small" id="btn-add-media">Add media</button>
         <div class="msg" id="media-msg"></div>
         <hr style="border:none;border-top:1px solid var(--border);margin:12px 0;" />
-        <label>Or upload an image file (JPEG / PNG / WebP, max 5 MB)</label>
-        <input type="file" id="m-file" accept="image/jpeg,image/png,image/webp" />
+        <label>Or upload a file (JPEG / PNG / WebP, max 5 MB · MP4 / WebM video, max 50 MB)</label>
+        <input type="file" id="m-file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" />
         <button class="secondary small" id="btn-upload-media">Upload file</button>
         <div class="msg" id="media-upload-msg"></div>
       </div>
@@ -671,6 +681,7 @@ function applyRoleUI() {
   // classification (see the profile page note and PATCH /profile).
   document.getElementById('cp-name').disabled = readOnly;
   document.getElementById('btn-save-profile').classList.toggle('hidden', readOnly);
+  document.getElementById('logo-form').classList.toggle('hidden', readOnly);
 }
 
 let allCampaigns = []; // last fetched list — filter bar renders subsets client-side
@@ -872,7 +883,54 @@ async function loadProfile() {
   // fixed at company creation (PATCH /profile rejects changes).
   fillIndustrySelect(document.getElementById('cp-industry'), c.industry || '');
   fillSubIndustrySelect(document.getElementById('cp-sub-industry'), c.industry || '', c.subIndustry || '');
+  // Company logo — signed read URL when hosted storage is configured;
+  // the upload form states the environment limitation honestly (same
+  // convention as campaign media) rather than failing on submit.
+  const logoCurrent = document.getElementById('logo-current');
+  logoCurrent.innerHTML = c.logoUrl
+    ? '<img src="' + esc(c.logoUrl) + '" alt="Company logo" style="max-height:72px;max-width:200px;border-radius:8px;border:1px solid #eee3d9;object-fit:contain;" />'
+    : '<p style="color:var(--muted);margin:0;">No logo uploaded.</p>';
+  const logoMsg = document.getElementById('logo-msg');
+  if (c.hostedMediaConfigured === false) {
+    logoMsg.textContent = 'Hosted media storage is not yet provisioned for this environment — logo upload is pending infrastructure.';
+    logoMsg.className = 'msg';
+    logoMsg.style.color = 'var(--muted)';
+    document.getElementById('btn-upload-logo').disabled = true;
+    document.getElementById('btn-remove-logo').disabled = !c.logoUrl;
+  } else {
+    logoMsg.textContent = ''; logoMsg.className = 'msg'; logoMsg.style.color = '';
+    document.getElementById('btn-upload-logo').disabled = false;
+    document.getElementById('btn-remove-logo').disabled = !c.logoUrl && !c.logoStorageKey;
+  }
 }
+
+// Company logo — same hosted-upload lifecycle as campaign media:
+// init (signed PUT) → PUT bytes → confirm verifies the stored object.
+document.getElementById('btn-upload-logo').onclick = async () => {
+  const msg = document.getElementById('logo-msg');
+  const file = document.getElementById('logo-file').files[0];
+  if (!file) { msg.textContent = 'Choose an image file first.'; msg.className = 'msg error'; return; }
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { msg.textContent = 'JPEG, PNG or WebP only.'; msg.className = 'msg error'; return; }
+  if (file.size > 5 * 1024 * 1024) { msg.textContent = 'File too large — maximum 5 MB.'; msg.className = 'msg error'; return; }
+  try {
+    const init = await api('/company/profile/logo/upload-init', { method: 'POST', body: { contentType: file.type, sizeBytes: file.size } });
+    const put = await fetch(init.uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+    if (!put.ok) throw new Error('Upload to storage failed');
+    await api('/company/profile/logo/confirm', { method: 'POST', body: { contentType: file.type, sizeBytes: file.size } });
+    document.getElementById('logo-file').value = '';
+    await loadProfile();
+    msg.textContent = 'Logo uploaded.'; msg.className = 'msg ok';
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+};
+
+document.getElementById('btn-remove-logo').onclick = async () => {
+  const msg = document.getElementById('logo-msg');
+  try {
+    await api('/company/profile/logo', { method: 'DELETE' });
+    await loadProfile();
+    msg.textContent = 'Logo removed.'; msg.className = 'msg ok';
+  } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+};
 document.getElementById('btn-save-profile').onclick = async () => {
   const msg = document.getElementById('cp-msg');
   try {
@@ -1457,11 +1515,18 @@ async function loadQuestionChangeRequests(locked) {
 // READY assets resolve to short-lived signed read URLs).
 function renderMedia(media) {
   const list = document.getElementById('media-list');
-  list.innerHTML = media.length ? '<table><tr><th>Type</th><th>Source</th><th>URL</th><th>Caption</th><th></th></tr>' +
-    media.map(m => '<tr><td>' + esc(m.kind) + '</td><td>' + esc(m.source || 'URL') + (m.status && m.status !== 'READY' ? ' (' + esc(m.status) + ')' : '') + '</td><td style="word-break:break-all;">' +
-      (m.url ? (m.url.startsWith('http') && (m.source || 'URL') === 'URL' ? esc(m.url) : '<a href="' + esc(m.url) + '" target="_blank" rel="noopener">view</a>') : '—') + '</td><td>' + esc(m.caption || '') + '</td><td>' +
-      (currentCampaignLocked || isMember() ? '' : '<button class="small secondary" data-mid="' + esc(m.id) + '">Remove</button>') +
-      '</td></tr>').join('') + '</table>'
+  list.innerHTML = media.length ? '<table><tr><th>Type</th><th>Format</th><th>Source</th><th>Preview</th><th>Caption</th><th></th></tr>' +
+    media.map(m => {
+      const isVideo = m.mediaType === 'VIDEO';
+      const preview = !m.url ? '—'
+        : isVideo ? '<video src="' + esc(m.url) + '" controls muted playsinline style="max-width:160px;max-height:90px;border-radius:6px;"></video>'
+        : m.url.startsWith('http') ? '<a href="' + esc(m.url) + '" target="_blank" rel="noopener"><img src="' + esc(m.url) + '" alt="" style="max-width:120px;max-height:70px;border-radius:6px;object-fit:cover;" /></a>'
+        : '—';
+      return '<tr><td>' + esc(m.kind) + '</td><td>' + esc(m.mediaType || 'IMAGE') + '</td><td>' + esc(m.source || 'URL') + (m.status && m.status !== 'READY' ? ' (' + esc(m.status) + ')' : '') + '</td><td>' +
+        preview + '</td><td>' + esc(m.caption || '') + '</td><td>' +
+        (currentCampaignLocked || isMember() ? '' : '<button class="small secondary" data-mid="' + esc(m.id) + '">Remove</button>') +
+        '</td></tr>';
+    }).join('') + '</table>'
     : '<p style="color:var(--muted)">No media attached yet.</p>';
   list.querySelectorAll('button[data-mid]').forEach(btn => {
     btn.onclick = async () => {
@@ -1495,8 +1560,9 @@ document.getElementById('btn-upload-media').onclick = async () => {
   const msg = document.getElementById('media-upload-msg');
   const file = document.getElementById('m-file').files[0];
   if (!file) { msg.textContent = 'Choose a file first.'; msg.className = 'msg error'; return; }
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { msg.textContent = 'JPEG, PNG or WebP only.'; msg.className = 'msg error'; return; }
-  if (file.size > 5 * 1024 * 1024) { msg.textContent = 'File too large — maximum 5 MB.'; msg.className = 'msg error'; return; }
+  const isVideo = file.type === 'video/mp4' || file.type === 'video/webm';
+  if (!isVideo && !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { msg.textContent = 'JPEG, PNG, WebP, MP4 or WebM only.'; msg.className = 'msg error'; return; }
+  if (file.size > (isVideo ? 50 : 5) * 1024 * 1024) { msg.textContent = 'File too large — maximum ' + (isVideo ? '50 MB' : '5 MB') + '.'; msg.className = 'msg error'; return; }
   try {
     const init = await api('/company/campaigns/' + currentCampaignId + '/media/upload-init', { method: 'POST', body: {
       kind: document.getElementById('m-kind').value,

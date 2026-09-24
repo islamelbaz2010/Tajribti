@@ -342,15 +342,25 @@ async function openCampaign(id) {
   const mediaRow = document.getElementById('c-media');
   mediaRow.innerHTML = '';
   (c.media || []).forEach(m => {
-    // img src only ever fetches — but still restrict to http(s) so a
-    // non-web scheme can't be injected via a stored URL.
+    // img/video src only ever fetches — but still restrict to http(s) so
+    // a non-web scheme can't be injected via a stored URL.
     if (!/^https?:\/\//i.test(m.url)) return;
-    const img = document.createElement('img');
-    img.src = m.url;
-    img.alt = m.caption || '';
-    img.title = m.caption || '';
-    img.style.cssText = 'max-width:120px;max-height:120px;border-radius:10px;object-fit:cover;border:1px solid #f1e6dc;';
-    mediaRow.appendChild(img);
+    let el;
+    if (m.mediaType === 'VIDEO' || /\.(mp4|webm)(\?|#|$)/i.test(m.url)) {
+      el = document.createElement('video');
+      el.src = m.url;
+      el.controls = true;
+      el.muted = true;
+      el.playsInline = true;
+      el.style.cssText = 'max-width:220px;max-height:140px;border-radius:10px;border:1px solid #f1e6dc;background:#000;';
+    } else {
+      el = document.createElement('img');
+      el.src = m.url;
+      el.alt = m.caption || '';
+      el.title = m.caption || '';
+      el.style.cssText = 'max-width:120px;max-height:120px;border-radius:10px;object-fit:cover;border:1px solid #f1e6dc;';
+    }
+    mediaRow.appendChild(el);
     if (m.caption) {
       const cap = document.createElement('p');
       cap.className = 'muted';

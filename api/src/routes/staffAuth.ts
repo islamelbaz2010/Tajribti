@@ -26,7 +26,7 @@ router.post(
     const { email, password } = parsed.data;
 
     const employee = await prisma.employee.findUnique({ where: { email } });
-    if (employee && (await bcrypt.compare(password, employee.passwordHash))) {
+    if (employee && !employee.revokedAt && (await bcrypt.compare(password, employee.passwordHash))) {
       const token = signToken({
         kind: "employee",
         employeeId: employee.id,
@@ -43,7 +43,7 @@ router.post(
     }
 
     const opsUser = await prisma.opsUser.findUnique({ where: { email } });
-    if (opsUser && (await bcrypt.compare(password, opsUser.passwordHash))) {
+    if (opsUser && !opsUser.revokedAt && (await bcrypt.compare(password, opsUser.passwordHash))) {
       const token = signToken({ kind: "ops", opsUserId: opsUser.id });
       return res.json({
         token,
@@ -55,6 +55,11 @@ router.post(
       });
     }
 
+    // O5 Full Monitoring: staff login failure logged — event + surface
+    // only, never the email/password/payload. Revoked accounts land here
+    // identically to bad credentials (O2 — no existence leak).
+    // eslint-disable-next-line no-console
+    console.warn("[auth] staff login failed — invalid credentials or revoked access");
     return res.status(401).json({ error: "Invalid credentials" });
   }
 );

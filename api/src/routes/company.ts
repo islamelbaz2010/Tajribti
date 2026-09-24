@@ -178,12 +178,14 @@ router.patch("/profile", requireCompanyAdmin, async (req, res) => {
 
 // --- Employees -----------------------------------------------------------
 router.get("/employees", async (req, res) => {
-  const { companyId } = asEmployee(req);
+  const { companyId, employeeId } = asEmployee(req);
   const employees = await prisma.employee.findMany({
     where: { companyId },
-    select: { id: true, name: true, email: true, role: true, createdAt: true },
+    select: { id: true, name: true, email: true, role: true, revokedAt: true, createdAt: true },
   });
-  res.json(employees);
+  // isSelf lets the UI suppress the self-revoke control without guessing
+  // identity from stored name/email — the server knows who is asking.
+  res.json(employees.map((e) => ({ ...e, isSelf: e.id === employeeId })));
 });
 
 // FOUNDER INNOVATION (OFD-08): employee management is COMPANY_ADMIN-only.
@@ -229,6 +231,29 @@ router.patch("/employees/:eid/role", requireCompanyAdmin, async (req, res) => {
   const employee = await prisma.employee.findUnique({ where: { id: req.params.eid }, select: { id: true, name: true, email: true, role: true } });
   await auditEmployeeAction(req, "EMPLOYEE_ROLE_CHANGE", "employee", req.params.eid);
   res.json(employee);
+});
+
+// Founder ruling O2 (2026-09-24): COMPANY_ADMIN revokes an employee's
+// access — revocation-only (no reactivation authorized; a fresh account
+// is the audit-clean way back). Guards: no self-revoke, no
+// last-active-admin revoke, tenant-scoped. The row and its history are
+// preserved; requireEmployee checks revokedAt on every request, so
+// previously-issued JWTs stop working immediately.
+router.post("/employees/:eid/revoke", requireCompanyAdmin, async (req, res) => {
+  const { companyId, employeeId } = asEmployee(req);
+  if (req.params.eid === employeeId) return res.status(409).json({ error: "You cannot revoke your own access" });
+  const target = await prisma.employee.findFirst({ where: { id: req.params.eid, companyId } });
+  if (!target) return res.status(404).json({ error: "Employee not found" });
+  if (target.revokedAt) return res.status(409).json({ error: "Access is already revoked" });
+  if (target.role === "COMPANY_ADMIN") {
+    const otherAdmins = await prisma.employee.count({
+      where: { companyId, role: "COMPANY_ADMIN", revokedAt: null, id: { not: target.id } },
+    });
+    if (otherAdmins === 0) return res.status(409).json({ error: "Cannot revoke the last active Company Admin" });
+  }
+  await prisma.employee.update({ where: { id: target.id }, data: { revokedAt: new Date() } });
+  await auditEmployeeAction(req, "EMPLOYEE_ACCESS_REVOKED", "employee", target.id);
+  res.json({ id: target.id, revoked: true });
 });
 
 // --- Product / Assets ------------------------------------------------------

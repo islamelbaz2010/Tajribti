@@ -35,19 +35,32 @@ export function requireConsumer(req: Request, res: Response, next: NextFunction)
   });
 }
 
+// Founder ruling O2 (2026-09-24): revocation is enforced at the DB row on
+// every request, not in the JWT — a revoked employee's previously-issued
+// token stops working immediately. Same model the role gates already use.
 export function requireEmployee(req: Request, res: Response, next: NextFunction) {
-  requireAuth(req, res, () => {
+  requireAuth(req, res, async () => {
     if (req.claims?.kind !== "employee") {
       return res.status(403).json({ error: "Company authentication required" });
+    }
+    const claims = req.claims as EmployeeClaims;
+    const employee = await prisma.employee.findUnique({ where: { id: claims.employeeId }, select: { revokedAt: true } });
+    if (!employee || employee.revokedAt) {
+      return res.status(403).json({ error: "Access revoked" });
     }
     next();
   });
 }
 
 export function requireOps(req: Request, res: Response, next: NextFunction) {
-  requireAuth(req, res, () => {
+  requireAuth(req, res, async () => {
     if (req.claims?.kind !== "ops") {
       return res.status(403).json({ error: "TAJRIBTI Operations authentication required" });
+    }
+    const claims = req.claims as OpsClaims;
+    const user = await prisma.opsUser.findUnique({ where: { id: claims.opsUserId }, select: { revokedAt: true } });
+    if (!user || user.revokedAt) {
+      return res.status(403).json({ error: "Access revoked" });
     }
     next();
   });
@@ -61,8 +74,8 @@ export function requireOps(req: Request, res: Response, next: NextFunction) {
 export async function requirePlatformAdmin(req: Request, res: Response, next: NextFunction) {
   const claims = req.claims as OpsClaims | undefined;
   if (!claims || claims.kind !== "ops") return res.status(403).json({ error: "TAJRIBTI Operations authentication required" });
-  const user = await prisma.opsUser.findUnique({ where: { id: claims.opsUserId }, select: { role: true } });
-  if (!user || user.role !== "PLATFORM_ADMIN") {
+  const user = await prisma.opsUser.findUnique({ where: { id: claims.opsUserId }, select: { role: true, revokedAt: true } });
+  if (!user || user.revokedAt || user.role !== "PLATFORM_ADMIN") {
     return res.status(403).json({ error: "Platform Admin role required" });
   }
   next();
@@ -77,8 +90,8 @@ export async function requirePlatformAdmin(req: Request, res: Response, next: Ne
 export async function requireOpsManager(req: Request, res: Response, next: NextFunction) {
   const claims = req.claims as OpsClaims | undefined;
   if (!claims || claims.kind !== "ops") return res.status(403).json({ error: "TAJRIBTI Operations authentication required" });
-  const user = await prisma.opsUser.findUnique({ where: { id: claims.opsUserId }, select: { role: true } });
-  if (!user || (user.role !== "OPERATIONS_MANAGER" && user.role !== "PLATFORM_ADMIN")) {
+  const user = await prisma.opsUser.findUnique({ where: { id: claims.opsUserId }, select: { role: true, revokedAt: true } });
+  if (!user || user.revokedAt || (user.role !== "OPERATIONS_MANAGER" && user.role !== "PLATFORM_ADMIN")) {
     return res.status(403).json({ error: "Operations Manager role required" });
   }
   next();
@@ -94,8 +107,8 @@ export async function requireCompanyAdmin(req: Request, res: Response, next: Nex
   if (!claims || claims.kind !== "employee") {
     return res.status(403).json({ error: "Company authentication required" });
   }
-  const employee = await prisma.employee.findUnique({ where: { id: claims.employeeId }, select: { role: true } });
-  if (!employee || employee.role !== "COMPANY_ADMIN") {
+  const employee = await prisma.employee.findUnique({ where: { id: claims.employeeId }, select: { role: true, revokedAt: true } });
+  if (!employee || employee.revokedAt || employee.role !== "COMPANY_ADMIN") {
     return res.status(403).json({ error: "Company Admin role required" });
   }
   next();

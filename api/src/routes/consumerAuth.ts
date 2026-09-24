@@ -76,8 +76,10 @@ router.post(
       // in `code` — verify resolves it by phone, never by user input.
       const sent = await akedlySendOtp(phone, req.ip, powSolution, turnstileToken);
       if (!sent.ok) {
+        // O5 Full Monitoring: provider send failure logged operationally.
+        // Never the phone number, never a code — event + provider status.
         // eslint-disable-next-line no-console
-        console.warn(`[OTP] Akedly send failed for phone=${phone}: status=${sent.status} ${sent.message}`);
+        console.warn(`[OTP] provider send failed: status=${sent.status} ${sent.message}`);
         return res.status(sent.status).json({ error: "OTP could not be sent. Please try again later." });
       }
       await prisma.otpCode.create({ data: { phone, campaignId: campaignId ?? null, code: sent.transactionReqID, expiresAt: sent.expiresAt } });
@@ -93,8 +95,11 @@ router.post(
     const code = generateOtp();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     await prisma.otpCode.create({ data: { phone, campaignId: campaignId ?? null, code, expiresAt } });
+    // Dev-only delivery path (production without a provider fails closed
+    // above). The code goes out in the devOnlyCode response field — it is
+    // never written to logs.
     // eslint-disable-next-line no-console
-    console.log(`[OTP] phone=${phone} code=${code} (no SMS gateway integrated — dev delivery)`);
+    console.log(`[OTP] dev delivery issued (no SMS gateway integrated — code returned in devOnlyCode)`);
     res.json({ sent: true, devOnlyCode: code, expiresAt });
   }
 );
@@ -129,9 +134,17 @@ router.post(
         where: { phone, campaignId: campaignId ?? null, consumedAt: null, expiresAt: { gt: new Date() } },
         orderBy: { createdAt: "desc" },
       });
-      if (!latest) return res.status(401).json({ error: "Invalid or expired code" });
+      if (!latest) {
+        // eslint-disable-next-line no-console
+        console.warn(`[OTP] verify failed: no active verification`);
+        return res.status(401).json({ error: "Invalid or expired code" });
+      }
       const verified = await akedlyVerifyOtp(latest.code, code);
       if (!verified.ok) {
+        // O5 Full Monitoring: provider verification failure logged —
+        // event + status only, never the code or the phone.
+        // eslint-disable-next-line no-console
+        console.warn(`[OTP] provider verify failed: status=${verified.status}`);
         return res.status(verified.status).json({ error: "Invalid or expired code" });
       }
       otp = latest;
@@ -140,7 +153,13 @@ router.post(
         where: { phone, code, campaignId: campaignId ?? null, consumedAt: null, expiresAt: { gt: new Date() } },
         orderBy: { createdAt: "desc" },
       });
-      if (!found) return res.status(401).json({ error: "Invalid or expired code" });
+      if (!found) {
+        // O5 Full Monitoring: verification failure logged operationally —
+        // event only, never the submitted code, never the phone number.
+        // eslint-disable-next-line no-console
+        console.warn(`[OTP] verify failed: no matching active code`);
+        return res.status(401).json({ error: "Invalid or expired code" });
+      }
       otp = found;
     }
 

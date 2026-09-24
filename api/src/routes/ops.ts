@@ -406,8 +406,11 @@ router.get("/campaigns/:id/report", async (req, res) => {
 // ===========================================================================
 
 // --- OFD-08: Operations user + role management (PLATFORM_ADMIN only) ---------
-router.get("/ops-users", requirePlatformAdmin, async (_req, res) => {
-  res.json(await prisma.opsUser.findMany({ select: { id: true, name: true, email: true, role: true, createdAt: true } }));
+router.get("/ops-users", requirePlatformAdmin, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const users = await prisma.opsUser.findMany({ select: { id: true, name: true, email: true, role: true, revokedAt: true, createdAt: true } });
+  // isSelf lets the UI suppress the self-revoke control without guessing.
+  res.json(users.map((u) => ({ ...u, isSelf: u.id === opsUserId })));
 });
 
 router.post("/ops-users", requirePlatformAdmin, async (req, res) => {
@@ -432,6 +435,29 @@ router.post("/ops-users", requirePlatformAdmin, async (req, res) => {
   } catch {
     res.status(409).json({ error: "Email already in use" });
   }
+});
+
+// Founder ruling O2 (2026-09-24): PLATFORM_ADMIN revokes an Ops user's
+// access. Revocation-only — no reactivation is authorized by the current
+// product model (a fresh account is the audit-clean way back). Guards:
+// no self-revoke, no last-active-PLATFORM_ADMIN revoke. The row and all
+// its history are preserved; the DB role check on every privileged
+// request makes revocation effective immediately, JWTs notwithstanding.
+router.post("/ops-users/:id/revoke", requirePlatformAdmin, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  if (req.params.id === opsUserId) return res.status(409).json({ error: "You cannot revoke your own access" });
+  const target = await prisma.opsUser.findUnique({ where: { id: req.params.id } });
+  if (!target) return res.status(404).json({ error: "Ops user not found" });
+  if (target.revokedAt) return res.status(409).json({ error: "Access is already revoked" });
+  if (target.role === "PLATFORM_ADMIN") {
+    const others = await prisma.opsUser.count({
+      where: { role: "PLATFORM_ADMIN", revokedAt: null, id: { not: target.id } },
+    });
+    if (others === 0) return res.status(409).json({ error: "Cannot revoke the last active Platform Admin" });
+  }
+  await prisma.opsUser.update({ where: { id: target.id }, data: { revokedAt: new Date() } });
+  await auditOpsAction(opsUserId, "OPS_USER_ACCESS_REVOKED", "ops-user", target.id);
+  res.json({ id: target.id, revoked: true });
 });
 
 // --- OFD-08 access audit log (PLATFORM_ADMIN only) ----------------------------

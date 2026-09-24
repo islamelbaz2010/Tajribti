@@ -14,6 +14,7 @@ import sitePublicRoutes from "../src/routes/sitePublic";
 import staffAuthRoutes from "../src/routes/staffAuth";
 import companyRoutes from "../src/routes/company";
 import { assetLinksHandler } from "../src/lib/appLinks";
+import { healthHandler } from "../src/lib/health";
 import { signToken } from "../src/lib/auth";
 import { apiRoot, dbPath } from "./env";
 
@@ -63,6 +64,7 @@ export async function startApi(): Promise<{ api: ApiCall; stop: () => Promise<vo
   app.use("/api/ops/site", siteAdminRoutes);
   app.use("/api/public", sitePublicRoutes);
   app.use("/api/staff", staffAuthRoutes);
+  app.get("/api/health", healthHandler);
   app.get("/.well-known/assetlinks.json", assetLinksHandler);
   app.use((_err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     res.status(500).json({ error: "Internal server error" });

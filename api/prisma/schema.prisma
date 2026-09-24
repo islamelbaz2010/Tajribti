@@ -43,6 +43,10 @@ model OpsUser {
   passwordHash String
   name         String
   role         String   @default("OPERATIONS")
+  // Founder ruling O2 (2026-09-24): PLATFORM_ADMIN revocation. Non-null =
+  // access revoked, enforced by the DB role check on every privileged
+  // request — previously-issued JWTs stop working immediately.
+  revokedAt    DateTime?
   createdAt    DateTime @default(now())
 
   issuesOpened            OperationalIssue[]
@@ -103,6 +107,11 @@ model Employee {
   passwordHash String
   name         String
   role         String   @default("COMPANY_MEMBER")
+  // Founder ruling O2 (2026-09-24): access revocation. Non-null = access
+  // revoked; role is read from the DB per request, so revocation takes
+  // effect immediately even against previously-issued JWTs. The row is
+  // preserved — revocation is never a delete.
+  revokedAt    DateTime?
   createdAt    DateTime @default(now())
 
   studyTypeRequests      StudyTypeChangeRequest[]

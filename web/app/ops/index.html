@@ -461,9 +461,22 @@ async function loadHome() {
 async function loadAdmin() {
   const users = await api('/ops/ops-users');
   document.getElementById('ops-users-list').innerHTML = users.length ?
-    '<table><tr><th>Name</th><th>Email</th><th>Role</th></tr>' +
-    users.map(u => '<tr><td>' + esc(u.name) + '</td><td>' + esc(u.email) + '</td><td><span class="pill">' + esc(u.role) + '</span></td></tr>').join('') + '</table>'
+    '<table><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr>' +
+    users.map(u => '<tr><td>' + esc(u.name) + (u.isSelf ? ' (you)' : '') + '</td><td>' + esc(u.email) + '</td><td><span class="pill">' + esc(u.role) + '</span></td><td>' +
+      (u.revokedAt ? '<span class="pill" style="background:#fbe3e3;color:#a33;">Revoked</span>' : 'Active') + '</td><td>' +
+      (!u.isSelf && !u.revokedAt ? '<button class="small danger" data-revoke="' + esc(u.id) + '">Revoke access</button>' : '') + '</td></tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No ops users.</p>';
+  document.getElementById('ops-users-list').querySelectorAll('button[data-revoke]').forEach(btn => {
+    btn.onclick = async () => {
+      const msg = document.getElementById('nou-msg');
+      if (!confirm('Revoke this Operations user\'s access? Their login and privileged access stop immediately. Their history is preserved.')) return;
+      try {
+        await api('/ops/ops-users/' + btn.dataset.revoke + '/revoke', { method: 'POST' });
+        msg.textContent = 'Access revoked.'; msg.className = 'msg ok';
+        await loadAdmin();
+      } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+    };
+  });
   const events = await api('/ops/audit-events');
   document.getElementById('audit-events-list').innerHTML = events.length ?
     '<table><tr><th>When</th><th>Actor</th><th>Action</th><th>Entity</th></tr>' +

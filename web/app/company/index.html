@@ -952,11 +952,26 @@ document.getElementById('btn-save-profile').onclick = async () => {
 // COMPANY_ADMIN-only (backend enforces regardless of what this UI hides).
 async function loadEmployees() {
   const employees = await api('/company/employees');
+  const canRevoke = currentEmployeeRole === 'COMPANY_ADMIN';
   document.getElementById('employee-list').innerHTML = employees.length ?
-    '<table><tr><th>Name</th><th>Email</th><th>Role</th></tr>' +
-    employees.map(e => '<tr><td>' + esc(e.name) + '</td><td>' + esc(e.email) + '</td><td>' + esc(e.role === 'COMPANY_ADMIN' ? 'Admin' : 'Member') + '</td></tr>').join('') + '</table>'
+    '<table><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th>' + (canRevoke ? '<th></th>' : '') + '</tr>' +
+    employees.map(e => '<tr><td>' + esc(e.name) + (e.isSelf ? ' (you)' : '') + '</td><td>' + esc(e.email) + '</td><td>' + esc(e.role === 'COMPANY_ADMIN' ? 'Admin' : 'Member') + '</td><td>' +
+      (e.revokedAt ? '<span class="pill" style="background:#fbe3e3;color:#a33;">Revoked</span>' : 'Active') + '</td>' +
+      (canRevoke ? '<td>' + (!e.isSelf && !e.revokedAt ? '<button class="small danger" data-revoke="' + esc(e.id) + '">Revoke access</button>' : '') + '</td>' : '') +
+      '</tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No employees yet.</p>';
   document.getElementById('employee-add-form').classList.toggle('hidden', currentEmployeeRole !== 'COMPANY_ADMIN');
+  document.getElementById('employee-list').querySelectorAll('button[data-revoke]').forEach(btn => {
+    btn.onclick = async () => {
+      const msg = document.getElementById('employee-msg');
+      if (!confirm('Revoke this employee\'s access? Their login and workspace access stop immediately. Their history is preserved.')) return;
+      try {
+        await api('/company/employees/' + btn.dataset.revoke + '/revoke', { method: 'POST' });
+        msg.textContent = 'Access revoked.'; msg.className = 'msg ok';
+        await loadEmployees();
+      } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
+    };
+  });
 }
 document.getElementById('btn-add-employee').onclick = async () => {
   const msg = document.getElementById('employee-msg');

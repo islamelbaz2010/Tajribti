@@ -13,6 +13,11 @@
   .logo span { color: var(--primary); }
   main { max-width: 960px; margin: 0 auto; padding: 24px 20px 60px; }
   .card { background: var(--card); border-radius: 16px; padding: 22px; margin-bottom: 16px; border:1px solid #f1e6dc; }
+  /* Phone-width safety: wide data tables (questions, media, employees)
+     scroll horizontally inside the card instead of overflowing the
+     viewport — company staff mobile access is via this responsive web. */
+  .card { overflow-x:auto; }
+  table { min-width:560px; }
   h2 { margin-top:0; font-size:1.2rem; }
   label { display:block; font-size:0.85rem; color:var(--muted); margin:12px 0 4px; font-weight:600; }
   input, select, textarea {

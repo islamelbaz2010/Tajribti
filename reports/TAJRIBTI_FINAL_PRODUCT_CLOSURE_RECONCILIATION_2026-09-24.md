@@ -73,6 +73,8 @@ PLATFORM_ADMIN-only administration, draft→publish, published-only public reads
 
 Approved architecture (Phase E §7): TAJRIBTI Consumer Study · FMCG · Essential/Standard/Professional/Custom · study fee + completed eligible participants · Point-of-Trial standard / Home Delivery when needed · EGP-first · manual bank transfer · ≥35% BASE target · report included + human-analyst premium · no I→D promise · pilot pricing cancelled. **No billing/pricing/entitlement code exists — correct** (spec-only per #08/#20 decisions). Working price list confirmation is required before the first quote — a pre-quote Founder action, not Phase F.
 
+**Full-corpus forensic reconciliation performed** (all 5 research docs + Phase E package + source materials + product evidence): see `reports/TAJRIBTI_COMMERCIAL_CLOSURE_RECONCILIATION_2026-09-24.md` — 42-item decision register, scenario-vs-final-price separation, contradiction table. Verdict: **COMMERCIAL CLOSED FOR PHASE F**; open items are pre-quote (O3, O4, §10.3, PoT fieldwork rate) and the parallel legal/accounting gate. No unresolved contradiction blocks Phase F.
+
 ## 9. COMPANY / OPERATIONS / PLATFORM ADMIN
 
 Verified via suite + prior passes: member read-only; admin mutations; campaign/product/media/logo/request flows; ops pipeline launch/pause/close; issue tracking; PII-gated participant access; audit coverage; ops-user + employee revocation (prod-verified); cross-tenant isolation. No remaining gaps.

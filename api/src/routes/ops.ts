@@ -20,11 +20,16 @@ import {
 import { buildReport } from "../lib/report";
 import {
   buildCommercialState,
+  buildCompanyCommercialAgreementState,
   validateCommercialTerms,
+  validateCompanyCommercialAgreement,
   COMMERCIAL_PACKAGE_TIERS,
   FULFILLMENT_MODELS,
   COMMERCIAL_PAYMENT_STATUSES,
+  COMMERCIAL_AGREEMENT_STATUSES,
+  CONTRACTED_PARTICIPANT_BASES,
   DEFAULT_COMMERCIAL_TERMS,
+  DEFAULT_COMPANY_COMMERCIAL_AGREEMENT,
 } from "../lib/commercial";
 import { STUDY_TEMPLATES, findTemplate, isStudyTypeEligible } from "../lib/studyTemplates";
 import { sendQrPng } from "../lib/qr";
@@ -51,7 +56,10 @@ async function loadCampaignOrNotFound(req: Request, res: Response) {
 // --- Companies (Benchmark §4 OPERATIONS "Companies") ------------------------
 router.get("/companies", async (_req, res) => {
   const companies = await prisma.company.findMany({
-    include: { _count: { select: { campaigns: true, employees: true } } },
+    include: {
+      _count: { select: { campaigns: true, employees: true } },
+      commercialAgreement: { select: { agreementStatus: true, packageTier: true, updatedAt: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
   res.json(companies);
@@ -140,6 +148,7 @@ router.get("/companies/:id", async (req, res) => {
       subIndustry: true,
       logoStorageKey: true,
       createdAt: true,
+      commercialAgreement: { select: { agreementStatus: true, packageTier: true, updatedAt: true } },
       employees: {
         select: { id: true, name: true, email: true, role: true, revokedAt: true, createdAt: true },
         orderBy: { createdAt: "asc" },
@@ -153,6 +162,93 @@ router.get("/companies/:id", async (req, res) => {
   });
   if (!company) return res.status(404).json({ error: "Company not found" });
   res.json(company);
+});
+
+// FOUNDER-AUTHORIZED MODEL A: company Commercial Agreement. Operations may
+// read the governing relationship; only PLATFORM_ADMIN configures it. This is
+// commercial configuration/reference state, not a contract signature, billing,
+// invoice, tax, renewal, or entitlement workflow.
+router.get("/companies/:id/commercial-agreement", async (req, res) => {
+  const company = await prisma.company.findUnique({ where: { id: req.params.id }, select: { id: true } });
+  if (!company) return res.status(404).json({ error: "Company not found" });
+  res.json(await buildCompanyCommercialAgreementState(company.id));
+});
+
+const companyAgreementSchema = z
+  .object({
+    packageTier: z.enum(COMMERCIAL_PACKAGE_TIERS),
+    contractedParticipantBasis: z.enum(CONTRACTED_PARTICIPANT_BASES),
+    contractedParticipants: z.number().int().positive().nullable(),
+    fulfillmentModel: z.enum(FULFILLMENT_MODELS),
+    contractReference: z.string().trim().max(300).nullable(),
+    scopeNote: z.string().trim().max(1000).nullable(),
+    quotedStudyFeeEgp: z.number().int().min(0).nullable(),
+    quotedParticipantRateEgp: z.number().int().min(0).nullable(),
+    quotedHomeDeliveryFeeEgp: z.number().int().min(0).nullable(),
+    discountPercent: z.number().int().min(0),
+    discountBasis: z.string().trim().max(300).nullable(),
+    paymentMethod: z.literal("MANUAL_BANK_TRANSFER"),
+    paymentStatus: z.enum(COMMERCIAL_PAYMENT_STATUSES),
+    agreementStatus: z.enum(COMMERCIAL_AGREEMENT_STATUSES),
+  })
+  .partial();
+
+router.put("/companies/:id/commercial-agreement", requirePlatformAdmin, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const company = await prisma.company.findUnique({ where: { id: req.params.id }, select: { id: true, name: true } });
+  if (!company) return res.status(404).json({ error: "Company not found" });
+  const parsed = companyAgreementSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid commercial agreement", details: parsed.error.flatten() });
+
+  const previous = await prisma.companyCommercialAgreement.findUnique({ where: { companyId: company.id } });
+  const base = previous
+    ? {
+        packageTier: previous.packageTier,
+        contractedParticipantBasis: previous.contractedParticipantBasis,
+        contractedParticipants: previous.contractedParticipants,
+        fulfillmentModel: previous.fulfillmentModel,
+        contractReference: previous.contractReference,
+        scopeNote: previous.scopeNote,
+        quotedStudyFeeEgp: previous.quotedStudyFeeEgp,
+        quotedParticipantRateEgp: previous.quotedParticipantRateEgp,
+        quotedHomeDeliveryFeeEgp: previous.quotedHomeDeliveryFeeEgp,
+        discountPercent: previous.discountPercent,
+        discountBasis: previous.discountBasis,
+        paymentMethod: previous.paymentMethod,
+        paymentStatus: previous.paymentStatus,
+        agreementStatus: previous.agreementStatus,
+      }
+    : DEFAULT_COMPANY_COMMERCIAL_AGREEMENT;
+  const d = { ...base, ...parsed.data };
+  const invalid = validateCompanyCommercialAgreement(d);
+  if (invalid) return res.status(400).json({ error: invalid });
+
+  const nextReadyAt = d.agreementStatus === "READY" ? previous?.readyAt ?? new Date() : null;
+  const agreement = await prisma.companyCommercialAgreement.upsert({
+    where: { companyId: company.id },
+    create: { companyId: company.id, ...d, readyAt: nextReadyAt, updatedById: opsUserId },
+    update: { ...d, readyAt: nextReadyAt, updatedById: opsUserId },
+  });
+
+  // Campaign scopes are linked, not silently rewritten: existing terms get
+  // the current governing agreement reference only; their scope fields and
+  // payment status stay untouched.
+  await prisma.campaignCommercialTerms.updateMany({
+    where: { campaign: { companyId: company.id }, commercialAgreementId: null },
+    data: { commercialAgreementId: agreement.id },
+  });
+
+  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+  await writeAccessAudit({
+    actorKind: "ops",
+    actorId: opsUserId,
+    actorName: actor?.name ?? "unknown",
+    action: "COMPANY_COMMERCIAL_AGREEMENT_UPDATED",
+    targetType: "company",
+    targetId: company.id,
+    detail: `agreement status: ${previous?.agreementStatus ?? "NOT_CONFIGURED"} → ${d.agreementStatus}; package: ${previous?.packageTier ?? "—"} → ${d.packageTier}; fulfillment: ${previous?.fulfillmentModel ?? "—"} → ${d.fulfillmentModel}; payment: ${previous?.paymentStatus ?? "—"} → ${d.paymentStatus}`,
+  });
+  res.json(await buildCompanyCommercialAgreementState(company.id));
 });
 
 const updateCompanySchema = z.object({
@@ -854,11 +950,12 @@ router.put("/campaigns/:id/commercial", requirePlatformAdmin, async (req, res) =
   const d = { ...base, ...parsed.data };
   const invalid = validateCommercialTerms(d);
   if (invalid) return res.status(400).json({ error: invalid });
+  const agreement = await prisma.companyCommercialAgreement.findUnique({ where: { companyId: campaign.companyId }, select: { id: true } });
 
   await prisma.campaignCommercialTerms.upsert({
     where: { campaignId: campaign.id },
-    create: { campaignId: campaign.id, ...d, updatedById: opsUserId },
-    update: { ...d, updatedById: opsUserId },
+    create: { campaignId: campaign.id, ...d, commercialAgreementId: agreement?.id ?? null, updatedById: opsUserId },
+    update: { ...d, commercialAgreementId: agreement?.id ?? null, updatedById: opsUserId },
   });
   const changes = [
     `package: ${previous?.packageTier ?? "ESSENTIAL"} → ${d.packageTier}`,

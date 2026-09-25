@@ -2,11 +2,12 @@ import { prisma } from "./prisma";
 import { getFunnel } from "./measurement";
 
 // FOUNDER-AUTHORIZED COMMERCIAL ARCHITECTURE (commercial closure
-// 2026-09-24). This module is intentionally narrow: it represents the
-// approved Essential / Standard / Professional / Custom service packages
-// and quote-readiness state for one campaign. It does not implement a
-// billing engine, subscription, renewal, entitlement framework, payment
-// gateway, tax calculation, or contract workflow.
+// 2026-09-24 + Model A company agreement pass). This module is intentionally
+// narrow: it represents the approved Essential / Standard / Professional /
+// Custom service packages, one governing company agreement, and campaign-level
+// quote-readiness state. It does not implement a billing engine, subscription,
+// renewal, entitlement framework, payment gateway, tax calculation, legal
+// signature flow, or contract workflow.
 
 export const COMMERCIAL_PACKAGE_TIERS = ["ESSENTIAL", "STANDARD", "PROFESSIONAL", "CUSTOM"] as const;
 export type CommercialPackageTier = (typeof COMMERCIAL_PACKAGE_TIERS)[number];
@@ -21,6 +22,12 @@ export const COMMERCIAL_PAYMENT_STATUSES = [
   "PAID_CONFIRMED",
 ] as const;
 export type CommercialPaymentStatus = (typeof COMMERCIAL_PAYMENT_STATUSES)[number];
+
+export const COMMERCIAL_AGREEMENT_STATUSES = ["DRAFT", "CONFIGURED", "QUOTED", "READY"] as const;
+export type CommercialAgreementStatus = (typeof COMMERCIAL_AGREEMENT_STATUSES)[number];
+
+export const CONTRACTED_PARTICIPANT_BASES = ["PER_CAMPAIGN_SCOPE", "TOTAL_PROGRAM_PARTICIPANTS"] as const;
+export type ContractedParticipantBasis = (typeof CONTRACTED_PARTICIPANT_BASES)[number];
 
 export const CUSTOM_SCOPE_MINIMUM_PARTICIPANTS = 250;
 export const MAX_DISCOUNT_PERCENT = 20;
@@ -39,6 +46,27 @@ export interface CommercialTermsLike {
   paymentStatus: string;
   updatedAt?: Date;
   updatedById?: string | null;
+  commercialAgreementId?: string | null;
+}
+
+export interface CompanyCommercialAgreementLike {
+  packageTier: string;
+  contractedParticipantBasis: string;
+  contractedParticipants: number | null;
+  fulfillmentModel: string;
+  contractReference: string | null;
+  scopeNote: string | null;
+  quotedStudyFeeEgp: number | null;
+  quotedParticipantRateEgp: number | null;
+  quotedHomeDeliveryFeeEgp: number | null;
+  discountPercent: number;
+  discountBasis: string | null;
+  paymentMethod: string;
+  paymentStatus: string;
+  agreementStatus: string;
+  readyAt?: Date | null;
+  updatedAt?: Date;
+  updatedById?: string | null;
 }
 
 export const DEFAULT_COMMERCIAL_TERMS: CommercialTermsLike = {
@@ -53,6 +81,23 @@ export const DEFAULT_COMMERCIAL_TERMS: CommercialTermsLike = {
   discountBasis: null,
   paymentMethod: "MANUAL_BANK_TRANSFER",
   paymentStatus: "QUOTE_DRAFT",
+};
+
+export const DEFAULT_COMPANY_COMMERCIAL_AGREEMENT: CompanyCommercialAgreementLike = {
+  packageTier: "ESSENTIAL",
+  contractedParticipantBasis: "PER_CAMPAIGN_SCOPE",
+  contractedParticipants: null,
+  fulfillmentModel: "POINT_OF_TRIAL",
+  contractReference: null,
+  scopeNote: null,
+  quotedStudyFeeEgp: null,
+  quotedParticipantRateEgp: null,
+  quotedHomeDeliveryFeeEgp: null,
+  discountPercent: 0,
+  discountBasis: null,
+  paymentMethod: "MANUAL_BANK_TRANSFER",
+  paymentStatus: "QUOTE_DRAFT",
+  agreementStatus: "DRAFT",
 };
 
 export function packageCapabilities(packageTier: string) {
@@ -112,10 +157,164 @@ export function validateCommercialTerms(d: CommercialTermsLike): string | null {
   return null;
 }
 
+// Company agreement validation deliberately differs from campaign scope:
+// the agreement can carry package/rate/fulfillment terms without forcing a
+// participant count (per-campaign scope supplies quantity), while a quoted or
+// ready agreement still requires the commercial basis and quoted fee fields.
+export function validateCompanyCommercialAgreement(d: CompanyCommercialAgreementLike): string | null {
+  if (!COMMERCIAL_PACKAGE_TIERS.includes(d.packageTier as CommercialPackageTier)) return "Unknown commercial package";
+  if (!CONTRACTED_PARTICIPANT_BASES.includes(d.contractedParticipantBasis as ContractedParticipantBasis)) return "Unknown contracted participant basis";
+  if (!FULFILLMENT_MODELS.includes(d.fulfillmentModel as FulfillmentModel)) return "Unknown fulfillment model";
+  if (!COMMERCIAL_AGREEMENT_STATUSES.includes(d.agreementStatus as CommercialAgreementStatus)) return "Unknown agreement status";
+  if (d.paymentMethod !== "MANUAL_BANK_TRANSFER") return "Manual bank transfer is the only supported payment method";
+  if (!COMMERCIAL_PAYMENT_STATUSES.includes(d.paymentStatus as CommercialPaymentStatus)) return "Unknown payment status";
+  if (d.contractedParticipants != null && d.contractedParticipants <= 0) return "Contracted participants must be positive";
+  if (d.contractedParticipantBasis === "TOTAL_PROGRAM_PARTICIPANTS" && d.contractedParticipants == null) {
+    return "A total participant count is required for a total-program agreement";
+  }
+  if (d.contractedParticipantBasis === "PER_CAMPAIGN_SCOPE" && d.contractedParticipants != null) {
+    return "Per-campaign agreements leave participant quantity to campaign scope";
+  }
+  if (d.discountPercent < 0 || d.discountPercent > MAX_DISCOUNT_PERCENT) return "Discount cannot exceed 20%";
+  if (d.discountPercent > 0 && !d.discountBasis?.trim()) return "A discount basis is required when a discount is recorded";
+  if (d.packageTier === "CUSTOM" && !d.scopeNote?.trim()) return "Custom scope requires a scope note / SOW basis";
+  if (d.packageTier !== "CUSTOM" && d.contractedParticipants != null && d.contractedParticipants >= CUSTOM_SCOPE_MINIMUM_PARTICIPANTS) {
+    return "A scope of 250+ contracted participants requires the Custom package";
+  }
+
+  const quoteFieldsComplete =
+    d.quotedStudyFeeEgp != null &&
+    d.quotedParticipantRateEgp != null &&
+    (d.fulfillmentModel !== "HOME_DELIVERY" || d.quotedHomeDeliveryFeeEgp != null);
+  const hasCommercialBasis = Boolean(d.contractReference?.trim() || d.scopeNote?.trim());
+
+  if (d.agreementStatus !== "DRAFT" && !hasCommercialBasis) {
+    return "A contract reference or commercial scope note is required before the agreement leaves draft";
+  }
+  if ((d.agreementStatus === "QUOTED" || d.agreementStatus === "READY") && !quoteFieldsComplete) {
+    return "A complete quoted fee structure is required before the agreement is marked quoted or ready";
+  }
+  if (d.paymentStatus !== "QUOTE_DRAFT" && !quoteFieldsComplete) {
+    return "A complete quoted fee structure is required before the payment status leaves draft";
+  }
+  if (d.agreementStatus === "READY" && d.paymentStatus === "QUOTE_DRAFT") {
+    return "A ready agreement must have a quoted or later payment status";
+  }
+  return null;
+}
+
+function agreementRecordToLike(agreement: {
+  packageTier: string;
+  contractedParticipantBasis: string;
+  contractedParticipants: number | null;
+  fulfillmentModel: string;
+  contractReference: string | null;
+  scopeNote: string | null;
+  quotedStudyFeeEgp: number | null;
+  quotedParticipantRateEgp: number | null;
+  quotedHomeDeliveryFeeEgp: number | null;
+  discountPercent: number;
+  discountBasis: string | null;
+  paymentMethod: string;
+  paymentStatus: string;
+  agreementStatus: string;
+  readyAt: Date | null;
+  updatedAt: Date;
+  updatedById: string | null;
+}): CompanyCommercialAgreementLike {
+  return { ...agreement };
+}
+
+export async function buildCompanyCommercialAgreementState(companyId: string) {
+  const [agreement, campaignScopes] = await Promise.all([
+    prisma.companyCommercialAgreement.findUnique({ where: { companyId } }),
+    prisma.campaignCommercialTerms.findMany({
+      where: { campaign: { companyId } },
+      select: {
+        campaignId: true,
+        packageTier: true,
+        paymentStatus: true,
+        commercialAgreementId: true,
+        campaign: { select: { id: true, name: true, status: true } },
+      },
+      orderBy: { campaign: { createdAt: "desc" } },
+    }),
+  ]);
+  const a = agreement ? agreementRecordToLike(agreement) : DEFAULT_COMPANY_COMMERCIAL_AGREEMENT;
+  const updatedBy = agreement?.updatedById
+    ? await prisma.opsUser.findUnique({ where: { id: agreement.updatedById }, select: { name: true } })
+    : null;
+  const quoteComplete =
+    a.quotedStudyFeeEgp != null &&
+    a.quotedParticipantRateEgp != null &&
+    (a.fulfillmentModel !== "HOME_DELIVERY" || a.quotedHomeDeliveryFeeEgp != null);
+  const configured = Boolean(agreement);
+  const status = configured ? a.agreementStatus : "NOT_CONFIGURED";
+
+  return {
+    companyId,
+    configured,
+    agreementStatus: status,
+    agreementStatusLabel: agreementStatusLabel(status),
+    commerciallyReady: a.agreementStatus === "READY",
+    packageTier: a.packageTier,
+    packageLabel: packageTierLabel(a.packageTier),
+    contractedParticipantBasis: a.contractedParticipantBasis,
+    contractedParticipantBasisLabel:
+      a.contractedParticipantBasis === "TOTAL_PROGRAM_PARTICIPANTS" ? "Total program participants" : "Per-campaign scope",
+    contractedParticipants: a.contractedParticipants,
+    fulfillmentModel: a.fulfillmentModel,
+    fulfillmentLabel: a.fulfillmentModel === "HOME_DELIVERY" ? "Home Delivery" : "Point-of-Trial",
+    contractReference: a.contractReference,
+    scopeNote: a.scopeNote,
+    quotedStudyFeeEgp: a.quotedStudyFeeEgp,
+    quotedParticipantRateEgp: a.quotedParticipantRateEgp,
+    quotedHomeDeliveryFeeEgp: a.quotedHomeDeliveryFeeEgp,
+    discountPercent: a.discountPercent,
+    discountBasis: a.discountBasis,
+    paymentMethod: a.paymentMethod,
+    paymentStatus: a.paymentStatus,
+    paymentStatusLabel: paymentStatusLabel(a.paymentStatus),
+    readyAt: a.readyAt ?? null,
+    updatedAt: a.updatedAt ?? null,
+    updatedById: a.updatedById ?? null,
+    updatedByName: updatedBy?.name ?? null,
+    linkedCampaigns: campaignScopes.map((scope) => ({
+      id: scope.campaign.id,
+      name: scope.campaign.name,
+      status: scope.campaign.status,
+      packageTier: scope.packageTier,
+      packageLabel: packageTierLabel(scope.packageTier),
+      paymentStatus: scope.paymentStatus,
+      paymentStatusLabel: paymentStatusLabel(scope.paymentStatus),
+      scopeLinked: Boolean(agreement && scope.commercialAgreementId === agreement.id),
+    })),
+    readiness: {
+      configured,
+      hasCommercialBasis: Boolean(a.contractReference?.trim() || a.scopeNote?.trim()),
+      quoteComplete,
+      commercialStatus: status,
+      taxStatus: "LEGAL_ACCOUNTING_VALIDATION_REQUIRED",
+      pricingStatus: "QUOTED_TERMS_NOT_FINAL_PRICE_LIST",
+    },
+  };
+}
+
 export async function buildCommercialState(campaignId: string) {
-  const [terms, funnel] = await Promise.all([
-    prisma.campaignCommercialTerms.findUnique({ where: { campaignId } }),
+  const [campaign, funnel] = await Promise.all([
+    prisma.campaign.findUnique({
+      where: { id: campaignId },
+      select: {
+        id: true,
+        companyId: true,
+        commercialTerms: { select: { commercialAgreementId: true } },
+      },
+    }),
     getFunnel(campaignId),
+  ]);
+  const [terms, companyAgreement] = await Promise.all([
+    prisma.campaignCommercialTerms.findUnique({ where: { campaignId } }),
+    campaign ? prisma.companyCommercialAgreement.findUnique({ where: { companyId: campaign.companyId } }) : Promise.resolve(null),
   ]);
   const t: CommercialTermsLike = terms
     ? {
@@ -132,8 +331,21 @@ export async function buildCommercialState(campaignId: string) {
         paymentStatus: terms.paymentStatus,
         updatedAt: terms.updatedAt,
         updatedById: terms.updatedById,
+        commercialAgreementId: terms.commercialAgreementId,
       }
     : DEFAULT_COMMERCIAL_TERMS;
+
+  const agreementState = campaign ? await buildCompanyCommercialAgreementState(campaign.companyId) : null;
+  const inheritedPackage = !terms && companyAgreement ? companyAgreement.packageTier : null;
+  const effectivePackageTier = terms?.packageTier ?? inheritedPackage ?? t.packageTier;
+  const effectiveFulfillment = terms?.fulfillmentModel ?? companyAgreement?.fulfillmentModel ?? t.fulfillmentModel;
+  const campaignScopeMode = terms
+    ? (terms.commercialAgreementId && companyAgreement && terms.commercialAgreementId === companyAgreement.id
+        ? "CAMPAIGN_SCOPE_LINKED_TO_AGREEMENT"
+        : "CAMPAIGN_SCOPE")
+    : companyAgreement
+      ? "INHERITED_COMPANY_AGREEMENT"
+      : "DEFAULT_NOT_AGREED";
 
   const contracted = t.contractedParticipants;
   const completedEligibleParticipants = funnel.surveyComplete;
@@ -162,11 +374,15 @@ export async function buildCommercialState(campaignId: string) {
 
   return {
     campaignId,
-    packageTier: t.packageTier,
-    packageLabel: packageTierLabel(t.packageTier),
+    packageTier: effectivePackageTier,
+    packageLabel: packageTierLabel(effectivePackageTier),
+    packageSource: terms ? "CAMPAIGN_SCOPE" : inheritedPackage ? "COMPANY_AGREEMENT" : "DEFAULT_NOT_AGREED",
+    campaignScopeConfigured: Boolean(terms),
+    campaignScopeMode,
+    scopeLinked: Boolean(terms?.commercialAgreementId && companyAgreement && terms.commercialAgreementId === companyAgreement.id),
     contractedParticipants: contracted,
-    fulfillmentModel: t.fulfillmentModel,
-    fulfillmentLabel: t.fulfillmentModel === "HOME_DELIVERY" ? "Home Delivery" : "Point-of-Trial",
+    fulfillmentModel: effectiveFulfillment,
+    fulfillmentLabel: effectiveFulfillment === "HOME_DELIVERY" ? "Home Delivery" : "Point-of-Trial",
     scopeNote: t.scopeNote,
     quotedStudyFeeEgp: t.quotedStudyFeeEgp,
     quotedParticipantRateEgp: t.quotedParticipantRateEgp,
@@ -177,7 +393,8 @@ export async function buildCommercialState(campaignId: string) {
     paymentStatus: t.paymentStatus,
     paymentStatusLabel: paymentStatusLabel(t.paymentStatus),
     updatedAt: t.updatedAt ?? null,
-    reportCapabilities: packageCapabilities(t.packageTier),
+    companyAgreement: agreementState,
+    reportCapabilities: packageCapabilities(effectivePackageTier),
     calculation: {
       completedEligibleParticipants,
       shortfall,
@@ -212,5 +429,15 @@ function paymentStatusLabel(status: string) {
     QUOTED: "Quoted",
     AWAITING_BANK_TRANSFER: "Awaiting bank transfer",
     PAID_CONFIRMED: "Bank transfer confirmed",
+  }[status] ?? status;
+}
+
+export function agreementStatusLabel(status: string) {
+  return {
+    NOT_CONFIGURED: "Commercial setup required",
+    DRAFT: "Agreement draft",
+    CONFIGURED: "Agreement configured",
+    QUOTED: "Agreement quoted",
+    READY: "Commercial ready",
   }[status] ?? status;
 }

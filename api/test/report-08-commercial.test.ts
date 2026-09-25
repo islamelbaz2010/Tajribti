@@ -15,6 +15,7 @@ let companyMemberToken: string;
 let otherCompanyToken: string;
 let opsAdminToken: string;
 let opsWorkerToken: string;
+let companyId: string;
 let essentialCampaignId: string;
 let standardCampaignId: string;
 
@@ -30,6 +31,9 @@ async function seedCampaign(companyId: string, name: string) {
       endDate: new Date(Date.now() + 86400000),
     },
   });
+  if (name === "essential") {
+    await prisma.campaignCommercialTerms.create({ data: { campaignId: campaign.id } });
+  }
   const qr = await prisma.qrSource.create({
     data: {
       campaignId: campaign.id,
@@ -103,6 +107,7 @@ async function seedCampaign(companyId: string, name: string) {
 before(async () => {
   ({ api, stop: stopServer } = await startApi());
   const company = await prisma.company.create({ data: { name: "Report Co", industry: "FOOD_BEVERAGE" } });
+  companyId = company.id;
   const otherCompany = await prisma.company.create({ data: { name: "Other Co" } });
   const admin = await prisma.employee.create({ data: { companyId: company.id, email: "report-admin@test", name: "Admin", passwordHash: "x", role: "COMPANY_ADMIN" } });
   const member = await prisma.employee.create({ data: { companyId: company.id, email: "report-member@test", name: "Member", passwordHash: "x", role: "COMPANY_MEMBER" } });
@@ -121,6 +126,86 @@ before(async () => {
 after(async () => {
   await stopServer();
   await prisma.$disconnect();
+});
+
+describe("company commercial agreement (Model A)", () => {
+  it("starts unconfigured, distinguishes defaults from readiness, and stays read-only outside Platform Admin", async () => {
+    const initialCompany = await api("/api/company/commercial-agreement", { token: companyMemberToken });
+    assert.equal(initialCompany.status, 200, JSON.stringify(initialCompany.body));
+    assert.equal(initialCompany.body.agreementStatus, "NOT_CONFIGURED");
+    assert.equal(initialCompany.body.commerciallyReady, false);
+    assert.equal(initialCompany.body.linkedCampaigns.length, 1);
+    assert.equal(initialCompany.body.linkedCampaigns[0].scopeLinked, false);
+
+    const opsView = await api(`/api/ops/companies/${companyId}/commercial-agreement`, { token: opsWorkerToken });
+    assert.equal(opsView.status, 200, JSON.stringify(opsView.body));
+    assert.equal(opsView.body.agreementStatus, "NOT_CONFIGURED");
+
+    const denied = await api(`/api/ops/companies/${companyId}/commercial-agreement`, {
+      method: "PUT", token: opsWorkerToken, body: { agreementStatus: "DRAFT" },
+    });
+    assert.equal(denied.status, 403);
+
+    const companyWrite = await api("/api/company/commercial-agreement", {
+      method: "PUT", token: companyAdminToken, body: { agreementStatus: "READY" },
+    });
+    assert.equal(companyWrite.status, 404);
+  });
+
+  it("lets Platform Admin configure a Ready agreement, audits it, and links campaign scope without rewriting scope", async () => {
+    const invalidReady = await api(`/api/ops/companies/${companyId}/commercial-agreement`, {
+      method: "PUT", token: opsAdminToken,
+      body: { agreementStatus: "READY", packageTier: "STANDARD" },
+    });
+    assert.equal(invalidReady.status, 400);
+    assert.match(JSON.stringify(invalidReady.body), /reference/i);
+
+    const saved = await api(`/api/ops/companies/${companyId}/commercial-agreement`, {
+      method: "PUT", token: opsAdminToken,
+      body: {
+        packageTier: "STANDARD",
+        contractedParticipantBasis: "TOTAL_PROGRAM_PARTICIPANTS",
+        contractedParticipants: 100,
+        fulfillmentModel: "HOME_DELIVERY",
+        contractReference: "SOW-2026-001",
+        scopeNote: "Company-level agreement governing campaign scopes.",
+        quotedStudyFeeEgp: 5000,
+        quotedParticipantRateEgp: 50,
+        quotedHomeDeliveryFeeEgp: 400,
+        discountPercent: 10,
+        discountBasis: "Founder-approved launch agreement",
+        paymentMethod: "MANUAL_BANK_TRANSFER",
+        paymentStatus: "QUOTED",
+        agreementStatus: "READY",
+      },
+    });
+    assert.equal(saved.status, 200, JSON.stringify(saved.body));
+    assert.equal(saved.body.agreementStatus, "READY");
+    assert.equal(saved.body.commerciallyReady, true);
+    assert.ok(saved.body.readyAt);
+    assert.equal(saved.body.linkedCampaigns.length, 1);
+    assert.equal(saved.body.linkedCampaigns[0].scopeLinked, true);
+
+    const updated = await api(`/api/ops/campaigns/${standardCampaignId}/commercial`, {
+      method: "PUT", token: opsAdminToken,
+      body: { ...DEFAULT_COMMERCIAL_TERMS, packageTier: "STANDARD", contractedParticipants: 2 },
+    });
+    assert.equal(updated.status, 200, JSON.stringify(updated.body));
+    assert.equal(updated.body.companyAgreement.agreementStatus, "READY");
+    assert.equal(updated.body.scopeLinked, true);
+    assert.equal(updated.body.packageTier, "STANDARD");
+    assert.equal(updated.body.contractedParticipants, 2);
+
+    const companyView = await api(`/api/company/campaigns/${standardCampaignId}/commercial`, { token: companyAdminToken });
+    assert.equal(companyView.status, 200);
+    assert.equal(companyView.body.companyAgreement.contractReference, "SOW-2026-001");
+    assert.equal(companyView.body.companyAgreement.linkedCampaigns.some((c: any) => c.id === standardCampaignId && c.scopeLinked), true);
+
+    const audit = await prisma.accessAuditEvent.findFirst({
+      where: { action: "COMPANY_COMMERCIAL_AGREEMENT_UPDATED", targetId: companyId },
+    });
+    assert.ok(audit);
+  });
 });
 
 describe("campaign commercial terms", () => {

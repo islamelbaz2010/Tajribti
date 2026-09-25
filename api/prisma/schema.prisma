@@ -78,6 +78,7 @@ model Company {
   employees Employee[]
   products  Product[]
   campaigns Campaign[]
+  commercialAgreement CompanyCommercialAgreement?
 }
 
 // No OWNER/MEMBER (or any other) role tier: Benchmark §4 COMPANY names
@@ -328,6 +329,53 @@ model CampaignCommercialTerms {
   updatedById String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // Model A link: campaign-specific commercial scope points at the
+  // governing company agreement when one exists. Null means no agreement
+  // was configured when the scope was saved; the company relationship still
+  // remains the authoritative ownership path.
+  commercialAgreementId String?
+  commercialAgreement   CompanyCommercialAgreement? @relation(fields: [commercialAgreementId], references: [id], onDelete: SetNull)
+
+  @@index([commercialAgreementId])
+}
+
+// FOUNDER-AUTHORIZED MODEL A (final product/commercial reconciliation):
+// one governing Company Commercial Agreement plus campaign-level commercial
+// scope. This stores Platform Admin-configured commercial configuration and
+// references only — it is not a legal document, contract signature workflow,
+// invoice, tax engine, payment gateway, subscription, renewal, or accounting
+// ledger. Legal/accounting treatment remains validation-required.
+// agreementStatus: DRAFT | CONFIGURED | QUOTED | READY
+// contractedParticipantBasis: PER_CAMPAIGN_SCOPE | TOTAL_PROGRAM_PARTICIPANTS
+model CompanyCommercialAgreement {
+  id        String  @id @default(cuid())
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id])
+
+  packageTier                 String  @default("ESSENTIAL")
+  contractedParticipantBasis  String  @default("PER_CAMPAIGN_SCOPE")
+  contractedParticipants      Int?
+  fulfillmentModel            String  @default("POINT_OF_TRIAL")
+  contractReference           String?
+  scopeNote                   String?
+
+  quotedStudyFeeEgp           Int?
+  quotedParticipantRateEgp    Int?
+  quotedHomeDeliveryFeeEgp    Int?
+  discountPercent             Int     @default(0)
+  discountBasis               String?
+
+  paymentMethod   String @default("MANUAL_BANK_TRANSFER")
+  paymentStatus   String @default("QUOTE_DRAFT")
+  agreementStatus String @default("DRAFT")
+  readyAt         DateTime?
+
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  campaignScopes CampaignCommercialTerms[]
 }
 
 // FOUNDER-APPROVED — forensic audit 2026-09-15, Decision 1 ("Study-Type

@@ -16,7 +16,7 @@ import {
   classifySample,
 } from "../lib/measurement";
 import { buildReport } from "../lib/report";
-import { buildCommercialState, metricForPackage, questionAggregatesForPackage } from "../lib/commercial";
+import { buildCommercialState, buildCompanyCommercialAgreementState, metricForPackage, questionAggregatesForPackage } from "../lib/commercial";
 import { findTemplate, isStudyTypeEligible, eligibleStudyTemplates } from "../lib/studyTemplates";
 import { sendQrPng } from "../lib/qr";
 import {
@@ -96,6 +96,14 @@ router.get("/profile", async (req, res) => {
   const logoUrl =
     company?.logoStorageKey && isHostedMediaConfigured() ? await createReadUrl(company.logoStorageKey).catch(() => null) : null;
   res.json({ ...company, logoUrl, hostedMediaConfigured: isHostedMediaConfigured() });
+});
+
+// FOUNDER-AUTHORIZED MODEL A: the Company sees its governing commercial
+// agreement read-only. Platform Admin owns the configuration on the ops side;
+// no company-side mutation route exists.
+router.get("/commercial-agreement", async (req, res) => {
+  const { companyId } = asEmployee(req);
+  res.json(await buildCompanyCommercialAgreementState(companyId));
 });
 
 // Founder requirement 2026-09-24: company logo upload. Same hosted-media

@@ -120,9 +120,9 @@ export const SITE_SECTION_SCHEMAS: Record<SiteSectionKey, z.ZodTypeAny> = {
 // nothing is invented here beyond what already renders publicly.
 export const SITE_SECTION_DEFAULTS: Record<SiteSectionKey, unknown> = {
   hero: {
-    eyebrow: "Consumer Intelligence, from a Real Trial",
-    headline: "See how consumers actually respond before you decide.",
-    sub: "TAJRIBTI puts your product in real consumers' hands, then turns their trial into a structured, evidence-bound report your team can evaluate.",
+    eyebrow: "B2B consumer research · Real product trials",
+    headline: "Evidence from real product trials, packaged for executive review.",
+    sub: "TAJRIBTI puts your product in real consumers' hands, measures the trial-to-survey journey, and delivers a structured report your team can evaluate with its evidence boundaries intact.",
     primaryCtaLabel: "Book a demo",
     primaryCtaHref: "#contact",
     secondaryCtaLabel: "See a sample report",

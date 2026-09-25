@@ -166,6 +166,7 @@
           <button data-page="campaigns">Campaigns</button>
           <button data-page="products">Products</button>
           <button data-page="reports">Reports</button>
+          <button data-page="commercial">Commercial Agreement</button>
           <button data-page="profile">Company Profile</button>
           <button data-page="employees">Employees</button>
         </nav>
@@ -177,6 +178,7 @@
           <div class="card">
             <h2>Overview</h2>
             <div class="kpi-strip" id="ov-kpis"></div>
+            <div id="ov-commercial" style="margin:4px 0 14px;"></div>
             <h3 style="font-size:0.95rem;">Campaigns by status</h3>
             <div class="status-cards" id="ov-status"></div>
             <h3 style="font-size:0.95rem;">Recent campaigns</h3>
@@ -222,6 +224,7 @@
         <section class="page hidden" id="page-newcampaign">
     <div class="card" id="new-campaign-card">
       <h2>New campaign</h2>
+      <div id="nc-commercial-note" style="margin:0 0 12px;"></div>
       <!-- Founder-approved strategic differentiation (NOT Benchmark-
            required — see governance/FOUNDER_DECISION_STRATEGIC_
            DIFFERENTIATION.md): an optional "what are you trying to
@@ -300,6 +303,18 @@
               <button class="small secondary" id="rf-reset">Reset</button>
             </div>
             <div id="report-list"></div>
+          </div>
+        </section>
+
+        <section class="page hidden" id="page-commercial">
+          <div class="card">
+            <!-- FOUNDER-AUTHORIZED MODEL A (2026-09-27): company-level
+                 commercial agreement is Platform Admin-managed and shown to
+                 the company read-only. It records commercial configuration /
+                 reference state only — no billing, tax, invoice, renewal, or
+                 entitlement workflow. -->
+            <h2>Commercial agreement</h2>
+            <div id="company-agreement-content"></div>
           </div>
         </section>
 
@@ -598,7 +613,7 @@ function showPage(page) {
   if (el) el.classList.remove('hidden');
   document.querySelectorAll('#snav button').forEach(b => b.classList.toggle('active', b.dataset.page === page));
 }
-document.querySelectorAll('#snav button').forEach(b => { b.onclick = () => showPage(b.dataset.page); });
+document.querySelectorAll('#snav button').forEach(b => { b.onclick = () => { showPage(b.dataset.page); if (b.dataset.page === 'commercial') loadCompanyAgreement(); }; });
 
 // Basic account safety/usability (not a Benchmark-named capability, but
 // every authenticated workspace needs a way to end a session from inside
@@ -709,6 +724,34 @@ let allCampaigns = []; // last fetched list — filter bar renders subsets clien
 let cfPage = 0;
 const CF_PAGE_SIZE = 10;
 const CAMPAIGN_STATUSES = ['DRAFT', 'READY', 'ACTIVE', 'PAUSED', 'COMPLETED'];
+let companyAgreement = null;
+const COMPANY_AGREEMENT_LABELS = { NOT_CONFIGURED: 'Not configured', DRAFT: 'Draft', CONFIGURED: 'Configured', QUOTED: 'Quoted', READY: 'Commercial ready' };
+const PARTICIPANT_BASIS_LABELS = { PER_CAMPAIGN_SCOPE: 'Per-campaign scope', TOTAL_PROGRAM_PARTICIPANTS: 'Total program participants' };
+const FULFILLMENT_LABELS = { POINT_OF_TRIAL: 'Point-of-Trial', HOME_DELIVERY: 'Home Delivery' };
+const COMMERCIAL_PAYMENT_LABELS = { QUOTE_DRAFT: 'Quote draft', QUOTED: 'Quoted', AWAITING_BANK_TRANSFER: 'Awaiting bank transfer', PAID_CONFIRMED: 'Bank transfer confirmed' };
+function companyAgreementPill(status) {
+  const styles = {
+    NOT_CONFIGURED: 'background:#f2eee9;color:#6f6258;',
+    DRAFT: 'background:#fff3d8;color:#8a5a00;',
+    CONFIGURED: 'background:#eaf2ff;color:#285f9e;',
+    QUOTED: 'background:#f1e8ff;color:#6a4b9e;',
+    READY: 'background:#e6f4ea;color:#1e7a3d;',
+  };
+  return '<span class="pill" style="' + (styles[status] || '') + '">' + esc(COMPANY_AGREEMENT_LABELS[status] || status) + '</span>';
+}
+function renderCompanyAgreementSummaries() {
+  const a = companyAgreement;
+  const text = !a || a.agreementStatus !== 'READY'
+    ? 'Commercial setup required before this company is commercially ready to begin work.'
+    : 'Your company-level commercial agreement is marked ready.';
+  const block = '<div class="row" style="justify-content:space-between;"><strong style="font-size:0.85rem;">Company commercial agreement</strong>' +
+    (a ? companyAgreementPill(a.agreementStatus) : '') + '</div>' +
+    '<p style="font-size:0.8rem;color:var(--muted);margin:6px 0 0;">' + text + (a && a.packageLabel ? ' Governing package: ' + esc(a.packageLabel) + '.' : '') + '</p>';
+  const ov = document.getElementById('ov-commercial');
+  if (ov) ov.innerHTML = '<div style="border-left:4px solid ' + (a && a.agreementStatus === 'READY' ? '#1e7a3d' : '#c9932d') + ';background:#fffdf8;border:1px solid #f1e6dc;border-radius:12px;padding:10px 12px;">' + block + '</div>';
+  const nc = document.getElementById('nc-commercial-note');
+  if (nc) nc.innerHTML = '<div style="border-left:4px solid ' + (a && a.agreementStatus === 'READY' ? '#1e7a3d' : '#c9932d') + ';background:#fffdf8;border:1px solid #f1e6dc;border-radius:12px;padding:10px 12px;">' + block + '<p style="font-size:0.78rem;color:var(--muted);margin:6px 0 0;">Campaign-specific participant quantity, fulfillment exceptions, quoted exceptions, and change-order wording are recorded at campaign scope.</p></div>';
+}
 
 function campaignMatches(c, q, status, studyType, from, to) {
   return (!q || c.name.toLowerCase().includes(q)) &&
@@ -826,6 +869,7 @@ function renderReportList() {
 
 async function loadCampaigns() {
   allCampaigns = await api('/company/campaigns');
+  companyAgreement = await api('/company/commercial-agreement').catch(() => null);
   await loadProducts(document.getElementById('nc-product'));
   await loadStudyTemplates();
   const cfStudy = document.getElementById('cf-studytype');
@@ -838,6 +882,7 @@ async function loadCampaigns() {
   renderCampaignList();
   renderOverview();
   renderReportList();
+  renderCompanyAgreementSummaries();
   await loadProfile();
   await loadEmployees();
   await loadPanelInsights();
@@ -1497,6 +1542,44 @@ async function loadEvidenceCoverage() {
   }
 }
 
+async function loadCompanyAgreement() {
+  const el = document.getElementById('company-agreement-content');
+  try {
+    const a = await api('/company/commercial-agreement');
+    companyAgreement = a;
+    renderCompanyAgreementSummaries();
+    const updatedText = a.updatedAt ? ' · updated ' + new Date(a.updatedAt).toLocaleString() : '';
+    el.innerHTML =
+      '<div class="row" style="justify-content:space-between;margin-bottom:8px;"><strong>Agreement status</strong>' + companyAgreementPill(a.agreementStatus) + '</div>' +
+      (a.agreementStatus !== 'READY' ? '<p class="msg" style="color:#8a5a00;">Commercial setup required before this company is commercially ready to begin work.</p>' : '<p class="msg ok">Company-level commercial agreement is marked ready.</p>') +
+      '<div class="metrics-row" style="margin-bottom:8px;">' +
+      metric(a.packageLabel, 'Company package') +
+      metric(PARTICIPANT_BASIS_LABELS[a.contractedParticipantBasis] || a.contractedParticipantBasis, 'Quantity basis') +
+      metric(a.contractedParticipants ?? '—', 'Contracted participants') +
+      metric(FULFILLMENT_LABELS[a.fulfillmentModel] || a.fulfillmentModel, 'Fulfillment') +
+      metric(COMMERCIAL_PAYMENT_LABELS[a.paymentStatus] || a.paymentStatus, 'Payment status') +
+      '</div>' +
+      '<p style="font-size:0.82rem;color:var(--muted);">These are the agreed company-level terms governing campaign scope. Campaign-specific participant quantity, fulfillment exceptions, quoted exceptions, and change-order wording are handled separately inside each campaign. Quoted values are commercial terms, not invoices, tax calculations, payment collection, renewals, or entitlement automation.</p>' +
+      '<table><tr><th>Quoted term</th><th>Value</th></tr>' +
+      '<tr><td>Study fee</td><td>' + (a.quotedStudyFeeEgp == null ? '—' : 'EGP ' + a.quotedStudyFeeEgp.toLocaleString()) + '</td></tr>' +
+      '<tr><td>Participant rate</td><td>' + (a.quotedParticipantRateEgp == null ? '—' : 'EGP ' + a.quotedParticipantRateEgp.toLocaleString()) + '</td></tr>' +
+      '<tr><td>Home Delivery fee</td><td>' + (a.quotedHomeDeliveryFeeEgp == null ? '—' : 'EGP ' + a.quotedHomeDeliveryFeeEgp.toLocaleString()) + '</td></tr>' +
+      '<tr><td>Discount</td><td>' + a.discountPercent + '%' + (a.discountBasis ? ' — ' + esc(a.discountBasis) : '') + '</td></tr>' +
+      '<tr><td>Payment method</td><td>Manual bank transfer</td></tr>' +
+      (a.contractReference ? '<tr><td>Contract / SOW reference</td><td>' + esc(a.contractReference) + '</td></tr>' : '') +
+      '</table>' +
+      (a.scopeNote ? '<p style="margin-top:10px;"><strong>Commercial scope note:</strong><br/>' + esc(a.scopeNote) + '</p>' : '') +
+      '<h3 style="font-size:0.95rem;margin-top:18px;">Campaign commercial scopes</h3>' +
+      (a.linkedCampaigns.length
+        ? '<table><tr><th>Campaign</th><th>Status</th><th>Package</th><th>Payment</th><th>Link</th></tr>' + a.linkedCampaigns.map(c =>
+          '<tr><td>' + esc(c.name) + '</td><td>' + esc(c.status) + '</td><td>' + esc(c.packageTier) + '</td><td>' + esc(COMMERCIAL_PAYMENT_LABELS[c.paymentStatus] || c.paymentStatus) + '</td><td>' + (c.scopeLinked ? 'Linked' : 'Awaiting ops link') + '</td></tr>').join('') + '</table>'
+        : '<p style="color:var(--muted)">No campaign commercial scope has been configured yet.</p>') +
+      '<p style="font-size:0.75rem;color:var(--muted);margin-top:10px;">' + (a.updatedByName ? 'Last configured by TAJRIBTI administration (' + esc(a.updatedByName) + ')' : 'Not configured yet') + updatedText + (a.readyAt ? ' · ready since ' + new Date(a.readyAt).toLocaleString() : '') + '</p>';
+  } catch (e) {
+    el.innerHTML = '<p class="msg error">' + esc(e.message || 'Commercial agreement unavailable') + '</p>';
+  }
+}
+
 // Read-only package/quote terms from the campaign's commercial state.
 // Amounts are explicitly labeled quoted terms; no invoice/tax math is
 // presented to the company in the product.
@@ -1504,9 +1587,21 @@ async function loadCommercial() {
   const el = document.getElementById('commercial-content');
   try {
     const c = await api('/company/campaigns/' + currentCampaignId + '/commercial');
+    const scopeModeText = c.campaignScopeMode === 'INHERITED_COMPANY_AGREEMENT'
+      ? 'No campaign-specific commercial scope is configured; this campaign inherits the company agreement package/fulfillment.'
+      : c.campaignScopeMode === 'CAMPAIGN_SCOPE_LINKED_TO_AGREEMENT'
+        ? 'This campaign has its own commercial scope, configured under the company agreement.'
+        : c.campaignScopeMode === 'CAMPAIGN_SCOPE'
+          ? 'This campaign has its own commercial scope without a current company-agreement link.'
+          : 'No company agreement or campaign-specific commercial scope is configured; the ESSENTIAL default is not an agreed contract.';
     el.innerHTML =
+      '<div style="border-left:4px solid ' + (c.companyAgreement.agreementStatus === 'READY' ? '#1e7a3d' : '#c9932d') + ';background:#fffdf8;border:1px solid #f1e6dc;border-radius:12px;padding:10px 12px;margin-bottom:10px;color:var(--ink);">' +
+      '<div class="row" style="justify-content:space-between;"><strong style="font-size:0.85rem;">Company agreement</strong>' + companyAgreementPill(c.companyAgreement.agreementStatus) + '</div>' +
+      '<p style="font-size:0.8rem;color:var(--muted);margin:6px 0 0;">Governing package: ' + esc(c.companyAgreement.packageLabel) + ' · fulfillment: ' + esc(c.companyAgreement.fulfillmentLabel) + (c.companyAgreement.contractReference ? ' · reference: ' + esc(c.companyAgreement.contractReference) : '') + '.</p>' +
+      '<p style="font-size:0.8rem;color:var(--ink);margin:6px 0 0;"><strong>Campaign scope:</strong> ' + esc(scopeModeText) + '</p>' +
+      '</div>' +
       '<div class="metrics-row" style="margin-bottom:6px;">' +
-      metric(c.packageLabel, 'Package') +
+      metric(c.packageLabel, 'Campaign package') +
       metric(c.contractedParticipants ?? '—', 'Contracted participants') +
       metric(c.calculation.completedEligibleParticipants, 'Completed eligible') +
       '</div>' +

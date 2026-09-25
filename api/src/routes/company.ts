@@ -16,7 +16,7 @@ import {
   classifySample,
 } from "../lib/measurement";
 import { buildReport } from "../lib/report";
-import { STUDY_TEMPLATES, findTemplate } from "../lib/studyTemplates";
+import { findTemplate, isStudyTypeEligible, eligibleStudyTemplates } from "../lib/studyTemplates";
 import QRCode from "qrcode";
 import {
   MEDIA_LIMITS,
@@ -51,8 +51,17 @@ async function auditEmployeeAction(req: Request, action: string, targetType: str
 // --- Study Templates (FOUNDER-APPROVED STRATEGIC DIFFERENTIATION — see
 // governance/FOUNDER_DECISION_STRATEGIC_DIFFERENTIATION.md; NOT
 // Benchmark-required). Read-only catalog; no company/campaign data. -----
-router.get("/study-templates", async (_req, res) => {
-  res.json(STUDY_TEMPLATES.map((t) => ({ key: t.key, label: t.label, decision: t.decision, questionCount: t.questions.length })));
+// Founder Decision A (2026-09-25): the Company-facing catalog is
+// contextual — generic templates are universal, sector-specific
+// Post-Trial variants appear only for the matching Industry. The helper
+// in studyTemplates.ts is the single rule; Ops surfaces keep the full
+// catalog.
+router.get("/study-templates", async (req, res) => {
+  const { companyId } = asEmployee(req);
+  const company = await prisma.company.findUnique({ where: { id: companyId }, select: { industry: true } });
+  res.json(
+    eligibleStudyTemplates(company?.industry).map((t) => ({ key: t.key, label: t.label, decision: t.decision, questionCount: t.questions.length })),
+  );
 });
 
 // Company isolation (Benchmark §10): every campaign/product lookup below is
@@ -66,6 +75,15 @@ async function loadOwnedCampaign(req: Request, res: Response) {
     return null;
   }
   return campaign;
+}
+
+// Founder Decision A (2026-09-25): sector-specific study types are
+// Industry-dependent. Enforced server-side on every write path (create,
+// PATCH, change-request, apply-template) so a direct API call cannot
+// bypass the filtered catalog — see studyTemplates.ts for the rule.
+async function companyIndustry(companyId: string): Promise<string | null> {
+  const c = await prisma.company.findUnique({ where: { id: companyId }, select: { industry: true } });
+  return c?.industry ?? null;
 }
 
 // --- Company Profile ---------------------------------------------------
@@ -186,12 +204,29 @@ router.patch("/profile", requireCompanyAdmin, async (req, res) => {
 // changes from the company's own employee actions.
 router.get("/audit-events", async (req, res) => {
   const { companyId } = asEmployee(req);
-  const employeeIds = (await prisma.employee.findMany({ where: { companyId }, select: { id: true } })).map((e) => e.id);
+  // Resolve every target id belonging to this company so admin changes to
+  // campaign-scoped resources (products, questions, media, QR sources,
+  // campaigns) are identifiable alongside company/employee events.
+  const [employeeIds, productIds, campaignIds] = await Promise.all([
+    prisma.employee.findMany({ where: { companyId }, select: { id: true } }).then((r) => r.map((e) => e.id)),
+    prisma.product.findMany({ where: { companyId }, select: { id: true } }).then((r) => r.map((p) => p.id)),
+    prisma.campaign.findMany({ where: { companyId }, select: { id: true } }).then((r) => r.map((c) => c.id)),
+  ]);
+  const [questionIds, mediaIds, qrIds] = await Promise.all([
+    prisma.question.findMany({ where: { campaignId: { in: campaignIds } }, select: { id: true } }).then((r) => r.map((q) => q.id)),
+    prisma.campaignMedia.findMany({ where: { campaignId: { in: campaignIds } }, select: { id: true } }).then((r) => r.map((m) => m.id)),
+    prisma.qrSource.findMany({ where: { campaignId: { in: campaignIds } }, select: { id: true } }).then((r) => r.map((q) => q.id)),
+  ]);
   const events = await prisma.accessAuditEvent.findMany({
     where: {
       OR: [
         { targetType: "company", targetId: companyId },
         { targetType: "employee", targetId: { in: employeeIds } },
+        { targetType: "product", targetId: { in: productIds } },
+        { targetType: "campaign", targetId: { in: campaignIds } },
+        { targetType: "question", targetId: { in: questionIds } },
+        { targetType: "campaign-media", targetId: { in: mediaIds } },
+        { targetType: "qr-source", targetId: { in: qrIds } },
       ],
     },
     select: { id: true, actorKind: true, actorName: true, action: true, detail: true, targetType: true, createdAt: true },
@@ -365,6 +400,10 @@ router.post("/campaigns", requireCompanyAdmin, async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
   const d = parsed.data;
 
+  if (d.studyType && !isStudyTypeEligible(d.studyType, await companyIndustry(companyId))) {
+    return res.status(400).json({ error: "That study type is not available for your company's industry" });
+  }
+
   // Product → Company ownership (Benchmark §10 company isolation): a
   // campaign may only reference a Product owned by the same Company.
   // Same response for unknown and cross-company ids — matching
@@ -479,6 +518,9 @@ router.patch("/campaigns/:id", requireCompanyAdmin, async (req, res) => {
   if (d.studyType !== undefined) {
     const requestedStudyType = d.studyType === "" ? null : d.studyType;
     if (requestedStudyType !== campaign.studyType) {
+      if (requestedStudyType && !isStudyTypeEligible(requestedStudyType, await companyIndustry(companyId))) {
+        return res.status(400).json({ error: "That study type is not available for your company's industry" });
+      }
       if (!(await assertStudyTypeChangeAllowed(campaign.id, res))) return;
     }
   }
@@ -582,6 +624,10 @@ router.post("/campaigns/:id/study-type-requests", requireCompanyAdmin, async (re
     return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid input" });
   }
   const requestedStudyType = parsed.data.requestedStudyType === "" ? null : parsed.data.requestedStudyType;
+
+  if (requestedStudyType && !isStudyTypeEligible(requestedStudyType, await companyIndustry(campaign.companyId))) {
+    return res.status(400).json({ error: "That study type is not available for your company's industry" });
+  }
 
   if (requestedStudyType === campaign.studyType) {
     return res.status(400).json({ error: "Requested study type is the same as the campaign's current study type" });
@@ -787,6 +833,9 @@ router.post("/campaigns/:id/questions/apply-template", requireCompanyAdmin, asyn
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
   const template = findTemplate(parsed.data.templateKey);
   if (!template) return res.status(404).json({ error: "Unknown study type" });
+  if (!isStudyTypeEligible(template.key, await companyIndustry(campaign.companyId))) {
+    return res.status(400).json({ error: "That study type is not available for your company's industry" });
+  }
 
   const existing = await prisma.question.findMany({
     where: { campaignId: campaign.id },

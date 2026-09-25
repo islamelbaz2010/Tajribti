@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireOps, requirePlatformAdmin, requireOpsManager, asOps } from "../middleware/auth";
-import { resolveMediaUrls } from "../lib/media";
+import { resolveMediaUrls, isHostedMediaConfigured, deleteObject, MEDIA_LIMITS } from "../lib/media";
 import { checkReadiness } from "../lib/readiness";
 import { isValidIndustry, isValidSubIndustry } from "../lib/industries";
 import { buildIntelligence } from "../lib/intelligence";
@@ -135,7 +135,7 @@ router.get("/companies/:id", async (req, res) => {
         select: { id: true, name: true, email: true, role: true, revokedAt: true, createdAt: true },
         orderBy: { createdAt: "asc" },
       },
-      products: { select: { id: true, name: true, createdAt: true }, orderBy: { createdAt: "asc" } },
+      products: { select: { id: true, name: true, description: true, createdAt: true }, orderBy: { createdAt: "asc" } },
       campaigns: {
         select: { id: true, name: true, status: true, studyType: true, startDate: true, endDate: true },
         orderBy: { createdAt: "desc" },
@@ -242,6 +242,238 @@ router.post("/companies/:id/employees/:eid/revoke", requirePlatformAdmin, async 
     detail: `Revoked company employee "${target.name}" <${target.email}> (company ${req.params.id})`,
   });
   res.json({ id: target.id, revoked: true });
+});
+
+// ---------------------------------------------------------------------------
+// FOUNDER DECISION B (2026-09-25): PLATFORM_ADMIN = global platform
+// authority — direct, audited management of Company-owned resources.
+// These routes mirror the company-side schemas and guards exactly (same
+// zod shapes, same DRAFT/READY configurability lock, same ownership
+// scoping, same media limits) — PLATFORM_ADMIN does not bypass business
+// rules, only the request/approval round-trip. Every mutation writes an
+// AccessAuditEvent with detail, and question mutations also write the
+// same QuestionAuditEvent the company flow produces, so the Company's
+// Account Activity feed and question-audit surface both retain
+// traceability. Company request/approval flows are untouched.
+// ---------------------------------------------------------------------------
+
+const opsProductSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  imageUrl: z.string().optional(),
+  priceRange: z.string().optional(),
+  packSize: z.string().optional(),
+  claims: z.array(z.string().min(1)).optional(),
+});
+
+router.post("/companies/:id/products", requirePlatformAdmin, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const company = await prisma.company.findUnique({ where: { id: req.params.id }, select: { id: true } });
+  if (!company) return res.status(404).json({ error: "Company not found" });
+  const parsed = opsProductSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  const { claims, ...rest } = parsed.data;
+  const product = await prisma.product.create({ data: { companyId: company.id, ...rest, claims: claims ? JSON.stringify(claims) : null } });
+  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+  await writeAccessAudit({
+    actorKind: "ops", actorId: opsUserId, actorName: actor?.name ?? "unknown",
+    action: "PRODUCT_CREATE", targetType: "product", targetId: product.id,
+    detail: `Created product "${product.name}" for company ${company.id}`,
+  });
+  res.status(201).json(product);
+});
+
+router.patch("/companies/:id/products/:pid", requirePlatformAdmin, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const parsed = opsProductSchema.partial().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  const existing = await prisma.product.findUnique({ where: { id: req.params.pid }, select: { companyId: true, name: true } });
+  if (!existing || existing.companyId !== req.params.id) return res.status(404).json({ error: "Product not found" });
+  const { claims, ...rest } = parsed.data;
+  const product = await prisma.product.update({
+    where: { id: req.params.pid },
+    data: { ...rest, claims: claims ? JSON.stringify(claims) : undefined },
+  });
+  const changes = Object.keys(rest).map((k) => `${k} updated`).concat(claims !== undefined ? ["claims updated"] : []);
+  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+  await writeAccessAudit({
+    actorKind: "ops", actorId: opsUserId, actorName: actor?.name ?? "unknown",
+    action: "PRODUCT_UPDATED", targetType: "product", targetId: product.id,
+    detail: `Product "${product.name}" (${existing.name} → ${product.name}): ${changes.join(", ") || "no changes"}`,
+  });
+  res.json(product);
+});
+
+// Shared DRAFT/READY configurability lock — identical rule to company.ts's
+// assertConfigurable; Platform Admin direct edits respect the same
+// campaign lifecycle boundary.
+function opsAssertConfigurable(campaign: { status: string }, res: Response): boolean {
+  if (campaign.status !== "DRAFT" && campaign.status !== "READY") {
+    res.status(409).json({ error: "Campaign configuration is locked once launched" });
+    return false;
+  }
+  return true;
+}
+
+const opsQuestionSchema = z
+  .object({
+    stage: z.enum(["ELIGIBILITY", "POST_TRIAL"]),
+    type: z.enum(["SINGLE_CHOICE", "MULTI_CHOICE", "TEXT", "RATING_1_5", "PURCHASE_INTENT_1_5"]),
+    text: z.string().min(1),
+    options: z.array(z.object({ id: z.string(), label: z.string() })).optional(),
+    order: z.number().int().default(0),
+    required: z.boolean().default(true),
+  })
+  .superRefine((d, ctx) => {
+    if (d.type === "SINGLE_CHOICE" || d.type === "MULTI_CHOICE") {
+      const labeled = (d.options ?? []).filter((o) => o.label.trim().length > 0);
+      if (labeled.length < 2) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["options"], message: "Single/multiple choice questions need at least 2 answer options." });
+      }
+    }
+  });
+
+async function auditOpsQuestionChange(
+  opsUserId: string,
+  campaign: { id: string; status: string },
+  action: "CREATE" | "EDIT" | "DELETE",
+  prev: { id: string; stage: string; type: string; text: string; options: string | null; order: number; required: boolean } | null,
+  next: { id: string; stage: string; type: string; text: string; options: string | null; order: number; required: boolean } | null,
+) {
+  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+  await prisma.questionAuditEvent.create({
+    data: {
+      campaignId: campaign.id,
+      questionId: (next ?? prev)?.id ?? null,
+      action,
+      prevValue: prev ? JSON.stringify(prev) : null,
+      newValue: next ? JSON.stringify(next) : null,
+      actorKind: "ops",
+      actorId: opsUserId,
+      actorName: actor?.name ?? "unknown",
+      lifecycleState: campaign.status,
+    },
+  });
+}
+
+router.post("/campaigns/:id/questions", requirePlatformAdmin, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const campaign = await loadCampaignOrNotFound(req, res);
+  if (!campaign) return;
+  if (!opsAssertConfigurable(campaign, res)) return;
+  const parsed = opsQuestionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    const message = parsed.error.issues[0]?.message || "Invalid input";
+    return res.status(400).json({ error: message, details: parsed.error.flatten() });
+  }
+  const d = parsed.data;
+  const question = await prisma.question.create({
+    data: { campaignId: campaign.id, stage: d.stage, type: d.type, text: d.text, options: d.options ? JSON.stringify(d.options) : null, order: d.order, required: d.required },
+  });
+  await auditOpsQuestionChange(opsUserId, campaign, "CREATE", null, question);
+  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+  await writeAccessAudit({
+    actorKind: "ops", actorId: opsUserId, actorName: actor?.name ?? "unknown",
+    action: "QUESTION_CREATE", targetType: "campaign", targetId: campaign.id,
+    detail: `Added ${d.stage} question "${d.text}" to campaign ${campaign.id}`,
+  });
+  res.status(201).json(question);
+});
+
+router.delete("/campaigns/:id/questions/:qid", requirePlatformAdmin, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const campaign = await loadCampaignOrNotFound(req, res);
+  if (!campaign) return;
+  if (!opsAssertConfigurable(campaign, res)) return;
+  const existing = await prisma.question.findFirst({ where: { id: req.params.qid, campaignId: campaign.id } });
+  if (!existing) return res.status(404).json({ error: "Question not found" });
+  const result = await prisma.question.deleteMany({ where: { id: req.params.qid, campaignId: campaign.id } });
+  if (result.count === 0) return res.status(404).json({ error: "Question not found" });
+  await auditOpsQuestionChange(opsUserId, campaign, "DELETE", existing, null);
+  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+  await writeAccessAudit({
+    actorKind: "ops", actorId: opsUserId, actorName: actor?.name ?? "unknown",
+    action: "QUESTION_DELETE", targetType: "campaign", targetId: campaign.id,
+    detail: `Deleted question "${existing.text}" from campaign ${campaign.id}`,
+  });
+  res.status(204).end();
+});
+
+const opsQrSchema = z.object({
+  label: z.string().min(1),
+  code: z.string().min(3),
+  activeFrom: z.string(),
+  activeTo: z.string(),
+});
+
+router.post("/campaigns/:id/qr-sources", requirePlatformAdmin, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const campaign = await loadCampaignOrNotFound(req, res);
+  if (!campaign) return;
+  if (!opsAssertConfigurable(campaign, res)) return;
+  const parsed = opsQrSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  const d = parsed.data;
+  try {
+    const source = await prisma.qrSource.create({
+      data: { campaignId: campaign.id, label: d.label, code: d.code, activeFrom: new Date(d.activeFrom), activeTo: new Date(d.activeTo) },
+    });
+    const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+    await writeAccessAudit({
+      actorKind: "ops", actorId: opsUserId, actorName: actor?.name ?? "unknown",
+      action: "QR_SOURCE_CREATE", targetType: "campaign", targetId: campaign.id,
+      detail: `Added QR/source "${d.label}" (${d.code}) to campaign ${campaign.id}`,
+    });
+    res.status(201).json(source);
+  } catch {
+    res.status(409).json({ error: "QR/source code already in use" });
+  }
+});
+
+const opsMediaSchema = z.object({
+  kind: z.enum(["PRODUCT_IMAGE", "PACKAGING_IMAGE", "CAMPAIGN_MEDIA", "CREATIVE"]),
+  url: z.string().url(),
+  caption: z.string().optional(),
+});
+
+router.post("/campaigns/:id/media", requirePlatformAdmin, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const campaign = await loadCampaignOrNotFound(req, res);
+  if (!campaign) return;
+  if (!opsAssertConfigurable(campaign, res)) return;
+  const parsed = opsMediaSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  const count = await prisma.campaignMedia.count({ where: { campaignId: campaign.id } });
+  if (count >= MEDIA_LIMITS.maxPerCampaign) return res.status(400).json({ error: "Media limit reached (20 per campaign)" });
+  const mediaType = /\.(mp4|webm)(\?|#|$)/i.test(parsed.data.url) ? "VIDEO" : "IMAGE";
+  const media = await prisma.campaignMedia.create({ data: { campaignId: campaign.id, ...parsed.data, mediaType } });
+  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+  await writeAccessAudit({
+    actorKind: "ops", actorId: opsUserId, actorName: actor?.name ?? "unknown",
+    action: "CAMPAIGN_MEDIA_ADD", targetType: "campaign", targetId: campaign.id,
+    detail: `Added ${parsed.data.kind} media to campaign ${campaign.id}`,
+  });
+  res.status(201).json(media);
+});
+
+router.delete("/campaigns/:id/media/:mid", requirePlatformAdmin, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const campaign = await loadCampaignOrNotFound(req, res);
+  if (!campaign) return;
+  if (!opsAssertConfigurable(campaign, res)) return;
+  const media = await prisma.campaignMedia.findFirst({ where: { id: req.params.mid, campaignId: campaign.id } });
+  if (!media) return res.status(404).json({ error: "Media not found" });
+  if (media.source === "HOSTED" && media.storageKey && isHostedMediaConfigured()) {
+    await deleteObject(media.storageKey).catch(() => undefined);
+  }
+  await prisma.campaignMedia.delete({ where: { id: media.id } });
+  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+  await writeAccessAudit({
+    actorKind: "ops", actorId: opsUserId, actorName: actor?.name ?? "unknown",
+    action: "CAMPAIGN_MEDIA_DELETE", targetType: "campaign", targetId: campaign.id,
+    detail: `Removed ${media.kind} media from campaign ${campaign.id}`,
+  });
+  res.status(204).end();
 });
 
 // --- Campaign Pipeline (Benchmark §4 OPERATIONS "Campaign Pipeline") -------

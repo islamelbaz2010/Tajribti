@@ -102,7 +102,10 @@ const eligAnswer = () => ({ answers: [{ questionId: qElig1Id, valueOptions: ["ye
 before(async () => {
   ({ api, stop: stopServer } = await startApi());
 
-  const companyA = await prisma.company.create({ data: { name: "Company A" } });
+  // Founder Decision A (2026-09-25): industry is a controlled taxonomy
+  // value; Company A is Food & Beverage so its company-facing study-type
+  // catalog is 11 generics + the F&B Post-Trial variant.
+  const companyA = await prisma.company.create({ data: { name: "Company A", industry: "Food & Beverage", subIndustry: "Beverages" } });
   const companyB = await prisma.company.create({ data: { name: "Company B" } });
   companyAId = companyA.id;
   companyBId = companyB.id;
@@ -678,16 +681,21 @@ describe("regression", () => {
   // BRAND_PERCEPTION, UA_EXPANSION, SEGMENTATION_STUDY) on top of the 6
   // this assertion originally pinned. The check still pins the catalog —
   // now to the full approved set, so any further drift still fails.
+  // Updated 2026-09-25 (Founder Decision A): the Company-facing catalog
+  // is industry-contextual — generic types universal, sector-specific
+  // Post-Trial variants Industry-dependent. Company A is Food & Beverage,
+  // so it sees its own Post-Trial variant plus every generic template
+  // (12); the other two sector variants are correctly absent. The full
+  // 14-key catalog remains pinned via the ops catalog and the
+  // eligibility suite.
   it("R7: study-template catalog and direct studyType assignment are unchanged", async () => {
     const templates = await api("/api/company/study-templates", { token: employeeAToken });
     assert.equal(templates.status, 200);
-    assert.equal(templates.body.length, 14);
+    assert.equal(templates.body.length, 12);
     assert.deepEqual(
       templates.body.map((t: { key: string }) => t.key),
       [
         "POST_TRIAL_FOOD_BEVERAGE",
-        "POST_TRIAL_BEAUTY_PERSONAL_CARE",
-        "POST_TRIAL_HOME_CARE",
         "CONCEPT_LAUNCH_VIABILITY",
         "PACKAGING_CLAIMS_REACTION",
         "USAGE_ATTITUDE",

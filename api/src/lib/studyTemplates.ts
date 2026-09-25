@@ -253,3 +253,45 @@ export const STUDY_TEMPLATES: StudyTemplate[] = [
 export function findTemplate(key: string): StudyTemplate | undefined {
   return STUDY_TEMPLATES.find((t) => t.key === key);
 }
+
+// ---------------------------------------------------------------------------
+// FOUNDER DECISION A (2026-09-25): Industry → Study-Type eligibility.
+// Option A — generic studies are universal; only genuinely sector-specific
+// templates are Industry-dependent. Today that set is exactly the three
+// Post-Trial variants, each bound to the Industry it was authored for.
+// Every other template key is universal.
+//
+// No additional sector mappings exist — do not add any without an explicit
+// authoritative source (see consolidated reconciliation 2026-09-25 §9).
+//
+// Matching is exact against the canonical industry string
+// (src/lib/industries.ts). A Company with a null or legacy
+// (non-taxonomy) industry therefore receives NO sector-specific variant —
+// the safest backward-compatible behavior the decision prescribes — while
+// keeping every generic template. Existing campaigns keep whatever
+// studyType they already carry; eligibility governs NEW selections only.
+//
+// This helper is the single enforcement point: the company catalog
+// endpoint, campaign create/PATCH, study-type change requests and
+// apply-template all consult it. Operations/Platform Admin keep the full
+// catalog — this rule scopes Company-facing selection only.
+// ---------------------------------------------------------------------------
+const SECTOR_TEMPLATE_INDUSTRY: Record<string, string> = {
+  POST_TRIAL_FOOD_BEVERAGE: "Food & Beverage",
+  POST_TRIAL_BEAUTY_PERSONAL_CARE: "Beauty & Personal Care",
+  POST_TRIAL_HOME_CARE: "Home & Household Care",
+};
+
+export function isStudyTypeSectorSpecific(key: string): boolean {
+  return key in SECTOR_TEMPLATE_INDUSTRY;
+}
+
+export function isStudyTypeEligible(key: string, companyIndustry: string | null | undefined): boolean {
+  const industry = SECTOR_TEMPLATE_INDUSTRY[key];
+  if (!industry) return true; // generic/universal
+  return companyIndustry === industry;
+}
+
+export function eligibleStudyTemplates(companyIndustry: string | null | undefined): StudyTemplate[] {
+  return STUDY_TEMPLATES.filter((t) => isStudyTypeEligible(t.key, companyIndustry));
+}

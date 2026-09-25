@@ -171,3 +171,97 @@ describe("GET /company/audit-events — company-visible traceability", () => {
     assert.equal((await api("/api/company/audit-events", { token: tokOpsAdmin })).status, 403);
   });
 });
+
+// Founder Decision B (2026-09-25): PLATFORM_ADMIN direct management of
+// company-owned resources — products, campaign questions, QR sources and
+// media — mirroring the company-side schemas and lifecycle lock, audited
+// with detail, company-visible via the Account Activity feed.
+describe("PLATFORM_ADMIN direct resource management", () => {
+  let paCampaign: string;
+  let paProduct: string;
+
+  it("can create and update a company product", async () => {
+    const r = await api(`/api/ops/companies/${companyA}/products`, {
+      method: "POST", token: tokOpsAdmin, body: { name: "Admin-made Product", description: "d" },
+    });
+    assert.equal(r.status, 201);
+    paProduct = r.body.id;
+    const u = await api(`/api/ops/companies/${companyA}/products/${paProduct}`, {
+      method: "PATCH", token: tokOpsAdmin, body: { name: "Admin-made Product v2" },
+    });
+    assert.equal(u.status, 200);
+    assert.equal(u.body.name, "Admin-made Product v2");
+    const audit = await prisma.accessAuditEvent.findFirst({ where: { action: "PRODUCT_UPDATED", targetId: paProduct } });
+    assert.ok(audit?.detail);
+  });
+  it("product mutations are PA-only and company-scoped", async () => {
+    assert.equal((await api(`/api/ops/companies/${companyA}/products`, { method: "POST", token: tokOpsManager, body: { name: "x" } })).status, 403);
+    assert.equal((await api(`/api/ops/companies/${companyA}/products`, { method: "POST", token: tokOpsUser, body: { name: "x" } })).status, 403);
+    assert.equal((await api(`/api/ops/companies/${companyA}/products`, { method: "POST", token: tokAdminA, body: { name: "x" } })).status, 403);
+    assert.equal((await api(`/api/ops/companies/${companyB}/products/${paProduct}`, { method: "PATCH", token: tokOpsAdmin, body: { name: "x" } })).status, 404);
+  });
+
+  it("can add and delete campaign questions, audited as ops", async () => {
+    paCampaign = (await prisma.campaign.create({
+      data: { companyId: companyA, name: "PA Q Campaign", objective: "o", startDate: new Date(), endDate: new Date(), status: "DRAFT" },
+    })).id;
+    const r = await api(`/api/ops/campaigns/${paCampaign}/questions`, {
+      method: "POST", token: tokOpsAdmin,
+      body: { stage: "POST_TRIAL", type: "SINGLE_CHOICE", text: "PA question?", options: [{ id: "a", label: "Yes" }, { id: "b", label: "No" }] },
+    });
+    assert.equal(r.status, 201);
+    const qAudit = await prisma.questionAuditEvent.findFirst({ where: { questionId: r.body.id, action: "CREATE" } });
+    assert.equal(qAudit?.actorKind, "ops");
+    const del = await api(`/api/ops/campaigns/${paCampaign}/questions/${r.body.id}`, { method: "DELETE", token: tokOpsAdmin });
+    assert.equal(del.status, 204);
+    const dAudit = await prisma.questionAuditEvent.findFirst({ where: { questionId: r.body.id, action: "DELETE" } });
+    assert.equal(dAudit?.actorKind, "ops");
+  });
+  it("question routes reject non-PA roles and locked campaigns", async () => {
+    const locked = await prisma.campaign.create({
+      data: { companyId: companyA, name: "Locked", objective: "o", startDate: new Date(), endDate: new Date(), status: "ACTIVE" },
+    });
+    assert.equal((await api(`/api/ops/campaigns/${locked.id}/questions`, { method: "POST", token: tokOpsAdmin, body: { stage: "POST_TRIAL", type: "TEXT", text: "x" } })).status, 409);
+    assert.equal((await api(`/api/ops/campaigns/${paCampaign}/questions`, { method: "POST", token: tokOpsManager, body: { stage: "POST_TRIAL", type: "TEXT", text: "x" } })).status, 403);
+    assert.equal((await api(`/api/ops/campaigns/${paCampaign}/questions`, { method: "POST", token: tokAdminA, body: { stage: "POST_TRIAL", type: "TEXT", text: "x" } })).status, 403);
+    // choice validation mirrors company rules
+    assert.equal((await api(`/api/ops/campaigns/${paCampaign}/questions`, { method: "POST", token: tokOpsAdmin, body: { stage: "POST_TRIAL", type: "SINGLE_CHOICE", text: "x" } })).status, 400);
+  });
+
+  it("can add QR sources with duplicate-code protection", async () => {
+    const r = await api(`/api/ops/campaigns/${paCampaign}/qr-sources`, {
+      method: "POST", token: tokOpsAdmin,
+      body: { label: "Admin QR", code: "PA-QR-1", activeFrom: "2026-01-01", activeTo: "2026-02-01" },
+    });
+    assert.equal(r.status, 201);
+    assert.equal((await api(`/api/ops/campaigns/${paCampaign}/qr-sources`, {
+      method: "POST", token: tokOpsAdmin,
+      body: { label: "dup", code: "PA-QR-1", activeFrom: "2026-01-01", activeTo: "2026-02-01" },
+    })).status, 409);
+    assert.equal((await api(`/api/ops/campaigns/${paCampaign}/qr-sources`, {
+      method: "POST", token: tokOpsUser, body: { label: "x", code: "yyy", activeFrom: "2026-01-01", activeTo: "2026-02-01" },
+    })).status, 403);
+  });
+
+  it("can add and remove URL media", async () => {
+    const r = await api(`/api/ops/campaigns/${paCampaign}/media`, {
+      method: "POST", token: tokOpsAdmin, body: { kind: "PRODUCT_IMAGE", url: "https://example.com/p.png", caption: "c" },
+    });
+    assert.equal(r.status, 201);
+    const del = await api(`/api/ops/campaigns/${paCampaign}/media/${r.body.id}`, { method: "DELETE", token: tokOpsAdmin });
+    assert.equal(del.status, 204);
+    assert.equal((await api(`/api/ops/campaigns/${paCampaign}/media`, { method: "POST", token: tokOpsManager, body: { kind: "CREATIVE", url: "https://example.com/x.png" } })).status, 403);
+  });
+
+  it("company Account Activity shows all admin resource changes for its own company only", async () => {
+    const r = await api("/api/company/audit-events", { token: tokAdminA });
+    assert.equal(r.status, 200);
+    const actions = r.body.map((e: any) => e.action);
+    for (const a of ["PRODUCT_CREATE", "PRODUCT_UPDATED", "QUESTION_CREATE", "QUESTION_DELETE", "QR_SOURCE_CREATE", "CAMPAIGN_MEDIA_ADD", "CAMPAIGN_MEDIA_DELETE"]) {
+      assert.ok(actions.includes(a), a);
+    }
+    assert.ok(r.body.every((e: any) => e.actorKind === "ops" || e.actorKind === "employee"));
+    const rB = await api("/api/company/audit-events", { token: tokAdminB });
+    assert.ok(rB.body.every((e: any) => !String(e.detail ?? "").includes("Admin-made")));
+  });
+});

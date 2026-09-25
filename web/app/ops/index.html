@@ -682,9 +682,48 @@ async function showCompanyDetail(id) {
       (isAdmin ? '<td>' + (e.revokedAt ? '' : '<button class="small secondary emp-revoke" data-eid="' + esc(e.id) + '">Revoke access</button>') + '</td>' : '') +
       '</tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No employees.</p>';
-  document.getElementById('cd-products').innerHTML = detail.products.length ?
-    detail.products.map(p => '<div>' + esc(p.name) + '</div>').join('')
-    : '<p style="color:var(--muted)">No products.</p>';
+  document.getElementById('cd-products').innerHTML =
+    (detail.products.length ?
+      '<table><tr><th>Name</th><th>Description</th>' + (isAdmin ? '<th></th>' : '') + '</tr>' +
+      detail.products.map(p => '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.description || '—') + '</td>' +
+        (isAdmin ? '<td><button class="small secondary prod-edit" data-pid="' + esc(p.id) + '" data-name="' + esc(p.name) + '" data-desc="' + esc(p.description || '') + '">Edit</button></td>' : '') +
+        '</tr>').join('') + '</table>'
+      : '<p style="color:var(--muted)">No products.</p>') +
+    // Founder Decision B (2026-09-25): PLATFORM_ADMIN manages company
+    // products directly — audited; OPERATIONS_MANAGER views only.
+    (isAdmin ? '<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px;">' +
+      '<input id="cd-prod-name" placeholder="Product name" style="margin:0;" />' +
+      '<input id="cd-prod-desc" placeholder="Description (optional)" style="margin:0;flex:1;min-width:160px;" />' +
+      '<button class="small" id="btn-cd-prod-add">Add product</button></div>' +
+      '<span class="msg" id="cd-prod-msg"></span>' : '');
+  if (isAdmin) {
+    document.getElementById('btn-cd-prod-add').onclick = async () => {
+      const msg = document.getElementById('cd-prod-msg');
+      msg.textContent = '';
+      try {
+        await api('/ops/companies/' + encodeURIComponent(detail.id) + '/products', {
+          method: 'POST',
+          body: { name: document.getElementById('cd-prod-name').value, description: document.getElementById('cd-prod-desc').value || undefined },
+        });
+        showCompanyDetail(detail.id);
+        loadCompanies();
+      } catch (e) { msg.textContent = e.message || 'Save failed'; }
+    };
+    document.querySelectorAll('.prod-edit').forEach(btn => {
+      btn.onclick = async () => {
+        const name = prompt('Product name', btn.dataset.name);
+        if (name == null) return;
+        const description = prompt('Description', btn.dataset.desc);
+        try {
+          await api('/ops/companies/' + encodeURIComponent(detail.id) + '/products/' + encodeURIComponent(btn.dataset.pid), {
+            method: 'PATCH',
+            body: { name, description: description || undefined },
+          });
+          showCompanyDetail(detail.id);
+        } catch (e) { alert(e.message || 'Save failed'); }
+      };
+    });
+  }
   document.getElementById('btn-cd-campaigns').onclick = () => showCampaignsForCompany(detail.id, detail.name);
   document.getElementById('btn-cd-close').onclick = () => {
     document.getElementById('company-detail').classList.add('hidden');
@@ -1096,6 +1135,7 @@ async function loadOpsOverview(id) {
 function loadConfig() {
   const c = currentCampaign;
   if (!c) return;
+  const canManageMedia = currentOpsRole === 'PLATFORM_ADMIN' && (c.status === 'DRAFT' || c.status === 'READY');
   const audienceParts = [];
   if (c.audienceAgeMin != null || c.audienceAgeMax != null) {
     audienceParts.push('Age ' + (c.audienceAgeMin ?? '—') + '–' + (c.audienceAgeMax ?? '—'));
@@ -1114,8 +1154,41 @@ function loadConfig() {
     // review what consumers see; no new endpoint or edit action.
     '<p><strong>Campaign media</strong><br/>' +
     ((c.media && c.media.length)
-      ? c.media.map(m => esc(m.kind) + ' — ' + (m.url ? '<a href="' + esc(m.url) + '" target="_blank" rel="noopener">view</a>' : esc(m.status || 'PENDING')) + (m.caption ? ' (' + esc(m.caption) + ')' : '')).join('<br/>')
-      : 'None configured') + '</p>';
+      ? c.media.map(m => esc(m.kind) + ' — ' + (m.url ? '<a href="' + esc(m.url) + '" target="_blank" rel="noopener">view</a>' : esc(m.status || 'PENDING')) + (m.caption ? ' (' + esc(m.caption) + ')' : '') +
+        (canManageMedia ? ' <button class="small secondary media-del" data-mid="' + esc(m.id) + '">Remove</button>' : '')).join('<br/>')
+      : 'None configured') + '</p>' +
+    // Founder Decision B (2026-09-25): PLATFORM_ADMIN may add URL media
+    // and remove media directly (audited); other ops roles read-only.
+    (canManageMedia ? '<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:4px;">' +
+      '<select id="cm-kind" style="margin:0;width:auto;"><option value="PRODUCT_IMAGE">Product image</option><option value="PACKAGING_IMAGE">Packaging image</option><option value="CAMPAIGN_MEDIA">Campaign media</option><option value="CREATIVE">Creative</option></select>' +
+      '<input id="cm-url" placeholder="Media URL (https://…)" style="margin:0;flex:1;min-width:200px;" />' +
+      '<input id="cm-caption" placeholder="Caption (optional)" style="margin:0;" />' +
+      '<button class="small" id="btn-cm-add">Add media</button></div>' +
+      '<span class="msg" id="cm-msg"></span>' : '');
+  if (canManageMedia) {
+    document.querySelectorAll('.media-del').forEach(btn => {
+      btn.onclick = async () => {
+        if (!confirm('Remove this media?')) return;
+        await api('/ops/campaigns/' + currentCampaignId + '/media/' + btn.dataset.mid, { method: 'DELETE' });
+        const fresh = await api('/ops/campaigns/' + currentCampaignId);
+        currentCampaign = fresh;
+        loadConfig();
+      };
+    });
+    document.getElementById('btn-cm-add').onclick = async () => {
+      const msg = document.getElementById('cm-msg');
+      msg.textContent = '';
+      try {
+        await api('/ops/campaigns/' + currentCampaignId + '/media', {
+          method: 'POST',
+          body: { kind: document.getElementById('cm-kind').value, url: document.getElementById('cm-url').value, caption: document.getElementById('cm-caption').value || undefined },
+        });
+        const fresh = await api('/ops/campaigns/' + currentCampaignId);
+        currentCampaign = fresh;
+        loadConfig();
+      } catch (e) { msg.textContent = e.message || 'Save failed'; }
+    };
+  }
 }
 
 async function loadReadiness() {
@@ -1140,11 +1213,37 @@ async function loadReadiness() {
 // endpoint or operational-control behavior.
 function loadQrOps() {
   const sources = (currentCampaign && currentCampaign.qrSources) || [];
-  document.getElementById('qr-ops-content').innerHTML = sources.length ?
+  const isAdmin = currentOpsRole === 'PLATFORM_ADMIN';
+  // Founder Decision B (2026-09-25): PLATFORM_ADMIN may add QR/source
+  // configuration directly (audited); read-only for other ops roles.
+  document.getElementById('qr-ops-content').innerHTML = (sources.length ?
     '<table><tr><th>Label</th><th>Code</th><th>Active window</th></tr>' +
     sources.map(s => '<tr><td>' + esc(s.label) + '</td><td>' + esc(s.code) + '</td><td>' +
       new Date(s.activeFrom).toLocaleDateString() + ' – ' + new Date(s.activeTo).toLocaleDateString() + '</td></tr>').join('') + '</table>'
-    : '<p style="color:var(--muted)">No QR/sources configured for this campaign.</p>';
+    : '<p style="color:var(--muted)">No QR/sources configured for this campaign.</p>') +
+    (isAdmin ? '<h4 style="font-size:0.85rem;margin:10px 0 4px;">Add QR/source (Platform Admin — audited)</h4>' +
+      '<div class="row" style="gap:8px;flex-wrap:wrap;">' +
+      '<input id="qrs-label" placeholder="Label" style="margin:0;" />' +
+      '<input id="qrs-code" placeholder="Code" style="margin:0;" />' +
+      '<input id="qrs-from" type="date" style="margin:0;" />' +
+      '<input id="qrs-to" type="date" style="margin:0;" />' +
+      '<button class="small" id="btn-qrs-add">Add source</button></div>' +
+      '<span class="msg" id="qrs-msg"></span>' : '');
+  if (isAdmin) {
+    document.getElementById('btn-qrs-add').onclick = async () => {
+      const msg = document.getElementById('qrs-msg');
+      msg.textContent = '';
+      try {
+        await api('/ops/campaigns/' + currentCampaignId + '/qr-sources', {
+          method: 'POST',
+          body: { label: document.getElementById('qrs-label').value, code: document.getElementById('qrs-code').value, activeFrom: document.getElementById('qrs-from').value, activeTo: document.getElementById('qrs-to').value },
+        });
+        const fresh = await api('/ops/campaigns/' + currentCampaignId);
+        currentCampaign = fresh;
+        loadQrOps();
+      } catch (e) { msg.textContent = e.message || 'Save failed'; }
+    };
+  }
 }
 
 let allParticipants = []; // PLATFORM_ADMIN fetch — filter bar renders subsets client-side
@@ -1228,11 +1327,54 @@ document.getElementById('btn-add-issue').onclick = async () => {
 
 async function loadSurveyOps() {
   const data = await api('/ops/campaigns/' + currentCampaignId + '/survey');
+  const isAdmin = currentOpsRole === 'PLATFORM_ADMIN';
+  const configurable = currentCampaign && (currentCampaign.status === 'DRAFT' || currentCampaign.status === 'READY');
+  const canEdit = isAdmin && configurable;
+  // Founder Decision B (2026-09-25): PLATFORM_ADMIN manages campaign
+  // questions directly (audited); all other ops roles keep read-only.
   document.getElementById('survey-content').innerHTML =
-    '<table><tr><th>Stage</th><th>Type</th><th>Text</th></tr>' +
-    data.questions.map(q => '<tr><td>' + q.stage + '</td><td>' + q.type + '</td><td>' + esc(q.text) + '</td></tr>').join('') + '</table>' +
+    '<table><tr><th>Stage</th><th>Type</th><th>Text</th>' + (canEdit ? '<th></th>' : '') + '</tr>' +
+    data.questions.map(q => '<tr><td>' + q.stage + '</td><td>' + q.type + '</td><td>' + esc(q.text) + '</td>' +
+      (canEdit ? '<td><button class="small secondary q-del" data-qid="' + esc(q.id) + '">Delete</button></td>' : '') + '</tr>').join('') + '</table>' +
+    (isAdmin ? '<div id="qa-form">' +
+      '<h4 style="font-size:0.85rem;margin:10px 0 4px;">Add question (Platform Admin — audited)</h4>' +
+      '<div class="row" style="gap:8px;flex-wrap:wrap;">' +
+      '<select id="qa-stage" style="margin:0;width:auto;"><option value="ELIGIBILITY">Eligibility</option><option value="POST_TRIAL" selected>Post-trial</option></select>' +
+      '<select id="qa-type" style="margin:0;width:auto;"><option value="TEXT">Text</option><option value="SINGLE_CHOICE">Single choice</option><option value="MULTI_CHOICE">Multiple choice</option><option value="RATING_1_5">Rating 1–5</option><option value="PURCHASE_INTENT_1_5">Purchase intent 1–5</option></select>' +
+      '</div>' +
+      '<input id="qa-text" placeholder="Question text" style="width:100%;margin-top:6px;" />' +
+      '<input id="qa-options" placeholder="Answer options — one per line (choice questions only)" style="width:100%;margin-top:6px;" />' +
+      '<button class="small" id="btn-qa-add" style="margin-top:6px;">Add question</button>' +
+      '<span class="msg" id="qa-msg"></span></div>' : '') +
     '<h3 style="font-size:0.95rem;">Choice-question aggregates</h3>' +
     (data.aggregates.length ? data.aggregates.map(a => '<p><strong>' + esc(a.text) + '</strong> (' + a.responses + ' responses)<br/>' + a.breakdown.map(b => esc(b.label) + ': ' + b.count).join(' · ') + '</p>').join('') : '<p style="color:var(--muted)">No choice-question responses yet.</p>');
+  if (canEdit) {
+    document.querySelectorAll('.q-del').forEach(btn => {
+      btn.onclick = async () => {
+        if (!confirm('Delete this question?')) return;
+        await api('/ops/campaigns/' + currentCampaignId + '/questions/' + btn.dataset.qid, { method: 'DELETE' });
+        loadSurveyOps();
+      };
+    });
+  }
+  if (isAdmin) {
+    document.getElementById('btn-qa-add').onclick = async () => {
+      const msg = document.getElementById('qa-msg');
+      msg.textContent = '';
+      const type = document.getElementById('qa-type').value;
+      const options = document.getElementById('qa-options').value.split('\n').map(s => s.trim()).filter(Boolean)
+        .map((label, i) => ({ id: 'opt' + i, label }));
+      try {
+        await api('/ops/campaigns/' + currentCampaignId + '/questions', {
+          method: 'POST',
+          body: { stage: document.getElementById('qa-stage').value, type, text: document.getElementById('qa-text').value, options: options.length ? options : undefined },
+        });
+        document.getElementById('qa-text').value = '';
+        document.getElementById('qa-options').value = '';
+        loadSurveyOps();
+      } catch (e) { msg.textContent = e.message || 'Save failed'; }
+    };
+  }
 }
 
 // GET /ops/campaigns/:id/insights already returns `questionAggregates`

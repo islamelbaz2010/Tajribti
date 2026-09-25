@@ -14,6 +14,7 @@ let companyAdminToken: string;
 let companyMemberToken: string;
 let otherCompanyToken: string;
 let opsAdminToken: string;
+let opsManagerToken: string;
 let opsWorkerToken: string;
 let companyId: string;
 let essentialCampaignId: string;
@@ -113,11 +114,13 @@ before(async () => {
   const member = await prisma.employee.create({ data: { companyId: company.id, email: "report-member@test", name: "Member", passwordHash: "x", role: "COMPANY_MEMBER" } });
   const other = await prisma.employee.create({ data: { companyId: otherCompany.id, email: "other@test", name: "Other", passwordHash: "x", role: "COMPANY_ADMIN" } });
   const opsAdmin = await prisma.opsUser.create({ data: { email: "commercial-admin@test", name: "Ops Admin", passwordHash: "x", role: "PLATFORM_ADMIN" } });
+  const opsManager = await prisma.opsUser.create({ data: { email: "commercial-manager@test", name: "Ops Manager", passwordHash: "x", role: "OPERATIONS_MANAGER" } });
   const opsWorker = await prisma.opsUser.create({ data: { email: "commercial-ops@test", name: "Ops", passwordHash: "x", role: "OPERATIONS" } });
   companyAdminToken = signToken({ kind: "employee", employeeId: admin.id, companyId: company.id });
   companyMemberToken = signToken({ kind: "employee", employeeId: member.id, companyId: company.id });
   otherCompanyToken = signToken({ kind: "employee", employeeId: other.id, companyId: otherCompany.id });
   opsAdminToken = signToken({ kind: "ops", opsUserId: opsAdmin.id });
+  opsManagerToken = signToken({ kind: "ops", opsUserId: opsManager.id });
   opsWorkerToken = signToken({ kind: "ops", opsUserId: opsWorker.id });
   essentialCampaignId = await seedCampaign(company.id, "essential");
   standardCampaignId = await seedCampaign(company.id, "standard");
@@ -126,6 +129,82 @@ before(async () => {
 after(async () => {
   await stopServer();
   await prisma.$disconnect();
+});
+
+describe("commercial package catalog and onboarding", () => {
+  it("exposes exactly the four approved tiers to Operations and keeps catalog mutation Platform Admin-only", async () => {
+    const catalog = await api("/api/ops/commercial-packages", { token: opsWorkerToken });
+    assert.equal(catalog.status, 200, JSON.stringify(catalog.body));
+    assert.deepEqual(catalog.body.map((p: any) => p.tier), ["ESSENTIAL", "STANDARD", "PROFESSIONAL", "CUSTOM"]);
+    assert.deepEqual(catalog.body.map((p: any) => p.name), ["Essential", "Standard", "Professional", "Custom"]);
+    assert.ok(catalog.body.every((p: any) => Array.isArray(p.deliverables) && p.deliverables.length > 0));
+
+    const denied = await api("/api/ops/commercial-packages/STANDARD", {
+      method: "PUT", token: opsWorkerToken, body: { defaultStudyFeeEgp: 9999 },
+    });
+    assert.equal(denied.status, 403);
+
+    const inactive = await api("/api/ops/commercial-packages/CUSTOM", {
+      method: "PUT", token: opsAdminToken, body: { active: false },
+    });
+    assert.equal(inactive.status, 200, JSON.stringify(inactive.body));
+    const rejectedInactive = await api(`/api/ops/campaigns/${standardCampaignId}/commercial`, {
+      method: "PUT", token: opsAdminToken, body: { packageTier: "CUSTOM" },
+    });
+    assert.equal(rejectedInactive.status, 400);
+    assert.match(JSON.stringify(rejectedInactive.body), /active/i);
+    const restored = await api("/api/ops/commercial-packages/CUSTOM", {
+      method: "PUT", token: opsAdminToken, body: { active: true },
+    });
+    assert.equal(restored.status, 200);
+
+    const companyDenied = await api("/api/ops/commercial-packages/STANDARD", {
+      method: "PUT", token: companyAdminToken, body: { defaultStudyFeeEgp: 9999 },
+    });
+    assert.equal(companyDenied.status, 403);
+  });
+
+  it("creates the governing draft commercial agreement during company onboarding without adding a campaign creation gate", async () => {
+    const created = await api("/api/ops/companies", {
+      method: "POST", token: opsManagerToken,
+      body: {
+        name: "Onboarded Commercial Co",
+        employeeName: "Commercial Admin",
+        employeeEmail: "onboarded-commercial@test.example",
+        employeePassword: "Password123!",
+      },
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    assert.equal(created.body.commercialAgreement.agreementStatus, "DRAFT");
+    assert.equal(created.body.commercialAgreement.packageTier, "ESSENTIAL");
+
+    const agreement = await api(`/api/ops/companies/${created.body.id}/commercial-agreement`, { token: opsWorkerToken });
+    assert.equal(agreement.status, 200);
+    assert.equal(agreement.body.agreementStatus, "DRAFT");
+    assert.equal(agreement.body.commerciallyReady, false);
+
+    const employee = created.body.employees[0];
+    const promote = await api(`/api/ops/companies/${created.body.id}/employees/${employee.id}/role`, {
+      method: "PATCH", token: opsAdminToken, body: { role: "COMPANY_ADMIN" },
+    });
+    assert.equal(promote.status, 200, JSON.stringify(promote.body));
+    const onboardedToken = signToken({ kind: "employee", employeeId: employee.id, companyId: created.body.id });
+    const campaign = await api("/api/company/campaigns", {
+      method: "POST", token: onboardedToken,
+      body: {
+        name: "Draft-agreement campaign",
+        objective: "Verify no second commercial lifecycle gate",
+        startDate: "2026-10-01T00:00:00.000Z",
+        endDate: "2026-10-07T00:00:00.000Z",
+      },
+    });
+    assert.equal(campaign.status, 201, JSON.stringify(campaign.body));
+
+    const commercial = await api(`/api/company/campaigns/${campaign.body.id}/commercial`, { token: onboardedToken });
+    assert.equal(commercial.status, 200, JSON.stringify(commercial.body));
+    assert.equal(commercial.body.campaignScopeMode, "COMPANY_AGREEMENT_NOT_READY");
+    assert.equal(commercial.body.packageSource, "COMPANY_AGREEMENT_NOT_READY");
+  });
 });
 
 describe("company commercial agreement (Model A)", () => {
@@ -160,6 +239,19 @@ describe("company commercial agreement (Model A)", () => {
     assert.equal(invalidReady.status, 400);
     assert.match(JSON.stringify(invalidReady.body), /reference/i);
 
+    const invalidDates = await api(`/api/ops/companies/${companyId}/commercial-agreement`, {
+      method: "PUT", token: opsAdminToken,
+      body: {
+        contractReference: "SOW-INVALID-DATES",
+        scopeNote: "Invalid contract period regression case.",
+        effectiveFrom: "2026-10-01T00:00:00.000Z",
+        effectiveTo: "2026-10-01T00:00:00.000Z",
+        agreementStatus: "CONFIGURED",
+      },
+    });
+    assert.equal(invalidDates.status, 400);
+    assert.match(JSON.stringify(invalidDates.body), /end date/i);
+
     const saved = await api(`/api/ops/companies/${companyId}/commercial-agreement`, {
       method: "PUT", token: opsAdminToken,
       body: {
@@ -174,6 +266,8 @@ describe("company commercial agreement (Model A)", () => {
         quotedHomeDeliveryFeeEgp: 400,
         discountPercent: 10,
         discountBasis: "Founder-approved launch agreement",
+        effectiveFrom: "2026-10-01T00:00:00.000Z",
+        effectiveTo: "2027-09-30T23:59:59.000Z",
         paymentMethod: "MANUAL_BANK_TRANSFER",
         paymentStatus: "QUOTED",
         agreementStatus: "READY",
@@ -182,6 +276,8 @@ describe("company commercial agreement (Model A)", () => {
     assert.equal(saved.status, 200, JSON.stringify(saved.body));
     assert.equal(saved.body.agreementStatus, "READY");
     assert.equal(saved.body.commerciallyReady, true);
+    assert.equal(saved.body.effectiveFrom, "2026-10-01T00:00:00.000Z");
+    assert.equal(saved.body.effectiveTo, "2027-09-30T23:59:59.000Z");
     assert.ok(saved.body.readyAt);
     assert.equal(saved.body.linkedCampaigns.length, 1);
     assert.equal(saved.body.linkedCampaigns[0].scopeLinked, true);
@@ -205,6 +301,49 @@ describe("company commercial agreement (Model A)", () => {
       where: { action: "COMPANY_COMMERCIAL_AGREEMENT_UPDATED", targetId: companyId },
     });
     assert.ok(audit);
+  });
+
+  it("keeps catalog edits, later agreement changes, and historical campaign scope values independent", async () => {
+    const beforeAgreement = await prisma.companyCommercialAgreement.findUnique({ where: { companyId } });
+    const beforeScope = await prisma.campaignCommercialTerms.findUnique({ where: { campaignId: standardCampaignId } });
+    assert.ok(beforeAgreement);
+    assert.ok(beforeScope);
+
+    const packageUpdate = await api("/api/ops/commercial-packages/STANDARD", {
+      method: "PUT", token: opsAdminToken,
+      body: {
+        defaultStudyFeeEgp: 7777,
+        defaultParticipantRateEgp: 77,
+        internalNote: "Catalog default changed after the company agreement and campaign scope were configured.",
+      },
+    });
+    assert.equal(packageUpdate.status, 200, JSON.stringify(packageUpdate.body));
+
+    const afterAgreement = await prisma.companyCommercialAgreement.findUnique({ where: { companyId } });
+    const afterScope = await prisma.campaignCommercialTerms.findUnique({ where: { campaignId: standardCampaignId } });
+    assert.equal(afterAgreement?.quotedStudyFeeEgp, beforeAgreement.quotedStudyFeeEgp);
+    assert.equal(afterAgreement?.quotedParticipantRateEgp, beforeAgreement.quotedParticipantRateEgp);
+    assert.equal(afterAgreement?.packageTier, beforeAgreement.packageTier);
+    assert.equal(afterScope?.quotedStudyFeeEgp, beforeScope.quotedStudyFeeEgp);
+    assert.equal(afterScope?.packageTier, beforeScope.packageTier);
+    assert.equal(afterScope?.contractedParticipants, beforeScope.contractedParticipants);
+
+    const agreementChange = await api(`/api/ops/companies/${companyId}/commercial-agreement`, {
+      method: "PUT", token: opsAdminToken,
+      body: { scopeNote: "Agreement wording updated after campaign scope was configured." },
+    });
+    assert.equal(agreementChange.status, 200, JSON.stringify(agreementChange.body));
+
+    const historicalScope = await prisma.campaignCommercialTerms.findUnique({ where: { campaignId: standardCampaignId } });
+    assert.equal(historicalScope?.packageTier, beforeScope.packageTier);
+    assert.equal(historicalScope?.quotedStudyFeeEgp, beforeScope.quotedStudyFeeEgp);
+    assert.equal(historicalScope?.contractedParticipants, beforeScope.contractedParticipants);
+    assert.equal(historicalScope?.commercialAgreementId, beforeAgreement.id);
+
+    const catalogAudit = await prisma.accessAuditEvent.findFirst({
+      where: { action: "COMMERCIAL_PACKAGE_UPDATED", targetId: "STANDARD" },
+    });
+    assert.ok(catalogAudit);
   });
 });
 

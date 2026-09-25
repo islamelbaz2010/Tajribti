@@ -21,6 +21,9 @@ import { buildReport } from "../lib/report";
 import {
   buildCommercialState,
   buildCompanyCommercialAgreementState,
+  buildCommercialPackageCatalog,
+  commercialPackageResponse,
+  assertCommercialPackageSelectable,
   validateCommercialTerms,
   validateCompanyCommercialAgreement,
   COMMERCIAL_PACKAGE_TIERS,
@@ -42,6 +45,62 @@ router.use(requireOps);
 // same catalog the Company console reads from GET /company/study-templates.
 router.get("/study-templates", async (_req, res) => {
   res.json(STUDY_TEMPLATES.map((t) => ({ key: t.key, label: t.label, decision: t.decision, questionCount: t.questions.length })));
+});
+
+// FOUNDER-AUTHORIZED PACKAGE CATALOG: fixed four-tier reusable commercial
+// definitions. Operations may read catalog defaults; only PLATFORM_ADMIN
+// mutates them. These are defaults/reference values — they never rewrite
+// existing company agreements or campaign scopes.
+router.get("/commercial-packages", async (_req, res) => {
+  res.json(await buildCommercialPackageCatalog());
+});
+
+const isoDateTimeNullable = z
+  .string()
+  .refine((value) => !Number.isNaN(Date.parse(value)), "Invalid datetime")
+  .nullable()
+  .transform((value) => (value == null ? null : new Date(value)));
+
+const commercialPackageSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  description: z.string().trim().min(1).max(1000),
+  deliverables: z.array(z.string().trim().min(1).max(160)).min(1).max(12),
+  serviceNote: z.string().trim().max(500).nullable(),
+  defaultStudyFeeEgp: z.number().int().min(0).nullable(),
+  defaultParticipantRateEgp: z.number().int().min(0).nullable(),
+  defaultHomeDeliveryFeeEgp: z.number().int().min(0).nullable(),
+  minimumParticipants: z.number().int().positive().nullable(),
+  maximumParticipants: z.number().int().positive().nullable(),
+  defaultFulfillmentModel: z.enum(FULFILLMENT_MODELS),
+  turnaroundLabel: z.string().trim().max(160).nullable(),
+  active: z.boolean(),
+  displayOrder: z.number().int().min(0).max(99),
+  internalNote: z.string().trim().max(1000).nullable(),
+}).partial();
+
+router.put("/commercial-packages/:tier", requirePlatformAdmin, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const tier = String(req.params.tier).toUpperCase();
+  if (!COMMERCIAL_PACKAGE_TIERS.includes(tier as any)) return res.status(404).json({ error: "Commercial package not found" });
+  const previous = await prisma.commercialPackage.findUnique({ where: { tier } });
+  if (!previous) return res.status(404).json({ error: "Commercial package not found" });
+  const parsed = commercialPackageSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid commercial package", details: parsed.error.flatten() });
+  const d = { ...previous, ...parsed.data };
+  if (d.minimumParticipants != null && d.maximumParticipants != null && d.maximumParticipants < d.minimumParticipants) {
+    return res.status(400).json({ error: "Maximum participants cannot be lower than minimum participants" });
+  }
+  const updated = await prisma.commercialPackage.update({
+    where: { tier },
+    data: { ...parsed.data, deliverables: parsed.data.deliverables ? JSON.stringify(parsed.data.deliverables) : undefined, updatedById: opsUserId },
+  });
+  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+  await writeAccessAudit({
+    actorKind: "ops", actorId: opsUserId, actorName: actor?.name ?? "unknown",
+    action: "COMMERCIAL_PACKAGE_UPDATED", targetType: "commercial-package", targetId: tier,
+    detail: `package ${tier}: ${Object.keys(parsed.data).sort().join(", ") || "no changes"}; active: ${previous.active} → ${updated.active}`,
+  });
+  res.json(commercialPackageResponse(updated));
 });
 
 async function loadCampaignOrNotFound(req: Request, res: Response) {
@@ -115,6 +174,11 @@ router.post("/companies", requireOpsManager, async (req, res) => {
         employees: {
           create: { name: d.employeeName, email: d.employeeEmail, passwordHash },
         },
+        // Model A onboarding: the governing commercial agreement exists as
+        // part of account setup from the start, initially as explicit DRAFT
+        // state. Platform Admin completes the actual contracted terms on the
+        // company detail; the DRAFT row does not become a launch gate.
+        commercialAgreement: { create: DEFAULT_COMPANY_COMMERCIAL_AGREEMENT },
       },
       select: {
         id: true,
@@ -122,6 +186,7 @@ router.post("/companies", requireOpsManager, async (req, res) => {
         industry: true,
         subIndustry: true,
         createdAt: true,
+        commercialAgreement: { select: { agreementStatus: true, packageTier: true, updatedAt: true } },
         employees: { select: { id: true, name: true, email: true, role: true, createdAt: true } },
       },
     });
@@ -171,7 +236,7 @@ router.get("/companies/:id", async (req, res) => {
 router.get("/companies/:id/commercial-agreement", async (req, res) => {
   const company = await prisma.company.findUnique({ where: { id: req.params.id }, select: { id: true } });
   if (!company) return res.status(404).json({ error: "Company not found" });
-  res.json(await buildCompanyCommercialAgreementState(company.id));
+  res.json(await buildCompanyCommercialAgreementState(company.id, { includeCatalog: true }));
 });
 
 const companyAgreementSchema = z
@@ -187,6 +252,8 @@ const companyAgreementSchema = z
     quotedHomeDeliveryFeeEgp: z.number().int().min(0).nullable(),
     discountPercent: z.number().int().min(0),
     discountBasis: z.string().trim().max(300).nullable(),
+    effectiveFrom: isoDateTimeNullable,
+    effectiveTo: isoDateTimeNullable,
     paymentMethod: z.literal("MANUAL_BANK_TRANSFER"),
     paymentStatus: z.enum(COMMERCIAL_PAYMENT_STATUSES),
     agreementStatus: z.enum(COMMERCIAL_AGREEMENT_STATUSES),
@@ -214,12 +281,16 @@ router.put("/companies/:id/commercial-agreement", requirePlatformAdmin, async (r
         quotedHomeDeliveryFeeEgp: previous.quotedHomeDeliveryFeeEgp,
         discountPercent: previous.discountPercent,
         discountBasis: previous.discountBasis,
+        effectiveFrom: previous.effectiveFrom,
+        effectiveTo: previous.effectiveTo,
         paymentMethod: previous.paymentMethod,
         paymentStatus: previous.paymentStatus,
         agreementStatus: previous.agreementStatus,
       }
     : DEFAULT_COMPANY_COMMERCIAL_AGREEMENT;
   const d = { ...base, ...parsed.data };
+  const packageError = await assertCommercialPackageSelectable(d.packageTier);
+  if (packageError) return res.status(400).json({ error: packageError });
   const invalid = validateCompanyCommercialAgreement(d);
   if (invalid) return res.status(400).json({ error: invalid });
 
@@ -248,7 +319,7 @@ router.put("/companies/:id/commercial-agreement", requirePlatformAdmin, async (r
     targetId: company.id,
     detail: `agreement status: ${previous?.agreementStatus ?? "NOT_CONFIGURED"} → ${d.agreementStatus}; package: ${previous?.packageTier ?? "—"} → ${d.packageTier}; fulfillment: ${previous?.fulfillmentModel ?? "—"} → ${d.fulfillmentModel}; payment: ${previous?.paymentStatus ?? "—"} → ${d.paymentStatus}`,
   });
-  res.json(await buildCompanyCommercialAgreementState(company.id));
+  res.json(await buildCompanyCommercialAgreementState(company.id, { includeCatalog: true }));
 });
 
 const updateCompanySchema = z.object({
@@ -948,6 +1019,8 @@ router.put("/campaigns/:id/commercial", requirePlatformAdmin, async (req, res) =
       }
     : DEFAULT_COMMERCIAL_TERMS;
   const d = { ...base, ...parsed.data };
+  const packageError = await assertCommercialPackageSelectable(d.packageTier);
+  if (packageError) return res.status(400).json({ error: packageError });
   const invalid = validateCommercialTerms(d);
   if (invalid) return res.status(400).json({ error: invalid });
   const agreement = await prisma.companyCommercialAgreement.findUnique({ where: { companyId: campaign.companyId }, select: { id: true } });

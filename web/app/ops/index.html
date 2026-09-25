@@ -126,6 +126,7 @@
       <nav class="snav" id="snav">
         <button class="active" data-tab="pipeline">Campaign Pipeline</button>
         <button data-tab="companies">Companies</button>
+        <button data-tab="packages">Package Catalog</button>
         <button data-tab="studytype-requests">Study-Type Requests</button>
         <!-- FOUNDER INNOVATION: OFD-19 question change requests.
              (OFD-15C shared panel and OFD-14 consumer push were both
@@ -228,6 +229,18 @@
       <button id="btn-create-company">Create company</button>
       <div class="msg" id="nco-msg"></div>
       </div>
+    </div>
+
+    <!-- Model A package catalog: fixed four commercial tiers. These are
+         reusable defaults only; actual contracted terms live on the company
+         agreement and campaign scope. All ops roles may read, but only
+         Platform Admin receives mutation controls (backend-enforced). -->
+    <div class="card tab-panel hidden" id="tab-packages">
+      <h2>Package catalog</h2>
+      <p style="color:var(--muted);font-size:0.85rem;margin-top:-4px;">Reusable package definitions and commercial defaults. Editing a catalog value does not rewrite any already configured company agreement or campaign scope.</p>
+      <div id="package-catalog"></div>
+      <div id="package-editor" style="margin-top:14px;"></div>
+      <div class="msg" id="package-msg"></div>
     </div>
 
     <!-- FOUNDER-APPROVED — forensic audit 2026-09-15, Decision 1:
@@ -474,6 +487,7 @@ document.querySelectorAll('#snav button').forEach(btn => {
     document.querySelectorAll('#view-home .tab-panel').forEach(p => p.classList.add('hidden'));
     document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
     if (btn.dataset.tab === 'companies') loadCompanies();
+    if (btn.dataset.tab === 'packages') loadCommercialPackages();
     if (btn.dataset.tab === 'studytype-requests') loadStudyTypeRequests();
     if (btn.dataset.tab === 'question-requests') loadQuestionRequests();
     if (btn.dataset.tab === 'admin') loadAdmin();
@@ -490,6 +504,106 @@ async function loadHome() {
   document.getElementById('tab-btn-site').classList.toggle('hidden', currentOpsRole !== 'PLATFORM_ADMIN');
   await loadPipeline();
   show('view-home');
+}
+
+// Model A package catalog. The four tiers are fixed by repository truth;
+// these records only hold reusable commercial defaults and status/display
+// metadata. They do not retroactively mutate company agreements or campaign
+// scopes.
+let commercialPackages = [];
+let selectedPackageTier = null;
+function packageMoney(v) { return v == null ? '—' : 'EGP ' + Number(v).toLocaleString(); }
+function packageRange(p) {
+  if (p.minimumParticipants != null && p.maximumParticipants != null) return p.minimumParticipants + '–' + p.maximumParticipants;
+  if (p.minimumParticipants != null) return p.minimumParticipants + '+';
+  if (p.maximumParticipants != null) return 'Up to ' + p.maximumParticipants;
+  return 'Scoped';
+}
+function packageField(id, label, value, type, disabled) {
+  return '<div><label>' + label + '</label><input id="' + id + '" type="' + (type || 'text') + '" value="' + esc(value ?? '') + '"' + (disabled ? ' disabled' : '') + ' /></div>';
+}
+async function loadCommercialPackages() {
+  commercialPackages = await api('/ops/commercial-packages');
+  const isAdmin = currentOpsRole === 'PLATFORM_ADMIN';
+  document.getElementById('package-msg').textContent = isAdmin ? '' : 'Read-only for this role. Platform Admin manages package definitions.';
+  document.getElementById('package-catalog').innerHTML = commercialPackages.length ?
+    '<table><tr><th>Package</th><th>Status</th><th>Default commercial basis</th><th>Participant range</th><th>Fulfillment</th><th>Turnaround</th><th></th></tr>' +
+    commercialPackages.map(p =>
+      '<tr><td><strong>' + esc(p.name) + '</strong><div style="color:var(--muted);font-size:0.78rem;">' + esc(p.tier) + '</div></td>' +
+      '<td>' + (p.active ? '<span class="pill" style="background:#e6f4ea;color:#1e7a3d;">Active</span>' : '<span class="pill" style="background:#f2eee9;color:#6f6258;">Inactive</span>') + '</td>' +
+      '<td><div style="font-size:0.78rem;">Study fee: ' + packageMoney(p.defaultStudyFeeEgp) + '<br/>Participant rate: ' + packageMoney(p.defaultParticipantRateEgp) + '<br/>Home delivery: ' + packageMoney(p.defaultHomeDeliveryFeeEgp) + '</div></td>' +
+      '<td>' + esc(packageRange(p)) + '</td>' +
+      '<td>' + esc(FULFILLMENT_LABELS[p.defaultFulfillmentModel] || p.defaultFulfillmentModel) + '</td>' +
+      '<td>' + esc(p.turnaroundLabel || '—') + '</td>' +
+      '<td><button class="small secondary" data-package="' + esc(p.tier) + '">' + (isAdmin ? 'Configure' : 'View') + '</button></td></tr>'
+    ).join('') + '</table>'
+    : '<p style="color:var(--muted)">Package catalog is unavailable.</p>';
+  document.querySelectorAll('button[data-package]').forEach(btn => {
+    btn.onclick = () => { selectedPackageTier = btn.dataset.package; renderPackageEditor(); };
+  });
+  if (selectedPackageTier && commercialPackages.some(p => p.tier === selectedPackageTier)) renderPackageEditor();
+}
+function renderPackageEditor() {
+  const p = commercialPackages.find(x => x.tier === selectedPackageTier);
+  const el = document.getElementById('package-editor');
+  if (!p) { el.innerHTML = ''; return; }
+  const isAdmin = currentOpsRole === 'PLATFORM_ADMIN';
+  const disabled = !isAdmin;
+  el.innerHTML =
+    '<div style="border-top:1px solid #f1e6dc;padding-top:12px;">' +
+    '<div class="row" style="justify-content:space-between;"><h3 style="font-size:0.95rem;margin:0;">' + esc(p.name) + ' catalog defaults</h3><span class="pill">' + esc(p.tier) + '</span></div>' +
+    '<p style="color:var(--muted);font-size:0.8rem;">Catalog defaults are reference values for new agreements/quotes. They do not rewrite an existing Company Commercial Agreement or Campaign Commercial Scope.</p>' +
+    '<div class="grid2">' +
+    packageField('pkg-name', 'Package name', p.name, 'text', disabled) +
+    packageField('pkg-display', 'Display order', p.displayOrder, 'number', disabled) +
+    packageField('pkg-study-fee', 'Default study fee (EGP)', p.defaultStudyFeeEgp, 'number', disabled) +
+    packageField('pkg-participant-rate', 'Default participant rate (EGP)', p.defaultParticipantRateEgp, 'number', disabled) +
+    packageField('pkg-home-fee', 'Default Home Delivery fee (EGP)', p.defaultHomeDeliveryFeeEgp, 'number', disabled) +
+    packageField('pkg-min', 'Minimum participants', p.minimumParticipants, 'number', disabled) +
+    packageField('pkg-max', 'Maximum participants', p.maximumParticipants, 'number', disabled) +
+    '<div><label>Default fulfillment</label><select id="pkg-fulfillment"' + (disabled ? ' disabled' : '') + '>' + Object.entries(FULFILLMENT_LABELS).map(([v,l]) => '<option value="' + v + '"' + (v === p.defaultFulfillmentModel ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div>' +
+    packageField('pkg-turnaround', 'Turnaround wording', p.turnaroundLabel, 'text', disabled) +
+    packageField('pkg-service-note', 'Service note', p.serviceNote, 'text', disabled) +
+    '</div>' +
+    '<label>Description</label><textarea id="pkg-description" rows="3"' + (disabled ? ' disabled' : '') + '>' + esc(p.description) + '</textarea>' +
+    '<label>Included deliverables (one per line)</label><textarea id="pkg-deliverables" rows="4"' + (disabled ? ' disabled' : '') + '>' + esc((p.deliverables || []).join('\n')) + '</textarea>' +
+    '<label>Internal note</label><input id="pkg-internal" value="' + esc(p.internalNote || '') + '"' + (disabled ? ' disabled' : '') + ' />' +
+    '<label style="display:flex;gap:6px;align-items:center;margin-top:8px;"><input id="pkg-active" type="checkbox" style="width:auto;"' + (p.active ? ' checked' : '') + (disabled ? ' disabled' : '') + ' /> Active/selectable for new agreements</label>' +
+    (isAdmin ? '<button class="small" id="btn-pkg-save">Save package defaults</button>' : '') +
+    '</div>';
+  if (isAdmin) {
+    document.getElementById('btn-pkg-save').onclick = async () => {
+      const msg = document.getElementById('package-msg');
+      msg.textContent = ''; msg.className = 'msg';
+      const numberOrNull = id => {
+        const raw = document.getElementById(id).value.trim();
+        return raw === '' ? null : Number(raw);
+      };
+      try {
+        await api('/ops/commercial-packages/' + encodeURIComponent(p.tier), {
+          method: 'PUT',
+          body: {
+            name: document.getElementById('pkg-name').value.trim(),
+            description: document.getElementById('pkg-description').value.trim(),
+            deliverables: document.getElementById('pkg-deliverables').value.split('\n').map(x => x.trim()).filter(Boolean),
+            serviceNote: document.getElementById('pkg-service-note').value.trim() || null,
+            defaultStudyFeeEgp: numberOrNull('pkg-study-fee'),
+            defaultParticipantRateEgp: numberOrNull('pkg-participant-rate'),
+            defaultHomeDeliveryFeeEgp: numberOrNull('pkg-home-fee'),
+            minimumParticipants: numberOrNull('pkg-min'),
+            maximumParticipants: numberOrNull('pkg-max'),
+            defaultFulfillmentModel: document.getElementById('pkg-fulfillment').value,
+            turnaroundLabel: document.getElementById('pkg-turnaround').value.trim() || null,
+            active: document.getElementById('pkg-active').checked,
+            displayOrder: Number(document.getElementById('pkg-display').value || 0),
+            internalNote: document.getElementById('pkg-internal').value.trim() || null,
+          },
+        });
+        msg.textContent = 'Package defaults saved.'; msg.className = 'msg ok';
+        await loadCommercialPackages();
+      } catch (e) { msg.textContent = e.message || 'Save failed'; msg.className = 'msg error'; }
+    };
+  }
 }
 
 // OFD-08: Platform Admin — ops-user management + audit events (both
@@ -669,6 +783,7 @@ const AGREEMENT_STATUS_LABELS = { NOT_CONFIGURED: 'Not configured', DRAFT: 'Draf
 const PARTICIPANT_BASIS_LABELS = { PER_CAMPAIGN_SCOPE: 'Per-campaign scope', TOTAL_PROGRAM_PARTICIPANTS: 'Total program participants' };
 const FULFILLMENT_LABELS = { POINT_OF_TRIAL: 'Point-of-Trial', HOME_DELIVERY: 'Home Delivery' };
 const PAYMENT_STATUS_LABELS = { QUOTE_DRAFT: 'Quote draft', QUOTED: 'Quoted', AWAITING_BANK_TRANSFER: 'Awaiting bank transfer', PAID_CONFIRMED: 'Bank transfer confirmed' };
+const COMMERCIAL_PACKAGE_TIERS_FALLBACK = [['ESSENTIAL','Essential'],['STANDARD','Standard'],['PROFESSIONAL','Professional'],['CUSTOM','Custom']];
 function agreementStatusPill(status) {
   const styles = {
     NOT_CONFIGURED: 'background:#f2eee9;color:#6f6258;',
@@ -685,9 +800,17 @@ function agreementSelect(id, options, selected) {
 async function renderCompanyAgreementBlock(companyId) {
   const el = document.getElementById('cd-agreement');
   try {
-    const a = await api('/ops/companies/' + encodeURIComponent(companyId) + '/commercial-agreement');
+    const [a, packages] = await Promise.all([
+      api('/ops/companies/' + encodeURIComponent(companyId) + '/commercial-agreement'),
+      api('/ops/commercial-packages'),
+    ]);
+    commercialPackages = packages;
     const isAdmin = currentOpsRole === 'PLATFORM_ADMIN';
     const money = v => v == null ? '' : String(v);
+    const dateValue = v => v ? String(v).slice(0, 10) : '';
+    const contractPeriod = a.effectiveFrom || a.effectiveTo
+      ? (a.effectiveFrom ? dateValue(a.effectiveFrom) : 'open') + ' → ' + (a.effectiveTo ? dateValue(a.effectiveTo) : 'open')
+      : '—';
     const updatedText = a.updatedAt ? ' · updated ' + new Date(a.updatedAt).toLocaleString() : '';
     const statusStyle = a.agreementStatus === 'READY' ? 'border-left:4px solid #1e7a3d;' : 'border-left:4px solid #c9932d;';
     el.innerHTML =
@@ -699,8 +822,10 @@ async function renderCompanyAgreementBlock(companyId) {
       metric(a.contractedParticipants ?? '—', 'Contracted participants') +
       metric(PARTICIPANT_BASIS_LABELS[a.contractedParticipantBasis] || a.contractedParticipantBasis, 'Quantity basis') +
       metric(FULFILLMENT_LABELS[a.fulfillmentModel] || a.fulfillmentModel, 'Fulfillment') +
+      metric(contractPeriod, 'Contract period') +
       metric(PAYMENT_STATUS_LABELS[a.paymentStatus] || a.paymentStatus, 'Payment status') +
       '</div>' +
+      (a.catalogPackage ? '<p style="font-size:0.78rem;color:var(--muted);margin:0 0 8px;"><strong>Catalog defaults, not contracted terms:</strong> ' + esc(a.catalogPackage.name) + ' · study fee ' + packageMoney(a.catalogPackage.defaultStudyFeeEgp) + ' · participant rate ' + packageMoney(a.catalogPackage.defaultParticipantRateEgp) + ' · Home Delivery ' + packageMoney(a.catalogPackage.defaultHomeDeliveryFeeEgp) + '. The fields below hold this company\'s actual configured agreement values.</p>' : '') +
       '<p style="font-size:0.8rem;color:var(--muted);margin:0 0 8px;">Campaign scopes link to this agreement; campaign-specific participant quantity, fulfillment exceptions, quoted exceptions, and change-order wording stay at campaign level. This is commercial configuration/reference state — not billing, tax, invoice, subscription, renewal, or entitlement automation.</p>' +
       (a.contractReference ? '<p style="font-size:0.82rem;margin:0 0 6px;"><strong>Contract/SOW reference:</strong> ' + esc(a.contractReference) + '</p>' : '') +
       (a.scopeNote ? '<p style="font-size:0.82rem;margin:0 0 6px;"><strong>Scope note:</strong> ' + esc(a.scopeNote) + '</p>' : '') +
@@ -712,10 +837,12 @@ async function renderCompanyAgreementBlock(companyId) {
         : '<p style="font-size:0.82rem;color:var(--muted);margin:0 0 8px;">No campaign commercial scopes configured yet.</p>') +
       (isAdmin ? '<div class="grid2" style="margin-top:10px;">' +
         '<div><label>Agreement status</label>' + agreementSelect('ca-status', Object.entries(AGREEMENT_STATUS_LABELS).filter(([v]) => v !== 'NOT_CONFIGURED'), a.agreementStatus === 'NOT_CONFIGURED' ? 'DRAFT' : a.agreementStatus) + '</div>' +
-        '<div><label>Package</label>' + agreementSelect('ca-package', [['ESSENTIAL','Essential'],['STANDARD','Standard'],['PROFESSIONAL','Professional'],['CUSTOM','Custom']], a.packageTier) + '</div>' +
+        '<div><label>Package</label>' + agreementSelect('ca-package', packages.map(p => [p.tier, p.name + (p.active ? '' : ' (inactive)')]), a.packageTier) + '</div>' +
         '<div><label>Contracted quantity basis</label>' + agreementSelect('ca-participant-basis', Object.entries(PARTICIPANT_BASIS_LABELS), a.contractedParticipantBasis) + '</div>' +
         '<div><label>Contracted participants</label><input id="ca-participants" type="number" min="1" value="' + money(a.contractedParticipants) + '" /></div>' +
         '<div><label>Fulfillment model</label>' + agreementSelect('ca-fulfillment', Object.entries(FULFILLMENT_LABELS), a.fulfillmentModel) + '</div>' +
+        '<div><label>Effective start</label><input id="ca-start" type="date" value="' + dateValue(a.effectiveFrom) + '" /></div>' +
+        '<div><label>Effective end</label><input id="ca-end" type="date" value="' + dateValue(a.effectiveTo) + '" /></div>' +
         '<div><label>Payment status</label>' + agreementSelect('ca-payment-status', Object.entries(PAYMENT_STATUS_LABELS), a.paymentStatus) + '</div>' +
         '<div><label>Quoted study fee (EGP)</label><input id="ca-study-fee" type="number" min="0" value="' + money(a.quotedStudyFeeEgp) + '" /></div>' +
         '<div><label>Quoted participant rate (EGP)</label><input id="ca-participant-rate" type="number" min="0" value="' + money(a.quotedParticipantRateEgp) + '" /></div>' +
@@ -736,6 +863,10 @@ async function renderCompanyAgreementBlock(companyId) {
           const raw = document.getElementById(id).value.trim();
           return raw === '' ? null : Number(raw);
         };
+        const dateOrNull = id => {
+          const raw = document.getElementById(id).value;
+          return raw ? new Date(raw + 'T00:00:00.000Z').toISOString() : null;
+        };
         try {
           await api('/ops/companies/' + encodeURIComponent(companyId) + '/commercial-agreement', {
             method: 'PUT',
@@ -751,6 +882,8 @@ async function renderCompanyAgreementBlock(companyId) {
               quotedHomeDeliveryFeeEgp: numberOrNull('ca-home-fee'),
               discountPercent: numberOrNull('ca-discount') ?? 0,
               discountBasis: document.getElementById('ca-discount-basis').value.trim() || null,
+              effectiveFrom: dateOrNull('ca-start'),
+              effectiveTo: dateOrNull('ca-end'),
               paymentMethod: 'MANUAL_BANK_TRANSFER',
               paymentStatus: document.getElementById('ca-payment-status').value,
               agreementStatus: document.getElementById('ca-status').value,
@@ -1598,6 +1731,10 @@ document.getElementById('btn-add-issue').onclick = async () => {
 async function loadCommercial() {
   const el = document.getElementById('commercial-content');
   const c = await api('/ops/campaigns/' + currentCampaignId + '/commercial');
+  if (!commercialPackages.length) commercialPackages = await api('/ops/commercial-packages');
+  const packageOptions = commercialPackages.length
+    ? commercialPackages.map(p => [p.tier, p.name + (p.active ? '' : ' (inactive)')])
+    : COMMERCIAL_PACKAGE_TIERS_FALLBACK;
   const isAdmin = currentOpsRole === 'PLATFORM_ADMIN';
   const money = v => v == null ? '' : String(v);
   const scopeModeText = c.campaignScopeMode === 'INHERITED_COMPANY_AGREEMENT'
@@ -1606,11 +1743,16 @@ async function loadCommercial() {
       ? 'A campaign-specific commercial scope is configured and linked to the company agreement.'
       : c.campaignScopeMode === 'CAMPAIGN_SCOPE'
         ? 'A campaign-specific commercial scope is configured without a current company-agreement link.'
-        : 'No company agreement or campaign scope is configured; the ESSENTIAL default is not an agreed contract.';
+        : c.campaignScopeMode === 'COMPANY_AGREEMENT_NOT_READY'
+          ? 'The company agreement exists but is not commercially ready; package/fulfillment are not yet governing campaign scope.'
+          : 'No company agreement or campaign scope is configured; the ESSENTIAL default is not an agreed contract.';
+  const agreementPeriod = c.companyAgreement.effectiveFrom || c.companyAgreement.effectiveTo
+    ? ' · period: ' + (c.companyAgreement.effectiveFrom ? String(c.companyAgreement.effectiveFrom).slice(0,10) : 'open') + ' → ' + (c.companyAgreement.effectiveTo ? String(c.companyAgreement.effectiveTo).slice(0,10) : 'open')
+    : '';
   el.innerHTML =
     '<div style="border-left:4px solid ' + (c.companyAgreement.agreementStatus === 'READY' ? '#1e7a3d' : '#c9932d') + ';background:#fffdf8;border-radius:12px;padding:10px 12px;margin-bottom:10px;">' +
     '<div class="row" style="justify-content:space-between;"><strong style="font-size:0.85rem;">Company commercial agreement</strong>' + agreementStatusPill(c.companyAgreement.agreementStatus) + '</div>' +
-    '<p style="font-size:0.8rem;color:var(--muted);margin:6px 0 0;">Governing package: ' + esc(c.companyAgreement.packageLabel) + ' · fulfillment: ' + esc(c.companyAgreement.fulfillmentLabel) + (c.companyAgreement.contractReference ? ' · reference: ' + esc(c.companyAgreement.contractReference) : '') + '.</p>' +
+    '<p style="font-size:0.8rem;color:var(--muted);margin:6px 0 0;">Governing package: ' + esc(c.companyAgreement.packageLabel) + ' · fulfillment: ' + esc(c.companyAgreement.fulfillmentLabel) + (c.companyAgreement.contractReference ? ' · reference: ' + esc(c.companyAgreement.contractReference) : '') + agreementPeriod + '.</p>' +
     '<p style="font-size:0.8rem;color:var(--ink);margin:6px 0 0;"><strong>Campaign scope:</strong> ' + esc(scopeModeText) + ' Campaign fields below are campaign-level terms; they do not replace or rewrite the company agreement.</p>' +
     '</div>' +
     '<div class="metrics-row" style="margin-bottom:8px;">' +
@@ -1627,7 +1769,7 @@ async function loadCommercial() {
     '<p style="font-size:0.78rem;color:var(--muted)">Pricing values are quoted terms, not a final price list. Tax/e-invoicing treatment remains legal/accounting validation. Overage follows the applicable fieldwork change order; contracted shortfall follows the agreed contractual remedy.</p>' +
     (isAdmin ? '<div class="grid2">' +
       '<div><label>Package</label><select id="co-package">' +
-        ['ESSENTIAL','STANDARD','PROFESSIONAL','CUSTOM'].map(v => '<option value="' + v + '"' + (v === c.packageTier ? ' selected' : '') + '>' + v.charAt(0) + v.slice(1).toLowerCase() + '</option>').join('') +
+        packageOptions.map(([v, l]) => '<option value="' + v + '"' + (v === c.packageTier ? ' selected' : '') + '>' + esc(l) + '</option>').join('') +
       '</select></div>' +
       '<div><label>Contracted participants</label><input id="co-participants" type="number" min="1" value="' + money(c.contractedParticipants) + '" /></div>' +
       '<div><label>Fulfillment</label><select id="co-fulfillment">' +

@@ -369,6 +369,8 @@ model CompanyCommercialAgreement {
   paymentMethod   String @default("MANUAL_BANK_TRANSFER")
   paymentStatus   String @default("QUOTE_DRAFT")
   agreementStatus String @default("DRAFT")
+  effectiveFrom   DateTime?
+  effectiveTo     DateTime?
   readyAt         DateTime?
 
   updatedById String?
@@ -376,6 +378,38 @@ model CompanyCommercialAgreement {
   updatedAt   DateTime @updatedAt
 
   campaignScopes CampaignCommercialTerms[]
+}
+
+// FOUNDER-AUTHORIZED PACKAGE CATALOG (commercial continuation pass):
+// reusable package definitions/defaults managed by Platform Admin. These
+// rows are catalog/reference state only — they never rewrite an executed
+// CompanyCommercialAgreement or CampaignCommercialTerms row after the fact,
+// and they do not encode final pricing, billing, tax, invoice, renewal, or
+// entitlement behavior.
+model CommercialPackage {
+  id   String @id @default(cuid())
+  tier String @unique // ESSENTIAL | STANDARD | PROFESSIONAL | CUSTOM
+
+  name         String
+  description  String
+  deliverables String // JSON array of concise included-deliverable labels
+  serviceNote  String?
+
+  defaultStudyFeeEgp        Int?
+  defaultParticipantRateEgp Int?
+  defaultHomeDeliveryFeeEgp Int?
+  minimumParticipants       Int?
+  maximumParticipants       Int?
+  defaultFulfillmentModel   String  @default("POINT_OF_TRIAL")
+  turnaroundLabel           String?
+
+  active       Boolean @default(true)
+  displayOrder Int     @default(0)
+  internalNote String?
+
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // FOUNDER-APPROVED — forensic audit 2026-09-15, Decision 1 ("Study-Type

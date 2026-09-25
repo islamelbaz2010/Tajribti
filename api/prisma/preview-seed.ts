@@ -41,6 +41,24 @@ async function main() {
     },
   });
 
+  // Model A preview: the governing commercial agreement exists from
+  // onboarding/account setup as an explicit DRAFT row. No placeholder prices
+  // or contract dates are presented as final values; Platform Admin completes
+  // the actual configured terms during review.
+  await prisma.companyCommercialAgreement.upsert({
+    where: { companyId: "seed-company-1" },
+    update: {},
+    create: {
+      companyId: "seed-company-1",
+      packageTier: "ESSENTIAL",
+      contractedParticipantBasis: "PER_CAMPAIGN_SCOPE",
+      fulfillmentModel: "POINT_OF_TRIAL",
+      agreementStatus: "DRAFT",
+      paymentMethod: "MANUAL_BANK_TRANSFER",
+      paymentStatus: "QUOTE_DRAFT",
+    },
+  });
+
   const adminPasswordHash = await bcrypt.hash("PlatformPass123!", 10);
   await prisma.opsUser.upsert({
     where: { email: "platform@tajribti.internal" },

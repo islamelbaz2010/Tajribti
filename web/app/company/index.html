@@ -1548,6 +1548,11 @@ async function loadCompanyAgreement() {
     const a = await api('/company/commercial-agreement');
     companyAgreement = a;
     renderCompanyAgreementSummaries();
+    const dateOnly = v => v ? String(v).slice(0, 10) : '';
+    const contractPeriod = a.effectiveFrom || a.effectiveTo
+      ? (a.effectiveFrom ? dateOnly(a.effectiveFrom) : 'open') + ' → ' + (a.effectiveTo ? dateOnly(a.effectiveTo) : 'open')
+      : '—';
+    const packageMoney = v => v == null ? '—' : 'EGP ' + Number(v).toLocaleString();
     const updatedText = a.updatedAt ? ' · updated ' + new Date(a.updatedAt).toLocaleString() : '';
     el.innerHTML =
       '<div class="row" style="justify-content:space-between;margin-bottom:8px;"><strong>Agreement status</strong>' + companyAgreementPill(a.agreementStatus) + '</div>' +
@@ -1557,8 +1562,10 @@ async function loadCompanyAgreement() {
       metric(PARTICIPANT_BASIS_LABELS[a.contractedParticipantBasis] || a.contractedParticipantBasis, 'Quantity basis') +
       metric(a.contractedParticipants ?? '—', 'Contracted participants') +
       metric(FULFILLMENT_LABELS[a.fulfillmentModel] || a.fulfillmentModel, 'Fulfillment') +
+      metric(contractPeriod, 'Contract period') +
       metric(COMMERCIAL_PAYMENT_LABELS[a.paymentStatus] || a.paymentStatus, 'Payment status') +
       '</div>' +
+      (a.catalogPackage ? '<p style="font-size:0.78rem;color:var(--muted);margin-top:-2px;">Package catalog reference: ' + esc(a.catalogPackage.name) + ' · study fee ' + packageMoney(a.catalogPackage.defaultStudyFeeEgp) + ' · participant rate ' + packageMoney(a.catalogPackage.defaultParticipantRateEgp) + ' · Home Delivery ' + packageMoney(a.catalogPackage.defaultHomeDeliveryFeeEgp) + '. These catalog defaults do not replace the agreed values below.</p>' : '') +
       '<p style="font-size:0.82rem;color:var(--muted);">These are the agreed company-level terms governing campaign scope. Campaign-specific participant quantity, fulfillment exceptions, quoted exceptions, and change-order wording are handled separately inside each campaign. Quoted values are commercial terms, not invoices, tax calculations, payment collection, renewals, or entitlement automation.</p>' +
       '<table><tr><th>Quoted term</th><th>Value</th></tr>' +
       '<tr><td>Study fee</td><td>' + (a.quotedStudyFeeEgp == null ? '—' : 'EGP ' + a.quotedStudyFeeEgp.toLocaleString()) + '</td></tr>' +
@@ -1593,11 +1600,16 @@ async function loadCommercial() {
         ? 'This campaign has its own commercial scope, configured under the company agreement.'
         : c.campaignScopeMode === 'CAMPAIGN_SCOPE'
           ? 'This campaign has its own commercial scope without a current company-agreement link.'
-          : 'No company agreement or campaign-specific commercial scope is configured; the ESSENTIAL default is not an agreed contract.';
+          : c.campaignScopeMode === 'COMPANY_AGREEMENT_NOT_READY'
+            ? 'The company agreement exists but is not marked commercially ready; package/fulfillment are not yet governing campaign scope.'
+            : 'No company agreement or campaign-specific commercial scope is configured; the ESSENTIAL default is not an agreed contract.';
+    const agreementPeriod = c.companyAgreement.effectiveFrom || c.companyAgreement.effectiveTo
+      ? ' · period: ' + (c.companyAgreement.effectiveFrom ? String(c.companyAgreement.effectiveFrom).slice(0,10) : 'open') + ' → ' + (c.companyAgreement.effectiveTo ? String(c.companyAgreement.effectiveTo).slice(0,10) : 'open')
+      : '';
     el.innerHTML =
       '<div style="border-left:4px solid ' + (c.companyAgreement.agreementStatus === 'READY' ? '#1e7a3d' : '#c9932d') + ';background:#fffdf8;border:1px solid #f1e6dc;border-radius:12px;padding:10px 12px;margin-bottom:10px;color:var(--ink);">' +
       '<div class="row" style="justify-content:space-between;"><strong style="font-size:0.85rem;">Company agreement</strong>' + companyAgreementPill(c.companyAgreement.agreementStatus) + '</div>' +
-      '<p style="font-size:0.8rem;color:var(--muted);margin:6px 0 0;">Governing package: ' + esc(c.companyAgreement.packageLabel) + ' · fulfillment: ' + esc(c.companyAgreement.fulfillmentLabel) + (c.companyAgreement.contractReference ? ' · reference: ' + esc(c.companyAgreement.contractReference) : '') + '.</p>' +
+      '<p style="font-size:0.8rem;color:var(--muted);margin:6px 0 0;">Governing package: ' + esc(c.companyAgreement.packageLabel) + ' · fulfillment: ' + esc(c.companyAgreement.fulfillmentLabel) + (c.companyAgreement.contractReference ? ' · reference: ' + esc(c.companyAgreement.contractReference) : '') + agreementPeriod + '.</p>' +
       '<p style="font-size:0.8rem;color:var(--ink);margin:6px 0 0;"><strong>Campaign scope:</strong> ' + esc(scopeModeText) + '</p>' +
       '</div>' +
       '<div class="metrics-row" style="margin-bottom:6px;">' +

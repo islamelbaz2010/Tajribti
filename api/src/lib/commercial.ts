@@ -64,6 +64,8 @@ export interface CompanyCommercialAgreementLike {
   paymentMethod: string;
   paymentStatus: string;
   agreementStatus: string;
+  effectiveFrom?: Date | null;
+  effectiveTo?: Date | null;
   readyAt?: Date | null;
   updatedAt?: Date;
   updatedById?: string | null;
@@ -98,7 +100,81 @@ export const DEFAULT_COMPANY_COMMERCIAL_AGREEMENT: CompanyCommercialAgreementLik
   paymentMethod: "MANUAL_BANK_TRANSFER",
   paymentStatus: "QUOTE_DRAFT",
   agreementStatus: "DRAFT",
+  effectiveFrom: null,
+  effectiveTo: null,
 };
+
+export interface CommercialPackageLike {
+  id: string;
+  tier: string;
+  name: string;
+  description: string;
+  deliverables: string;
+  serviceNote: string | null;
+  defaultStudyFeeEgp: number | null;
+  defaultParticipantRateEgp: number | null;
+  defaultHomeDeliveryFeeEgp: number | null;
+  minimumParticipants: number | null;
+  maximumParticipants: number | null;
+  defaultFulfillmentModel: string;
+  turnaroundLabel: string | null;
+  active: boolean;
+  displayOrder: number;
+  internalNote: string | null;
+  updatedAt: Date;
+  updatedById: string | null;
+}
+
+export function commercialPackageResponse(pkg: CommercialPackageLike, updatedByName: string | null = null) {
+  let deliverables: string[] = [];
+  try {
+    const parsed = JSON.parse(pkg.deliverables);
+    if (Array.isArray(parsed)) deliverables = parsed.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
+  } catch {
+    deliverables = [];
+  }
+  return {
+    id: pkg.id,
+    tier: pkg.tier,
+    name: pkg.name,
+    description: pkg.description,
+    deliverables,
+    serviceNote: pkg.serviceNote,
+    defaultStudyFeeEgp: pkg.defaultStudyFeeEgp,
+    defaultParticipantRateEgp: pkg.defaultParticipantRateEgp,
+    defaultHomeDeliveryFeeEgp: pkg.defaultHomeDeliveryFeeEgp,
+    minimumParticipants: pkg.minimumParticipants,
+    maximumParticipants: pkg.maximumParticipants,
+    defaultFulfillmentModel: pkg.defaultFulfillmentModel,
+    fulfillmentLabel: pkg.defaultFulfillmentModel === "HOME_DELIVERY" ? "Home Delivery" : "Point-of-Trial",
+    turnaroundLabel: pkg.turnaroundLabel,
+    active: pkg.active,
+    status: pkg.active ? "ACTIVE" : "INACTIVE",
+    displayOrder: pkg.displayOrder,
+    internalNote: pkg.internalNote,
+    updatedAt: pkg.updatedAt,
+    updatedById: pkg.updatedById,
+    updatedByName,
+    semantics: packageCapabilities(pkg.tier),
+  };
+}
+
+export async function buildCommercialPackageCatalog() {
+  const packages = await prisma.commercialPackage.findMany({ orderBy: [{ displayOrder: "asc" }, { tier: "asc" }] });
+  const updaterIds = [...new Set(packages.map((p) => p.updatedById).filter((id): id is string => Boolean(id)))];
+  const updaters = updaterIds.length
+    ? await prisma.opsUser.findMany({ where: { id: { in: updaterIds } }, select: { id: true, name: true } })
+    : [];
+  const updaterById = new Map(updaters.map((u) => [u.id, u.name]));
+  return packages.map((p) => commercialPackageResponse(p, p.updatedById ? updaterById.get(p.updatedById) ?? null : null));
+}
+
+export async function assertCommercialPackageSelectable(tier: string) {
+  const pkg = await prisma.commercialPackage.findUnique({ where: { tier } });
+  if (!pkg) return "Unknown commercial package";
+  if (!pkg.active) return `${pkg.name} is inactive in the commercial package catalog`;
+  return null;
+}
 
 export function packageCapabilities(packageTier: string) {
   const enhancedReport = packageTier === "STANDARD" || packageTier === "PROFESSIONAL" || packageTier === "CUSTOM";
@@ -191,6 +267,12 @@ export function validateCompanyCommercialAgreement(d: CompanyCommercialAgreement
   if (d.agreementStatus !== "DRAFT" && !hasCommercialBasis) {
     return "A contract reference or commercial scope note is required before the agreement leaves draft";
   }
+  if (d.effectiveFrom && d.effectiveTo && d.effectiveTo <= d.effectiveFrom) {
+    return "Agreement end date must be after the start date";
+  }
+  if (d.agreementStatus !== "DRAFT" && (!d.effectiveFrom || !d.effectiveTo)) {
+    return "A contract start and end date are required before the agreement leaves draft";
+  }
   if ((d.agreementStatus === "QUOTED" || d.agreementStatus === "READY") && !quoteFieldsComplete) {
     return "A complete quoted fee structure is required before the agreement is marked quoted or ready";
   }
@@ -218,6 +300,8 @@ function agreementRecordToLike(agreement: {
   paymentMethod: string;
   paymentStatus: string;
   agreementStatus: string;
+  effectiveFrom: Date | null;
+  effectiveTo: Date | null;
   readyAt: Date | null;
   updatedAt: Date;
   updatedById: string | null;
@@ -225,7 +309,7 @@ function agreementRecordToLike(agreement: {
   return { ...agreement };
 }
 
-export async function buildCompanyCommercialAgreementState(companyId: string) {
+export async function buildCompanyCommercialAgreementState(companyId: string, opts: { includeCatalog?: boolean } = {}) {
   const [agreement, campaignScopes] = await Promise.all([
     prisma.companyCommercialAgreement.findUnique({ where: { companyId } }),
     prisma.campaignCommercialTerms.findMany({
@@ -250,6 +334,9 @@ export async function buildCompanyCommercialAgreementState(companyId: string) {
     (a.fulfillmentModel !== "HOME_DELIVERY" || a.quotedHomeDeliveryFeeEgp != null);
   const configured = Boolean(agreement);
   const status = configured ? a.agreementStatus : "NOT_CONFIGURED";
+  const catalogPackage = opts.includeCatalog && configured
+    ? await prisma.commercialPackage.findUnique({ where: { tier: a.packageTier } })
+    : null;
 
   return {
     companyId,
@@ -275,10 +362,13 @@ export async function buildCompanyCommercialAgreementState(companyId: string) {
     paymentMethod: a.paymentMethod,
     paymentStatus: a.paymentStatus,
     paymentStatusLabel: paymentStatusLabel(a.paymentStatus),
+    effectiveFrom: a.effectiveFrom ?? null,
+    effectiveTo: a.effectiveTo ?? null,
     readyAt: a.readyAt ?? null,
     updatedAt: a.updatedAt ?? null,
     updatedById: a.updatedById ?? null,
     updatedByName: updatedBy?.name ?? null,
+    catalogPackage: catalogPackage ? commercialPackageResponse(catalogPackage) : null,
     linkedCampaigns: campaignScopes.map((scope) => ({
       id: scope.campaign.id,
       name: scope.campaign.name,
@@ -336,16 +426,23 @@ export async function buildCommercialState(campaignId: string) {
     : DEFAULT_COMMERCIAL_TERMS;
 
   const agreementState = campaign ? await buildCompanyCommercialAgreementState(campaign.companyId) : null;
-  const inheritedPackage = !terms && companyAgreement ? companyAgreement.packageTier : null;
+  // A draft/configured agreement is onboarding state, not yet a governing
+  // commercial package. Only an explicitly READY agreement supplies package
+  // or fulfillment defaults to an unscoped campaign; explicit campaign scope
+  // always wins.
+  const governingAgreement = companyAgreement?.agreementStatus === "READY" ? companyAgreement : null;
+  const inheritedPackage = !terms && governingAgreement ? governingAgreement.packageTier : null;
   const effectivePackageTier = terms?.packageTier ?? inheritedPackage ?? t.packageTier;
-  const effectiveFulfillment = terms?.fulfillmentModel ?? companyAgreement?.fulfillmentModel ?? t.fulfillmentModel;
+  const effectiveFulfillment = terms?.fulfillmentModel ?? governingAgreement?.fulfillmentModel ?? t.fulfillmentModel;
   const campaignScopeMode = terms
     ? (terms.commercialAgreementId && companyAgreement && terms.commercialAgreementId === companyAgreement.id
         ? "CAMPAIGN_SCOPE_LINKED_TO_AGREEMENT"
         : "CAMPAIGN_SCOPE")
-    : companyAgreement
+    : governingAgreement
       ? "INHERITED_COMPANY_AGREEMENT"
-      : "DEFAULT_NOT_AGREED";
+      : companyAgreement
+        ? "COMPANY_AGREEMENT_NOT_READY"
+        : "DEFAULT_NOT_AGREED";
 
   const contracted = t.contractedParticipants;
   const completedEligibleParticipants = funnel.surveyComplete;
@@ -376,7 +473,7 @@ export async function buildCommercialState(campaignId: string) {
     campaignId,
     packageTier: effectivePackageTier,
     packageLabel: packageTierLabel(effectivePackageTier),
-    packageSource: terms ? "CAMPAIGN_SCOPE" : inheritedPackage ? "COMPANY_AGREEMENT" : "DEFAULT_NOT_AGREED",
+    packageSource: terms ? "CAMPAIGN_SCOPE" : inheritedPackage ? "COMPANY_AGREEMENT" : companyAgreement ? "COMPANY_AGREEMENT_NOT_READY" : "DEFAULT_NOT_AGREED",
     campaignScopeConfigured: Boolean(terms),
     campaignScopeMode,
     scopeLinked: Boolean(terms?.commercialAgreementId && companyAgreement && terms.commercialAgreementId === companyAgreement.id),

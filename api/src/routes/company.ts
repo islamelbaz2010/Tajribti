@@ -103,7 +103,7 @@ router.get("/profile", async (req, res) => {
 // no company-side mutation route exists.
 router.get("/commercial-agreement", async (req, res) => {
   const { companyId } = asEmployee(req);
-  res.json(await buildCompanyCommercialAgreementState(companyId));
+  res.json(await buildCompanyCommercialAgreementState(companyId, { includeCatalog: true }));
 });
 
 // Founder requirement 2026-09-24: company logo upload. Same hosted-media

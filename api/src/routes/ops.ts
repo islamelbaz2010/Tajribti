@@ -244,6 +244,34 @@ router.post("/companies/:id/employees/:eid/revoke", requirePlatformAdmin, async 
   res.json({ id: target.id, revoked: true });
 });
 
+// FOUNDER DECISION B (2026-09-25): PLATFORM_ADMIN may change a company
+// employee's role — mirrors the company-side PATCH /employees/:eid/role
+// (same enum, same last-active-admin protection so a company can never
+// be left without admin capability). No self-guard needed: the actor is
+// an ops user, not an employee of the company.
+router.patch("/companies/:id/employees/:eid/role", requirePlatformAdmin, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const parsed = z.object({ role: z.enum(["COMPANY_ADMIN", "COMPANY_MEMBER"]) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  const target = await prisma.employee.findFirst({ where: { id: req.params.eid, companyId: req.params.id } });
+  if (!target) return res.status(404).json({ error: "Employee not found" });
+  if (target.role === parsed.data.role) return res.json({ id: target.id, role: target.role });
+  if (target.role === "COMPANY_ADMIN" && !target.revokedAt) {
+    const otherAdmins = await prisma.employee.count({
+      where: { companyId: req.params.id, role: "COMPANY_ADMIN", revokedAt: null, id: { not: target.id } },
+    });
+    if (otherAdmins === 0) return res.status(409).json({ error: "Cannot demote the last active Company Admin" });
+  }
+  await prisma.employee.update({ where: { id: target.id }, data: { role: parsed.data.role } });
+  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+  await writeAccessAudit({
+    actorKind: "ops", actorId: opsUserId, actorName: actor?.name ?? "unknown",
+    action: "EMPLOYEE_ROLE_CHANGE", targetType: "employee", targetId: target.id,
+    detail: `Role of "${target.name}" <${target.email}> changed: ${target.role} → ${parsed.data.role}`,
+  });
+  res.json({ id: target.id, role: parsed.data.role });
+});
+
 // ---------------------------------------------------------------------------
 // FOUNDER DECISION B (2026-09-25): PLATFORM_ADMIN = global platform
 // authority — direct, audited management of Company-owned resources.
@@ -472,6 +500,123 @@ router.delete("/campaigns/:id/media/:mid", requirePlatformAdmin, async (req, res
     actorKind: "ops", actorId: opsUserId, actorName: actor?.name ?? "unknown",
     action: "CAMPAIGN_MEDIA_DELETE", targetType: "campaign", targetId: campaign.id,
     detail: `Removed ${media.kind} media from campaign ${campaign.id}`,
+  });
+  res.status(204).end();
+});
+
+// Campaign configuration — mirrors the company-side PATCH /campaigns/:id
+// field-for-field (createCampaignSchema.partial()), with two deliberate
+// Founder-authorized differences: (1) PLATFORM_ADMIN may set any catalog
+// study type directly — industry eligibility scopes Company-facing
+// selection only (Decision A); (2) the study-type request/approval
+// round-trip does not gate the admin — the Company flow stays intact and
+// any pending request remains reviewable. The DRAFT/READY lifecycle lock
+// and product→company ownership rule are identical.
+const opsCampaignSchema = z.object({
+  name: z.string().min(1).optional(),
+  objective: z.string().min(1).optional(),
+  productId: z.string().nullish().transform((v) => (v === "" ? null : v)),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  audienceAgeMin: z.number().int().nullish(),
+  audienceAgeMax: z.number().int().nullish(),
+  audienceGender: z.string().nullish().transform((v) => (v === "" ? null : v)),
+  audienceCity: z.string().nullish().transform((v) => (v === "" ? null : v)),
+  studyType: z
+    .string()
+    .nullish()
+    .refine((v) => v == null || v === "" || STUDY_TEMPLATES.some((t) => t.key === v), { message: "Unknown study type" }),
+});
+
+router.patch("/campaigns/:id", requirePlatformAdmin, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const campaign = await loadCampaignOrNotFound(req, res);
+  if (!campaign) return;
+  if (!opsAssertConfigurable(campaign, res)) return;
+  const parsed = opsCampaignSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
+  const d = parsed.data;
+  if (d.productId) {
+    const product = await prisma.product.findUnique({ where: { id: d.productId }, select: { companyId: true } });
+    if (!product || product.companyId !== campaign.companyId) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+  }
+  const data: Record<string, unknown> = {};
+  const changes: string[] = [];
+  const push = (field: string, next: unknown, prev: unknown) => {
+    data[field] = next;
+    changes.push(`${field}: "${prev ?? "—"}" → "${next ?? "—"}"`);
+  };
+  if (d.name !== undefined && d.name !== campaign.name) push("name", d.name, campaign.name);
+  if (d.objective !== undefined && d.objective !== campaign.objective) push("objective", d.objective, campaign.objective);
+  if (d.productId !== undefined && d.productId !== campaign.productId) push("productId", d.productId, campaign.productId);
+  if (d.startDate !== undefined) {
+    const next = new Date(d.startDate);
+    if (next.getTime() !== campaign.startDate.getTime()) push("startDate", next, campaign.startDate);
+  }
+  if (d.endDate !== undefined) {
+    const next = new Date(d.endDate);
+    if (next.getTime() !== campaign.endDate.getTime()) push("endDate", next, campaign.endDate);
+  }
+  for (const f of ["audienceAgeMin", "audienceAgeMax", "audienceGender", "audienceCity"] as const) {
+    const next = d[f] === undefined ? undefined : d[f];
+    if (next !== undefined && next !== campaign[f]) push(f, next, campaign[f]);
+  }
+  if (d.studyType !== undefined) {
+    const next = d.studyType === "" ? null : d.studyType;
+    if (next !== campaign.studyType) push("studyType", next, campaign.studyType);
+  }
+  if (changes.length === 0) return res.json(campaign);
+  const updated = await prisma.campaign.update({ where: { id: campaign.id }, data });
+  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+  await writeAccessAudit({
+    actorKind: "ops", actorId: opsUserId, actorName: actor?.name ?? "unknown",
+    action: "CAMPAIGN_CONFIG_UPDATED", targetType: "campaign", targetId: campaign.id,
+    detail: changes.join("; "),
+  });
+  res.json(updated);
+});
+
+// Mirrors the company-side DELETE /campaigns/:id — DRAFT-only and refused
+// once participation evidence exists; removes the campaign's owned rows
+// and any hosted media objects. Audited with the company id so the
+// Account Activity feed can attribute it.
+router.delete("/campaigns/:id", requirePlatformAdmin, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const campaign = await loadCampaignOrNotFound(req, res);
+  if (!campaign) return;
+  if (campaign.status !== "DRAFT") {
+    return res.status(409).json({ error: "Only DRAFT campaigns can be deleted" });
+  }
+  const participations = await prisma.participation.count({ where: { campaignId: campaign.id } });
+  if (participations > 0) {
+    return res.status(409).json({ error: "Campaign has participation evidence and cannot be deleted" });
+  }
+  if (isHostedMediaConfigured()) {
+    const media = await prisma.campaignMedia.findMany({ where: { campaignId: campaign.id, source: "HOSTED" } });
+    for (const m of media) {
+      if (m.storageKey) await deleteObject(m.storageKey).catch(() => undefined);
+    }
+  }
+  await prisma.$transaction([
+    prisma.answer.deleteMany({ where: { question: { campaignId: campaign.id } } }),
+    prisma.participation.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.questionChangeRequest.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.studyTypeChangeRequest.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.campaignNotificationRequest.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.operationalIssue.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.campaignMedia.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.campaignOtpVerification.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.question.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.qrSource.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.campaign.delete({ where: { id: campaign.id } }),
+  ]);
+  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+  await writeAccessAudit({
+    actorKind: "ops", actorId: opsUserId, actorName: actor?.name ?? "unknown",
+    action: "CAMPAIGN_DELETE", targetType: "company", targetId: campaign.companyId,
+    detail: `Deleted DRAFT campaign "${campaign.name}" (${campaign.id})`,
   });
   res.status(204).end();
 });

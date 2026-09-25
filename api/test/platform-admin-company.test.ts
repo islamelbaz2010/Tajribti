@@ -253,6 +253,59 @@ describe("PLATFORM_ADMIN direct resource management", () => {
     assert.equal((await api(`/api/ops/campaigns/${paCampaign}/media`, { method: "POST", token: tokOpsManager, body: { kind: "CREATIVE", url: "https://example.com/x.png" } })).status, 403);
   });
 
+  it("can change employee roles with the last-admin guard, audited", async () => {
+    const m3 = await prisma.employee.create({ data: { companyId: companyA, email: "role@pa.test", name: "role", passwordHash: "x", role: "COMPANY_MEMBER" } });
+    const r = await api(`/api/ops/companies/${companyA}/employees/${m3.id}/role`, {
+      method: "PATCH", token: tokOpsAdmin, body: { role: "COMPANY_ADMIN" },
+    });
+    assert.equal(r.status, 200);
+    const audit = await prisma.accessAuditEvent.findFirst({ where: { action: "EMPLOYEE_ROLE_CHANGE", targetType: "employee", targetId: m3.id, actorKind: "ops" } });
+    assert.match(audit?.detail ?? "", /COMPANY_MEMBER → COMPANY_ADMIN/);
+    // demoting the last remaining admin is refused
+    await prisma.employee.update({ where: { id: empAdminA }, data: { revokedAt: new Date() } });
+    const last = await prisma.employee.findFirst({ where: { companyId: companyA, role: "COMPANY_ADMIN", revokedAt: null } });
+    assert.equal((await api(`/api/ops/companies/${companyA}/employees/${last!.id}/role`, { method: "PATCH", token: tokOpsAdmin, body: { role: "COMPANY_MEMBER" } })).status, 409);
+    // restore the fixture admin — its token is used by later tests
+    await prisma.employee.update({ where: { id: empAdminA }, data: { revokedAt: null } });
+    assert.equal((await api(`/api/ops/companies/${companyA}/employees/${m3.id}/role`, { method: "PATCH", token: tokOpsManager, body: { role: "COMPANY_MEMBER" } })).status, 403);
+    // cross-company target → 404
+    assert.equal((await api(`/api/ops/companies/${companyB}/employees/${m3.id}/role`, { method: "PATCH", token: tokOpsAdmin, body: { role: "COMPANY_MEMBER" } })).status, 404);
+  });
+
+  it("can PATCH campaign configuration directly, unrestricted by industry eligibility", async () => {
+    // PA may set any catalog study type — eligibility is company-facing.
+    const r = await api(`/api/ops/campaigns/${paCampaign}`, {
+      method: "PATCH", token: tokOpsAdmin,
+      body: { name: "PA Renamed Campaign", studyType: "POST_TRIAL_HOME_CARE", audienceCity: "Cairo" },
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.name, "PA Renamed Campaign");
+    assert.equal(r.body.studyType, "POST_TRIAL_HOME_CARE"); // company A is Pet Care — admin is unrestricted
+    const audit = await prisma.accessAuditEvent.findFirst({ where: { action: "CAMPAIGN_CONFIG_UPDATED", targetId: paCampaign } });
+    assert.match(audit?.detail ?? "", /studyType/);
+  });
+  it("campaign PATCH is PA-only, lifecycle-locked, and product-scoped", async () => {
+    assert.equal((await api(`/api/ops/campaigns/${paCampaign}`, { method: "PATCH", token: tokOpsManager, body: { name: "x" } })).status, 403);
+    assert.equal((await api(`/api/ops/campaigns/${paCampaign}`, { method: "PATCH", token: tokAdminA, body: { name: "x" } })).status, 403);
+    const active = await prisma.campaign.create({ data: { companyId: companyA, name: "Act", objective: "o", startDate: new Date(), endDate: new Date(), status: "ACTIVE" } });
+    assert.equal((await api(`/api/ops/campaigns/${active.id}`, { method: "PATCH", token: tokOpsAdmin, body: { name: "x" } })).status, 409);
+    const foreignProduct = await prisma.product.findFirst({ where: { companyId: companyB } });
+    if (!foreignProduct) {
+      const p = await prisma.product.create({ data: { companyId: companyB, name: "B product" } });
+      assert.equal((await api(`/api/ops/campaigns/${paCampaign}`, { method: "PATCH", token: tokOpsAdmin, body: { productId: p.id } })).status, 404);
+    } else {
+      assert.equal((await api(`/api/ops/campaigns/${paCampaign}`, { method: "PATCH", token: tokOpsAdmin, body: { productId: foreignProduct.id } })).status, 404);
+    }
+  });
+  it("can DELETE a DRAFT campaign; refused for non-DRAFT or evidenced campaigns", async () => {
+    const draft = await prisma.campaign.create({ data: { companyId: companyA, name: "Del", objective: "o", startDate: new Date(), endDate: new Date(), status: "DRAFT" } });
+    const active = await prisma.campaign.create({ data: { companyId: companyA, name: "NoDel", objective: "o", startDate: new Date(), endDate: new Date(), status: "ACTIVE" } });
+    assert.equal((await api(`/api/ops/campaigns/${active.id}`, { method: "DELETE", token: tokOpsAdmin })).status, 409);
+    assert.equal((await api(`/api/ops/campaigns/${draft.id}`, { method: "DELETE", token: tokOpsManager })).status, 403);
+    assert.equal((await api(`/api/ops/campaigns/${draft.id}`, { method: "DELETE", token: tokOpsAdmin })).status, 204);
+    assert.equal(await prisma.campaign.count({ where: { id: draft.id } }), 0);
+  });
+
   it("company Account Activity shows all admin resource changes for its own company only", async () => {
     const r = await api("/api/company/audit-events", { token: tokAdminA });
     assert.equal(r.status, 200);

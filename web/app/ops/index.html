@@ -679,7 +679,10 @@ async function showCompanyDetail(id) {
     '<table><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th>' + (isAdmin ? '<th></th>' : '') + '</tr>' +
     detail.employees.map(e => '<tr><td>' + esc(e.name) + '</td><td>' + esc(e.email) + '</td><td>' + esc(e.role) + '</td><td>' +
       (e.revokedAt ? 'Revoked' : 'Active') + '</td>' +
-      (isAdmin ? '<td>' + (e.revokedAt ? '' : '<button class="small secondary emp-revoke" data-eid="' + esc(e.id) + '">Revoke access</button>') + '</td>' : '') +
+      (isAdmin ? '<td>' + (e.revokedAt ? '' :
+        '<button class="small secondary emp-role" data-eid="' + esc(e.id) + '" data-role="' + esc(e.role) + '">' +
+        (e.role === 'COMPANY_ADMIN' ? 'Make member' : 'Make admin') + '</button> ' +
+        '<button class="small secondary emp-revoke" data-eid="' + esc(e.id) + '">Revoke access</button>') + '</td>' : '') +
       '</tr>').join('') + '</table>'
     : '<p style="color:var(--muted)">No employees.</p>';
   document.getElementById('cd-products').innerHTML =
@@ -734,6 +737,15 @@ async function showCompanyDetail(id) {
       if (!confirm('Revoke this employee\'s access?')) return;
       await api('/ops/companies/' + encodeURIComponent(detail.id) + '/employees/' + encodeURIComponent(btn.dataset.eid) + '/revoke', { method: 'POST' });
       showCompanyDetail(detail.id);
+    };
+  });
+  document.querySelectorAll('.emp-role').forEach(btn => {
+    btn.onclick = async () => {
+      const next = btn.dataset.role === 'COMPANY_ADMIN' ? 'COMPANY_MEMBER' : 'COMPANY_ADMIN';
+      try {
+        await api('/ops/companies/' + encodeURIComponent(detail.id) + '/employees/' + encodeURIComponent(btn.dataset.eid) + '/role', { method: 'PATCH', body: { role: next } });
+        showCompanyDetail(detail.id);
+      } catch (e) { alert(e.message || 'Role change failed'); }
     };
   });
 }
@@ -1135,7 +1147,8 @@ async function loadOpsOverview(id) {
 function loadConfig() {
   const c = currentCampaign;
   if (!c) return;
-  const canManageMedia = currentOpsRole === 'PLATFORM_ADMIN' && (c.status === 'DRAFT' || c.status === 'READY');
+  const isAdmin = currentOpsRole === 'PLATFORM_ADMIN';
+  const canManageMedia = isAdmin && (c.status === 'DRAFT' || c.status === 'READY');
   const audienceParts = [];
   if (c.audienceAgeMin != null || c.audienceAgeMax != null) {
     audienceParts.push('Age ' + (c.audienceAgeMin ?? '—') + '–' + (c.audienceAgeMax ?? '—'));
@@ -1164,7 +1177,22 @@ function loadConfig() {
       '<input id="cm-url" placeholder="Media URL (https://…)" style="margin:0;flex:1;min-width:200px;" />' +
       '<input id="cm-caption" placeholder="Caption (optional)" style="margin:0;" />' +
       '<button class="small" id="btn-cm-add">Add media</button></div>' +
-      '<span class="msg" id="cm-msg"></span>' : '');
+      '<span class="msg" id="cm-msg"></span>' : '') +
+    // Founder Decision B (2026-09-25): PLATFORM_ADMIN edits campaign
+    // configuration directly (audited; same DRAFT/READY lock as the
+    // company route; study type unrestricted for admin). Deletion mirrors
+    // the company rule — DRAFT only, refused once participation exists.
+    (isAdmin ? '<h4 style="font-size:0.85rem;margin:12px 0 4px;">Edit configuration (Platform Admin — audited)</h4>' +
+      '<div class="grid2">' +
+      '<div><label>Name</label><input id="cc-name" value="' + esc(c.name) + '" /></div>' +
+      '<div><label>Study type</label><select id="cc-studytype"></select></div>' +
+      '<div><label>Start date</label><input id="cc-start" type="date" value="' + esc(c.startDate.slice(0, 10)) + '" /></div>' +
+      '<div><label>End date</label><input id="cc-end" type="date" value="' + esc(c.endDate.slice(0, 10)) + '" /></div>' +
+      '</div>' +
+      '<label>Objective</label><input id="cc-objective" value="' + esc(c.objective || '') + '" />' +
+      '<button class="small" id="btn-cc-save" style="margin-top:6px;">Save configuration</button>' +
+      '<span class="msg" id="cc-msg"></span>' : '') +
+    (isAdmin && c.status === 'DRAFT' ? '<button class="small secondary" id="btn-cc-delete" style="margin-top:10px;">Delete draft campaign</button>' : '');
   if (canManageMedia) {
     document.querySelectorAll('.media-del').forEach(btn => {
       btn.onclick = async () => {
@@ -1187,6 +1215,45 @@ function loadConfig() {
         currentCampaign = fresh;
         loadConfig();
       } catch (e) { msg.textContent = e.message || 'Save failed'; }
+    };
+  }
+  if (isAdmin) {
+    const stSel = document.getElementById('cc-studytype');
+    // Ops catalog is the full set — eligibility scopes company-facing
+    // selection only (Founder Decision A).
+    const ensureTemplates = async () => {
+      if (!studyTemplates.length) studyTemplates = await api('/ops/study-templates');
+      stSel.innerHTML = '<option value="">— custom —</option>' +
+        studyTemplates.map(t => '<option value="' + esc(t.key) + '"' + (t.key === c.studyType ? ' selected' : '') + '>' + esc(t.label) + '</option>').join('');
+    };
+    ensureTemplates();
+    document.getElementById('btn-cc-save').onclick = async () => {
+      const msg = document.getElementById('cc-msg');
+      msg.textContent = '';
+      try {
+        await api('/ops/campaigns/' + currentCampaignId, {
+          method: 'PATCH',
+          body: {
+            name: document.getElementById('cc-name').value,
+            objective: document.getElementById('cc-objective').value,
+            startDate: document.getElementById('cc-start').value,
+            endDate: document.getElementById('cc-end').value,
+            studyType: stSel.value,
+          },
+        });
+        const fresh = await api('/ops/campaigns/' + currentCampaignId);
+        currentCampaign = fresh;
+        loadConfig();
+      } catch (e) { msg.textContent = e.message || 'Save failed'; }
+    };
+    const delBtn = document.getElementById('btn-cc-delete');
+    if (delBtn) delBtn.onclick = async () => {
+      if (!confirm('Delete this DRAFT campaign? This cannot be undone.')) return;
+      try {
+        await api('/ops/campaigns/' + currentCampaignId, { method: 'DELETE' });
+        currentCampaign = null; currentCampaignId = null;
+        loadPipeline();
+      } catch (e) { alert(e.message || 'Delete failed'); }
     };
   }
 }

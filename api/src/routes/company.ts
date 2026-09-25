@@ -176,6 +176,31 @@ router.patch("/profile", requireCompanyAdmin, async (req, res) => {
   res.json(company);
 });
 
+// FOUNDER DIRECTION (2026-09-25): when TAJRIBTI Operations / Platform
+// Admin changes information belonging to a Company, the Company must be
+// able to identify the change. This returns the AccessAuditEvents that
+// target this company's own rows — company-profile events
+// (targetType "company" = this company) and employee events (targetType
+// "employee" = an employee of this company) — read-only, scoped exactly
+// like every other company route. actorKind distinguishes ops-side
+// changes from the company's own employee actions.
+router.get("/audit-events", async (req, res) => {
+  const { companyId } = asEmployee(req);
+  const employeeIds = (await prisma.employee.findMany({ where: { companyId }, select: { id: true } })).map((e) => e.id);
+  const events = await prisma.accessAuditEvent.findMany({
+    where: {
+      OR: [
+        { targetType: "company", targetId: companyId },
+        { targetType: "employee", targetId: { in: employeeIds } },
+      ],
+    },
+    select: { id: true, actorKind: true, actorName: true, action: true, detail: true, targetType: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+  res.json(events);
+});
+
 // --- Employees -----------------------------------------------------------
 router.get("/employees", async (req, res) => {
   const { companyId, employeeId } = asEmployee(req);

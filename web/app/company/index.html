@@ -322,6 +322,12 @@
         <button class="secondary small" id="btn-remove-logo">Remove logo</button>
       </div>
       <div class="msg" id="logo-msg"></div>
+      <!-- Founder direction 2026-09-25: when TAJRIBTI Operations / Platform
+           Admin changes this company's information, the change is
+           identifiable here — GET /company/audit-events, read-only. -->
+      <h3 style="font-size:0.95rem;margin-top:20px;">Account activity</h3>
+      <p class="msg" style="color:var(--muted);">Changes made to your company profile and employee access — by your employees and by TAJRIBTI administration.</p>
+      <div id="activity-list"></div>
     </div>
         </section>
 
@@ -907,6 +913,29 @@ async function loadProfile() {
     document.getElementById('btn-upload-logo').disabled = false;
     document.getElementById('btn-remove-logo').disabled = !c.logoUrl && !c.logoStorageKey;
   }
+  loadAccountActivity();
+}
+
+// Founder direction 2026-09-25: company-visible traceability for changes
+// made to this company's information — actorKind "ops" marks TAJRIBTI
+// administration actions, "employee" marks the company's own.
+const ACTIVITY_LABELS = {
+  COMPANY_PROFILE_UPDATE: 'Company profile updated',
+  COMPANY_PROFILE_UPDATED: 'Company profile updated by TAJRIBTI administration',
+  COMPANY_CREATE: 'Company onboarded',
+  EMPLOYEE_CREATE: 'Employee added',
+  EMPLOYEE_ROLE_CHANGE: 'Employee role changed',
+  EMPLOYEE_ACCESS_REVOKED: 'Employee access revoked',
+};
+async function loadAccountActivity() {
+  const list = document.getElementById('activity-list');
+  const events = await api('/company/audit-events');
+  list.innerHTML = events.length ?
+    '<table><tr><th>When</th><th>Change</th><th>By</th></tr>' +
+    events.map(e => '<tr><td>' + esc(e.createdAt.slice(0, 16).replace('T', ' ')) + '</td><td>' +
+      esc(ACTIVITY_LABELS[e.action] || e.action) + (e.detail ? ' — ' + esc(e.detail) : '') + '</td><td>' +
+      esc(e.actorName) + (e.actorKind === 'ops' ? ' (TAJRIBTI)' : '') + '</td></tr>').join('') + '</table>'
+    : '<p style="color:var(--muted);margin:0;">No recorded activity yet.</p>';
 }
 
 // Company logo — same hosted-upload lifecycle as campaign media:

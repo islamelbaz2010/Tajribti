@@ -589,6 +589,12 @@ model AccessAuditEvent {
   action     String
   targetType String
   targetId   String?
+  // Founder direction 2026-09-25: admin changes to company-owned
+  // information must be identifiable by the Company — `detail` carries a
+  // short field-level description ("industry: A → B") so the change is
+  // traceable on both the Platform Admin audit surface and the
+  // Company-facing activity feed (GET /company/audit-events).
+  detail     String?
   createdAt  DateTime @default(now())
 
   @@index([actorKind, actorId])

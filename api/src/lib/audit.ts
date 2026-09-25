@@ -13,9 +13,14 @@ export async function writeAccessAudit(event: {
   action: string;
   targetType: string;
   targetId?: string | null;
+  // Founder direction 2026-09-25: optional field-level description so an
+  // admin change to company-owned data is identifiable to the Company
+  // (e.g. "name: Old → New"). Older callers pass nothing — column is
+  // nullable, events without detail remain valid.
+  detail?: string | null;
 }): Promise<void> {
   try {
-    await prisma.accessAuditEvent.create({ data: { ...event, targetId: event.targetId ?? null } });
+    await prisma.accessAuditEvent.create({ data: { ...event, targetId: event.targetId ?? null, detail: event.detail ?? null } });
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error("[audit] failed to write AccessAuditEvent", e);

@@ -116,6 +116,134 @@ router.post("/companies", requireOpsManager, async (req, res) => {
   }
 });
 
+// FOUNDER DIRECTION (2026-09-25 consolidated pass): PLATFORM_ADMIN holds
+// global platform authority — able to view and, where appropriate, manage
+// Company information across the platform. This detail view covers the
+// resources the direction names (Employees, Products, Campaigns);
+// passwordHash and other credential material are never selected.
+router.get("/companies/:id", async (req, res) => {
+  const company = await prisma.company.findUnique({
+    where: { id: req.params.id },
+    select: {
+      id: true,
+      name: true,
+      industry: true,
+      subIndustry: true,
+      logoStorageKey: true,
+      createdAt: true,
+      employees: {
+        select: { id: true, name: true, email: true, role: true, revokedAt: true, createdAt: true },
+        orderBy: { createdAt: "asc" },
+      },
+      products: { select: { id: true, name: true, createdAt: true }, orderBy: { createdAt: "asc" } },
+      campaigns: {
+        select: { id: true, name: true, status: true, studyType: true, startDate: true, endDate: true },
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  });
+  if (!company) return res.status(404).json({ error: "Company not found" });
+  res.json(company);
+});
+
+const updateCompanySchema = z.object({
+  name: z.string().min(1).optional(),
+  industry: z.string().optional(),
+  subIndustry: z.string().optional(),
+});
+
+// FOUNDER DIRECTION (2026-09-25): the same authority that onboards a
+// company (FD-WEB-03: OPERATIONS_MANAGER + PLATFORM_ADMIN) maintains its
+// identity fields — including Industry/Sub-industry, which the 2026-09-23
+// ruling removed from company self-edit and which until now no one could
+// correct after creation. Every change is audited with a field-level
+// detail string so the Company can identify exactly what changed
+// (surfaced via GET /company/audit-events).
+router.patch("/companies/:id", requireOpsManager, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const parsed = updateCompanySchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
+  const d = parsed.data;
+  if (!industryPairValid(d.industry, d.subIndustry)) {
+    return res.status(400).json({ error: "Industry and sub-industry must be valid selections" });
+  }
+  // Sub-industry cannot be detached from its industry: a bare subIndustry
+  // change is only valid against the stored industry.
+  const existing = await prisma.company.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: "Company not found" });
+  if (d.subIndustry !== undefined && d.industry === undefined) {
+    if (!existing.industry || !isValidSubIndustry(existing.industry, d.subIndustry)) {
+      return res.status(400).json({ error: "Sub-industry must belong to the company's industry" });
+    }
+  }
+  if (d.subIndustry === undefined && existing.subIndustry !== null) {
+    // Only clear the stored sub-industry when it is no longer valid under
+    // the resulting industry — never on an industry no-op.
+    const nextIndustry = d.industry !== undefined ? d.industry : existing.industry;
+    if (!nextIndustry || !isValidSubIndustry(nextIndustry, existing.subIndustry)) {
+      d.subIndustry = "";
+    }
+  }
+  const updatable: { name?: string; industry?: string | null; subIndustry?: string | null } = {};
+  const changes: string[] = [];
+  if (d.name !== undefined && d.name !== existing.name) {
+    updatable.name = d.name;
+    changes.push(`name: "${existing.name}" → "${d.name}"`);
+  }
+  for (const field of ["industry", "subIndustry"] as const) {
+    const next = d[field] === undefined ? undefined : d[field] || null;
+    if (next !== undefined && next !== existing[field]) {
+      updatable[field] = next;
+      changes.push(`${field}: "${existing[field] ?? "—"}" → "${next ?? "—"}"`);
+    }
+  }
+  if (changes.length === 0) return res.json(existing);
+  const company = await prisma.company.update({ where: { id: existing.id }, data: updatable });
+  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+  await writeAccessAudit({
+    actorKind: "ops",
+    actorId: opsUserId,
+    actorName: actor?.name ?? "unknown",
+    action: "COMPANY_PROFILE_UPDATED",
+    targetType: "company",
+    targetId: company.id,
+    detail: changes.join("; "),
+  });
+  res.json(company);
+});
+
+// FOUNDER DIRECTION (2026-09-25): PLATFORM_ADMIN may revoke a Company
+// employee's access platform-wide — the same revocation-only pattern as
+// Founder ruling O2 for ops users and the company-side employee revoke.
+// No self-revoke guard is needed (admins are not employees of the
+// company); the last-active-admin guard is kept so a company can never be
+// locked out of its own admin capability. Audited with the employee's
+// identity so the Company can identify who was revoked.
+router.post("/companies/:id/employees/:eid/revoke", requirePlatformAdmin, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const target = await prisma.employee.findFirst({ where: { id: req.params.eid, companyId: req.params.id } });
+  if (!target) return res.status(404).json({ error: "Employee not found" });
+  if (target.revokedAt) return res.status(409).json({ error: "Access is already revoked" });
+  if (target.role === "COMPANY_ADMIN") {
+    const otherAdmins = await prisma.employee.count({
+      where: { companyId: req.params.id, role: "COMPANY_ADMIN", revokedAt: null, id: { not: target.id } },
+    });
+    if (otherAdmins === 0) return res.status(409).json({ error: "Cannot revoke the last active Company Admin" });
+  }
+  await prisma.employee.update({ where: { id: target.id }, data: { revokedAt: new Date() } });
+  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+  await writeAccessAudit({
+    actorKind: "ops",
+    actorId: opsUserId,
+    actorName: actor?.name ?? "unknown",
+    action: "EMPLOYEE_ACCESS_REVOKED",
+    targetType: "employee",
+    targetId: target.id,
+    detail: `Revoked company employee "${target.name}" <${target.email}> (company ${req.params.id})`,
+  });
+  res.json({ id: target.id, revoked: true });
+});
+
 // --- Campaign Pipeline (Benchmark §4 OPERATIONS "Campaign Pipeline") -------
 // Benchmark §4 OPERATIONS names "Companies" and "Campaign Pipeline" as
 // separate nodes, and §13/§14 of the current completion pass require the

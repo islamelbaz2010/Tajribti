@@ -18,7 +18,8 @@ import {
   classifySample,
 } from "../lib/measurement";
 import { buildReport } from "../lib/report";
-import { STUDY_TEMPLATES } from "../lib/studyTemplates";
+import { STUDY_TEMPLATES, findTemplate } from "../lib/studyTemplates";
+import { sendQrPng } from "../lib/qr";
 
 const router = Router();
 router.use(requireOps);
@@ -427,6 +428,63 @@ router.delete("/campaigns/:id/questions/:qid", requirePlatformAdmin, async (req,
   res.status(204).end();
 });
 
+// Mirrors the company-side POST .../questions/apply-template exactly —
+// same measurement-integrity guard (at most one RATING_1_5 and one
+// PURCHASE_INTENT_1_5 per campaign) and same exact-text dedup — minus the
+// industry-eligibility check: PLATFORM_ADMIN selects from the full catalog
+// under global authority (Decision A). QuestionAuditEvent per created row
+// plus one AccessAuditEvent for the application.
+router.post("/campaigns/:id/questions/apply-template", requirePlatformAdmin, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const campaign = await loadCampaignOrNotFound(req, res);
+  if (!campaign) return;
+  if (!opsAssertConfigurable(campaign, res)) return;
+  const parsed = z.object({ templateKey: z.string() }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+  const template = findTemplate(parsed.data.templateKey);
+  if (!template) return res.status(404).json({ error: "Unknown study type" });
+
+  const existing = await prisma.question.findMany({
+    where: { campaignId: campaign.id },
+    select: { type: true, text: true, order: true },
+  });
+  const hasType = (t: string) => existing.some((q) => q.type === t);
+  const hasText = (t: string) => existing.some((q) => q.text === t);
+
+  const created = [];
+  const skipped: string[] = [];
+  let order = existing.length ? Math.max(...existing.map((q) => q.order)) + 1 : 0;
+  for (const q of template.questions) {
+    const measurementConflict = (q.type === "RATING_1_5" && hasType("RATING_1_5")) || (q.type === "PURCHASE_INTENT_1_5" && hasType("PURCHASE_INTENT_1_5"));
+    if (measurementConflict || hasText(q.text)) {
+      skipped.push(q.text);
+      continue;
+    }
+    const question = await prisma.question.create({
+      data: {
+        campaignId: campaign.id,
+        stage: q.stage,
+        type: q.type,
+        text: q.text,
+        options: q.options ? JSON.stringify(q.options) : null,
+        order: order++,
+        required: q.required ?? true,
+      },
+    });
+    created.push(question);
+    existing.push({ type: q.type, text: q.text, order });
+    await auditOpsQuestionChange(opsUserId, campaign, "CREATE", null, question);
+  }
+
+  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+  await writeAccessAudit({
+    actorKind: "ops", actorId: opsUserId, actorName: actor?.name ?? "unknown",
+    action: "QUESTION_APPLY_TEMPLATE", targetType: "campaign", targetId: campaign.id,
+    detail: `Applied template ${template.key} (${template.label}) to campaign ${campaign.id}: ${created.length} created, ${skipped.length} skipped`,
+  });
+  res.status(201).json({ created, skipped });
+});
+
 const opsQrSchema = z.object({
   label: z.string().min(1),
   code: z.string().min(3),
@@ -456,6 +514,20 @@ router.post("/campaigns/:id/qr-sources", requirePlatformAdmin, async (req, res) 
   } catch {
     res.status(409).json({ error: "QR/source code already in use" });
   }
+});
+
+// The normal campaign QR-generation surface (lib/qr.ts) exposed to
+// Operations: the same deterministic PNG of the consumer entry URL the
+// Company console renders — creating a source record IS the QR
+// definition and this endpoint performs the actual QR generation for it.
+// Any ops role that can view the campaign's sources may render/download
+// the image; only PLATFORM_ADMIN can create sources (route above).
+router.get("/campaigns/:id/qr-sources/:sid/qr.png", async (req, res) => {
+  const campaign = await loadCampaignOrNotFound(req, res);
+  if (!campaign) return;
+  const source = await prisma.qrSource.findFirst({ where: { id: req.params.sid, campaignId: campaign.id } });
+  if (!source) return res.status(404).json({ error: "QR/source not found" });
+  await sendQrPng(source, req, res);
 });
 
 const opsMediaSchema = z.object({
@@ -502,6 +574,66 @@ router.delete("/campaigns/:id/media/:mid", requirePlatformAdmin, async (req, res
     detail: `Removed ${media.kind} media from campaign ${campaign.id}`,
   });
   res.status(204).end();
+});
+
+// Campaign creation — mirrors the company-side POST /campaigns exactly
+// (same fields, same product→company ownership rule, DRAFT status), minus
+// the industry-eligibility check: PLATFORM_ADMIN selects from the full
+// study-type catalog under global authority (Decision A). The campaign is
+// created inside the target company — no cross-tenant data model is
+// invented. Audited; surfaced in the Company's Account Activity feed.
+const opsCreateCampaignSchema = z.object({
+  name: z.string().min(1),
+  objective: z.string().min(1),
+  productId: z.string().nullish().transform((v) => (v === "" ? null : v)),
+  startDate: z.string(),
+  endDate: z.string(),
+  audienceAgeMin: z.number().int().nullish(),
+  audienceAgeMax: z.number().int().nullish(),
+  audienceGender: z.string().nullish().transform((v) => (v === "" ? null : v)),
+  audienceCity: z.string().nullish().transform((v) => (v === "" ? null : v)),
+  studyType: z
+    .string()
+    .optional()
+    .refine((v) => v == null || v === "" || findTemplate(v) != null, { message: "Unknown study type" }),
+});
+
+router.post("/companies/:id/campaigns", requirePlatformAdmin, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const company = await prisma.company.findUnique({ where: { id: req.params.id } });
+  if (!company) return res.status(404).json({ error: "Company not found" });
+  const parsed = opsCreateCampaignSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
+  const d = parsed.data;
+  if (d.productId) {
+    const product = await prisma.product.findUnique({ where: { id: d.productId }, select: { companyId: true } });
+    if (!product || product.companyId !== company.id) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+  }
+  const campaign = await prisma.campaign.create({
+    data: {
+      companyId: company.id,
+      name: d.name,
+      objective: d.objective,
+      productId: d.productId,
+      startDate: new Date(d.startDate),
+      endDate: new Date(d.endDate),
+      audienceAgeMin: d.audienceAgeMin,
+      audienceAgeMax: d.audienceAgeMax,
+      audienceGender: d.audienceGender,
+      audienceCity: d.audienceCity,
+      studyType: d.studyType || undefined,
+      status: "DRAFT",
+    },
+  });
+  const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+  await writeAccessAudit({
+    actorKind: "ops", actorId: opsUserId, actorName: actor?.name ?? "unknown",
+    action: "CAMPAIGN_CREATE", targetType: "campaign", targetId: campaign.id,
+    detail: `Created DRAFT campaign "${campaign.name}" in company ${company.id}`,
+  });
+  res.status(201).json(campaign);
 });
 
 // Campaign configuration — mirrors the company-side PATCH /campaigns/:id

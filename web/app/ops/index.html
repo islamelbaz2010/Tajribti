@@ -202,6 +202,7 @@
           <button class="small secondary" id="btn-cd-campaigns">View this company's campaigns</button>
           <button class="small secondary" id="btn-cd-close">Close</button>
         </div>
+        <div id="cd-newcampaign"></div>
       </div>
       <!-- FD-WEB-03 (2026-09-21): company onboarding is authorized for
            PLATFORM_ADMIN and OPERATIONS_MANAGER (backend enforces); the
@@ -728,6 +729,43 @@ async function showCompanyDetail(id) {
     });
   }
   document.getElementById('btn-cd-campaigns').onclick = () => showCampaignsForCompany(detail.id, detail.name);
+  // Founder Decision B: PLATFORM_ADMIN may create a DRAFT campaign inside
+  // the company (audited) — same fields as the company-side form, full
+  // study-type catalog (ops catalog is unrestricted under Decision A).
+  const ncBlock = document.getElementById('cd-newcampaign');
+  if (isAdmin && !studyTemplates.length) studyTemplates = await api('/ops/study-templates');
+  ncBlock.innerHTML = isAdmin ?
+    '<h4 style="font-size:0.85rem;margin:12px 0 4px;">New campaign (Platform Admin — audited)</h4>' +
+    '<input id="cd-camp-name" placeholder="Campaign name" style="width:100%;margin-bottom:6px;" />' +
+    '<textarea id="cd-camp-objective" placeholder="Objective" rows="2" style="width:100%;margin-bottom:6px;"></textarea>' +
+    '<div class="row" style="gap:8px;flex-wrap:wrap;">' +
+    '<input id="cd-camp-start" type="date" style="margin:0;" />' +
+    '<input id="cd-camp-end" type="date" style="margin:0;" />' +
+    '<select id="cd-camp-studytype" style="margin:0;width:auto;"><option value="">— custom, no template —</option>' +
+    studyTemplates.map(t => '<option value="' + esc(t.key) + '">' + esc(t.label) + '</option>').join('') +
+    '</select></div>' +
+    '<button class="small" id="btn-cd-camp-add" style="margin-top:6px;">Create campaign</button>' +
+    '<span class="msg" id="cd-camp-msg"></span>' : '';
+  if (isAdmin) {
+    document.getElementById('btn-cd-camp-add').onclick = async () => {
+      const msg = document.getElementById('cd-camp-msg');
+      msg.textContent = '';
+      try {
+        await api('/ops/companies/' + encodeURIComponent(detail.id) + '/campaigns', {
+          method: 'POST',
+          body: {
+            name: document.getElementById('cd-camp-name').value,
+            objective: document.getElementById('cd-camp-objective').value,
+            startDate: document.getElementById('cd-camp-start').value,
+            endDate: document.getElementById('cd-camp-end').value,
+            studyType: document.getElementById('cd-camp-studytype').value || undefined,
+          },
+        });
+        showCompanyDetail(detail.id);
+        loadCompanies();
+      } catch (e) { msg.textContent = e.message || 'Save failed'; }
+    };
+  }
   document.getElementById('btn-cd-close').onclick = () => {
     document.getElementById('company-detail').classList.add('hidden');
     currentCompanyDetail = null;
@@ -1278,15 +1316,30 @@ async function loadReadiness() {
 // Operations"). QR/source data is already returned by GET
 // /ops/campaigns/:id — this only surfaces it, without inventing any new
 // endpoint or operational-control behavior.
-function loadQrOps() {
+async function loadQrOps() {
   const sources = (currentCampaign && currentCampaign.qrSources) || [];
   const isAdmin = currentOpsRole === 'PLATFORM_ADMIN';
-  // Founder Decision B (2026-09-25): PLATFORM_ADMIN may add QR/source
-  // configuration directly (audited); read-only for other ops roles.
+  // The normal campaign QR-generation surface (founder-approved product
+  // evolution 2026-09-20): every source renders its consumer entry link
+  // plus the actual QR image of that link — the same generation path the
+  // Company console uses (GET .../qr-sources/:sid/qr.png), not a second
+  // QR model. PLATFORM_ADMIN may add QR/source configuration directly
+  // (audited); image/link are read data available to all ops roles.
+  const base = location.origin + '/app/consumer/?qr=';
   document.getElementById('qr-ops-content').innerHTML = (sources.length ?
-    '<table><tr><th>Label</th><th>Code</th><th>Active window</th></tr>' +
-    sources.map(s => '<tr><td>' + esc(s.label) + '</td><td>' + esc(s.code) + '</td><td>' +
-      new Date(s.activeFrom).toLocaleDateString() + ' – ' + new Date(s.activeTo).toLocaleDateString() + '</td></tr>').join('') + '</table>'
+    sources.map(s =>
+      '<div class="item" style="align-items:flex-start;gap:14px;">' +
+        '<img class="qr-thumb" data-sid="' + esc(s.id) + '" width="96" height="96" style="flex:none;border:1px solid #f1e6dc;border-radius:10px;background:#fff;" alt="QR for ' + esc(s.code) + '" />' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div><strong>' + esc(s.label) + '</strong> <span class="pill">' + esc(s.code) + '</span></div>' +
+          '<div style="color:var(--muted);font-size:0.8rem;margin:2px 0 6px;">' + new Date(s.activeFrom).toLocaleDateString() + ' – ' + new Date(s.activeTo).toLocaleDateString() + '</div>' +
+          '<div style="word-break:break-all;font-size:0.8rem;"><a href="' + esc(base + encodeURIComponent(s.code)) + '" target="_blank" rel="noopener">' + esc(base + s.code) + '</a></div>' +
+          '<div class="row" style="margin-top:6px;">' +
+            '<button class="small secondary" data-copyqr="' + esc(base + encodeURIComponent(s.code)) + '">Copy link</button>' +
+            '<a class="small secondary" style="padding:8px 14px;border-radius:999px;border:1px solid #e6d9cf;text-decoration:none;font-weight:600;font-size:0.85rem;" data-dlqr="' + esc(s.id) + '" data-code="' + esc(s.code) + '" href="#">Download QR</a>' +
+          '</div>' +
+        '</div>' +
+      '</div>').join('')
     : '<p style="color:var(--muted)">No QR/sources configured for this campaign.</p>') +
     (isAdmin ? '<h4 style="font-size:0.85rem;margin:10px 0 4px;">Add QR/source (Platform Admin — audited)</h4>' +
       '<div class="row" style="gap:8px;flex-wrap:wrap;">' +
@@ -1311,6 +1364,28 @@ function loadQrOps() {
       } catch (e) { msg.textContent = e.message || 'Save failed'; }
     };
   }
+  // The PNG endpoint is auth-gated — fetch as blob so <img> can render it.
+  const list = document.getElementById('qr-ops-content');
+  for (const img of list.querySelectorAll('img.qr-thumb')) {
+    try {
+      const r = await fetch('/api/ops/campaigns/' + currentCampaignId + '/qr-sources/' + img.dataset.sid + '/qr.png', { headers: { authorization: 'Bearer ' + token } });
+      if (r.ok) img.src = URL.createObjectURL(await r.blob());
+    } catch { /* image left blank; link still usable */ }
+  }
+  list.querySelectorAll('button[data-copyqr]').forEach(btn => {
+    btn.onclick = () => { navigator.clipboard.writeText(btn.dataset.copyqr); btn.textContent = 'Copied'; setTimeout(() => btn.textContent = 'Copy link', 1500); };
+  });
+  list.querySelectorAll('a[data-dlqr]').forEach(a => {
+    a.onclick = async (e) => {
+      e.preventDefault();
+      const r = await fetch('/api/ops/campaigns/' + currentCampaignId + '/qr-sources/' + a.dataset.dlqr + '/qr.png', { headers: { authorization: 'Bearer ' + token } });
+      if (!r.ok) return;
+      const url = URL.createObjectURL(await r.blob());
+      const dl = document.createElement('a');
+      dl.href = url; dl.download = 'qr-' + a.dataset.code + '.png'; dl.click();
+      URL.revokeObjectURL(url);
+    };
+  });
 }
 
 let allParticipants = []; // PLATFORM_ADMIN fetch — filter bar renders subsets client-side
@@ -1412,6 +1487,11 @@ async function loadSurveyOps() {
       '<input id="qa-text" placeholder="Question text" style="width:100%;margin-top:6px;" />' +
       '<input id="qa-options" placeholder="Answer options — one per line (choice questions only)" style="width:100%;margin-top:6px;" />' +
       '<button class="small" id="btn-qa-add" style="margin-top:6px;">Add question</button>' +
+      '<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;">' +
+      '<select id="qa-template" style="margin:0;width:auto;">' +
+      studyTemplates.map(t => '<option value="' + esc(t.key) + '">' + esc(t.label) + '</option>').join('') +
+      '</select>' +
+      '<button class="small secondary" id="btn-qa-template">Apply template questions</button></div>' +
       '<span class="msg" id="qa-msg"></span></div>' : '') +
     '<h3 style="font-size:0.95rem;">Choice-question aggregates</h3>' +
     (data.aggregates.length ? data.aggregates.map(a => '<p><strong>' + esc(a.text) + '</strong> (' + a.responses + ' responses)<br/>' + a.breakdown.map(b => esc(b.label) + ': ' + b.count).join(' · ') + '</p>').join('') : '<p style="color:var(--muted)">No choice-question responses yet.</p>');
@@ -1440,6 +1520,18 @@ async function loadSurveyOps() {
         document.getElementById('qa-options').value = '';
         loadSurveyOps();
       } catch (e) { msg.textContent = e.message || 'Save failed'; }
+    };
+    document.getElementById('btn-qa-template').onclick = async () => {
+      const msg = document.getElementById('qa-msg');
+      msg.textContent = '';
+      try {
+        const r = await api('/ops/campaigns/' + currentCampaignId + '/questions/apply-template', {
+          method: 'POST', body: { templateKey: document.getElementById('qa-template').value },
+        });
+        msg.textContent = 'Applied: ' + r.created.length + ' created' + (r.skipped.length ? ', ' + r.skipped.length + ' skipped (already present or duplicate metric)' : '') + '.';
+        msg.className = 'msg ok';
+        loadSurveyOps();
+      } catch (e) { msg.textContent = e.message || 'Save failed'; msg.className = 'msg error'; }
     };
   }
 }

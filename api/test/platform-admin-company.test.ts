@@ -318,3 +318,109 @@ describe("PLATFORM_ADMIN direct resource management", () => {
     assert.ok(rB.body.every((e: any) => !String(e.detail ?? "").includes("Admin-made")));
   });
 });
+
+describe("reconciliation pass — QR generation, template apply, segment suppression", () => {
+  it("ops QR endpoint renders the same deterministic PNG the normal campaign flow produces", async () => {
+    const camp = await prisma.campaign.create({ data: { companyId: companyA, name: "QR Png", objective: "o", startDate: new Date(), endDate: new Date(), status: "DRAFT" } });
+    const other = await prisma.campaign.create({ data: { companyId: companyB, name: "QR Other", objective: "o", startDate: new Date(), endDate: new Date(), status: "DRAFT" } });
+    const source = await prisma.qrSource.create({ data: { campaignId: camp.id, label: "Store A", code: "QR-TEST-001", activeFrom: new Date(), activeTo: new Date(Date.now() + 86400000) } });
+    const r = await api(`/api/ops/campaigns/${camp.id}/qr-sources/${source.id}/qr.png`, { token: tokOpsUser, raw: true });
+    assert.equal(r.status, 200);
+    assert.match(r.headers?.["content-type"] ?? "", /image\/png/);
+    assert.deepEqual(Array.from(r.raw!.subarray(0, 4)), [0x89, 0x50, 0x4e, 0x47]); // PNG magic — real generated image
+    // a source belonging to a different campaign is not reachable through this campaign's URL
+    assert.equal((await api(`/api/ops/campaigns/${other.id}/qr-sources/${source.id}/qr.png`, { token: tokOpsUser })).status, 404);
+    assert.equal((await api(`/api/ops/campaigns/${camp.id}/qr-sources/nope/qr.png`, { token: tokOpsUser })).status, 404);
+    // employees cannot use the ops surface at all
+    assert.equal((await api(`/api/ops/campaigns/${camp.id}/qr-sources/${source.id}/qr.png`, { token: tokAdminA })).status, 403);
+    // the company-side route renders the same image for the same source (same generation path)
+    const co = await api(`/api/company/campaigns/${camp.id}/qr-sources/${source.id}/qr.png`, { token: tokAdminA, raw: true });
+    assert.equal(co.status, 200);
+    assert.deepEqual(Array.from(co.raw!.subarray(0, 4)), [0x89, 0x50, 0x4e, 0x47]);
+  });
+
+  it("PLATFORM_ADMIN applies a study template with the same integrity guard — full catalog, audited", async () => {
+    // companyB has no industry: a sector variant is ineligible company-side
+    // but PA selects from the unrestricted catalog (Decision A).
+    const camp = await prisma.campaign.create({ data: { companyId: companyB, name: "Tpl", objective: "o", startDate: new Date(), endDate: new Date(), status: "DRAFT" } });
+    const r = await api(`/api/ops/campaigns/${camp.id}/questions/apply-template`, { method: "POST", token: tokOpsAdmin, body: { templateKey: "POST_TRIAL_FOOD_BEVERAGE" } });
+    assert.equal(r.status, 201);
+    assert.ok(r.body.created.length === 4, "4 template questions created");
+    assert.equal(r.body.skipped.length, 0);
+    // second application: every question skipped (exact-text dedup + metric guards)
+    const r2 = await api(`/api/ops/campaigns/${camp.id}/questions/apply-template`, { method: "POST", token: tokOpsAdmin, body: { templateKey: "POST_TRIAL_FOOD_BEVERAGE" } });
+    assert.equal(r2.status, 201);
+    assert.equal(r2.body.created.length, 0);
+    assert.equal(r2.body.skipped.length, 4);
+    // audit: QuestionAuditEvent per row + one AccessAuditEvent per application
+    const qa = await prisma.questionAuditEvent.findMany({ where: { campaignId: camp.id, action: "CREATE" } });
+    assert.equal(qa.length, 4);
+    assert.ok(qa.every((e) => e.actorKind === "ops"));
+    const access = await prisma.accessAuditEvent.findMany({ where: { action: "QUESTION_APPLY_TEMPLATE", targetId: camp.id } });
+    assert.equal(access.length, 2);
+    // authorization: non-PA roles and employees rejected
+    assert.equal((await api(`/api/ops/campaigns/${camp.id}/questions/apply-template`, { method: "POST", token: tokOpsManager, body: { templateKey: "USAGE_ATTITUDE" } })).status, 403);
+    assert.equal((await api(`/api/ops/campaigns/${camp.id}/questions/apply-template`, { method: "POST", token: tokAdminB, body: { templateKey: "USAGE_ATTITUDE" } })).status, 403);
+    // locked campaign refused
+    const locked = await prisma.campaign.create({ data: { companyId: companyB, name: "TplL", objective: "o", startDate: new Date(), endDate: new Date(), status: "ACTIVE" } });
+    assert.equal((await api(`/api/ops/campaigns/${locked.id}/questions/apply-template`, { method: "POST", token: tokOpsAdmin, body: { templateKey: "USAGE_ATTITUDE" } })).status, 409);
+    // unknown key rejected
+    assert.equal((await api(`/api/ops/campaigns/${camp.id}/questions/apply-template`, { method: "POST", token: tokOpsAdmin, body: { templateKey: "NOPE" } })).status, 404);
+  });
+
+  it("report suppresses gender/city segment figures below 5 responses (OFD-15 rule)", async () => {
+    const camp = await prisma.campaign.create({ data: { companyId: companyA, name: "Seg", objective: "o", startDate: new Date(), endDate: new Date(), status: "ACTIVE" } });
+    const q = await prisma.question.create({ data: { campaignId: camp.id, stage: "POST_TRIAL", type: "PURCHASE_INTENT_1_5", text: "PI?", order: 0, required: true } });
+    const mk = async (gender: string, n: number, score: number) => {
+      for (let i = 0; i < n; i++) {
+        const consumer = await prisma.consumer.create({ data: { phone: `+20${gender === "F" ? "10" : "11"}${camp.id.slice(0, 6)}${i}`.slice(0, 20) + `${Date.now() % 1000}${i}` } });
+        const p = await prisma.participation.create({ data: { campaignId: camp.id, consumerId: consumer.id, status: "SURVEY_COMPLETE", genderAtEntry: gender } });
+        await prisma.answer.create({ data: { participationId: p.id, questionId: q.id, valueNumber: score } });
+      }
+    };
+    await mk("Female", 2, 5.0); // below the n<5 floor -> suppressed
+    await mk("Male", 6, 3.0); // at/above the floor -> shown
+    const r = await api(`/api/ops/campaigns/${camp.id}/report`, { token: tokOpsUser });
+    assert.equal(r.status, 200);
+    const female = r.body.audienceDifferences.gender.find((s: any) => s.segmentValue === "Female");
+    const male = r.body.audienceDifferences.gender.find((s: any) => s.segmentValue === "Male");
+    assert.ok(female, "Female segment present (as suppressed marker, not silently dropped)");
+    assert.ok(female.sentences[0].includes("suppressed") && female.sentences[0].includes("n=2"));
+    assert.ok(!female.sentences[0].includes("/5"), "suppressed cell must not leak the figure");
+    assert.ok(male.sentences[0].includes("n=6") && male.sentences[0].includes("3/5"));
+    assert.ok(r.body.audienceDifferences.note.includes("suppressed"));
+  });
+
+  it("POST /ops/companies/:id/campaigns creates a DRAFT campaign (PA-only, audited, full catalog)", async () => {
+    const body = { name: "PA-created campaign", objective: "Founder Decision B parity", startDate: "2026-10-01", endDate: "2026-10-31" };
+    // PA can select any study type including a sector-specific one outside
+    // the company's industry (global authority, Decision A) — company-side
+    // creation would reject this combination (tested in study-type-governance).
+    const r = await api(`/api/ops/companies/${companyA}/campaigns`, { method: "POST", token: tokOpsAdmin, body: { ...body, studyType: "POST_TRIAL_HOME_CARE" } });
+    assert.equal(r.status, 201);
+    assert.equal(r.body.companyId, companyA);
+    assert.equal(r.body.status, "DRAFT");
+    assert.equal(r.body.studyType, "POST_TRIAL_HOME_CARE");
+    const audit = await prisma.accessAuditEvent.findFirst({ where: { action: "CAMPAIGN_CREATE", targetId: r.body.id } });
+    assert.ok(audit && audit.actorKind === "ops");
+    // Company sees the event in Account Activity
+    const activity = await api("/api/company/audit-events", { token: tokAdminA });
+    assert.equal(activity.status, 200);
+    assert.ok(activity.body.some((e: any) => e.action === "CAMPAIGN_CREATE" && e.targetType === "campaign" && e.detail?.includes("PA-created campaign")));
+    // no studyType -> custom campaign, no template
+    const plain = await api(`/api/ops/companies/${companyA}/campaigns`, { method: "POST", token: tokOpsAdmin, body });
+    assert.equal(plain.status, 201);
+    assert.equal(plain.body.studyType, null);
+    // authorization: only PLATFORM_ADMIN
+    assert.equal((await api(`/api/ops/companies/${companyA}/campaigns`, { method: "POST", token: tokOpsManager, body })).status, 403);
+    assert.equal((await api(`/api/ops/companies/${companyA}/campaigns`, { method: "POST", token: tokOpsUser, body })).status, 403);
+    assert.equal((await api(`/api/ops/companies/${companyA}/campaigns`, { method: "POST", token: tokAdminA, body })).status, 403);
+    // guards: unknown company, unknown study type, cross-company product, bad dates surfaced as 400
+    assert.equal((await api("/api/ops/companies/nope/campaigns", { method: "POST", token: tokOpsAdmin, body })).status, 404);
+    assert.equal((await api(`/api/ops/companies/${companyA}/campaigns`, { method: "POST", token: tokOpsAdmin, body: { ...body, studyType: "NOPE" } })).status, 400);
+    const otherProduct = await prisma.product.create({ data: { companyId: companyB, name: "B Product" } });
+    assert.equal((await api(`/api/ops/companies/${companyA}/campaigns`, { method: "POST", token: tokOpsAdmin, body: { ...body, productId: otherProduct.id } })).status, 404);
+    // no credential leakage
+    assert.ok(!("passwordHash" in r.body));
+  });
+});

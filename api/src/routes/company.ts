@@ -17,7 +17,7 @@ import {
 } from "../lib/measurement";
 import { buildReport } from "../lib/report";
 import { findTemplate, isStudyTypeEligible, eligibleStudyTemplates } from "../lib/studyTemplates";
-import QRCode from "qrcode";
+import { sendQrPng } from "../lib/qr";
 import {
   MEDIA_LIMITS,
   companyLogoStorageKey,
@@ -915,11 +915,7 @@ router.get("/campaigns/:id/qr-sources/:sid/qr.png", async (req, res) => {
   if (!campaign) return;
   const source = await prisma.qrSource.findFirst({ where: { id: req.params.sid, campaignId: campaign.id } });
   if (!source) return res.status(404).json({ error: "QR/source not found" });
-  const entryUrl = `${req.protocol}://${req.get("host")}/app/consumer/?qr=${encodeURIComponent(source.code)}`;
-  const png = await QRCode.toBuffer(entryUrl, { width: 512, margin: 2 });
-  res.setHeader("Content-Type", "image/png");
-  res.setHeader("Content-Disposition", `inline; filename="qr-${source.code}.png"`);
-  res.send(png);
+  await sendQrPng(source, req, res);
 });
 
 // --- Live Results (Benchmark §4 COMPANY "Live Results") --------------------

@@ -135,11 +135,24 @@ function buildTextRecommendations(textCounts: { text: string; count: number }[])
 // deterministic mode with all ties named) scoped to participations
 // sharing an already-captured demographic value (Benchmark §7
 // "demographics" snapshot) — no new measurement, no age segmentation, no
-// bins, no significance testing, no causal claim. Every non-empty cell is
-// shown regardless of size (Founder-approved: no minimum-N threshold is
-// invented). A participation with no value for a dimension is skipped —
-// the same convention the campaign-wide demographics aggregation above
-// already uses (no "Unknown" bucket is fabricated).
+// bins, no significance testing, no causal claim. A participation with no
+// value for a dimension is skipped — the same convention the
+// campaign-wide demographics aggregation above already uses (no
+// "Unknown" bucket is fabricated).
+//
+// Small-cell suppression (OFD-15 privacy rule, binding here): the
+// Founder Innovation Specification §G prescribes "Cells below n=5 are
+// suppressed" for exactly this gender/city segment-conditioned evidence,
+// and the D-3 methodology spec repeats "minimum evidence = n≥5 per
+// reported cell, else suppressed" for all segment outputs — the same
+// floor lib/intelligence.ts already applies to age-band cells and the
+// panel-insights endpoint. A figure whose underlying cell has fewer than
+// SEGMENT_MIN_CELL responses is replaced with a suppressed marker naming
+// the real n — never hidden silently, never shown. This is a privacy
+// control on which figures may be displayed, not a sufficiency claim:
+// the audienceDifferences note below still asserts no minimum sample
+// size for drawing conclusions.
+const SEGMENT_MIN_CELL = 5; // OFD-15 small-cell privacy protection — shared rule with intelligence.ts
 type SegmentDimension = "genderAtEntry" | "cityAtEntry";
 
 async function getSegmentedEvidence(
@@ -179,6 +192,9 @@ async function getSegmentedEvidence(
       sentencesBySegment.get(seg)!.push(sentence);
     };
 
+    const suppressedMarker = (seg: string, what: string, n: number) =>
+      `Among ${seg} respondents, ${what} evidence is suppressed (n=${n}, below the minimum cell size).`;
+
     const piBySeg = new Map<string, { sum: number; n: number }>();
     for (const a of piAnswers) {
       const seg = a.participation[dimension];
@@ -189,6 +205,10 @@ async function getSegmentedEvidence(
       piBySeg.set(seg, cur);
     }
     for (const [seg, { sum, n }] of piBySeg) {
+      if (n < SEGMENT_MIN_CELL) {
+        addSentence(seg, suppressedMarker(seg, "purchase-intent", n));
+        continue;
+      }
       const avg = Number((sum / n).toFixed(2));
       addSentence(
         seg,
@@ -206,6 +226,10 @@ async function getSegmentedEvidence(
       ratingBySeg.set(seg, cur);
     }
     for (const [seg, { sum, n }] of ratingBySeg) {
+      if (n < SEGMENT_MIN_CELL) {
+        addSentence(seg, suppressedMarker(seg, "rating", n));
+        continue;
+      }
       const avg = Number((sum / n).toFixed(2));
       addSentence(
         seg,
@@ -230,6 +254,10 @@ async function getSegmentedEvidence(
       for (const [seg, tally] of tallyBySeg) {
         const n = countBySeg.get(seg) ?? 0;
         if (n === 0) continue;
+        if (n < SEGMENT_MIN_CELL) {
+          addSentence(seg, suppressedMarker(seg, `response to '${q.text}'`, n));
+          continue;
+        }
         const counts = options.map((o) => ({ label: o.label, count: tally[o.id] ?? 0 }));
         const maxCount = Math.max(...counts.map((c) => c.count));
         if (maxCount === 0) continue;
@@ -455,9 +483,11 @@ export async function buildReport(campaignId: string) {
     // should be read alongside its own stated n and treated as
     // directional, not conclusive — no minimum sample size is asserted,
     // reusing the exact same caution idiom already applied to `findings`
-    // above rather than inventing a new one.
+    // above rather than inventing a new one. Segment figures drawn from
+    // fewer than 5 responses are suppressed (OFD-15 small-cell privacy
+    // rule — the same floor applied to age-band cells and panel insights).
     audienceDifferences: {
-      note: "Every figure below should be read alongside its own stated sample size (n) and treated as directional, not conclusive — no minimum sample size is asserted.",
+      note: "Every figure below should be read alongside its own stated sample size (n) and treated as directional, not conclusive — no minimum sample size is asserted. Segment figures with fewer than 5 responses are suppressed (small-cell privacy rule).",
       gender: segmentedEvidence.gender,
       city: segmentedEvidence.city,
     },
@@ -471,7 +501,7 @@ export async function buildReport(campaignId: string) {
       // snapshot — that is no longer accurate now that gender/city-
       // conditioned evidence exists (see audienceDifferences above), so
       // the boundary is restated precisely rather than left stale.
-      "Gender/city-conditioned evidence (where shown) reflects only the demographic snapshot captured at eligibility; no age-based, cross-campaign, or predictive segmentation is fabricated, and no statistical comparison between segments is applied.",
+      "Gender/city-conditioned evidence (where shown) reflects only the demographic snapshot captured at eligibility; segment figures with fewer than 5 responses are suppressed; no age-based, cross-campaign, or predictive segmentation is fabricated, and no statistical comparison between segments is applied.",
       // No sample-sufficiency claim is made at any size — Benchmark §6
       // requires cautious language for small samples but never defines a
       // point at which a sample becomes statistically sufficient.

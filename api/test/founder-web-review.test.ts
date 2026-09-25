@@ -18,6 +18,7 @@ let stopServer: () => Promise<void>;
 let empToken: string;
 let companyId: string;
 let productId: string;
+let opsAdminToken: string;
 let opsManagerToken: string;
 let opsToken: string;
 
@@ -29,6 +30,10 @@ before(async () => {
     data: { companyId: company.id, email: "e@industry.test", name: "E", passwordHash: "x", role: "COMPANY_ADMIN" },
   });
   empToken = signToken({ kind: "employee", employeeId: emp.id, companyId: company.id });
+  const opsAdmin = await prisma.opsUser.create({
+    data: { email: "pa@ops.test", name: "PA", passwordHash: "x", role: "PLATFORM_ADMIN" },
+  });
+  opsAdminToken = signToken({ kind: "ops", opsUserId: opsAdmin.id });
   const opsManager = await prisma.opsUser.create({
     data: { email: "om@ops.test", name: "OM", passwordHash: "x", role: "OPERATIONS_MANAGER" },
   });
@@ -73,6 +78,27 @@ async function mkSource(campaignId: string) {
 
 function productCheck(checks: { key: string; ok: boolean }[]) {
   return checks.find((c) => c.key === "product");
+}
+
+function onboardingAgreement() {
+  return {
+    packageTier: "ESSENTIAL",
+    contractedParticipantBasis: "PER_CAMPAIGN_SCOPE",
+    contractedParticipants: null,
+    fulfillmentModel: "POINT_OF_TRIAL",
+    contractReference: "TEST-AGREEMENT-001",
+    scopeNote: "Fixture company agreement for taxonomy/onboarding tests.",
+    quotedStudyFeeEgp: 5000,
+    quotedParticipantRateEgp: 50,
+    quotedHomeDeliveryFeeEgp: null,
+    discountPercent: 0,
+    discountBasis: null,
+    effectiveFrom: "2026-10-01T00:00:00.000Z",
+    effectiveTo: "2027-09-30T23:59:59.000Z",
+    paymentMethod: "MANUAL_BANK_TRANSFER",
+    paymentStatus: "QUOTED",
+    agreementStatus: "READY",
+  };
 }
 
 describe("readiness — product is required", () => {
@@ -122,44 +148,45 @@ describe("industry / sub-industry controlled taxonomy", () => {
 
   it("ops company onboarding rejects an unknown industry", async () => {
     const r = await api("/api/ops/companies", {
-      method: "POST", token: opsManagerToken,
-      body: { name: "Bad Co", industry: "Test", employeeName: "E", employeeEmail: "bad1@x.test", employeePassword: "password123" },
+      method: "POST", token: opsAdminToken,
+      body: { name: "Bad Co", industry: "Test", employeeName: "E", employeeEmail: "bad1@x.test", employeePassword: "password123", commercialAgreement: onboardingAgreement() },
     });
     assert.equal(r.status, 400, JSON.stringify(r.body));
   });
 
   it("ops company onboarding rejects a mismatched sub-industry", async () => {
     const r = await api("/api/ops/companies", {
-      method: "POST", token: opsManagerToken,
-      body: { name: "Mismatch Co", industry: "Pet Care", subIndustry: "Skincare", employeeName: "E", employeeEmail: "bad2@x.test", employeePassword: "password123" },
+      method: "POST", token: opsAdminToken,
+      body: { name: "Mismatch Co", industry: "Pet Care", subIndustry: "Skincare", employeeName: "E", employeeEmail: "bad2@x.test", employeePassword: "password123", commercialAgreement: onboardingAgreement() },
     });
     assert.equal(r.status, 400);
   });
 
   it("ops company onboarding rejects a sub-industry with no industry", async () => {
     const r = await api("/api/ops/companies", {
-      method: "POST", token: opsManagerToken,
-      body: { name: "Orphan Co", subIndustry: "Skincare", employeeName: "E", employeeEmail: "bad3@x.test", employeePassword: "password123" },
+      method: "POST", token: opsAdminToken,
+      body: { name: "Orphan Co", subIndustry: "Skincare", employeeName: "E", employeeEmail: "bad3@x.test", employeePassword: "password123", commercialAgreement: onboardingAgreement() },
     });
     assert.equal(r.status, 400);
   });
 
   it("ops company onboarding accepts a valid pair and returns it", async () => {
     const r = await api("/api/ops/companies", {
-      method: "POST", token: opsManagerToken,
-      body: { name: "Good Co", industry: "Food & Beverage", subIndustry: "Beverages", employeeName: "E", employeeEmail: "good@x.test", employeePassword: "password123" },
+      method: "POST", token: opsAdminToken,
+      body: { name: "Good Co", industry: "Food & Beverage", subIndustry: "Beverages", employeeName: "E", employeeEmail: "good@x.test", employeePassword: "password123", commercialAgreement: onboardingAgreement() },
     });
     assert.equal(r.status, 201, JSON.stringify(r.body));
     assert.equal(r.body.industry, "Food & Beverage");
     assert.equal(r.body.subIndustry, "Beverages");
   });
 
-  it("plain OPERATIONS cannot create companies (role unchanged)", async () => {
-    const r = await api("/api/ops/companies", {
-      method: "POST", token: opsToken,
-      body: { name: "Nope Co", employeeName: "E", employeeEmail: "nope@x.test", employeePassword: "password123" },
-    });
-    assert.equal(r.status, 403);
+  it("OPERATIONS and OPERATIONS_MANAGER cannot create companies in commercial onboarding", async () => {
+    const body = {
+      name: "Nope Co", employeeName: "E", employeeEmail: "nope@x.test", employeePassword: "password123",
+      commercialAgreement: onboardingAgreement(),
+    };
+    assert.equal((await api("/api/ops/companies", { method: "POST", token: opsToken, body })).status, 403);
+    assert.equal((await api("/api/ops/companies", { method: "POST", token: opsManagerToken, body: { ...body, employeeEmail: "nope-manager@x.test" } })).status, 403);
   });
 
   // Founder direction 2026-09-23 (consolidated workspace pass): Industry

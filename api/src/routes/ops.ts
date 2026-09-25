@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireOps, requirePlatformAdmin, requireOpsManager, asOps } from "../middleware/auth";
@@ -124,6 +125,29 @@ router.get("/companies", async (_req, res) => {
   res.json(companies);
 });
 
+const companyAgreementInputSchema = z.object({
+  packageTier: z.enum(COMMERCIAL_PACKAGE_TIERS),
+  contractedParticipantBasis: z.enum(CONTRACTED_PARTICIPANT_BASES),
+  contractedParticipants: z.number().int().positive().nullable(),
+  fulfillmentModel: z.enum(FULFILLMENT_MODELS),
+  contractReference: z.string().trim().max(300).nullable(),
+  scopeNote: z.string().trim().max(1000).nullable(),
+  quotedStudyFeeEgp: z.number().int().min(0).nullable(),
+  quotedParticipantRateEgp: z.number().int().min(0).nullable(),
+  quotedHomeDeliveryFeeEgp: z.number().int().min(0).nullable(),
+  discountPercent: z.number().int().min(0),
+  discountBasis: z.string().trim().max(300).nullable(),
+  effectiveFrom: isoDateTimeNullable,
+  effectiveTo: isoDateTimeNullable,
+  paymentMethod: z.literal("MANUAL_BANK_TRANSFER"),
+  paymentStatus: z.enum(COMMERCIAL_PAYMENT_STATUSES),
+  agreementStatus: z.enum(COMMERCIAL_AGREEMENT_STATUSES),
+});
+const companyAgreementSchema = companyAgreementInputSchema.partial();
+const onboardingCompanyAgreementSchema = companyAgreementInputSchema.extend({
+  agreementStatus: z.literal("READY"),
+});
+
 // Field names are neutral ("employee...", not "owner...") on purpose —
 // see schema.prisma Employee model comment: Benchmark defines no
 // permission tier, so this is simply the company's first employee.
@@ -134,6 +158,7 @@ const createCompanySchema = z.object({
   employeeName: z.string().min(1),
   employeeEmail: z.string().email(),
   employeePassword: z.string().min(8),
+  commercialAgreement: onboardingCompanyAgreementSchema,
 });
 
 // Founder direction 2026-09-21: Industry/Sub-industry are controlled
@@ -147,11 +172,13 @@ function industryPairValid(industry: string | undefined, subIndustry: string | u
   return true;
 }
 
-// FOUNDER DECISION FD-WEB-03 (2026-09-21): company creation is authorized
-// for OPERATIONS_MANAGER (and PLATFORM_ADMIN as the superset layer) and is
-// audited. Plain OPERATIONS retains all campaign-pipeline/monitoring
-// capability but cannot create companies.
-router.post("/companies", requireOpsManager, async (req, res) => {
+// FOUNDER-AUTHORIZED COMMERCIAL ONBOARDING CORRECTION: a Company is not
+// committed as a commercially incomplete identity and then repaired later.
+// The Platform Admin owns commercial terms, so the atomic Company +
+// governing Agreement onboarding write is Platform Admin-only. Validation
+// happens before the transaction; any create failure rolls the whole write
+// back and cannot leave an orphan Company.
+router.post("/companies", requirePlatformAdmin, async (req, res) => {
   const { opsUserId } = asOps(req);
   const parsed = createCompanySchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
@@ -159,6 +186,10 @@ router.post("/companies", requireOpsManager, async (req, res) => {
   if (!industryPairValid(d.industry, d.subIndustry)) {
     return res.status(400).json({ error: "Industry and sub-industry must be valid selections" });
   }
+  const packageError = await assertCommercialPackageSelectable(d.commercialAgreement.packageTier);
+  if (packageError) return res.status(400).json({ error: packageError });
+  const invalidAgreement = validateCompanyCommercialAgreement(d.commercialAgreement);
+  if (invalidAgreement) return res.status(400).json({ error: invalidAgreement });
   const passwordHash = await bcrypt.hash(d.employeePassword, 10);
   try {
     // Security hardening: select only safe fields for the response. The
@@ -166,35 +197,51 @@ router.post("/companies", requireOpsManager, async (req, res) => {
     // row, including the bcrypt passwordHash, to the calling Ops client.
     // No response should ever carry credential material — this changes
     // only the response shape, not what is created or how it is created.
-    const company = await prisma.company.create({
-      data: {
-        name: d.name,
-        industry: d.industry,
-        subIndustry: d.subIndustry,
-        employees: {
-          create: { name: d.employeeName, email: d.employeeEmail, passwordHash },
+    const company = await prisma.$transaction(async (tx) => {
+      const created = await tx.company.create({
+        data: {
+          name: d.name,
+          industry: d.industry,
+          subIndustry: d.subIndustry,
+          employees: {
+            create: { name: d.employeeName, email: d.employeeEmail, passwordHash },
+          },
+          commercialAgreement: {
+            create: {
+              ...d.commercialAgreement,
+              readyAt: new Date(),
+              updatedById: opsUserId,
+            },
+          },
         },
-        // Model A onboarding: the governing commercial agreement exists as
-        // part of account setup from the start, initially as explicit DRAFT
-        // state. Platform Admin completes the actual contracted terms on the
-        // company detail; the DRAFT row does not become a launch gate.
-        commercialAgreement: { create: DEFAULT_COMPANY_COMMERCIAL_AGREEMENT },
-      },
-      select: {
-        id: true,
-        name: true,
-        industry: true,
-        subIndustry: true,
-        createdAt: true,
-        commercialAgreement: { select: { agreementStatus: true, packageTier: true, updatedAt: true } },
-        employees: { select: { id: true, name: true, email: true, role: true, createdAt: true } },
-      },
+        select: {
+          id: true,
+          name: true,
+          industry: true,
+          subIndustry: true,
+          createdAt: true,
+          commercialAgreement: { select: { agreementStatus: true, packageTier: true, updatedAt: true } },
+          employees: { select: { id: true, name: true, email: true, role: true, createdAt: true } },
+        },
+      });
+      const actor = await tx.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
+      await writeAccessAudit({
+        actorKind: "ops",
+        actorId: opsUserId,
+        actorName: actor?.name ?? "unknown",
+        action: "COMPANY_CREATE",
+        targetType: "company",
+        targetId: created.id,
+        detail: `company onboarding: atomic company + READY commercial agreement; package: ${d.commercialAgreement.packageTier}`,
+      }, tx, { strict: true });
+      return created;
     });
-    const actor = await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } });
-    await writeAccessAudit({ actorKind: "ops", actorId: opsUserId, actorName: actor?.name ?? "unknown", action: "COMPANY_CREATE", targetType: "company", targetId: company.id });
     res.status(201).json(company);
-  } catch {
-    res.status(409).json({ error: "Employee email already in use" });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return res.status(409).json({ error: "Employee email already in use" });
+    }
+    throw e;
   }
 });
 
@@ -239,26 +286,6 @@ router.get("/companies/:id/commercial-agreement", async (req, res) => {
   res.json(await buildCompanyCommercialAgreementState(company.id, { includeCatalog: true }));
 });
 
-const companyAgreementSchema = z
-  .object({
-    packageTier: z.enum(COMMERCIAL_PACKAGE_TIERS),
-    contractedParticipantBasis: z.enum(CONTRACTED_PARTICIPANT_BASES),
-    contractedParticipants: z.number().int().positive().nullable(),
-    fulfillmentModel: z.enum(FULFILLMENT_MODELS),
-    contractReference: z.string().trim().max(300).nullable(),
-    scopeNote: z.string().trim().max(1000).nullable(),
-    quotedStudyFeeEgp: z.number().int().min(0).nullable(),
-    quotedParticipantRateEgp: z.number().int().min(0).nullable(),
-    quotedHomeDeliveryFeeEgp: z.number().int().min(0).nullable(),
-    discountPercent: z.number().int().min(0),
-    discountBasis: z.string().trim().max(300).nullable(),
-    effectiveFrom: isoDateTimeNullable,
-    effectiveTo: isoDateTimeNullable,
-    paymentMethod: z.literal("MANUAL_BANK_TRANSFER"),
-    paymentStatus: z.enum(COMMERCIAL_PAYMENT_STATUSES),
-    agreementStatus: z.enum(COMMERCIAL_AGREEMENT_STATUSES),
-  })
-  .partial();
 
 router.put("/companies/:id/commercial-agreement", requirePlatformAdmin, async (req, res) => {
   const { opsUserId } = asOps(req);

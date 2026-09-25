@@ -81,12 +81,13 @@ export async function requirePlatformAdmin(req: Request, res: Response, next: Ne
   next();
 }
 
-// FOUNDER DECISION FD-WEB-03 (2026-09-21): OPERATIONS_MANAGER — an
-// operations role that may create Companies and work the full Operations
-// scope, without inheriting Platform Admin privileges (ops-user management,
-// participant-PII access, audit log). PLATFORM_ADMIN retains company
-// creation as the superset administration layer. OPERATIONS alone cannot
-// create companies.
+// FOUNDER DECISION FD-WEB-03 (2026-09-21): OPERATIONS_MANAGER works the
+// full Operations scope and may maintain onboarded Company identity without
+// inheriting Platform Admin privileges (ops-user management, participant-PII
+// access, audit log). The later commercial-onboarding correction narrowed
+// the atomic Company + governing Commercial Agreement create path to
+// PLATFORM_ADMIN because those contract terms are Platform Admin-owned.
+// OPERATIONS and OPERATIONS_MANAGER cannot create companies through it.
 export async function requireOpsManager(req: Request, res: Response, next: NextFunction) {
   const claims = req.claims as OpsClaims | undefined;
   if (!claims || claims.kind !== "ops") return res.status(403).json({ error: "TAJRIBTI Operations authentication required" });

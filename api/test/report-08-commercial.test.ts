@@ -20,6 +20,28 @@ let companyId: string;
 let essentialCampaignId: string;
 let standardCampaignId: string;
 
+function onboardingAgreement(overrides: Record<string, unknown> = {}) {
+  return {
+    packageTier: "STANDARD",
+    contractedParticipantBasis: "PER_CAMPAIGN_SCOPE",
+    contractedParticipants: null,
+    fulfillmentModel: "POINT_OF_TRIAL",
+    contractReference: "ONBOARD-SOW-001",
+    scopeNote: "Atomic onboarding fixture agreement.",
+    quotedStudyFeeEgp: 6000,
+    quotedParticipantRateEgp: 60,
+    quotedHomeDeliveryFeeEgp: null,
+    discountPercent: 0,
+    discountBasis: null,
+    effectiveFrom: "2026-10-01T00:00:00.000Z",
+    effectiveTo: "2027-09-30T23:59:59.000Z",
+    paymentMethod: "MANUAL_BANK_TRANSFER",
+    paymentStatus: "QUOTED",
+    agreementStatus: "READY",
+    ...overrides,
+  };
+}
+
 async function seedCampaign(companyId: string, name: string) {
   const campaign = await prisma.campaign.create({
     data: {
@@ -113,6 +135,7 @@ before(async () => {
   const admin = await prisma.employee.create({ data: { companyId: company.id, email: "report-admin@test", name: "Admin", passwordHash: "x", role: "COMPANY_ADMIN" } });
   const member = await prisma.employee.create({ data: { companyId: company.id, email: "report-member@test", name: "Member", passwordHash: "x", role: "COMPANY_MEMBER" } });
   const other = await prisma.employee.create({ data: { companyId: otherCompany.id, email: "other@test", name: "Other", passwordHash: "x", role: "COMPANY_ADMIN" } });
+  await prisma.employee.create({ data: { companyId: company.id, email: "duplicate-employee@test.example", name: "Duplicate", passwordHash: "x", role: "COMPANY_MEMBER" } });
   const opsAdmin = await prisma.opsUser.create({ data: { email: "commercial-admin@test", name: "Ops Admin", passwordHash: "x", role: "PLATFORM_ADMIN" } });
   const opsManager = await prisma.opsUser.create({ data: { email: "commercial-manager@test", name: "Ops Manager", passwordHash: "x", role: "OPERATIONS_MANAGER" } });
   const opsWorker = await prisma.opsUser.create({ data: { email: "commercial-ops@test", name: "Ops", passwordHash: "x", role: "OPERATIONS" } });
@@ -164,24 +187,88 @@ describe("commercial package catalog and onboarding", () => {
     assert.equal(companyDenied.status, 403);
   });
 
-  it("creates the governing draft commercial agreement during company onboarding without adding a campaign creation gate", async () => {
-    const created = await api("/api/ops/companies", {
+  it("creates Company, employee, and READY agreement atomically and leaves no orphan on validation failure", async () => {
+    const denied = await api("/api/ops/companies", {
       method: "POST", token: opsManagerToken,
       body: {
-        name: "Onboarded Commercial Co",
-        employeeName: "Commercial Admin",
-        employeeEmail: "onboarded-commercial@test.example",
+        name: "Manager Onboarding Denied",
+        employeeName: "Denied Admin",
+        employeeEmail: "denied-onboarding@test.example",
+        employeePassword: "Password123!",
+        commercialAgreement: onboardingAgreement(),
+      },
+    });
+    assert.equal(denied.status, 403);
+
+    const missing = await api("/api/ops/companies", {
+      method: "POST", token: opsAdminToken,
+      body: {
+        name: "Missing Agreement Co",
+        employeeName: "Missing Admin",
+        employeeEmail: "missing-agreement@test.example",
         employeePassword: "Password123!",
       },
     });
+    assert.equal(missing.status, 400);
+    assert.equal(await prisma.company.count({ where: { name: "Missing Agreement Co" } }), 0);
+    assert.equal(await prisma.employee.count({ where: { email: "missing-agreement@test.example" } }), 0);
+
+    const invalid = await api("/api/ops/companies", {
+      method: "POST", token: opsAdminToken,
+      body: {
+        name: "Invalid Agreement Co",
+        employeeName: "Invalid Admin",
+        employeeEmail: "invalid-agreement@test.example",
+        employeePassword: "Password123!",
+        commercialAgreement: onboardingAgreement({ contractReference: null, scopeNote: null }),
+      },
+    });
+    assert.equal(invalid.status, 400);
+    assert.equal(await prisma.company.count({ where: { name: "Invalid Agreement Co" } }), 0);
+    assert.equal(await prisma.employee.count({ where: { email: "invalid-agreement@test.example" } }), 0);
+
+    const duplicate = await api("/api/ops/companies", {
+      method: "POST", token: opsAdminToken,
+      body: {
+        name: "Duplicate Employee Co",
+        employeeName: "Duplicate Admin",
+        employeeEmail: "duplicate-employee@test.example",
+        employeePassword: "Password123!",
+        commercialAgreement: onboardingAgreement({ contractReference: "ONBOARD-SOW-DUPLICATE" }),
+      },
+    });
+    assert.equal(duplicate.status, 409, JSON.stringify(duplicate.body));
+    assert.equal(await prisma.company.count({ where: { name: "Duplicate Employee Co" } }), 0);
+    assert.equal(await prisma.companyCommercialAgreement.count({ where: { contractReference: "ONBOARD-SOW-DUPLICATE" } }), 0);
+
+    const created = await api("/api/ops/companies", {
+      method: "POST", token: opsAdminToken,
+      body: {
+        name: "Onboarded Commercial Co",
+        industry: "Food & Beverage",
+        subIndustry: "Beverages",
+        employeeName: "Commercial Admin",
+        employeeEmail: "onboarded-commercial@test.example",
+        employeePassword: "Password123!",
+        commercialAgreement: onboardingAgreement(),
+      },
+    });
     assert.equal(created.status, 201, JSON.stringify(created.body));
-    assert.equal(created.body.commercialAgreement.agreementStatus, "DRAFT");
-    assert.equal(created.body.commercialAgreement.packageTier, "ESSENTIAL");
+    assert.equal(created.body.commercialAgreement.agreementStatus, "READY");
+    assert.equal(created.body.commercialAgreement.packageTier, "STANDARD");
 
     const agreement = await api(`/api/ops/companies/${created.body.id}/commercial-agreement`, { token: opsWorkerToken });
     assert.equal(agreement.status, 200);
-    assert.equal(agreement.body.agreementStatus, "DRAFT");
-    assert.equal(agreement.body.commerciallyReady, false);
+    assert.equal(agreement.body.agreementStatus, "READY");
+    assert.equal(agreement.body.commerciallyReady, true);
+    assert.equal(agreement.body.contractReference, "ONBOARD-SOW-001");
+    assert.ok(agreement.body.readyAt);
+
+    const audit = await prisma.accessAuditEvent.findFirst({
+      where: { action: "COMPANY_CREATE", targetType: "company", targetId: created.body.id },
+    });
+    assert.ok(audit);
+    assert.match(audit.detail ?? "", /READY commercial agreement/i);
 
     const employee = created.body.employees[0];
     const promote = await api(`/api/ops/companies/${created.body.id}/employees/${employee.id}/role`, {
@@ -192,7 +279,7 @@ describe("commercial package catalog and onboarding", () => {
     const campaign = await api("/api/company/campaigns", {
       method: "POST", token: onboardedToken,
       body: {
-        name: "Draft-agreement campaign",
+        name: "Ready-agreement campaign",
         objective: "Verify no second commercial lifecycle gate",
         startDate: "2026-10-01T00:00:00.000Z",
         endDate: "2026-10-07T00:00:00.000Z",
@@ -202,8 +289,8 @@ describe("commercial package catalog and onboarding", () => {
 
     const commercial = await api(`/api/company/campaigns/${campaign.body.id}/commercial`, { token: onboardedToken });
     assert.equal(commercial.status, 200, JSON.stringify(commercial.body));
-    assert.equal(commercial.body.campaignScopeMode, "COMPANY_AGREEMENT_NOT_READY");
-    assert.equal(commercial.body.packageSource, "COMPANY_AGREEMENT_NOT_READY");
+    assert.equal(commercial.body.campaignScopeMode, "INHERITED_COMPANY_AGREEMENT");
+    assert.equal(commercial.body.packageSource, "COMPANY_AGREEMENT");
   });
 });
 

@@ -41,22 +41,28 @@ async function main() {
     },
   });
 
-  // Model A preview: the governing commercial agreement exists from
-  // onboarding/account setup as an explicit DRAFT row. No placeholder prices
-  // or contract dates are presented as final values; Platform Admin completes
-  // the actual configured terms during review.
+  // Model A preview: the seeded company represents the corrected atomic
+  // onboarding result — a governing READY agreement exists from account
+  // setup. Values are fixture terms only, not final commercial pricing.
+  const previewAgreement = {
+    packageTier: "STANDARD",
+    contractedParticipantBasis: "PER_CAMPAIGN_SCOPE",
+    fulfillmentModel: "POINT_OF_TRIAL",
+    contractReference: "PREVIEW-FIXTURE-AGREEMENT-001",
+    scopeNote: "Preview-only agreement values used to demonstrate the commercial model; not a final price list.",
+    quotedStudyFeeEgp: 35000,
+    quotedParticipantRateEgp: 450,
+    agreementStatus: "READY",
+    readyAt: new Date("2026-09-28T00:00:00.000Z"),
+    effectiveFrom: new Date("2026-10-01T00:00:00.000Z"),
+    effectiveTo: new Date("2027-09-30T23:59:59.000Z"),
+    paymentMethod: "MANUAL_BANK_TRANSFER",
+    paymentStatus: "QUOTED",
+  };
   await prisma.companyCommercialAgreement.upsert({
     where: { companyId: "seed-company-1" },
-    update: {},
-    create: {
-      companyId: "seed-company-1",
-      packageTier: "ESSENTIAL",
-      contractedParticipantBasis: "PER_CAMPAIGN_SCOPE",
-      fulfillmentModel: "POINT_OF_TRIAL",
-      agreementStatus: "DRAFT",
-      paymentMethod: "MANUAL_BANK_TRANSFER",
-      paymentStatus: "QUOTE_DRAFT",
-    },
+    update: previewAgreement,
+    create: { companyId: "seed-company-1", ...previewAgreement },
   });
 
   const adminPasswordHash = await bcrypt.hash("PlatformPass123!", 10);

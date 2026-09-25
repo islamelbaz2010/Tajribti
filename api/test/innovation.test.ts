@@ -188,7 +188,7 @@ describe("role gates (OFD-08)", () => {
     assert.equal(self.status, 409);
   });
 
-  it("OPERATIONS cannot create companies or view participant PII; PLATFORM_ADMIN can, audited", async () => {
+  it("OPERATIONS cannot create companies or view participant PII; PLATFORM_ADMIN can view PII, audited", async () => {
     const deniedCompany = await api("/api/ops/companies", {
       method: "POST", token: opsWorkerToken,
       body: { name: "Nope", employeeName: "E", employeeEmail: "e@x.test", employeePassword: "Password123" },
@@ -258,18 +258,16 @@ describe("role gates (OFD-08)", () => {
     }
   });
 
-  // FD-WEB-03 (2026-09-21): OPERATIONS_MANAGER creates companies and keeps
-  // the Operations scope — without inheriting Platform Admin powers.
-  it("OPERATIONS_MANAGER can create companies but not Platform Admin surfaces", async () => {
-    const created = await api("/api/ops/companies", {
+  // Commercial onboarding correction: OPERATIONS_MANAGER keeps the Operations
+  // scope, but the atomic Company + governing Commercial Agreement create path
+  // is Platform Admin-owned because it commits contract terms.
+  it("OPERATIONS_MANAGER retains Operations scope but not commercial onboarding or Platform Admin surfaces", async () => {
+    const denied = await api("/api/ops/companies", {
       method: "POST", token: opsManagerToken,
       body: { name: "Mgr Co", employeeName: "E", employeeEmail: "mgr-co@x.test", employeePassword: "Password123" },
     });
-    assert.equal(created.status, 201, JSON.stringify(created.body));
-    const audit = await prisma.accessAuditEvent.findFirst({
-      where: { action: "COMPANY_CREATE", targetId: created.body.id },
-    });
-    assert.ok(audit, "company creation by OPERATIONS_MANAGER must be audited");
+    assert.equal(denied.status, 403);
+    assert.equal(await prisma.company.count({ where: { name: "Mgr Co" } }), 0);
 
     // Operations scope retained.
     assert.equal((await api("/api/ops/campaigns", { token: opsManagerToken })).status, 200);
@@ -281,11 +279,11 @@ describe("role gates (OFD-08)", () => {
     assert.equal((await api("/api/ops/audit-events", { token: opsManagerToken })).status, 403);
 
     // And plain OPERATIONS still cannot create companies.
-    const denied = await api("/api/ops/companies", {
+    const deniedWorker = await api("/api/ops/companies", {
       method: "POST", token: opsWorkerToken,
       body: { name: "Nope", employeeName: "E", employeeEmail: "e2@x.test", employeePassword: "Password123" },
     });
-    assert.equal(denied.status, 403);
+    assert.equal(deniedWorker.status, 403);
 
     // PLATFORM_ADMIN can assign the new role.
     const ok = await api("/api/ops/ops-users", {

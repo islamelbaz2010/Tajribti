@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 
 // FOUNDER INNOVATION (OFD-08 auditability + OFD-19 traceability) — NOT
@@ -18,11 +19,13 @@ export async function writeAccessAudit(event: {
   // (e.g. "name: Old → New"). Older callers pass nothing — column is
   // nullable, events without detail remain valid.
   detail?: string | null;
-}): Promise<void> {
+}, tx?: Prisma.TransactionClient, opts: { strict?: boolean } = {}): Promise<void> {
   try {
-    await prisma.accessAuditEvent.create({ data: { ...event, targetId: event.targetId ?? null, detail: event.detail ?? null } });
+    const db = tx ?? prisma;
+    await db.accessAuditEvent.create({ data: { ...event, targetId: event.targetId ?? null, detail: event.detail ?? null } });
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error("[audit] failed to write AccessAuditEvent", e);
+    if (opts.strict) throw e;
   }
 }

@@ -211,22 +211,42 @@
         </div>
         <div id="cd-newcampaign"></div>
       </div>
-      <!-- FD-WEB-03 (2026-09-21): company onboarding is authorized for
-           PLATFORM_ADMIN and OPERATIONS_MANAGER (backend enforces); the
-           form is hidden for plain OPERATIONS users. -->
+      <!-- Commercial onboarding is atomic Company + governing Agreement
+           setup. Because commercial terms are Platform Admin-owned, the
+           complete onboarding form is shown only to PLATFORM_ADMIN. -->
       <div id="company-onboard-block">
       <h3 style="font-size:0.95rem;">Onboard new company</h3>
-      <p class="msg" style="margin-top:-4px;color:var(--muted);">Creates identity and industry classification first. Platform Admin completes the Commercial Agreement inside the company detail before commercial work is marked ready.</p>
+      <p class="msg" style="margin-top:-4px;color:var(--muted);">Identity, first employee, and governing commercial agreement are validated and committed together. A failed submission creates nothing.</p>
       <label>Company name</label><input id="nco-name" />
       <!-- Founder direction 2026-09-21: Industry/Sub-industry are
            controlled selections from the canonical taxonomy served by
            GET /api/meta/industries — Sub-industry depends on Industry. -->
       <label>Industry</label><select id="nco-industry"></select>
       <label>Sub-industry</label><select id="nco-sub-industry"></select>
-      <label>Employee name</label><input id="nco-owner-name" />
-      <label>Employee email</label><input id="nco-owner-email" />
+      <div class="grid2">
+        <div><label>Employee name</label><input id="nco-owner-name" /></div>
+        <div><label>Employee email</label><input id="nco-owner-email" /></div>
+      </div>
       <label>Employee password</label><input id="nco-owner-password" type="password" />
-      <button id="btn-create-company">Create company</button>
+      <h4 style="font-size:0.85rem;margin:14px 0 4px;">Commercial agreement</h4>
+      <p style="font-size:0.78rem;color:var(--muted);margin:0 0 8px;">These are the actual quoted company terms stored with the company. Catalog defaults are reference values only.</p>
+      <div class="grid2">
+        <div><label>Package</label><select id="nco-package"></select></div>
+        <div><label>Contracted quantity basis</label><select id="nco-participant-basis"></select></div>
+        <div><label>Contracted participants</label><input id="nco-participants" type="number" min="1" /></div>
+        <div><label>Fulfillment model</label><select id="nco-fulfillment"></select></div>
+        <div><label>Effective start</label><input id="nco-effective-from" type="date" /></div>
+        <div><label>Effective end</label><input id="nco-effective-to" type="date" /></div>
+        <div><label>Quoted study fee (EGP)</label><input id="nco-study-fee" type="number" min="0" /></div>
+        <div><label>Quoted participant rate (EGP)</label><input id="nco-participant-rate" type="number" min="0" /></div>
+        <div><label>Home Delivery fee (EGP)</label><input id="nco-home-fee" type="number" min="0" /></div>
+        <div><label>Discount % (study fee only)</label><input id="nco-discount" type="number" min="0" max="20" value="0" /></div>
+        <div><label>Payment status</label><select id="nco-payment-status"></select></div>
+      </div>
+      <label>Discount basis / authorization</label><input id="nco-discount-basis" />
+      <label>Contract / SOW reference</label><input id="nco-contract-reference" />
+      <label>Commercial scope note</label><input id="nco-scope-note" />
+      <button id="btn-create-company">Create company and agreement</button>
       <div class="msg" id="nco-msg"></div>
       </div>
     </div>
@@ -297,8 +317,8 @@
         <div><label>Role</label>
           <select id="nou-role">
             <option value="OPERATIONS">Operations</option>
-            <!-- FD-WEB-03: can create companies + full Operations scope,
-                 without Platform Admin powers. -->
+            <!-- FD-WEB-03: full Operations scope without Platform Admin
+                 powers; commercial onboarding remains Platform Admin-owned. -->
             <option value="OPERATIONS_MANAGER">Operations Manager</option>
             <option value="PLATFORM_ADMIN">Platform Admin</option>
           </select>
@@ -1071,8 +1091,9 @@ function renderCompanyList() {
   list.querySelectorAll('.company-row').forEach(row => {
     row.onclick = () => showCompanyDetail(row.dataset.id);
   });
-  // FD-WEB-03: company onboarding is PLATFORM_ADMIN or OPERATIONS_MANAGER.
-  const canOnboard = currentOpsRole === 'PLATFORM_ADMIN' || currentOpsRole === 'OPERATIONS_MANAGER';
+  // Commercial onboarding is Platform Admin-only because the atomic write
+  // also creates Platform Admin-owned contract terms.
+  const canOnboard = currentOpsRole === 'PLATFORM_ADMIN';
   document.getElementById('company-onboard-block').classList.toggle('hidden', !canOnboard);
   if (canOnboard) loadIndustrySelects();
 }
@@ -1114,7 +1135,12 @@ document.getElementById('co-reset').onclick = () => {
 // Sub-industry select. Backend validates against the same taxonomy.
 let INDUSTRY_GROUPS = null;
 async function loadIndustrySelects() {
-  if (!INDUSTRY_GROUPS) INDUSTRY_GROUPS = await api('/meta/industries');
+  const [industries, packages] = await Promise.all([
+    INDUSTRY_GROUPS ? Promise.resolve(INDUSTRY_GROUPS) : api('/meta/industries'),
+    commercialPackages.length ? Promise.resolve(commercialPackages) : api('/ops/commercial-packages'),
+  ]);
+  INDUSTRY_GROUPS = industries;
+  commercialPackages = packages;
   const ind = document.getElementById('nco-industry');
   const sub = document.getElementById('nco-sub-industry');
   ind.innerHTML = '<option value="">Select industry</option>' +
@@ -1127,10 +1153,26 @@ async function loadIndustrySelects() {
   };
   ind.onchange = fillSub;
   fillSub();
+  document.getElementById('nco-package').innerHTML = '<option value="">Select package</option>' +
+    commercialPackages.filter(p => p.active).map(p => '<option value="' + esc(p.tier) + '">' + esc(p.name) + '</option>').join('');
+  document.getElementById('nco-participant-basis').innerHTML = Object.entries(PARTICIPANT_BASIS_LABELS).map(([v, l]) =>
+    '<option value="' + v + '"' + (v === 'PER_CAMPAIGN_SCOPE' ? ' selected' : '') + '>' + l + '</option>').join('');
+  document.getElementById('nco-fulfillment').innerHTML = Object.entries(FULFILLMENT_LABELS).map(([v, l]) =>
+    '<option value="' + v + '"' + (v === 'POINT_OF_TRIAL' ? ' selected' : '') + '>' + l + '</option>').join('');
+  document.getElementById('nco-payment-status').innerHTML = Object.entries(PAYMENT_STATUS_LABELS).filter(([v]) => v !== 'QUOTE_DRAFT').map(([v, l]) =>
+    '<option value="' + v + '"' + (v === 'QUOTED' ? ' selected' : '') + '>' + l + '</option>').join('');
 }
 
 document.getElementById('btn-create-company').onclick = async () => {
   const msg = document.getElementById('nco-msg');
+  const numberOrNull = id => {
+    const raw = document.getElementById(id).value.trim();
+    return raw === '' ? null : Number(raw);
+  };
+  const dateOrNull = id => {
+    const raw = document.getElementById(id).value;
+    return raw ? new Date(raw + 'T00:00:00.000Z').toISOString() : null;
+  };
   try {
     await api('/ops/companies', { method: 'POST', body: {
       name: document.getElementById('nco-name').value.trim(),
@@ -1139,8 +1181,26 @@ document.getElementById('btn-create-company').onclick = async () => {
       employeeName: document.getElementById('nco-owner-name').value.trim(),
       employeeEmail: document.getElementById('nco-owner-email').value.trim(),
       employeePassword: document.getElementById('nco-owner-password').value,
+      commercialAgreement: {
+        packageTier: document.getElementById('nco-package').value,
+        contractedParticipantBasis: document.getElementById('nco-participant-basis').value,
+        contractedParticipants: numberOrNull('nco-participants'),
+        fulfillmentModel: document.getElementById('nco-fulfillment').value,
+        contractReference: document.getElementById('nco-contract-reference').value.trim() || null,
+        scopeNote: document.getElementById('nco-scope-note').value.trim() || null,
+        quotedStudyFeeEgp: numberOrNull('nco-study-fee'),
+        quotedParticipantRateEgp: numberOrNull('nco-participant-rate'),
+        quotedHomeDeliveryFeeEgp: numberOrNull('nco-home-fee'),
+        discountPercent: numberOrNull('nco-discount') ?? 0,
+        discountBasis: document.getElementById('nco-discount-basis').value.trim() || null,
+        effectiveFrom: dateOrNull('nco-effective-from'),
+        effectiveTo: dateOrNull('nco-effective-to'),
+        paymentMethod: 'MANUAL_BANK_TRANSFER',
+        paymentStatus: document.getElementById('nco-payment-status').value,
+        agreementStatus: 'READY',
+      },
     }});
-    msg.textContent = 'Company created.'; msg.className = 'msg ok';
+    msg.textContent = 'Company and commercial agreement created.'; msg.className = 'msg ok';
     await loadCompanies();
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };

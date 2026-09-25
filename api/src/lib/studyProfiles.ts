@@ -1,5 +1,5 @@
 // FOUNDER INNOVATION (D-3, 2026-09-20): per-study-type methodology block.
-// Each of the 8 approved study types gets a distinct, evidence-grounded
+// Each executable study type gets a distinct, evidence-grounded
 // profile in the report — objective, methodology, which existing evidence
 // fields are primary, explicit limitations, and what is NOT claimed.
 // Every value here is static methodology text from the approved spec
@@ -18,6 +18,82 @@ export interface StudyProfile {
 }
 
 export const STUDY_PROFILES: Record<string, StudyProfile> = {
+  // Report Product #08 (authorized 2026-09-26): profiles below mirror the
+  // six original executable templates in studyTemplates.ts. They add
+  // methodology context only; they do not add metrics, scoring, weighting,
+  // or claims that the persisted questions do not already measure.
+  POST_TRIAL_FOOD_BEVERAGE: {
+    key: "POST_TRIAL_FOOD_BEVERAGE",
+    objective: "Does this food or beverage product deliver after trial?",
+    methodology:
+      "Post-trial product-experience evaluation: taste/quality rating, purchase intent, repeat-purchase choice and open-text likes/dislikes are measured after real product use.",
+    primaryEvidence: ["purchaseIntent", "satisfaction", "campaignSpecificQuestions", "consumerVoice"],
+    limitations: [
+      "Measures this campaign's trial sample only — it is not a category or population benchmark.",
+      "Perceived taste/quality is self-reported after trial; no sensory laboratory measurement is implied.",
+    ],
+    notClaimed: ["No repeat-purchase forecast", "No preference ranking versus competitors", "No nutritional or safety assessment"],
+  },
+  POST_TRIAL_BEAUTY_PERSONAL_CARE: {
+    key: "POST_TRIAL_BEAUTY_PERSONAL_CARE",
+    objective: "Does this beauty or personal-care product deliver after trial?",
+    methodology:
+      "Post-trial product-experience evaluation: texture/feel/scent rating, purchase intent, expectation performance, repeat-purchase choice and open-text likes/dislikes are measured after real product use.",
+    primaryEvidence: ["purchaseIntent", "satisfaction", "campaignSpecificQuestions", "consumerVoice"],
+    limitations: [
+      "Measures this campaign's trial sample only — it is not a category or population benchmark.",
+      "Product performance is self-reported consumer perception; no clinical, dermatological, or efficacy testing is implied.",
+    ],
+    notClaimed: ["No efficacy claim substantiation", "No repeat-purchase forecast", "No preference ranking versus competitors"],
+  },
+  POST_TRIAL_HOME_CARE: {
+    key: "POST_TRIAL_HOME_CARE",
+    objective: "Does this home-care or household product deliver after trial?",
+    methodology:
+      "Post-trial product-experience evaluation: effectiveness rating, purchase intent, ease-of-use choice, repeat-purchase choice and open-text likes/dislikes are measured after real household use.",
+    primaryEvidence: ["purchaseIntent", "satisfaction", "campaignSpecificQuestions", "consumerVoice"],
+    limitations: [
+      "Measures this campaign's trial sample only — it is not a category or population benchmark.",
+      "Perceived effectiveness and ease of use are self-reported; no laboratory performance or safety testing is implied.",
+    ],
+    notClaimed: ["No product-performance certification", "No repeat-purchase forecast", "No preference ranking versus competitors"],
+  },
+  CONCEPT_LAUNCH_VIABILITY: {
+    key: "CONCEPT_LAUNCH_VIABILITY",
+    objective: "How appealing and differentiated is this product after trial, and what purchase intent does it generate?",
+    methodology:
+      "Post-trial differentiation and appeal evaluation: category purchase context, appeal, perceived difference, purchase intent and improvement direction are measured after real product trial.",
+    primaryEvidence: ["purchaseIntent", "satisfaction", "campaignSpecificQuestions", "consumerVoice"],
+    limitations: [
+      "Evaluates an existing trialed product — this is not pre-development concept validation and has no stimulus-only stage.",
+      "Perceived difference is relative to what respondents say they can already buy; no competitor audit is performed.",
+    ],
+    notClaimed: ["No launch-success verdict", "No pre-development concept test", "No forecast of sales or market share"],
+  },
+  PACKAGING_CLAIMS_REACTION: {
+    key: "PACKAGING_CLAIMS_REACTION",
+    objective: "Does the packaging or claim communicate the intended proposition?",
+    methodology:
+      "Trial with packaging/claim exposure: benefit clarity, claim believability, purchase intent and standout-message verbatims are measured after the consumer sees and tries the product.",
+    primaryEvidence: ["campaignSpecificQuestions", "satisfaction", "purchaseIntent", "consumerVoice"],
+    limitations: [
+      "Measures consumer perception of packaging/claim communication only — no claim substantiation or regulatory assessment is performed.",
+      "Packaging is evaluated in-use; this is not a shelf simulation or competitive standout test.",
+    ],
+    notClaimed: ["No claim-truth verdict", "No shelf standout metric", "No regulatory-compliance conclusion"],
+  },
+  USAGE_ATTITUDE: {
+    key: "USAGE_ATTITUDE",
+    objective: "How does the category currently behave, and what drives choice within it?",
+    methodology:
+      "Category usage-and-attitude snapshot: usage frequency is captured at eligibility and drivers/frustrations are captured as post-trial open text within the campaign frame.",
+    primaryEvidence: ["campaignSpecificQuestions", "demographics", "consumerVoice"],
+    limitations: [
+      "Campaign-bound participant sample — this is not a standalone market U&A study and does not represent the general population.",
+      "Drivers and frustrations are surfaced as verbatim evidence only; no theme extraction, weighting, or market sizing is applied.",
+    ],
+    notClaimed: ["No market sizing", "No population projection", "No attitudinal segmentation model"],
+  },
   CONCEPT_TESTING: {
     key: "CONCEPT_TESTING",
     objective: "Is the product/concept appealing and differentiated enough to proceed?",

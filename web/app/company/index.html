@@ -48,6 +48,11 @@
   .metric-label { font-size:0.75rem; color:var(--muted); }
   .metrics-row { display:flex; gap:20px; flex-wrap:wrap; margin-bottom: 10px; }
   .verbatim { padding:10px; border-left:3px solid var(--primary); background:var(--bg); margin-bottom:8px; font-size:0.88rem; border-radius:6px; }
+  .chart-row { display:grid; grid-template-columns:minmax(120px,0.8fr) 2fr minmax(92px,auto); gap:10px; align-items:center; padding:5px 0; font-size:0.8rem; }
+  .chart-row .cr-track { background:#f3e7dd; border-radius:999px; height:10px; overflow:hidden; }
+  .chart-row .cr-track i { display:block; height:100%; border-radius:999px; background:var(--primary); }
+  .chart-row .cr-val { text-align:right; font-weight:700; white-space:nowrap; }
+  .chart-row .cr-val span { color:var(--muted); font-weight:400; }
   a.back { color: var(--muted); font-size: 0.85rem; text-decoration:none; display:inline-block; margin-bottom:10px; }
   /* Workspace IA (consolidated pass 2026-09-23): left sidebar navigation —
      Overview/Campaigns/Products/Reports/Profile/Employees as first-class
@@ -422,6 +427,11 @@
       </div>
       <button id="btn-save-setup">Save</button>
       <div class="msg" id="setup-msg"></div>
+      <!-- FOUNDER-AUTHORIZED COMMERCIAL PACKAGE STATE (2026-09-26):
+           read-only package/quote visibility for the company; Operations /
+           Platform Admin owns the values. No billing or payment behavior. -->
+      <h3 style="font-size:0.95rem;margin-top:20px;">Commercial package</h3>
+      <div id="commercial-content" style="color:var(--muted);font-size:0.85rem;"></div>
       <!-- FOUNDER INNOVATION (OFD-12 + D-5): campaign media — URL-referenced
            assets and hosted file uploads (private Railway Bucket, signed
            URLs; JPEG/PNG/WebP images max 5 MB, MP4/WebM video max 50 MB,
@@ -1221,6 +1231,7 @@ async function openCampaign(id, tab) {
   await refreshStudyTypeGovernanceUI((c.questions || []).length);
   await loadQuestionChangeRequests(campaignLocked);
   await loadEvidenceCoverage();
+  await loadCommercial();
 
   const landingTab = tab || 'setup';
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === landingTab));
@@ -1486,6 +1497,28 @@ async function loadEvidenceCoverage() {
   }
 }
 
+// Read-only package/quote terms from the campaign's commercial state.
+// Amounts are explicitly labeled quoted terms; no invoice/tax math is
+// presented to the company in the product.
+async function loadCommercial() {
+  const el = document.getElementById('commercial-content');
+  try {
+    const c = await api('/company/campaigns/' + currentCampaignId + '/commercial');
+    el.innerHTML =
+      '<div class="metrics-row" style="margin-bottom:6px;">' +
+      metric(c.packageLabel, 'Package') +
+      metric(c.contractedParticipants ?? '—', 'Contracted participants') +
+      metric(c.calculation.completedEligibleParticipants, 'Completed eligible') +
+      '</div>' +
+      '<p>Fulfillment: ' + esc(c.fulfillmentLabel) + ' · Payment: ' + esc(c.paymentStatusLabel) + '</p>' +
+      (c.calculation.shortfall != null && c.calculation.shortfall > 0 ? '<p>Contracted shortfall: ' + c.calculation.shortfall + ' — handled by the agreed contractual remedy.</p>' : '') +
+      (c.calculation.overage != null && c.calculation.overage > 0 ? '<p>Completed overage: ' + c.calculation.overage + ' — subject to the agreed fieldwork change order.</p>' : '') +
+      (c.scopeNote ? '<p>Scope note: ' + esc(c.scopeNote) + '</p>' : '');
+  } catch (e) {
+    el.innerHTML = '<p class="msg error">' + esc(e.message || 'Commercial state unavailable') + '</p>';
+  }
+}
+
 document.getElementById('btn-add-question').onclick = async () => {
   const msg = document.getElementById('question-msg');
   const type = document.getElementById('q-type').value;
@@ -1707,9 +1740,30 @@ async function loadInsights() {
 // already-computed report data invisible to the company. No new
 // backend computation or methodology is introduced here; this only
 // wires existing fields into the one display surface built for them.
+const REPORT_VALUE_LABELS = { MALE: 'Male', FEMALE: 'Female', NON_BINARY: 'Non-binary', OTHER: 'Other', PREFER_NOT_TO_SAY: 'Prefer not to say' };
+function reportValueLabel(value) { return REPORT_VALUE_LABELS[value] || value; }
 function breakdownLine(counts) {
   const keys = Object.keys(counts);
-  return keys.length ? keys.map(k => esc(k) + ': ' + counts[k]).join(' · ') : '—';
+  return keys.length ? keys.map(k => esc(reportValueLabel(k)) + ': ' + counts[k]).join(' · ') : '—';
+}
+
+// Report Product #08 presentation helpers. The API owns the numbers;
+// these helpers only render already-computed deterministic items and hide
+// unsupported distributions instead of inventing empty values.
+function renderChartRows(items, valueLabel) {
+  const visible = (items || []).filter(item => Number.isFinite(item.percentage));
+  if (!visible.length) return '';
+  return visible.map(item =>
+    '<div class="chart-row"><span>' + esc(item.label) + '</span>' +
+    '<span class="cr-track"><i style="width:' + Math.max(0, Math.min(100, item.percentage)) + '%;"></i></span>' +
+    '<span class="cr-val">' + item.count + ' <span>· ' + item.percentage + '%' + (valueLabel ? ' ' + esc(valueLabel) : '') + '</span></span></div>'
+  ).join('');
+}
+
+function renderQuestionDistribution(q) {
+  if (!q.percentBasis || !q.breakdown || !q.breakdown.length || !q.responses) return '';
+  const basis = q.percentBasis === 'SELECTIONS' ? 'of selections' : 'of respondents';
+  return '<div style="margin:4px 0 10px;">' + renderChartRows(q.breakdown, basis) + '</div>';
 }
 
 // FOUNDER-APPROVED — Feature E: Segment-Conditioned Evidence (optional
@@ -1718,6 +1772,7 @@ function breakdownLine(counts) {
 // composed here, so the frontend cannot accidentally introduce
 // evaluative language the backend deliberately avoids.
 function renderAudienceDifferences(ad) {
+  if (!ad || (!ad.gender?.length && !ad.city?.length)) return '';
   function renderDimension(label, segments) {
     return '<h4 style="font-size:0.88rem;margin:10px 0 4px;">' + label + '</h4>' +
       (segments.length
@@ -1731,6 +1786,7 @@ function renderAudienceDifferences(ad) {
 
 async function loadReport() {
   const r = await api('/company/campaigns/' + currentCampaignId + '/report');
+  const audienceHtml = renderAudienceDifferences(r.audienceDifferences);
   const studyLabel = r.campaign.studyType ? ((studyTemplates.find(t => t.key === r.campaign.studyType) || {}).label || r.campaign.studyType) : '';
   const companyName = document.getElementById('cp-name').value.trim();
   document.getElementById('report-content').innerHTML =
@@ -1738,12 +1794,13 @@ async function loadReport() {
     '<div class="rc-eyebrow">TAJRIBTI · Consumer Insights &amp; Feedback Report</div>' +
     '<div class="rc-title">' + esc(r.campaign.name) + '</div>' +
     '<div class="rc-meta">' +
-      (companyName ? esc(companyName) + ' · ' : '') + (studyLabel ? esc(studyLabel) + ' · ' : '') + esc(r.campaign.status) + '<br/>' +
+      (companyName ? esc(companyName) + ' · ' : '') + (studyLabel ? esc(studyLabel) + ' · ' : '') + esc(r.campaign.statusLabel ? r.campaign.statusLabel.en : r.campaign.status) + '<br/>' +
       'Product: ' + (r.campaign.product ? esc(r.campaign.product) : 'No product linked') + ' · ' +
+      'Package: ' + (r.commercialPackage ? esc(r.commercialPackage.label) : 'Essential') + ' · ' +
       new Date(r.campaign.startDate).toLocaleDateString() + ' – ' + new Date(r.campaign.endDate).toLocaleDateString() +
     '</div>' +
     '<span class="rc-tag">' + r.evidence.sampleSize + ' completed survey response' + (r.evidence.sampleSize === 1 ? '' : 's') +
-      ' · Evidence level: ' + esc(r.evidence.level) + ' · Generated ' + new Date(r.generatedAt).toLocaleDateString() + '</span>' +
+      ' · ' + esc(r.evidence.levelLabel ? r.evidence.levelLabel.en : 'Survey evidence recorded') + (r.evidence.levelLabel ? ' <span lang="ar" dir="rtl">/ ' + esc(r.evidence.levelLabel.ar) + '</span>' : '') + ' · Generated ' + new Date(r.generatedAt).toLocaleDateString() + '</span>' +
     '</div>' +
     (r.campaign.objective ? '<div class="rep-label">Research objective</div><p style="font-size:0.9rem;margin-top:0;">' + esc(r.campaign.objective) + '</p>' : '') +
     // FOUNDER INNOVATION (OFD-03): bilingual deterministic narrative as the
@@ -1755,31 +1812,52 @@ async function loadReport() {
       '<ul>' + r.narrative.en.map(s => '<li>' + esc(s) + '</li>').join('') + '</ul>' +
       '<ul dir="rtl" lang="ar" style="margin-top:10px;">' + r.narrative.ar.map(s => '<li>' + esc(s) + '</li>').join('') + '</ul></div>'
       : '') +
-    '<div class="rep-label">Consumer / sample profile</div>' +
-    '<p class="hint" style="margin-top:0;">' + r.demographics.sampleSize + ' eligibility profile(s) · average age ' + (r.demographics.averageAge ?? '—') + ' (eligibility snapshot)</p>' +
-    '<table class="rep-dist">' +
-    '<tr><td>Gender</td><td>' + breakdownLine(r.demographics.genderBreakdown) + '</td></tr>' +
-    '<tr><td>City</td><td>' + breakdownLine(r.demographics.cityBreakdown) + '</td></tr>' +
-    '</table>' +
+    (r.demographics.sampleSize ?
+      '<div class="rep-label">Consumer / sample profile</div>' +
+      '<p class="hint" style="margin-top:0;">' + r.demographics.sampleSize + ' eligibility profile(s) · average age ' + (r.demographics.averageAge ?? '—') + ' (eligibility snapshot)</p>' +
+      '<table class="rep-dist">' +
+      '<tr><td>Gender</td><td>' + breakdownLine(r.demographics.genderBreakdown) + '</td></tr>' +
+      '<tr><td>City</td><td>' + breakdownLine(r.demographics.cityBreakdown) + '</td></tr>' +
+      '</table>' +
+      (r.demographics.distributions ?
+        '<div class="rep-label">Sample composition</div>' +
+        (r.demographics.distributions.gender.length ? '<h4 style="font-size:0.82rem;margin:8px 0 2px;">Gender</h4>' + renderChartRows(r.demographics.distributions.gender, 'of profiled participants') : '') +
+        (r.demographics.distributions.city.length ? '<h4 style="font-size:0.82rem;margin:8px 0 2px;">City</h4>' + renderChartRows(r.demographics.distributions.city, 'of profiled participants') : '')
+        : '')
+      : '') +
     '<div class="rep-label">Trial participation</div>' +
     '<div class="metrics-row">' +
     metric(r.funnel.entered, 'Entered') + metric(r.funnel.eligible, 'Eligible') +
     metric(r.funnel.trialRedeemed, 'Trial redeemed') + metric(r.funnel.surveyComplete, 'Survey complete') +
     '</div>' +
     (r.sources.length ? '<table class="rep-dist"><tr><td style="color:var(--muted);">Source</td><td style="color:var(--muted);">Entered → Survey complete</td></tr>' +
-      r.sources.map(s => '<tr><td>' + esc(s.label) + '</td><td>' + s.entered + ' → ' + s.surveyComplete + '</td></tr>').join('') + '</table>'
+      r.sources.map(s => '<tr><td>' + esc(s.label) + '</td><td>' + s.entered + ' → ' + s.surveyComplete +
+        (s.enteredPercentage != null ? ' <span class="hint">(' + s.enteredPercentage + '% of entered · ' + s.surveyCompletePercentage + '% of completes)</span>' : '') +
+        '</td></tr>').join('') + '</table>'
       : '<p style="color:var(--muted)">No QR/sources configured for this campaign.</p>') +
-    '<div class="rep-label">Product experience</div>' +
-    (r.satisfaction.questionText ? '<p style="color:var(--muted);font-size:0.82rem;margin-bottom:2px;">' + esc(r.satisfaction.questionText) + '</p>' : '') +
-    '<p style="font-size:1.2rem;font-weight:700;margin:0 0 4px;">' + (r.satisfaction.averageScore ?? '—') + ' / 5 <span style="font-size:0.8rem;color:var(--muted);font-weight:400;">across ' + r.satisfaction.responses + ' responses</span></p>' +
-    '<div class="rep-label">Purchase intent</div>' +
-    (r.purchaseIntent.questionText ? '<p style="color:var(--muted);font-size:0.82rem;margin-bottom:2px;">' + esc(r.purchaseIntent.questionText) + '</p>' : '') +
-    '<p style="font-size:1.2rem;font-weight:700;margin:0;">' + (r.purchaseIntent.averageScore ?? '—') + ' / 5 <span style="font-size:0.8rem;color:var(--muted);font-weight:400;">across ' + r.purchaseIntent.responses + ' responses</span></p>' +
-    '<div class="rep-label">Campaign-specific questions</div>' +
-    (r.campaignSpecificQuestions.length ? r.campaignSpecificQuestions.map(q => '<p style="margin:0 0 8px;"><strong>' + esc(q.text) + '</strong> <span class="hint">(' + q.responses + ' responses)</span><br/>' + q.breakdown.map(b => esc(b.label) + ': ' + b.count).join(' · ') + '</p>').join('') : '<p style="color:var(--muted)">No choice-question responses yet.</p>') +
-    '<div class="rep-label">Consumer voice</div>' +
-    (r.consumerVoice.length ? r.consumerVoice.map(v => '<div class="verbatim">"' + esc(v.response) + '"<br/><span style="color:var(--muted);font-size:0.78rem;">' + esc(v.question) + '</span></div>').join('') : '<p style="color:var(--muted)">No open-text responses yet.</p>') +
-    '<div class="rep-label">Audience differences</div>' + renderAudienceDifferences(r.audienceDifferences) +
+    (r.satisfaction.responses ?
+      '<div class="rep-label">Product experience</div>' +
+      (r.satisfaction.questionText ? '<p style="color:var(--muted);font-size:0.82rem;margin-bottom:2px;">' + esc(r.satisfaction.questionText) + '</p>' : '') +
+      '<p style="font-size:1.2rem;font-weight:700;margin:0 0 4px;">' + r.satisfaction.averageScore + ' / 5 <span style="font-size:0.8rem;color:var(--muted);font-weight:400;">across ' + r.satisfaction.responses + ' responses</span></p>' +
+      renderChartRows(r.satisfaction.distributionItems, 'of rating responses')
+      : '') +
+    (r.purchaseIntent.responses ?
+      '<div class="rep-label">Purchase intent</div>' +
+      (r.purchaseIntent.questionText ? '<p style="color:var(--muted);font-size:0.82rem;margin-bottom:2px;">' + esc(r.purchaseIntent.questionText) + '</p>' : '') +
+      '<p style="font-size:1.2rem;font-weight:700;margin:0;">' + r.purchaseIntent.averageScore + ' / 5 <span style="font-size:0.8rem;color:var(--muted);font-weight:400;">across ' + r.purchaseIntent.responses + ' responses</span></p>' +
+      renderChartRows(r.purchaseIntent.distributionItems, 'of purchase-intent responses')
+      : '') +
+    (r.campaignSpecificQuestions.length ?
+      '<div class="rep-label">Campaign-specific questions</div>' +
+      r.campaignSpecificQuestions.map(q => '<div style="margin:0 0 8px;"><strong>' + esc(q.text) + '</strong> <span class="hint">(' + q.responses + ' responses)</span><br/>' + q.breakdown.map(b => esc(b.label) + ': ' + b.count).join(' · ') + renderQuestionDistribution(q) + '</div>').join('')
+      : '') +
+    (r.consumerVoice.length ?
+      '<div class="rep-label">Consumer voice</div>' +
+      r.consumerVoice.map(v => '<div class="verbatim">"' + esc(v.response) + '"<br/><span style="color:var(--muted);font-size:0.78rem;">' + esc(v.question) + '</span></div>').join('')
+      : '') +
+    (audienceHtml ? '<div class="rep-label">Audience differences</div>' + audienceHtml : '') +
+    (Array.isArray(r.evidenceCoverage) && r.evidenceCoverage.length ?
+      '<div class="rep-label">Evidence coverage</div><ul>' + r.evidenceCoverage.map(line => '<li>' + esc(line) + '</li>').join('') + '</ul>' : '') +
     '<div class="rep-label">Key findings</div><ul>' + r.findings.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul>' +
     '<div class="rep-label">Recommendations</div><ul>' + (r.recommendations.length ? r.recommendations.map(f => '<li>' + esc(f) + '</li>').join('') : '<li>None yet — insufficient evidence.</li>') + '</ul>' +
     // FOUNDER INNOVATION (D-3, 2026-09-20): per-study-type methodology

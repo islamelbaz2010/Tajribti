@@ -1,0 +1,216 @@
+import { prisma } from "./prisma";
+import { getFunnel } from "./measurement";
+
+// FOUNDER-AUTHORIZED COMMERCIAL ARCHITECTURE (commercial closure
+// 2026-09-24). This module is intentionally narrow: it represents the
+// approved Essential / Standard / Professional / Custom service packages
+// and quote-readiness state for one campaign. It does not implement a
+// billing engine, subscription, renewal, entitlement framework, payment
+// gateway, tax calculation, or contract workflow.
+
+export const COMMERCIAL_PACKAGE_TIERS = ["ESSENTIAL", "STANDARD", "PROFESSIONAL", "CUSTOM"] as const;
+export type CommercialPackageTier = (typeof COMMERCIAL_PACKAGE_TIERS)[number];
+
+export const FULFILLMENT_MODELS = ["POINT_OF_TRIAL", "HOME_DELIVERY"] as const;
+export type FulfillmentModel = (typeof FULFILLMENT_MODELS)[number];
+
+export const COMMERCIAL_PAYMENT_STATUSES = [
+  "QUOTE_DRAFT",
+  "QUOTED",
+  "AWAITING_BANK_TRANSFER",
+  "PAID_CONFIRMED",
+] as const;
+export type CommercialPaymentStatus = (typeof COMMERCIAL_PAYMENT_STATUSES)[number];
+
+export const CUSTOM_SCOPE_MINIMUM_PARTICIPANTS = 250;
+export const MAX_DISCOUNT_PERCENT = 20;
+
+export interface CommercialTermsLike {
+  packageTier: string;
+  contractedParticipants: number | null;
+  fulfillmentModel: string;
+  scopeNote: string | null;
+  quotedStudyFeeEgp: number | null;
+  quotedParticipantRateEgp: number | null;
+  quotedHomeDeliveryFeeEgp: number | null;
+  discountPercent: number;
+  discountBasis: string | null;
+  paymentMethod: string;
+  paymentStatus: string;
+  updatedAt?: Date;
+  updatedById?: string | null;
+}
+
+export const DEFAULT_COMMERCIAL_TERMS: CommercialTermsLike = {
+  packageTier: "ESSENTIAL",
+  contractedParticipants: null,
+  fulfillmentModel: "POINT_OF_TRIAL",
+  scopeNote: null,
+  quotedStudyFeeEgp: null,
+  quotedParticipantRateEgp: null,
+  quotedHomeDeliveryFeeEgp: null,
+  discountPercent: 0,
+  discountBasis: null,
+  paymentMethod: "MANUAL_BANK_TRANSFER",
+  paymentStatus: "QUOTE_DRAFT",
+};
+
+export function packageCapabilities(packageTier: string) {
+  const enhancedReport = packageTier === "STANDARD" || packageTier === "PROFESSIONAL" || packageTier === "CUSTOM";
+  return {
+    coreReport: true,
+    enhancedReport,
+    distributionsAndCharts: enhancedReport,
+    evidenceCoverage: enhancedReport,
+    analystSummary: packageTier === "STANDARD" || packageTier === "PROFESSIONAL",
+    humanReadout: packageTier === "PROFESSIONAL",
+    customStatementOfWork: packageTier === "CUSTOM",
+  };
+}
+
+// Package entitlement is enforced on every customer-facing computed
+// insight surface, not just the printable report shell. The internal
+// measurement helpers may carry deterministic distribution data; these
+// sanitizers remove the Standard+ presentation fields for Essential.
+export function metricForPackage<T extends { distribution?: unknown; distributionItems?: unknown }>(metric: T, packageTier: string): T {
+  if (packageCapabilities(packageTier).enhancedReport) return metric;
+  return { ...metric, distribution: null, distributionItems: null };
+}
+
+export function questionAggregatesForPackage<T extends { percentBasis?: string | null; breakdown: { percentage?: number }[] }>(
+  aggregates: T[],
+  packageTier: string
+) {
+  if (packageCapabilities(packageTier).enhancedReport) return aggregates;
+  return aggregates.map((q) => ({
+    ...q,
+    percentBasis: null,
+    breakdown: q.breakdown.map(({ percentage: _percentage, ...b }) => b),
+  }));
+}
+
+export function validateCommercialTerms(d: CommercialTermsLike): string | null {
+  if (!COMMERCIAL_PACKAGE_TIERS.includes(d.packageTier as CommercialPackageTier)) return "Unknown commercial package";
+  if (!FULFILLMENT_MODELS.includes(d.fulfillmentModel as FulfillmentModel)) return "Unknown fulfillment model";
+  if (d.paymentMethod !== "MANUAL_BANK_TRANSFER") return "Manual bank transfer is the only supported payment method";
+  if (!COMMERCIAL_PAYMENT_STATUSES.includes(d.paymentStatus as CommercialPaymentStatus)) return "Unknown payment status";
+  if (d.contractedParticipants != null && d.contractedParticipants <= 0) return "Contracted participants must be positive";
+  if (d.discountPercent < 0 || d.discountPercent > MAX_DISCOUNT_PERCENT) return "Discount cannot exceed 20%";
+  if (d.discountPercent > 0 && !d.discountBasis?.trim()) return "A discount basis is required when a discount is recorded";
+  if (d.packageTier === "CUSTOM" && !d.scopeNote?.trim()) return "Custom scope requires a scope note / SOW basis";
+  if (d.packageTier !== "CUSTOM" && d.contractedParticipants != null && d.contractedParticipants >= CUSTOM_SCOPE_MINIMUM_PARTICIPANTS) {
+    return "A scope of 250+ contracted participants requires the Custom package";
+  }
+  const quoteFieldsComplete =
+    d.contractedParticipants != null &&
+    d.quotedStudyFeeEgp != null &&
+    d.quotedParticipantRateEgp != null &&
+    (d.fulfillmentModel !== "HOME_DELIVERY" || d.quotedHomeDeliveryFeeEgp != null);
+  if (d.paymentStatus !== "QUOTE_DRAFT" && !quoteFieldsComplete) {
+    return "A complete quoted scope is required before the commercial status leaves draft";
+  }
+  return null;
+}
+
+export async function buildCommercialState(campaignId: string) {
+  const [terms, funnel] = await Promise.all([
+    prisma.campaignCommercialTerms.findUnique({ where: { campaignId } }),
+    getFunnel(campaignId),
+  ]);
+  const t: CommercialTermsLike = terms
+    ? {
+        packageTier: terms.packageTier,
+        contractedParticipants: terms.contractedParticipants,
+        fulfillmentModel: terms.fulfillmentModel,
+        scopeNote: terms.scopeNote,
+        quotedStudyFeeEgp: terms.quotedStudyFeeEgp,
+        quotedParticipantRateEgp: terms.quotedParticipantRateEgp,
+        quotedHomeDeliveryFeeEgp: terms.quotedHomeDeliveryFeeEgp,
+        discountPercent: terms.discountPercent,
+        discountBasis: terms.discountBasis,
+        paymentMethod: terms.paymentMethod,
+        paymentStatus: terms.paymentStatus,
+        updatedAt: terms.updatedAt,
+        updatedById: terms.updatedById,
+      }
+    : DEFAULT_COMMERCIAL_TERMS;
+
+  const contracted = t.contractedParticipants;
+  const completedEligibleParticipants = funnel.surveyComplete;
+  const shortfall = contracted == null ? null : Math.max(0, contracted - completedEligibleParticipants);
+  const overage = contracted == null ? null : Math.max(0, completedEligibleParticipants - contracted);
+  const quotedParticipantSubtotal =
+    t.quotedParticipantRateEgp != null && contracted != null ? t.quotedParticipantRateEgp * contracted : null;
+  const billableCompletedParticipants = contracted == null ? null : Math.min(completedEligibleParticipants, contracted);
+  const completedParticipantSubtotal =
+    t.quotedParticipantRateEgp != null && billableCompletedParticipants != null
+      ? t.quotedParticipantRateEgp * billableCompletedParticipants
+      : null;
+  const studyFeeDiscount =
+    t.quotedStudyFeeEgp != null && t.discountPercent > 0 ? Math.round((t.quotedStudyFeeEgp * t.discountPercent) / 100) : 0;
+  const quoteComplete =
+    t.quotedStudyFeeEgp != null &&
+    t.quotedParticipantRateEgp != null &&
+    contracted != null &&
+    (t.fulfillmentModel !== "HOME_DELIVERY" || t.quotedHomeDeliveryFeeEgp != null);
+  const quotedSubtotalEgp = quoteComplete
+    ? t.quotedStudyFeeEgp! - studyFeeDiscount + quotedParticipantSubtotal! + (t.quotedHomeDeliveryFeeEgp ?? 0)
+    : null;
+  const completedSubtotalEgp = quoteComplete
+    ? t.quotedStudyFeeEgp! - studyFeeDiscount + completedParticipantSubtotal! + (t.quotedHomeDeliveryFeeEgp ?? 0)
+    : null;
+
+  return {
+    campaignId,
+    packageTier: t.packageTier,
+    packageLabel: packageTierLabel(t.packageTier),
+    contractedParticipants: contracted,
+    fulfillmentModel: t.fulfillmentModel,
+    fulfillmentLabel: t.fulfillmentModel === "HOME_DELIVERY" ? "Home Delivery" : "Point-of-Trial",
+    scopeNote: t.scopeNote,
+    quotedStudyFeeEgp: t.quotedStudyFeeEgp,
+    quotedParticipantRateEgp: t.quotedParticipantRateEgp,
+    quotedHomeDeliveryFeeEgp: t.quotedHomeDeliveryFeeEgp,
+    discountPercent: t.discountPercent,
+    discountBasis: t.discountBasis,
+    paymentMethod: t.paymentMethod,
+    paymentStatus: t.paymentStatus,
+    paymentStatusLabel: paymentStatusLabel(t.paymentStatus),
+    updatedAt: t.updatedAt ?? null,
+    reportCapabilities: packageCapabilities(t.packageTier),
+    calculation: {
+      completedEligibleParticipants,
+      shortfall,
+      overage,
+      overageHandling: overage && overage > 0 ? "FIELDWORK_CHANGE_ORDER" : "NONE",
+      requiresChangeOrder: overage != null && overage > 0,
+      requiresRescope: contracted != null && overage != null && overage > contracted * 0.5,
+      shortfallHandling: shortfall && shortfall > 0 ? "CONTRACTUAL_CREDIT_OR_REMEDY" : "NONE",
+    },
+    quoteReadiness: {
+      participantSubtotalEgp: quotedParticipantSubtotal,
+      quotedParticipantSubtotalEgp: quotedParticipantSubtotal,
+      completedParticipantSubtotalEgp: completedParticipantSubtotal,
+      studyFeeDiscountEgp: studyFeeDiscount,
+      quotedSubtotalBeforeTaxEgp: quotedSubtotalEgp,
+      completedSubtotalBeforeTaxEgp: completedSubtotalEgp,
+      unorderedOverageBilling: overage && overage > 0 ? "CHANGE_ORDER_REQUIRED_BEFORE_BILLING" : "NONE",
+      quoteComplete,
+      taxStatus: "LEGAL_ACCOUNTING_VALIDATION_REQUIRED",
+      pricingStatus: "QUOTED_TERMS_NOT_FINAL_PRICE_LIST",
+    },
+  };
+}
+
+export function packageTierLabel(tier: string) {
+  return { ESSENTIAL: "Essential", STANDARD: "Standard", PROFESSIONAL: "Professional", CUSTOM: "Custom" }[tier] ?? tier;
+}
+
+function paymentStatusLabel(status: string) {
+  return {
+    QUOTE_DRAFT: "Quote draft",
+    QUOTED: "Quoted",
+    AWAITING_BANK_TRANSFER: "Awaiting bank transfer",
+    PAID_CONFIRMED: "Bank transfer confirmed",
+  }[status] ?? status;
+}

@@ -16,6 +16,7 @@ import {
   classifySample,
 } from "../lib/measurement";
 import { buildReport } from "../lib/report";
+import { buildCommercialState, metricForPackage, questionAggregatesForPackage } from "../lib/commercial";
 import { findTemplate, isStudyTypeEligible, eligibleStudyTemplates } from "../lib/studyTemplates";
 import { sendQrPng } from "../lib/qr";
 import {
@@ -444,7 +445,13 @@ router.get("/campaigns/:id", async (req, res) => {
   if (!campaign) return;
   const full = await prisma.campaign.findUnique({
     where: { id: campaign.id },
-    include: { product: true, questions: { orderBy: { order: "asc" } }, qrSources: true, media: true },
+    include: {
+      product: true,
+      questions: { orderBy: { order: "asc" } },
+      qrSources: true,
+      media: true,
+      commercialTerms: true,
+    },
   });
   // hostedMediaConfigured lets the UI show the hosted-upload pending
   // state proactively (FD-WEB-14: code complete, infrastructure staged)
@@ -590,6 +597,7 @@ router.delete("/campaigns/:id", requireCompanyAdmin, async (req, res) => {
     prisma.operationalIssue.deleteMany({ where: { campaignId: campaign.id } }),
     prisma.campaignMedia.deleteMany({ where: { campaignId: campaign.id } }),
     prisma.campaignOtpVerification.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.campaignCommercialTerms.deleteMany({ where: { campaignId: campaign.id } }),
     prisma.question.deleteMany({ where: { campaignId: campaign.id } }),
     prisma.qrSource.deleteMany({ where: { campaignId: campaign.id } }),
     prisma.campaign.delete({ where: { id: campaign.id } }),
@@ -690,6 +698,17 @@ router.get("/campaigns/:id/readiness", async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
   res.json(await checkReadiness(campaign.id));
+});
+
+// FOUNDER-AUTHORIZED COMMERCIAL PACKAGE STATE (2026-09-26): read-only
+// visibility into the campaign's package, contracted participant count,
+// fulfillment model, quoted fields and derived completion comparison.
+// Values are commercial terms and persisted evidence — no billing,
+// invoice, tax, subscription, or payment collection is implemented here.
+router.get("/campaigns/:id/commercial", async (req, res) => {
+  const campaign = await loadOwnedCampaign(req, res);
+  if (!campaign) return;
+  res.json(await buildCommercialState(campaign.id));
 });
 
 // Configure -> Review/Ready is a company-driven step (Benchmark §2.4);
@@ -922,33 +941,42 @@ router.get("/campaigns/:id/qr-sources/:sid/qr.png", async (req, res) => {
 router.get("/campaigns/:id/live", async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
-  const [funnel, sources, purchaseIntent, satisfaction] = await Promise.all([
+  const [funnel, sources, purchaseIntent, satisfaction, commercial] = await Promise.all([
     getFunnel(campaign.id),
     getSourceBreakdown(campaign.id),
     getPurchaseIntent(campaign.id),
     getSatisfaction(campaign.id),
+    buildCommercialState(campaign.id),
   ]);
-  res.json({ campaignId: campaign.id, status: campaign.status, funnel, sources, purchaseIntent, satisfaction });
+  res.json({
+    campaignId: campaign.id,
+    status: campaign.status,
+    funnel,
+    sources,
+    purchaseIntent: metricForPackage(purchaseIntent, commercial.packageTier),
+    satisfaction: metricForPackage(satisfaction, commercial.packageTier),
+  });
 });
 
 // --- Insights (Benchmark §4 COMPANY "Insights"; §6 insight model) ----------
 router.get("/campaigns/:id/insights", async (req, res) => {
   const campaign = await loadOwnedCampaign(req, res);
   if (!campaign) return;
-  const [purchaseIntent, satisfaction, verbatims, questionAggregates, funnel] = await Promise.all([
+  const [purchaseIntent, satisfaction, verbatims, questionAggregates, funnel, commercial] = await Promise.all([
     getPurchaseIntent(campaign.id),
     getSatisfaction(campaign.id),
     getVerbatims(campaign.id),
     getQuestionAggregates(campaign.id),
     getFunnel(campaign.id),
+    buildCommercialState(campaign.id),
   ]);
   res.json({
     campaignId: campaign.id,
     evidence: classifySample(funnel.surveyComplete),
-    purchaseIntent,
-    satisfaction,
+    purchaseIntent: metricForPackage(purchaseIntent, commercial.packageTier),
+    satisfaction: metricForPackage(satisfaction, commercial.packageTier),
     verbatims,
-    questionAggregates,
+    questionAggregates: questionAggregatesForPackage(questionAggregates, commercial.packageTier),
   });
 });
 

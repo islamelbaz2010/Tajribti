@@ -8,8 +8,11 @@ import {
   getSatisfaction,
   getVerbatims,
   getQuestionAggregates,
+  getTextQuestionResponseCounts,
+  formatEvidenceCoverage,
   classifySample,
 } from "./measurement";
+import { buildCommercialState, metricForPackage, questionAggregatesForPackage } from "./commercial";
 
 // FOUNDER-APPROVED — forensic audit 2026-09-15, Decision 2: "Findings =
 // minimal deterministic descriptive promotion of already persisted
@@ -23,6 +26,43 @@ function joinWithAnd(items: string[]): string {
   if (items.length <= 1) return items.join("");
   if (items.length === 2) return `${items[0]} and ${items[1]}`;
   return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
+// Report Product #08 plain-language presentation labels. Internal
+// machine states remain unchanged in `campaign.status` / `evidence.level`;
+// customer-facing copies of those states carry explicit EN/AR labels so a
+// report never has to expose an enum-like string.
+const CAMPAIGN_STATUS_LABELS: Record<string, { en: string; ar: string }> = {
+  DRAFT: { en: "Draft", ar: "مسودة" },
+  READY: { en: "Ready for launch", ar: "جاهزة للإطلاق" },
+  ACTIVE: { en: "Active", ar: "نشطة" },
+  PAUSED: { en: "Paused", ar: "متوقفة مؤقتًا" },
+  COMPLETED: { en: "Completed", ar: "مكتملة" },
+};
+
+function campaignStatusLabel(status: string) {
+  return CAMPAIGN_STATUS_LABELS[status] ?? { en: status, ar: status };
+}
+
+function evidenceLevelLabel(level: "ZERO_DATA" | "HAS_DATA") {
+  return level === "ZERO_DATA"
+    ? { en: "No completed survey responses yet", ar: "لا توجد ردود استطلاع مكتملة بعد" }
+    : { en: "Survey responses available", ar: "توجد ردود استطلاع متاحة" };
+}
+
+const DEMOGRAPHIC_VALUE_LABELS: Record<string, string> = {
+  MALE: "Male",
+  FEMALE: "Female",
+  NON_BINARY: "Non-binary",
+  OTHER: "Other",
+  PREFER_NOT_TO_SAY: "Prefer not to say",
+};
+
+function plainCategoryLabel(value: string) {
+  if (DEMOGRAPHIC_VALUE_LABELS[value]) return DEMOGRAPHIC_VALUE_LABELS[value];
+  return /^[A-Z0-9_ -]+$/.test(value)
+    ? value.toLowerCase().replace(/(^|[ _-])([a-z0-9])/g, (_m, sep, c) => (sep === "_" || sep === "-" ? " " : sep) + c.toUpperCase())
+    : value;
 }
 
 // Ties are named explicitly rather than arbitrarily resolved to one
@@ -51,31 +91,6 @@ function buildChoiceFindings(questionAggregates: { text: string; responses: numb
     }
   }
   return out;
-}
-
-// Volume-only — no theme extraction, no sentiment (Benchmark §12/§22
-// prohibition on inventing analysis methodology the Benchmark does not
-// define). Counts non-empty POST_TRIAL TEXT answers per question, the
-// same "not null and non-blank after trim" rule getVerbatims() already
-// applies (measurement.ts) — computed locally here (not added to
-// measurement.ts) since report.ts already has its own prisma import and
-// this is a one-off grouped count, not a reusable aggregation.
-// Exported (not just for report.ts's own use) — Feature A (Evidence
-// Sufficiency Coach, Founder-approved optional extension) reuses this
-// exact same per-question count in api/src/lib/readiness.ts rather than
-// duplicating the query; no behavior change to the function itself.
-export async function getTextQuestionResponseCounts(campaignId: string): Promise<{ text: string; count: number }[]> {
-  const questions = await prisma.question.findMany({
-    where: { campaignId, stage: "POST_TRIAL", type: "TEXT" },
-    orderBy: { order: "asc" },
-    // answers.participation must belong to the same campaign — see the
-    // cross-boundary discipline note in lib/measurement.ts.
-    select: { text: true, answers: { where: { participation: { campaignId } }, select: { valueText: true } } },
-  });
-  return questions.map((q) => ({
-    text: q.text,
-    count: q.answers.filter((a) => a.valueText && a.valueText.trim().length > 0).length,
-  }));
 }
 
 function buildTextFindings(textCounts: { text: string; count: number }[]): string[] {
@@ -193,7 +208,7 @@ async function getSegmentedEvidence(
     };
 
     const suppressedMarker = (seg: string, what: string, n: number) =>
-      `Among ${seg} respondents, ${what} evidence is suppressed (n=${n}, below the minimum cell size).`;
+      `Among ${plainCategoryLabel(seg)} respondents, ${what} evidence is suppressed (n=${n}, below the minimum cell size).`;
 
     const piBySeg = new Map<string, { sum: number; n: number }>();
     for (const a of piAnswers) {
@@ -212,7 +227,7 @@ async function getSegmentedEvidence(
       const avg = Number((sum / n).toFixed(2));
       addSentence(
         seg,
-        `Among ${seg} respondents (n=${n}), average purchase intent${piQuestionText ? ` for '${piQuestionText}'` : ""} was ${avg}/5.`
+        `Among ${plainCategoryLabel(seg)} respondents (n=${n}), average purchase intent${piQuestionText ? ` for '${piQuestionText}'` : ""} was ${avg}/5.`
       );
     }
 
@@ -233,7 +248,7 @@ async function getSegmentedEvidence(
       const avg = Number((sum / n).toFixed(2));
       addSentence(
         seg,
-        `Among ${seg} respondents (n=${n}), the average rating${ratingQuestionText ? ` for '${ratingQuestionText}'` : ""} was ${avg}/5.`
+        `Among ${plainCategoryLabel(seg)} respondents (n=${n}), the average rating${ratingQuestionText ? ` for '${ratingQuestionText}'` : ""} was ${avg}/5.`
       );
     }
 
@@ -263,11 +278,11 @@ async function getSegmentedEvidence(
         if (maxCount === 0) continue;
         const top = counts.filter((c) => c.count === maxCount).map((c) => c.label);
         if (top.length === 1) {
-          addSentence(seg, `Among ${seg} respondents (n=${n}), the most common response to '${q.text}' was '${top[0]}' (${maxCount} of ${n}).`);
+          addSentence(seg, `Among ${plainCategoryLabel(seg)} respondents (n=${n}), the most common response to '${q.text}' was '${top[0]}' (${maxCount} of ${n}).`);
         } else {
           addSentence(
             seg,
-            `Among ${seg} respondents (n=${n}), the most common responses to '${q.text}' were ${joinWithAnd(
+            `Among ${plainCategoryLabel(seg)} respondents (n=${n}), the most common responses to '${q.text}' were ${joinWithAnd(
               top.map((l) => `'${l}'`)
             )}, each selected by ${maxCount} of ${n}.`
           );
@@ -275,7 +290,10 @@ async function getSegmentedEvidence(
       }
     });
 
-    return Array.from(sentencesBySegment.entries()).map(([segmentValue, sentences]) => ({ segmentValue, sentences }));
+    return Array.from(sentencesBySegment.entries()).map(([segmentValue, sentences]) => ({
+      segmentValue: plainCategoryLabel(segmentValue),
+      sentences,
+    }));
   }
 
   return { gender: buildForDimension("genderAtEntry"), city: buildForDimension("cityAtEntry") };
@@ -324,8 +342,8 @@ function buildRecommendations(
   return recommendations;
 }
 
-// Decision-ready report (Benchmark §7): Data -> Analysis -> Consumer Voice
-// -> Insight -> Decision -> Recommendation. Every field is a real query
+// Evidence-bound report (Benchmark §7): Data -> Analysis -> Consumer Voice
+// -> evidence-bound findings/recommendations. Every field is a real query
 // against persisted data; no AI narrative is fabricated (user-directive
 // §19: "AI is NOT allowed to become raw data truth"; §18: "All numeric
 // values must come from real persisted evidence. Zero-data must remain
@@ -336,7 +354,16 @@ export async function buildReport(campaignId: string) {
     include: { company: true, product: true },
   });
 
-  const [funnel, sources, purchaseIntent, satisfaction, verbatims, questionAggregates, textQuestionCounts] = await Promise.all([
+  const [
+    funnel,
+    sources,
+    purchaseIntent,
+    satisfaction,
+    verbatims,
+    questionAggregates,
+    textQuestionCounts,
+    commercial,
+  ] = await Promise.all([
     getFunnel(campaignId),
     getSourceBreakdown(campaignId),
     getPurchaseIntent(campaignId),
@@ -344,9 +371,18 @@ export async function buildReport(campaignId: string) {
     getVerbatims(campaignId),
     getQuestionAggregates(campaignId),
     getTextQuestionResponseCounts(campaignId),
+    buildCommercialState(campaignId),
   ]);
 
   const evidence = classifySample(funnel.surveyComplete);
+  const enhancedReport = commercial.reportCapabilities.enhancedReport;
+  const evidenceCoverage = formatEvidenceCoverage({
+    funnel,
+    purchaseIntent,
+    satisfaction,
+    questionAggregates,
+    textCounts: textQuestionCounts,
+  });
 
   // Demographics: aggregated only from real Participation snapshots
   // (Benchmark §7 "demographics").
@@ -372,6 +408,28 @@ export async function buildReport(campaignId: string) {
     genderBreakdown: genderCounts,
     cityBreakdown: cityCounts,
   };
+
+  const toShareItems = (counts: Record<string, number>) => {
+    const total = Object.values(counts).reduce((acc, count) => acc + count, 0);
+    return Object.entries(counts)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([label, count]) => ({
+        label: plainCategoryLabel(label),
+        count,
+        percentage: total ? Math.round((count / total) * 1000) / 10 : 0,
+      }));
+  };
+  const demographicDistributions = {
+    gender: toShareItems(genderCounts),
+    city: toShareItems(cityCounts),
+  };
+  const sourceDistributions = sources.map((s) => ({
+    ...s,
+    enteredPercentage: funnel.entered ? Math.round((s.entered / funnel.entered) * 1000) / 10 : 0,
+    surveyCompletePercentage: funnel.surveyComplete
+      ? Math.round((s.surveyComplete / funnel.surveyComplete) * 1000) / 10
+      : 0,
+  }));
 
   // Findings: deterministic, evidence-triggered statements only — never
   // free-form generated text. Each rule cites the exact number that
@@ -435,6 +493,7 @@ export async function buildReport(campaignId: string) {
       name: campaign.name,
       objective: campaign.objective,
       status: campaign.status,
+      statusLabel: campaignStatusLabel(campaign.status),
       startDate: campaign.startDate,
       endDate: campaign.endDate,
       company: campaign.company.name,
@@ -445,17 +504,33 @@ export async function buildReport(campaignId: string) {
       // figure below is computed.
       studyType: campaign.studyType ?? null,
     },
+    // FOUNDER-AUTHORIZED COMMERCIAL PACKAGE STATE (2026-09-26): the
+    // package name and report capability are persisted commercial terms,
+    // not a billing subscription. Enhanced #08 surfaces are included only
+    // for Standard and above.
+    commercialPackage: {
+      tier: commercial.packageTier,
+      label: commercial.packageLabel,
+      capabilities: commercial.reportCapabilities,
+    },
     // FOUNDER INNOVATION (D-3, 2026-09-20): per-study-type methodology
     // profile — static approved methodology text keyed on studyType; all
     // figures still come only from the evidence blocks below.
     studyProfile: getStudyProfile(campaign.studyType),
-    evidence,
+    evidence: {
+      ...evidence,
+      levelLabel: evidenceLevelLabel(evidence.level),
+    },
     funnel,
-    sources,
-    demographics,
-    purchaseIntent,
-    satisfaction,
-    campaignSpecificQuestions: questionAggregates,
+    // Report Product #08: source shares use their own explicit
+    // denominators (entered-stage share and survey-complete-stage share).
+    // These are descriptive composition shares, not conversion rates.
+    sources: enhancedReport ? sourceDistributions : sources,
+    demographics: enhancedReport ? { ...demographics, distributions: demographicDistributions } : demographics,
+    purchaseIntent: metricForPackage(purchaseIntent, commercial.packageTier),
+    satisfaction: metricForPackage(satisfaction, commercial.packageTier),
+    campaignSpecificQuestions: questionAggregatesForPackage(questionAggregates, commercial.packageTier),
+    evidenceCoverage: enhancedReport ? evidenceCoverage : null,
     consumerVoice: verbatims,
     findings,
     recommendations,

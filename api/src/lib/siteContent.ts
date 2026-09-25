@@ -122,7 +122,7 @@ export const SITE_SECTION_DEFAULTS: Record<SiteSectionKey, unknown> = {
   hero: {
     eyebrow: "Consumer Intelligence, from a Real Trial",
     headline: "See how consumers actually respond before you decide.",
-    sub: "TAJRIBTI puts your product in real consumers' hands, then turns their trial into a structured, evidence-grounded report — ready for a commercial decision.",
+    sub: "TAJRIBTI puts your product in real consumers' hands, then turns their trial into a structured, evidence-bound report your team can evaluate.",
     primaryCtaLabel: "Book a demo",
     primaryCtaHref: "#contact",
     secondaryCtaLabel: "See a sample report",
@@ -132,7 +132,7 @@ export const SITE_SECTION_DEFAULTS: Record<SiteSectionKey, unknown> = {
     steps: [
       { title: "Real consumers try your product", text: "Consumers discover your campaign or scan its QR code, answer eligibility screening, and receive the product to try in real conditions." },
       { title: "Structured feedback after the trial", text: "After trying the product, consumers answer the campaign's survey — ratings, purchase intent, campaign-specific questions and open verbatims." },
-      { title: "Evidence becomes a decision-ready report", text: "Every response is persisted and measured live — funnel, purchase intent, audience differences and findings land in a report your team can act on." },
+      { title: "Evidence becomes an evidence-bound report", text: "Every response is persisted and measured live — funnel, purchase intent, audience differences and findings land in a report your team can review." },
     ],
   },
   sectors: {
@@ -156,8 +156,8 @@ export const SITE_SECTION_DEFAULTS: Record<SiteSectionKey, unknown> = {
     ],
   },
   sampleReport: {
-    title: "A decision-ready report",
-    supportingText: "Every number below traces back to a real, persisted trial response — this specific example is fictional demo data used only to show the report's shape.",
+    title: "An evidence-bound report",
+    supportingText: "Every number below traces back to a persisted trial response in a real campaign — this specific example is fictional demo data used only to show the enhanced Standard report's shape.",
     ctaLabel: "See a sample report",
     ctaHref: "#report",
   },

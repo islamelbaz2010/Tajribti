@@ -74,10 +74,32 @@ export async function getSourceBreakdown(campaignId: string) {
 // anywhere downstream (a prior pass had done so in lib/report.ts and it
 // was removed as fabricated methodology); only the raw mean and
 // per-response count are exposed.
+export interface DistributionItem {
+  value: number;
+  label: string;
+  count: number;
+  percentage: number;
+}
+
+function toDistributionItems(distribution: Record<string, number>, labels: string[]): DistributionItem[] {
+  const total = Object.values(distribution).reduce((acc, count) => acc + count, 0);
+  return labels.map((label, index) => {
+    const value = index + 1;
+    const count = distribution[String(value)] ?? 0;
+    return {
+      value,
+      label,
+      count,
+      percentage: total ? Math.round((count / total) * 1000) / 10 : 0,
+    };
+  });
+}
+
 export interface PurchaseIntentSummary {
   responses: number;
   averageScore: number | null;
   distribution: Record<string, number>; // "1".."5" -> count
+  distributionItems: DistributionItem[];
   questionText: string | null;
 }
 
@@ -124,6 +146,7 @@ export async function getPurchaseIntent(campaignId: string): Promise<PurchaseInt
     responses: answers.length,
     averageScore: answers.length ? Number((sum / answers.length).toFixed(2)) : null,
     distribution,
+    distributionItems: toDistributionItems(distribution, ["1", "2", "3", "4", "5"]),
     questionText: await singleQuestionText(campaignId, "PURCHASE_INTENT_1_5"),
   };
 }
@@ -137,10 +160,18 @@ export async function getSatisfaction(campaignId: string) {
     },
     select: { valueNumber: true },
   });
-  const sum = answers.reduce((acc, a) => acc + (a.valueNumber ?? 0), 0);
+  const distribution: Record<string, number> = { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 };
+  let sum = 0;
+  for (const a of answers) {
+    const v = Math.round(a.valueNumber ?? 0);
+    if (v >= 1 && v <= 5) distribution[String(v)]++;
+    sum += a.valueNumber ?? 0;
+  }
   return {
     responses: answers.length,
     averageScore: answers.length ? Number((sum / answers.length).toFixed(2)) : null,
+    distribution,
+    distributionItems: toDistributionItems(distribution, ["1", "2", "3", "4", "5"]),
     questionText: await singleQuestionText(campaignId, "RATING_1_5"),
   };
 }
@@ -193,6 +224,65 @@ export async function getCampaignQuestions(campaignId: string) {
   return prisma.question.findMany({ where: { campaignId }, orderBy: { order: "asc" } });
 }
 
+// Descriptive coverage used by both readiness (pre-launch) and the final
+// report (Report Product #08). It is deliberately shared so the report
+// does not maintain a second evidence model: every line is a count of
+// persisted records already used by the measurement primitives.
+export async function getTextQuestionResponseCounts(campaignId: string) {
+  const questions = await prisma.question.findMany({
+    where: { campaignId, type: "TEXT", stage: "POST_TRIAL" },
+    orderBy: { order: "asc" },
+    select: {
+      id: true,
+      text: true,
+      answers: {
+        where: { participation: { campaignId }, valueText: { not: null } },
+        select: { valueText: true },
+      },
+    },
+  });
+  return questions.map((q) => ({
+    questionId: q.id,
+    text: q.text,
+    count: q.answers.filter((a) => a.valueText && a.valueText.trim().length > 0).length,
+  }));
+}
+
+export function formatEvidenceCoverage(input: {
+  funnel: Awaited<ReturnType<typeof getFunnel>>;
+  purchaseIntent: Awaited<ReturnType<typeof getPurchaseIntent>>;
+  satisfaction: Awaited<ReturnType<typeof getSatisfaction>>;
+  questionAggregates: Awaited<ReturnType<typeof getQuestionAggregates>>;
+  textCounts: Awaited<ReturnType<typeof getTextQuestionResponseCounts>>;
+}): string[] {
+  const coverage: string[] = [
+    `${input.funnel.entered} participant(s) entered this campaign.`,
+    `${input.funnel.eligible} participant(s) were eligible.`,
+    `${input.funnel.trialRedeemed} trial redemption(s) recorded.`,
+    `${input.funnel.surveyComplete} survey response(s) recorded.`,
+    `${input.purchaseIntent.responses} purchase-intent response(s) recorded.`,
+    `${input.satisfaction.responses} rating response(s) recorded.`,
+  ];
+  for (const q of input.questionAggregates) {
+    coverage.push(`${q.responses} response(s) recorded for '${q.text}'.`);
+  }
+  for (const t of input.textCounts) {
+    coverage.push(`${t.count} response(s) recorded for '${t.text}'.`);
+  }
+  return coverage;
+}
+
+export async function getEvidenceCoverage(campaignId: string): Promise<string[]> {
+  const [funnel, purchaseIntent, satisfaction, questionAggregates, textCounts] = await Promise.all([
+    getFunnel(campaignId),
+    getPurchaseIntent(campaignId),
+    getSatisfaction(campaignId),
+    getQuestionAggregates(campaignId),
+    getTextQuestionResponseCounts(campaignId),
+  ]);
+  return formatEvidenceCoverage({ funnel, purchaseIntent, satisfaction, questionAggregates, textCounts });
+}
+
 // Campaign-specific custom question aggregation (Benchmark §7 "campaign-
 // specific questions"). Choice-type answers are tallied by option; rating
 // and purchase-intent are handled by dedicated summaries above; text
@@ -210,18 +300,31 @@ export async function getQuestionAggregates(campaignId: string) {
     });
     const options: { id: string; label: string }[] = q.options ? JSON.parse(q.options) : [];
     const tally: Record<string, number> = {};
+    let selections = 0;
     for (const o of options) tally[o.id] = 0;
     for (const a of answers) {
       if (!a.valueOptions) continue;
       const ids: string[] = JSON.parse(a.valueOptions);
+      selections += ids.length;
       for (const id of ids) tally[id] = (tally[id] ?? 0) + 1;
     }
+    // Report Product #08: percentages need an explicit denominator. A
+    // single-choice share divides by respondents; a multi-choice share
+    // divides by selections, because selections are the population the
+    // distribution itself sums to.
+    const denominator = q.type === "SINGLE_CHOICE" ? answers.length : selections;
     results.push({
       questionId: q.id,
       text: q.text,
       stage: q.stage,
       responses: answers.length,
-      breakdown: options.map((o) => ({ optionId: o.id, label: o.label, count: tally[o.id] ?? 0 })),
+      percentBasis: q.type === "SINGLE_CHOICE" ? "RESPONDENTS" : "SELECTIONS",
+      breakdown: options.map((o) => ({
+        optionId: o.id,
+        label: o.label,
+        count: tally[o.id] ?? 0,
+        percentage: denominator ? Math.round(((tally[o.id] ?? 0) / denominator) * 1000) / 10 : 0,
+      })),
     });
   }
   return results;

@@ -1,6 +1,5 @@
 import { prisma } from "./prisma";
-import { getFunnel, getPurchaseIntent, getSatisfaction, getQuestionAggregates } from "./measurement";
-import { getTextQuestionResponseCounts } from "./report";
+import { getEvidenceCoverage } from "./measurement";
 
 // Readiness. Benchmark §4 OPERATIONS names "Readiness" as an explicit
 // capability node, and §2.4 (ExpertVoice reference) supports a general
@@ -60,38 +59,10 @@ export interface ReadinessCheck {
 
 // FOUNDER-APPROVED — Feature A: Evidence Sufficiency Coach (optional
 // extension beyond the Benchmark's mandatory requirements). Purely
-// descriptive: reuses the exact same already-computed count primitives
-// that populate the report's own funnel/purchase-intent/satisfaction/
-// choice/text sections — no new measurement, no statistical calculation,
-// no threshold, no "enough"/"insufficient" judgment. This field never
-// participates in `ready` — it is visibility only, never a new blocking
-// gate (same "no invented launch-gating business rule" discipline this
-// file already applies to `checks` above).
-async function getEvidenceCoverage(campaignId: string): Promise<string[]> {
-  const [funnel, purchaseIntent, satisfaction, questionAggregates, textCounts] = await Promise.all([
-    getFunnel(campaignId),
-    getPurchaseIntent(campaignId),
-    getSatisfaction(campaignId),
-    getQuestionAggregates(campaignId),
-    getTextQuestionResponseCounts(campaignId),
-  ]);
-
-  const coverage: string[] = [
-    `${funnel.entered} participant(s) entered this campaign.`,
-    `${funnel.eligible} participant(s) were eligible.`,
-    `${funnel.trialRedeemed} trial redemption(s) recorded.`,
-    `${funnel.surveyComplete} survey response(s) recorded.`,
-    `${purchaseIntent.responses} purchase-intent response(s) recorded.`,
-    `${satisfaction.responses} rating response(s) recorded.`,
-  ];
-  for (const q of questionAggregates) {
-    coverage.push(`${q.responses} response(s) recorded for '${q.text}'.`);
-  }
-  for (const t of textCounts) {
-    coverage.push(`${t.count} response(s) recorded for '${t.text}'.`);
-  }
-  return coverage;
-}
+// descriptive and shared with the final report (lib/measurement.ts):
+// no new measurement, no statistical calculation, no threshold, no
+// "enough"/"insufficient" judgment. This field never participates in
+// `ready` — it is visibility only, never a new blocking gate.
 
 export async function checkReadiness(campaignId: string): Promise<{
   ready: boolean;

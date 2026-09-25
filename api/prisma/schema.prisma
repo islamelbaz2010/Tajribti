@@ -290,8 +290,44 @@ model Campaign {
   questionChangeRequests  QuestionChangeRequest[]
   notificationRequests    CampaignNotificationRequest[]
   otpVerifications        CampaignOtpVerification[]
+  commercialTerms         CampaignCommercialTerms?
 
   @@index([companyId])
+}
+
+// FOUNDER-AUTHORIZED COMMERCIAL ARCHITECTURE (commercial closure
+// 2026-09-24) — package/service terms for one TAJRIBTI Consumer Study.
+// This is deliberately not billing, subscription, entitlement, payment
+// processing, CRM, or contract automation. It stores the package identity
+// and the quote/operational inputs needed to compare contracted scope
+// against persisted completion evidence; all values remain quoted terms,
+// never derived final prices or tax results.
+// packageTier: ESSENTIAL | STANDARD | PROFESSIONAL | CUSTOM
+// fulfillmentModel: POINT_OF_TRIAL | HOME_DELIVERY
+// paymentStatus: QUOTE_DRAFT | QUOTED | AWAITING_BANK_TRANSFER | PAID_CONFIRMED
+model CampaignCommercialTerms {
+  campaignId String   @id
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+
+  packageTier            String  @default("ESSENTIAL")
+  contractedParticipants Int?
+  fulfillmentModel       String  @default("POINT_OF_TRIAL")
+  scopeNote              String?
+
+  // EGP amounts are manually quoted terms only. No final price list, tax
+  // treatment, discount entitlement, or payment collection is encoded.
+  quotedStudyFeeEgp        Int?
+  quotedParticipantRateEgp Int?
+  quotedHomeDeliveryFeeEgp Int?
+  discountPercent          Int     @default(0)
+  discountBasis            String?
+
+  paymentMethod String @default("MANUAL_BANK_TRANSFER")
+  paymentStatus String @default("QUOTE_DRAFT")
+
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // FOUNDER-APPROVED — forensic audit 2026-09-15, Decision 1 ("Study-Type

@@ -18,6 +18,14 @@ import {
   classifySample,
 } from "../lib/measurement";
 import { buildReport } from "../lib/report";
+import {
+  buildCommercialState,
+  validateCommercialTerms,
+  COMMERCIAL_PACKAGE_TIERS,
+  FULFILLMENT_MODELS,
+  COMMERCIAL_PAYMENT_STATUSES,
+  DEFAULT_COMMERCIAL_TERMS,
+} from "../lib/commercial";
 import { STUDY_TEMPLATES, findTemplate, isStudyTypeEligible } from "../lib/studyTemplates";
 import { sendQrPng } from "../lib/qr";
 
@@ -740,6 +748,7 @@ router.delete("/campaigns/:id", requirePlatformAdmin, async (req, res) => {
     prisma.operationalIssue.deleteMany({ where: { campaignId: campaign.id } }),
     prisma.campaignMedia.deleteMany({ where: { campaignId: campaign.id } }),
     prisma.campaignOtpVerification.deleteMany({ where: { campaignId: campaign.id } }),
+    prisma.campaignCommercialTerms.deleteMany({ where: { campaignId: campaign.id } }),
     prisma.question.deleteMany({ where: { campaignId: campaign.id } }),
     prisma.qrSource.deleteMany({ where: { campaignId: campaign.id } }),
     prisma.campaign.delete({ where: { id: campaign.id } }),
@@ -777,10 +786,97 @@ router.get("/campaigns", async (req, res) => {
 router.get("/campaigns/:id", async (req, res) => {
   const campaign = await prisma.campaign.findUnique({
     where: { id: req.params.id },
-    include: { company: true, product: true, questions: { orderBy: { order: "asc" } }, qrSources: true, media: true },
+    include: {
+      company: true,
+      product: true,
+      questions: { orderBy: { order: "asc" } },
+      qrSources: true,
+      media: true,
+      commercialTerms: true,
+    },
   });
   if (!campaign) return res.status(404).json({ error: "Campaign not found" });
   res.json({ ...campaign, media: await resolveMediaUrls(campaign.media) });
+});
+
+// FOUNDER-AUTHORIZED COMMERCIAL PACKAGE STATE (2026-09-26): stores the
+// agreed Essential / Standard / Professional / Custom package and quote
+// inputs on the campaign. PLATFORM_ADMIN owns commercial terms (audited);
+// Operations may read them. This is deliberately only quote-readiness —
+// no invoice generation, tax calculation, billing provider, subscription,
+// renewal, or entitlement framework exists here.
+const commercialTermsSchema = z
+  .object({
+    packageTier: z.enum(COMMERCIAL_PACKAGE_TIERS),
+    contractedParticipants: z.number().int().positive().nullable(),
+    fulfillmentModel: z.enum(FULFILLMENT_MODELS),
+    scopeNote: z.string().trim().max(1000).nullable(),
+    quotedStudyFeeEgp: z.number().int().min(0).nullable(),
+    quotedParticipantRateEgp: z.number().int().min(0).nullable(),
+    quotedHomeDeliveryFeeEgp: z.number().int().min(0).nullable(),
+    discountPercent: z.number().int().min(0),
+    discountBasis: z.string().trim().max(300).nullable(),
+    paymentMethod: z.literal("MANUAL_BANK_TRANSFER"),
+    paymentStatus: z.enum(COMMERCIAL_PAYMENT_STATUSES),
+  })
+  .partial();
+
+router.get("/campaigns/:id/commercial", async (req, res) => {
+  const campaign = await loadCampaignOrNotFound(req, res);
+  if (!campaign) return;
+  res.json(await buildCommercialState(campaign.id));
+});
+
+router.put("/campaigns/:id/commercial", requirePlatformAdmin, async (req, res) => {
+  const { opsUserId } = asOps(req);
+  const campaign = await loadCampaignOrNotFound(req, res);
+  if (!campaign) return;
+  const parsed = commercialTermsSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid commercial terms", details: parsed.error.flatten() });
+  // A partial PUT must preserve stored terms — absent fields are merged
+  // over the current record (or defaults), never silently reset.
+  const previous = await prisma.campaignCommercialTerms.findUnique({ where: { campaignId: campaign.id } });
+  const base = previous
+    ? {
+        packageTier: previous.packageTier,
+        contractedParticipants: previous.contractedParticipants,
+        fulfillmentModel: previous.fulfillmentModel,
+        scopeNote: previous.scopeNote,
+        quotedStudyFeeEgp: previous.quotedStudyFeeEgp,
+        quotedParticipantRateEgp: previous.quotedParticipantRateEgp,
+        quotedHomeDeliveryFeeEgp: previous.quotedHomeDeliveryFeeEgp,
+        discountPercent: previous.discountPercent,
+        discountBasis: previous.discountBasis,
+        paymentMethod: previous.paymentMethod,
+        paymentStatus: previous.paymentStatus,
+      }
+    : DEFAULT_COMMERCIAL_TERMS;
+  const d = { ...base, ...parsed.data };
+  const invalid = validateCommercialTerms(d);
+  if (invalid) return res.status(400).json({ error: invalid });
+
+  await prisma.campaignCommercialTerms.upsert({
+    where: { campaignId: campaign.id },
+    create: { campaignId: campaign.id, ...d, updatedById: opsUserId },
+    update: { ...d, updatedById: opsUserId },
+  });
+  const changes = [
+    `package: ${previous?.packageTier ?? "ESSENTIAL"} → ${d.packageTier}`,
+    `contracted participants: ${previous?.contractedParticipants ?? "—"} → ${d.contractedParticipants ?? "—"}`,
+    `fulfillment: ${previous?.fulfillmentModel ?? "POINT_OF_TRIAL"} → ${d.fulfillmentModel}`,
+    `payment status: ${previous?.paymentStatus ?? "QUOTE_DRAFT"} → ${d.paymentStatus}`,
+    `discount: ${previous?.discountPercent ?? 0}% → ${d.discountPercent}%`,
+  ];
+  await writeAccessAudit({
+    actorKind: "ops",
+    actorId: opsUserId,
+    actorName: (await prisma.opsUser.findUnique({ where: { id: opsUserId }, select: { name: true } }))?.name ?? "unknown",
+    action: "CAMPAIGN_COMMERCIAL_TERMS_UPDATED",
+    targetType: "campaign",
+    targetId: campaign.id,
+    detail: changes.join("; "),
+  });
+  res.json(await buildCommercialState(campaign.id));
 });
 
 // --- Campaign Configuration / Readiness -------------------------------------

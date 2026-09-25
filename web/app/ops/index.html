@@ -42,6 +42,11 @@
   .metric { text-align:center; } .metric-num { font-size:1.5rem; font-weight:800; color:var(--primary); } .metric-label { font-size:0.75rem; color:var(--muted); }
   .metrics-row { display:flex; gap:20px; flex-wrap:wrap; margin-bottom: 10px; }
   .verbatim { padding:10px; border-left:3px solid var(--primary); background:var(--bg); margin-bottom:8px; font-size:0.88rem; border-radius:6px; }
+  .chart-row { display:grid; grid-template-columns:minmax(120px,0.8fr) 2fr minmax(92px,auto); gap:10px; align-items:center; padding:5px 0; font-size:0.8rem; }
+  .chart-row .cr-track { background:#f3e7dd; border-radius:999px; height:10px; overflow:hidden; }
+  .chart-row .cr-track i { display:block; height:100%; border-radius:999px; background:var(--primary); }
+  .chart-row .cr-val { text-align:right; font-weight:700; white-space:nowrap; }
+  .chart-row .cr-val span { color:var(--muted); font-weight:400; }
   a.back { color: var(--muted); font-size: 0.85rem; text-decoration:none; display:inline-block; margin-bottom:10px; }
   /* Status summary cards (consolidated pass 2026-09-23): clicking a card
      sets the status filter; counts come from the unfiltered pipeline set. */
@@ -342,6 +347,7 @@
       <button class="tab-btn" data-ctab="live">Live Monitoring</button>
       <button class="tab-btn" data-ctab="issues">Operational Issues</button>
       <button class="tab-btn" data-ctab="survey">Survey Ops</button>
+      <button class="tab-btn" data-ctab="commercial">Commercial</button>
       <button class="tab-btn" data-ctab="insights">Insights</button>
       <button class="tab-btn" data-ctab="report">Report</button>
     </div>
@@ -373,6 +379,7 @@
       <button id="btn-add-issue">Log issue</button>
     </div>
     <div class="card ctab-panel hidden" id="ctab-survey"><h2>Survey operations</h2><div id="survey-content"></div></div>
+    <div class="card ctab-panel hidden" id="ctab-commercial"><h2>Commercial package</h2><div id="commercial-content"></div></div>
     <div class="card ctab-panel hidden" id="ctab-insights"><h2>Insights</h2><div id="ops-insights-content"></div></div>
     <div class="card ctab-panel hidden" id="ctab-report"><h2>Final report</h2><div id="ops-report-content"></div></div>
   </div>
@@ -1106,7 +1113,7 @@ document.querySelectorAll('#view-campaign .tab-btn').forEach(btn => {
     btn.classList.add('active');
     document.querySelectorAll('.ctab-panel').forEach(p => p.classList.add('hidden'));
     document.getElementById('ctab-' + btn.dataset.ctab).classList.remove('hidden');
-    const loaders = { config: loadConfig, readiness: loadReadiness, qr: loadQrOps, participants: loadParticipants, live: loadLive, issues: loadIssues, survey: loadSurveyOps, insights: loadOpsInsights, report: loadOpsReport };
+    const loaders = { config: loadConfig, readiness: loadReadiness, qr: loadQrOps, participants: loadParticipants, live: loadLive, issues: loadIssues, survey: loadSurveyOps, commercial: loadCommercial, insights: loadOpsInsights, report: loadOpsReport };
     loaders[btn.dataset.ctab]();
   };
 });
@@ -1432,6 +1439,19 @@ document.getElementById('pt-reset').onclick = () => {
 
 function metric(n, label) { return '<div class="metric"><div class="metric-num">' + n + '</div><div class="metric-label">' + label + '</div></div>'; }
 
+// Report Product #08 presentation helper — renders only server-computed
+// deterministic distribution rows; absent/unsupported distributions are
+// hidden rather than filled with fake values.
+function renderChartRows(items, valueLabel) {
+  const visible = (items || []).filter(item => Number.isFinite(item.percentage));
+  if (!visible.length) return '';
+  return visible.map(item =>
+    '<div class="chart-row"><span>' + esc(item.label) + '</span>' +
+    '<span class="cr-track"><i style="width:' + Math.max(0, Math.min(100, item.percentage)) + '%;"></i></span>' +
+    '<span class="cr-val">' + item.count + ' <span>· ' + item.percentage + '%' + (valueLabel ? ' ' + esc(valueLabel) : '') + '</span></span></div>'
+  ).join('');
+}
+
 // GET /ops/campaigns/:id/live already returns `sources` (Benchmark §3
 // "QR/journey source is operationally visible where applicable"; §4
 // OPERATIONS "Live Monitoring") — the Company Live Results view already
@@ -1466,6 +1486,82 @@ document.getElementById('btn-add-issue').onclick = async () => {
   document.getElementById('issue-type').value = ''; document.getElementById('issue-desc').value = '';
   loadIssues();
 };
+
+// FOUNDER-AUTHORIZED COMMERCIAL PACKAGE STATE (2026-09-26): Platform
+// Admin records the agreed campaign package and quote inputs. These are
+// operational/commercial terms only — no billing, tax, payment gateway,
+// subscription, or entitlement engine is exposed by this surface.
+async function loadCommercial() {
+  const el = document.getElementById('commercial-content');
+  const c = await api('/ops/campaigns/' + currentCampaignId + '/commercial');
+  const isAdmin = currentOpsRole === 'PLATFORM_ADMIN';
+  const money = v => v == null ? '' : String(v);
+  el.innerHTML =
+    '<div class="metrics-row" style="margin-bottom:8px;">' +
+    metric(c.packageLabel, 'Package') +
+    metric(c.contractedParticipants ?? '—', 'Contracted participants') +
+    metric(c.calculation.completedEligibleParticipants, 'Completed eligible') +
+    metric(c.calculation.overage ?? '—', 'Overage') +
+    metric(c.calculation.shortfall ?? '—', 'Shortfall') +
+    '</div>' +
+    '<p style="font-size:0.84rem;color:var(--muted)">Fulfillment: ' + esc(c.fulfillmentLabel) + ' · Payment: ' + esc(c.paymentStatusLabel) + ' · Method: Manual bank transfer</p>' +
+    (c.scopeNote ? '<p style="font-size:0.84rem;"><strong>Scope note:</strong> ' + esc(c.scopeNote) + '</p>' : '') +
+    (c.quoteReadiness.quotedSubtotalBeforeTaxEgp != null ? '<p style="font-size:0.84rem;"><strong>Quoted subtotal before tax:</strong> EGP ' + c.quoteReadiness.quotedSubtotalBeforeTaxEgp.toLocaleString() + '</p>' : '') +
+    (c.quoteReadiness.completedSubtotalBeforeTaxEgp != null ? '<p style="font-size:0.84rem;"><strong>Completed-eligible subtotal before tax:</strong> EGP ' + c.quoteReadiness.completedSubtotalBeforeTaxEgp.toLocaleString() + ' <span class="hint">(unordered overage excluded until a change order)</span></p>' : '') +
+    '<p style="font-size:0.78rem;color:var(--muted)">Pricing values are quoted terms, not a final price list. Tax/e-invoicing treatment remains legal/accounting validation. Overage follows the applicable fieldwork change order; contracted shortfall follows the agreed contractual remedy.</p>' +
+    (isAdmin ? '<div class="grid2">' +
+      '<div><label>Package</label><select id="co-package">' +
+        ['ESSENTIAL','STANDARD','PROFESSIONAL','CUSTOM'].map(v => '<option value="' + v + '"' + (v === c.packageTier ? ' selected' : '') + '>' + v.charAt(0) + v.slice(1).toLowerCase() + '</option>').join('') +
+      '</select></div>' +
+      '<div><label>Contracted participants</label><input id="co-participants" type="number" min="1" value="' + money(c.contractedParticipants) + '" /></div>' +
+      '<div><label>Fulfillment</label><select id="co-fulfillment">' +
+        '<option value="POINT_OF_TRIAL"' + (c.fulfillmentModel === 'POINT_OF_TRIAL' ? ' selected' : '') + '>Point-of-Trial</option>' +
+        '<option value="HOME_DELIVERY"' + (c.fulfillmentModel === 'HOME_DELIVERY' ? ' selected' : '') + '>Home Delivery</option>' +
+      '</select></div>' +
+      '<div><label>Payment status</label><select id="co-payment-status">' +
+        [['QUOTE_DRAFT','Quote draft'],['QUOTED','Quoted'],['AWAITING_BANK_TRANSFER','Awaiting bank transfer'],['PAID_CONFIRMED','Bank transfer confirmed']]
+          .map(([v,l]) => '<option value="' + v + '"' + (v === c.paymentStatus ? ' selected' : '') + '>' + l + '</option>').join('') +
+      '</select></div>' +
+      '<div><label>Study fee (EGP, quoted)</label><input id="co-study-fee" type="number" min="0" value="' + money(c.quotedStudyFeeEgp) + '" /></div>' +
+      '<div><label>Participant rate (EGP, quoted)</label><input id="co-participant-rate" type="number" min="0" value="' + money(c.quotedParticipantRateEgp) + '" /></div>' +
+      '<div><label>Home Delivery fee (EGP, quoted)</label><input id="co-home-fee" type="number" min="0" value="' + money(c.quotedHomeDeliveryFeeEgp) + '" /></div>' +
+      '<div><label>Discount % (study fee only, max 20)</label><input id="co-discount" type="number" min="0" max="20" value="' + c.discountPercent + '" /></div>' +
+      '</div>' +
+      '<label>Discount basis / authorization</label><input id="co-discount-basis" value="' + esc(c.discountBasis || '') + '" />' +
+      '<label>Scope note / SOW basis (required for Custom)</label><input id="co-scope" value="' + esc(c.scopeNote || '') + '" />' +
+      '<button class="small" id="btn-co-save" style="margin-top:8px;">Save commercial terms</button>' +
+      '<span class="msg" id="co-msg"></span>' : '');
+  if (isAdmin) {
+    document.getElementById('btn-co-save').onclick = async () => {
+      const msg = document.getElementById('co-msg');
+      msg.textContent = '';
+      const numberOrNull = id => {
+        const raw = document.getElementById(id).value.trim();
+        return raw === '' ? null : Number(raw);
+      };
+      try {
+        await api('/ops/campaigns/' + currentCampaignId + '/commercial', {
+          method: 'PUT',
+          body: {
+            packageTier: document.getElementById('co-package').value,
+            contractedParticipants: numberOrNull('co-participants'),
+            fulfillmentModel: document.getElementById('co-fulfillment').value,
+            scopeNote: document.getElementById('co-scope').value.trim() || null,
+            quotedStudyFeeEgp: numberOrNull('co-study-fee'),
+            quotedParticipantRateEgp: numberOrNull('co-participant-rate'),
+            quotedHomeDeliveryFeeEgp: numberOrNull('co-home-fee'),
+            discountPercent: numberOrNull('co-discount') ?? 0,
+            discountBasis: document.getElementById('co-discount-basis').value.trim() || null,
+            paymentMethod: 'MANUAL_BANK_TRANSFER',
+            paymentStatus: document.getElementById('co-payment-status').value,
+          },
+        });
+        msg.textContent = 'Saved.'; msg.className = 'msg ok';
+        loadCommercial();
+      } catch (e) { msg.textContent = e.message || 'Save failed'; msg.className = 'msg error'; }
+    };
+  }
+}
 
 async function loadSurveyOps() {
   const data = await api('/ops/campaigns/' + currentCampaignId + '/survey');
@@ -1560,9 +1656,11 @@ async function loadOpsInsights() {
 // purchase intent, satisfaction, campaign-specific questions, consumer
 // voice) was previously invisible in this tab and is wired in now — no
 // new backend computation or methodology is introduced.
+const REPORT_VALUE_LABELS = { MALE: 'Male', FEMALE: 'Female', NON_BINARY: 'Non-binary', OTHER: 'Other', PREFER_NOT_TO_SAY: 'Prefer not to say' };
+function reportValueLabel(value) { return REPORT_VALUE_LABELS[value] || value; }
 function breakdownLine(counts) {
   const keys = Object.keys(counts);
-  return keys.length ? keys.map(k => esc(k) + ': ' + counts[k]).join(' · ') : '—';
+  return keys.length ? keys.map(k => esc(reportValueLabel(k)) + ': ' + counts[k]).join(' · ') : '—';
 }
 
 // FOUNDER-APPROVED — Feature E: Segment-Conditioned Evidence (optional
@@ -1570,6 +1668,7 @@ function breakdownLine(counts) {
 // already computed server-side (api/src/lib/report.ts) — no wording is
 // composed here.
 function renderAudienceDifferences(ad) {
+  if (!ad || (!ad.gender?.length && !ad.city?.length)) return '';
   function renderDimension(label, segments) {
     return '<h4 style="font-size:0.88rem;margin:10px 0 4px;">' + label + '</h4>' +
       (segments.length
@@ -1583,8 +1682,10 @@ function renderAudienceDifferences(ad) {
 
 async function loadOpsReport() {
   const r = await api('/ops/campaigns/' + currentCampaignId + '/report');
+  const audienceHtml = renderAudienceDifferences(r.audienceDifferences);
   document.getElementById('ops-report-content').innerHTML =
-    '<p style="color:var(--muted);font-size:0.85rem;">Generated ' + new Date(r.generatedAt).toLocaleString() + ' · Evidence level: <strong>' + r.evidence.level + '</strong> (sample size ' + r.evidence.sampleSize + ')</p>' +
+    '<p style="color:var(--muted);font-size:0.85rem;">Generated ' + new Date(r.generatedAt).toLocaleString() + ' · Evidence: <strong>' + esc(r.evidence.levelLabel ? r.evidence.levelLabel.en : r.evidence.level) + '</strong> <span lang="ar" dir="rtl">' + esc(r.evidence.levelLabel ? r.evidence.levelLabel.ar : '') + '</span> (sample size ' + r.evidence.sampleSize + ')</p>' +
+    '<p style="color:var(--muted);font-size:0.85rem;">Package: ' + esc(r.commercialPackage ? r.commercialPackage.label : 'Essential') + '</p>' +
     (r.campaign.studyType ? '<p style="color:var(--muted);font-size:0.85rem;">Study type: ' + esc(studyTypeLabel(r.campaign.studyType)) + '</p>' : '') +
     '<h3 style="font-size:0.95rem;">Participant / trial metrics</h3>' +
     '<div class="metrics-row">' +
@@ -1592,19 +1693,35 @@ async function loadOpsReport() {
     metric(r.funnel.trialRedeemed, 'Trial redeemed') + metric(r.funnel.surveyComplete, 'Survey complete') +
     '</div>' +
     '<h3 style="font-size:0.95rem;">Sources</h3>' +
-    (r.sources.length ? '<table><tr><th>Source</th><th>Entered</th><th>Trial redeemed</th><th>Survey complete</th></tr>' +
-      r.sources.map(s => '<tr><td>' + esc(s.label) + '</td><td>' + s.entered + '</td><td>' + s.trialRedeemed + '</td><td>' + s.surveyComplete + '</td></tr>').join('') + '</table>'
+    (r.sources.length ? '<table><tr><th>Source</th><th>Entered</th><th>Trial redeemed</th><th>Survey complete</th><th>Share</th></tr>' +
+      r.sources.map(s => '<tr><td>' + esc(s.label) + '</td><td>' + s.entered + '</td><td>' + s.trialRedeemed + '</td><td>' + s.surveyComplete + '</td><td>' + (s.enteredPercentage != null ? s.enteredPercentage + '% entered · ' + s.surveyCompletePercentage + '% completes' : '—') + '</td></tr>').join('') + '</table>'
       : '<p style="color:var(--muted)">No QR/sources configured for this campaign.</p>') +
-    '<h3 style="font-size:0.95rem;">Demographics</h3><p>Sample size: ' + r.demographics.sampleSize + ', average age: ' + (r.demographics.averageAge ?? '—') + '<br/>' +
-    'Gender: ' + breakdownLine(r.demographics.genderBreakdown) + '<br/>' +
-    'City: ' + breakdownLine(r.demographics.cityBreakdown) + '</p>' +
+    (r.demographics.sampleSize ?
+      '<h3 style="font-size:0.95rem;">Demographics</h3><p>Sample size: ' + r.demographics.sampleSize + ', average age: ' + (r.demographics.averageAge ?? '—') + '<br/>' +
+      'Gender: ' + breakdownLine(r.demographics.genderBreakdown) + '<br/>' +
+      'City: ' + breakdownLine(r.demographics.cityBreakdown) + '</p>' +
+      (r.demographics.distributions ?
+        '<h4 style="font-size:0.85rem;margin:8px 0 2px;">Gender share</h4>' + renderChartRows(r.demographics.distributions.gender, 'of profiled participants') +
+        '<h4 style="font-size:0.85rem;margin:8px 0 2px;">City share</h4>' + renderChartRows(r.demographics.distributions.city, 'of profiled participants')
+        : '')
+      : '') +
     '<h3 style="font-size:0.95rem;">Audience Differences</h3>' + renderAudienceDifferences(r.audienceDifferences) +
-    '<h3 style="font-size:0.95rem;">Purchase intent</h3>' + (r.purchaseIntent.questionText ? '<p style="color:var(--muted);font-size:0.85rem;margin-bottom:2px;">' + esc(r.purchaseIntent.questionText) + '</p>' : '') + '<p>' + (r.purchaseIntent.averageScore ?? '—') + ' / 5 (' + r.purchaseIntent.responses + ' responses)</p>' +
-    '<h3 style="font-size:0.95rem;">Satisfaction</h3>' + (r.satisfaction.questionText ? '<p style="color:var(--muted);font-size:0.85rem;margin-bottom:2px;">' + esc(r.satisfaction.questionText) + '</p>' : '') + '<p>' + (r.satisfaction.averageScore ?? '—') + ' / 5 (' + r.satisfaction.responses + ' responses)</p>' +
-    '<h3 style="font-size:0.95rem;">Campaign-specific questions</h3>' +
-    (r.campaignSpecificQuestions.length ? r.campaignSpecificQuestions.map(q => '<p><strong>' + esc(q.text) + '</strong> (' + q.responses + ' responses)<br/>' + q.breakdown.map(b => esc(b.label) + ': ' + b.count).join(' · ') + '</p>').join('') : '<p style="color:var(--muted)">No choice-question responses yet.</p>') +
-    '<h3 style="font-size:0.95rem;">Consumer voice</h3>' +
-    (r.consumerVoice.length ? r.consumerVoice.map(v => '<div class="verbatim">"' + esc(v.response) + '"<br/><span style="color:var(--muted);font-size:0.78rem;">' + esc(v.question) + '</span></div>').join('') : '<p style="color:var(--muted)">No open-text responses yet.</p>') +
+    (r.purchaseIntent.responses ?
+      '<h3 style="font-size:0.95rem;">Purchase intent</h3>' + (r.purchaseIntent.questionText ? '<p style="color:var(--muted);font-size:0.85rem;margin-bottom:2px;">' + esc(r.purchaseIntent.questionText) + '</p>' : '') + '<p>' + r.purchaseIntent.averageScore + ' / 5 (' + r.purchaseIntent.responses + ' responses)</p>' + renderChartRows(r.purchaseIntent.distributionItems, 'of responses')
+      : '') +
+    (r.satisfaction.responses ?
+      '<h3 style="font-size:0.95rem;">Product experience</h3>' + (r.satisfaction.questionText ? '<p style="color:var(--muted);font-size:0.85rem;margin-bottom:2px;">' + esc(r.satisfaction.questionText) + '</p>' : '') + '<p>' + r.satisfaction.averageScore + ' / 5 (' + r.satisfaction.responses + ' responses)</p>' + renderChartRows(r.satisfaction.distributionItems, 'of responses')
+      : '') +
+    (r.campaignSpecificQuestions.length ?
+      '<h3 style="font-size:0.95rem;">Campaign-specific questions</h3>' +
+      r.campaignSpecificQuestions.map(q => '<div><p style="margin-bottom:2px;"><strong>' + esc(q.text) + '</strong> (' + q.responses + ' responses)<br/>' + q.breakdown.map(b => esc(b.label) + ': ' + b.count).join(' · ') + '</p>' + renderChartRows(q.breakdown, q.percentBasis === 'SELECTIONS' ? 'of selections' : 'of respondents') + '</div>').join('')
+      : '') +
+    (r.consumerVoice.length ?
+      '<h3 style="font-size:0.95rem;">Consumer voice</h3>' +
+      r.consumerVoice.map(v => '<div class="verbatim">"' + esc(v.response) + '"<br/><span style="color:var(--muted);font-size:0.78rem;">' + esc(v.question) + '</span></div>').join('')
+      : '') +
+    (Array.isArray(r.evidenceCoverage) && r.evidenceCoverage.length ?
+      '<h3 style="font-size:0.95rem;">Evidence coverage</h3><ul>' + r.evidenceCoverage.map(line => '<li>' + esc(line) + '</li>').join('') + '</ul>' : '') +
     '<h3 style="font-size:0.95rem;">Findings</h3><ul>' + r.findings.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul>' +
     '<h3 style="font-size:0.95rem;">Recommendations</h3><ul>' + (r.recommendations.length ? r.recommendations.map(f => '<li>' + esc(f) + '</li>').join('') : '<li>None yet.</li>') + '</ul>' +
     // FOUNDER INNOVATION (D-3, 2026-09-20): per-study-type methodology

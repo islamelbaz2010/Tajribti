@@ -130,7 +130,8 @@ The public website now communicates only implemented capabilities:
 - Railway metrics/deploy/crash notification coverage: partially implemented; external uptime and threshold/dashboard alerts remain owner actions.
 - Daily snapshot/backup and restore drill: owner action; do not claim configured until verified.
 - Production database remains SQLite on mounted storage; unused PostgreSQL remains retained by decision.
-- Vercel Preview may be refreshed through the established workflow; production promotion requires explicit authorization.
+- Railway production follows `benchmark-current`, not `master`; current inspection shows `api` and Postgres `SUCCESS`, with the `api-volume` and `tajribti-media` bucket present.
+- Vercel Preview was refreshed through the established CLI workflow: `dpl_2gJbWr9q8twus2HERNVckVPfKBhs` / `https://tajribti-5bk3yeeup-islam-elbaz-s-projects.vercel.app` is `READY`, serves the isolated seeded preview DB, and passed homepage/health/Company-workspace smoke checks. A deployment-scoped share link was issued with a 30-day TTL; the share secret is deliberately not stored in the repository. Production promotion requires explicit authorization.
 
 ## 12. Mobile freeze
 

@@ -204,7 +204,7 @@ router.post("/companies", requirePlatformAdmin, async (req, res) => {
           industry: d.industry,
           subIndustry: d.subIndustry,
           employees: {
-            create: { name: d.employeeName, email: d.employeeEmail, passwordHash },
+            create: { name: d.employeeName, email: d.employeeEmail, passwordHash, role: "COMPANY_ADMIN" },
           },
           commercialAgreement: {
             create: {

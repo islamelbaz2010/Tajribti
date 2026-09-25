@@ -271,10 +271,8 @@ describe("commercial package catalog and onboarding", () => {
     assert.match(audit.detail ?? "", /READY commercial agreement/i);
 
     const employee = created.body.employees[0];
-    const promote = await api(`/api/ops/companies/${created.body.id}/employees/${employee.id}/role`, {
-      method: "PATCH", token: opsAdminToken, body: { role: "COMPANY_ADMIN" },
-    });
-    assert.equal(promote.status, 200, JSON.stringify(promote.body));
+    assert.equal(employee.role, "COMPANY_ADMIN");
+    assert.equal("passwordHash" in employee, false);
     const onboardedToken = signToken({ kind: "employee", employeeId: employee.id, companyId: created.body.id });
     const campaign = await api("/api/company/campaigns", {
       method: "POST", token: onboardedToken,

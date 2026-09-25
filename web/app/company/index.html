@@ -497,7 +497,7 @@
         <div><label>Active from</label><input id="qr-from" type="date" /></div>
         <div><label>Active to</label><input id="qr-to" type="date" /></div>
       </div>
-      <button id="btn-add-qr">Add QR/source</button>
+      <button id="btn-add-qr">Generate QR Code</button>
       <div class="msg" id="qr-msg"></div>
     </div>
 
@@ -1652,7 +1652,7 @@ document.getElementById('btn-add-qr').onclick = async () => {
     }});
     const c = await api('/company/campaigns/' + currentCampaignId);
     renderQrSources(c.qrSources);
-    msg.textContent = 'QR/source added.'; msg.className = 'msg ok';
+    msg.textContent = 'QR code generated.'; msg.className = 'msg ok';
   } catch (e) { msg.textContent = e.message; msg.className = 'msg error'; }
 };
 

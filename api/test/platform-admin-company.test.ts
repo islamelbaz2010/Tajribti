@@ -336,7 +336,7 @@ describe("reconciliation pass — QR generation, template apply, segment suppres
     // the company-side route renders the same image for the same source (same generation path)
     const co = await api(`/api/company/campaigns/${camp.id}/qr-sources/${source.id}/qr.png`, { token: tokAdminA, raw: true });
     assert.equal(co.status, 200);
-    assert.deepEqual(Array.from(co.raw!.subarray(0, 4)), [0x89, 0x50, 0x4e, 0x47]);
+    assert.deepEqual(co.raw, r.raw);
   });
 
   it("PLATFORM_ADMIN applies a study template with the same integrity guard — full catalog, audited", async () => {

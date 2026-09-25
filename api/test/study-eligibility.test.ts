@@ -23,6 +23,8 @@ let stopServer: () => Promise<void>;
 
 let fbCo: string, beautyCo: string, noneCo: string, legacyCo: string;
 let tokFb: string, tokBeauty: string, tokNone: string, tokLegacy: string;
+let tokHome: string;
+const genericOnlyTokens: string[] = [];
 let tokOpsAdmin: string;
 let fbCampaign: string, legacyCampaign: string;
 
@@ -48,10 +50,23 @@ before(async () => {
   const eb = await mkAdmin(beautyCo, "a@beauty.test");
   const en = await mkAdmin(noneCo, "a@none.test");
   const el = await mkAdmin(legacyCo, "a@legacy.test");
+  const homeCo = await mkCo("Elig Home", "Home & Household Care", "Laundry Care");
+  const eh = await mkAdmin(homeCo, "a@home.test");
   tokFb = signToken({ kind: "employee", employeeId: ea, companyId: fbCo });
   tokBeauty = signToken({ kind: "employee", employeeId: eb, companyId: beautyCo });
   tokNone = signToken({ kind: "employee", employeeId: en, companyId: noneCo });
   tokLegacy = signToken({ kind: "employee", employeeId: el, companyId: legacyCo });
+  tokHome = signToken({ kind: "employee", employeeId: eh, companyId: homeCo });
+  for (const [industry, email] of [
+    ["Health & Wellness", "a@health.test"],
+    ["Baby & Family Care", "a@baby.test"],
+    ["Pet Care", "a@pet.test"],
+    ["Other", "a@other.test"],
+  ] as const) {
+    const companyId = await mkCo(`Elig ${industry}`, industry);
+    const employeeId = await mkAdmin(companyId, email);
+    genericOnlyTokens.push(signToken({ kind: "employee", employeeId, companyId }));
+  }
   const oa = await prisma.opsUser.create({ data: { email: "pa@elig.test", name: "PA", passwordHash: hash, role: "PLATFORM_ADMIN" } });
   tokOpsAdmin = signToken({ kind: "ops", opsUserId: oa.id });
 
@@ -84,8 +99,16 @@ describe("GET /company/study-templates — contextual catalog", () => {
     assert.ok(!keys.includes("POST_TRIAL_FOOD_BEVERAGE"));
     assert.equal(keys.length, GENERIC_KEYS.length + 1);
   });
-  it("no-industry and legacy-industry companies get generics only", async () => {
-    for (const tok of [tokNone, tokLegacy]) {
+  it("Home Care company gets its variant + all generics", async () => {
+    const r = await api("/api/company/study-templates", { token: tokHome });
+    const keys = r.body.map((t: any) => t.key);
+    assert.ok(keys.includes("POST_TRIAL_HOME_CARE"));
+    assert.ok(!keys.includes("POST_TRIAL_FOOD_BEVERAGE"));
+    assert.ok(!keys.includes("POST_TRIAL_BEAUTY_PERSONAL_CARE"));
+    assert.equal(keys.length, GENERIC_KEYS.length + 1);
+  });
+  it("Health, Baby, Pet, Other, no-industry and legacy-industry companies get generics only", async () => {
+    for (const tok of [...genericOnlyTokens, tokNone, tokLegacy]) {
       const r = await api("/api/company/study-templates", { token: tok });
       const keys = r.body.map((t: any) => t.key);
       assert.equal(keys.length, GENERIC_KEYS.length);
@@ -137,6 +160,29 @@ describe("write-path enforcement", () => {
       method: "POST", token: tokFb, body: { requestedStudyType: "POST_TRIAL_HOME_CARE" },
     });
     assert.equal(r.status, 400);
+  });
+  it("approval revalidates eligibility when company industry changed after the request", async () => {
+    const company = await prisma.company.create({ data: { name: "Approval Recheck", industry: "Food & Beverage", subIndustry: "Beverages" } });
+    const employee = await prisma.employee.create({
+      data: { companyId: company.id, email: "a@approval-recheck.test", name: "Admin", passwordHash: await bcrypt.hash("pass1234", 10), role: "COMPANY_ADMIN" },
+    });
+    const token = signToken({ kind: "employee", employeeId: employee.id, companyId: company.id });
+    const campaign = await prisma.campaign.create({
+      data: { companyId: company.id, name: "Approval Recheck", objective: "o", startDate: new Date(), endDate: new Date(), status: "DRAFT" },
+    });
+    await prisma.question.create({ data: { campaignId: campaign.id, stage: "POST_TRIAL", type: "TEXT", text: "Feedback?", order: 0 } });
+    const filed = await api(`/api/company/campaigns/${campaign.id}/study-type-requests`, {
+      method: "POST", token, body: { requestedStudyType: "POST_TRIAL_FOOD_BEVERAGE" },
+    });
+    assert.equal(filed.status, 201);
+    assert.equal((await api(`/api/ops/companies/${company.id}`, {
+      method: "PATCH", token: tokOpsAdmin, body: { industry: "Beauty & Personal Care", subIndustry: "Skincare" },
+    })).status, 200);
+    const approval = await api(`/api/ops/study-type-requests/${filed.body.id}/approve`, { method: "POST", token: tokOpsAdmin });
+    assert.equal(approval.status, 409);
+    assert.match(approval.body.error, /no longer available/i);
+    assert.equal((await prisma.campaign.findUnique({ where: { id: campaign.id } }))?.studyType, null);
+    assert.equal((await prisma.studyTypeChangeRequest.findUnique({ where: { id: filed.body.id } }))?.status, "PENDING");
   });
   it("apply-template rejects an ineligible variant", async () => {
     const r = await api(`/api/company/campaigns/${fbCampaign}/questions/apply-template`, {

@@ -1341,13 +1341,13 @@ async function loadQrOps() {
         '</div>' +
       '</div>').join('')
     : '<p style="color:var(--muted)">No QR/sources configured for this campaign.</p>') +
-    (isAdmin ? '<h4 style="font-size:0.85rem;margin:10px 0 4px;">Add QR/source (Platform Admin — audited)</h4>' +
+    (isAdmin ? '<h4 style="font-size:0.85rem;margin:10px 0 4px;">Generate QR Code (Platform Admin — audited)</h4>' +
       '<div class="row" style="gap:8px;flex-wrap:wrap;">' +
       '<input id="qrs-label" placeholder="Label" style="margin:0;" />' +
       '<input id="qrs-code" placeholder="Code" style="margin:0;" />' +
       '<input id="qrs-from" type="date" style="margin:0;" />' +
       '<input id="qrs-to" type="date" style="margin:0;" />' +
-      '<button class="small" id="btn-qrs-add">Add source</button></div>' +
+      '<button class="small" id="btn-qrs-add">Generate QR Code</button></div>' +
       '<span class="msg" id="qrs-msg"></span>' : '');
   if (isAdmin) {
     document.getElementById('btn-qrs-add').onclick = async () => {

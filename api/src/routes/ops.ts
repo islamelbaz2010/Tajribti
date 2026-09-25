@@ -18,7 +18,7 @@ import {
   classifySample,
 } from "../lib/measurement";
 import { buildReport } from "../lib/report";
-import { STUDY_TEMPLATES, findTemplate } from "../lib/studyTemplates";
+import { STUDY_TEMPLATES, findTemplate, isStudyTypeEligible } from "../lib/studyTemplates";
 import { sendQrPng } from "../lib/qr";
 
 const router = Router();
@@ -848,12 +848,15 @@ router.post("/study-type-requests/:id/approve", async (req, res) => {
   const { opsUserId } = asOps(req);
   const request = await prisma.studyTypeChangeRequest.findUnique({
     where: { id: req.params.id },
-    include: { campaign: true },
+    include: { campaign: { include: { company: { select: { industry: true } } } } },
   });
   if (!request) return res.status(404).json({ error: "Request not found" });
   if (request.status !== "PENDING") return res.status(409).json({ error: "Request is not pending" });
   if (request.campaign.status !== "DRAFT" && request.campaign.status !== "READY") {
     return res.status(409).json({ error: "Campaign is no longer configurable; this request can no longer be approved" });
+  }
+  if (request.requestedStudyType && !isStudyTypeEligible(request.requestedStudyType, request.campaign.company.industry)) {
+    return res.status(409).json({ error: "The requested study type is no longer available for this company's industry" });
   }
 
   // Concurrency safety: only flip PENDING -> APPROVED, and only apply the
